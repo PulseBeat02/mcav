@@ -17,18 +17,6 @@
  */
 package me.brandonli.mcav.plugin.command;
 
-import static org.incendo.cloud.minecraft.extras.MinecraftHelp.MESSAGE_ARGUMENTS;
-import static org.incendo.cloud.minecraft.extras.MinecraftHelp.MESSAGE_AVAILABLE_COMMANDS;
-import static org.incendo.cloud.minecraft.extras.MinecraftHelp.MESSAGE_CLICK_FOR_NEXT_PAGE;
-import static org.incendo.cloud.minecraft.extras.MinecraftHelp.MESSAGE_CLICK_FOR_PREVIOUS_PAGE;
-import static org.incendo.cloud.minecraft.extras.MinecraftHelp.MESSAGE_CLICK_TO_SHOW_HELP;
-import static org.incendo.cloud.minecraft.extras.MinecraftHelp.MESSAGE_DESCRIPTION;
-import static org.incendo.cloud.minecraft.extras.MinecraftHelp.MESSAGE_HELP_TITLE;
-import static org.incendo.cloud.minecraft.extras.MinecraftHelp.MESSAGE_NO_RESULTS_FOR_QUERY;
-import static org.incendo.cloud.minecraft.extras.MinecraftHelp.MESSAGE_OPTIONAL;
-import static org.incendo.cloud.minecraft.extras.MinecraftHelp.MESSAGE_PAGE_OUT_OF_RANGE;
-import static org.incendo.cloud.minecraft.extras.MinecraftHelp.MESSAGE_SHOWING_RESULTS_FOR_QUERY;
-
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import java.util.HashMap;
@@ -36,6 +24,7 @@ import java.util.Map;
 import me.brandonli.mcav.plugin.locale.LocaleTools;
 import me.brandonli.mcav.plugin.locale.TranslationManager;
 import org.bukkit.command.CommandSender;
+import org.checkerframework.checker.initialization.qual.UnderInitialization;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.incendo.cloud.CommandManager;
 import org.incendo.cloud.annotation.specifier.Greedy;
@@ -64,15 +53,16 @@ public final class HelpCommand implements AnnotationCommandFeature {
   private final MinecraftHelp<CommandSender> minecraftHelp;
 
   /**
-   * Constructs the command.
+   * Creates the command.
    *
    * @param manager the command manager whose commands are listed
+   * @throws NullPointerException if {@code manager} is null
    * @since 1.0.0
    */
   public HelpCommand(final CommandManager<CommandSender> manager) {
     Preconditions.checkNotNull(manager, "Command manager must not be null!");
 
-    final Map<String, String> messages = createMessages();
+    final Map<String, String> messages = this.createMessages();
     final AudienceProvider<CommandSender> audiences = AudienceProvider.nativeAudience();
     final ImmutableMinecraftHelp.CommandManagerBuildStage<CommandSender> managerStage = MinecraftHelp.builder();
     final ImmutableMinecraftHelp.AudienceProviderBuildStage<CommandSender> audienceStage = managerStage.commandManager(manager);
@@ -84,23 +74,28 @@ public final class HelpCommand implements AnnotationCommandFeature {
 
   // every key is filled in: a missing one falls back to the help's English text
   @VisibleForTesting
-  static Map<String, String> createMessages() {
+  Map<String, String> createMessages(@UnderInitialization HelpCommand this) {
     final Map<String, String> messages = new HashMap<>();
-    putTranslation(messages, MESSAGE_HELP_TITLE, "mcav.command.help.command");
-    putTranslation(messages, MESSAGE_DESCRIPTION, "mcav.command.help.description");
-    putTranslation(messages, MESSAGE_ARGUMENTS, "mcav.command.help.arguments");
-    putTranslation(messages, MESSAGE_OPTIONAL, "mcav.command.help.optional");
-    putTranslation(messages, MESSAGE_SHOWING_RESULTS_FOR_QUERY, "mcav.command.help.search_query");
-    putTranslation(messages, MESSAGE_NO_RESULTS_FOR_QUERY, "mcav.command.help.none_query");
-    putTranslation(messages, MESSAGE_AVAILABLE_COMMANDS, "mcav.command.help.available_commands");
-    putTranslation(messages, MESSAGE_CLICK_TO_SHOW_HELP, "mcav.command.help.show_help");
-    putTranslation(messages, MESSAGE_PAGE_OUT_OF_RANGE, "mcav.command.help.page_invalid");
-    putTranslation(messages, MESSAGE_CLICK_FOR_NEXT_PAGE, "mcav.command.help.next_page");
-    putTranslation(messages, MESSAGE_CLICK_FOR_PREVIOUS_PAGE, "mcav.command.help.previous_page");
+    this.putTranslation(messages, MinecraftHelp.MESSAGE_HELP_TITLE, "mcav.command.help.command");
+    this.putTranslation(messages, MinecraftHelp.MESSAGE_DESCRIPTION, "mcav.command.help.description");
+    this.putTranslation(messages, MinecraftHelp.MESSAGE_ARGUMENTS, "mcav.command.help.arguments");
+    this.putTranslation(messages, MinecraftHelp.MESSAGE_OPTIONAL, "mcav.command.help.optional");
+    this.putTranslation(messages, MinecraftHelp.MESSAGE_SHOWING_RESULTS_FOR_QUERY, "mcav.command.help.search_query");
+    this.putTranslation(messages, MinecraftHelp.MESSAGE_NO_RESULTS_FOR_QUERY, "mcav.command.help.none_query");
+    this.putTranslation(messages, MinecraftHelp.MESSAGE_AVAILABLE_COMMANDS, "mcav.command.help.available_commands");
+    this.putTranslation(messages, MinecraftHelp.MESSAGE_CLICK_TO_SHOW_HELP, "mcav.command.help.show_help");
+    this.putTranslation(messages, MinecraftHelp.MESSAGE_PAGE_OUT_OF_RANGE, "mcav.command.help.page_invalid");
+    this.putTranslation(messages, MinecraftHelp.MESSAGE_CLICK_FOR_NEXT_PAGE, "mcav.command.help.next_page");
+    this.putTranslation(messages, MinecraftHelp.MESSAGE_CLICK_FOR_PREVIOUS_PAGE, "mcav.command.help.previous_page");
     return messages;
   }
 
-  private static void putTranslation(final Map<String, String> messages, final String helpKey, final String translationKey) {
+  private void putTranslation(
+    @UnderInitialization HelpCommand this,
+    final Map<String, String> messages,
+    final String helpKey,
+    final String translationKey
+  ) {
     final TranslationManager translations = LocaleTools.MANAGER;
     final String text = translations.getProperty(translationKey);
     messages.put(helpKey, text);
@@ -113,6 +108,7 @@ public final class HelpCommand implements AnnotationCommandFeature {
    *
    * @param sender who ran the command
    * @param query  the command to show, or {@code null} to list every command
+   * @throws NullPointerException if {@code sender} is null
    * @since 1.0.0
    */
   @Permission("mcav.command.help")
@@ -121,11 +117,11 @@ public final class HelpCommand implements AnnotationCommandFeature {
   public void commandHelp(final CommandSender sender, @Greedy final @Nullable String query) {
     Preconditions.checkNotNull(sender, "Sender must not be null!");
 
-    final String search = this.searchQuery(query);
+    final String search = this.toHelpQuery(query);
     this.minecraftHelp.queryCommands(search, sender);
   }
 
-  private String searchQuery(final @Nullable String query) {
+  private String toHelpQuery(final @Nullable String query) {
     if (query == null || query.isBlank()) {
       return "";
     }

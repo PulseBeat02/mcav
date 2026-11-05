@@ -78,7 +78,7 @@ val voiceChatPlugin: String = "voicechat"
 val serverHeapSize: String = "8192m"
 
 val endToEndProperty: String = "mcav.e2e"
-val endToEndPortProperty: String = "mcav.e2e.repositoryPort"
+val endToEndPortProperty: String = "mcav.e2e.repository_port"
 val acceptEulaProperty: String = "mcav.acceptMinecraftEula"
 val disabledValue: String = "false"
 val anyFreePort: Int = 0
@@ -93,12 +93,12 @@ val endToEndImplementation: String = "e2eTestImplementation"
 val endToEndRuntimeOnly: String = "e2eTestRuntimeOnly"
 val endToEndCachePath: String = "e2e-cache"
 
-val paperFileNameProperty: String = "mcav.e2e.paperFileName"
-val voiceChatFileNameProperty: String = "mcav.e2e.voiceChatFileName"
-val cacheDirectoryProperty: String = "mcav.e2e.cacheDirectory"
-val acceptEulaTestProperty: String = "mcav.e2e.acceptEula"
-val repositoryDirectoryProperty: String = "mcav.e2e.repositoryDirectory"
-val pluginJarProperty: String = "mcav.e2e.pluginJar"
+val paperFileNameProperty: String = "mcav.e2e.paper_file_name"
+val voiceChatFileNameProperty: String = "mcav.e2e.voice_chat_file_name"
+val cacheDirectoryProperty: String = "mcav.e2e.cache_directory"
+val acceptEulaTestProperty: String = "mcav.e2e.accept_eula"
+val repositoryDirectoryProperty: String = "mcav.e2e.repository_directory"
+val pluginJarProperty: String = "mcav.e2e.plugin_jar"
 val javaProperty: String = "mcav.e2e.java"
 
 val legacyFormattingWarningProperty: String = "net.kyori.adventure.text.warnWhenLegacyFormattingDetected"
@@ -201,14 +201,14 @@ val pluginPermissions: Map<String, String> = mapOf(
     "mcav.command.mcv2.play" to "Plays, streams and stops pre-encoded MCV2 streams from the plugin's mcv2 folder",
     "mcav.command.mcv2.encode" to "Pre-encodes a video file into an MCV2 stream in the plugin's mcv2 folder, and cancels that encode",
     "mcav.command.browser.create" to "Opens a web page on a wall of maps, with its sound in an audio output",
-    "mcav.browser.release" to "Closes the browser",
-    "mcav.browser.interact" to "Clicks and types into the browser: clicks on its screen, and chat with /mcav browser interact",
+    "mcav.command.browser.release" to "Closes the browser",
+    "mcav.command.browser.interact" to "Clicks and types into the browser: clicks on its screen, and chat with /mcav browser interact",
     "mcav.command.vm.create" to "Boots a QEMU virtual machine on a wall of maps, with its sound in an audio output",
-    "mcav.vm.release" to "Powers off the virtual machine",
-    "mcav.vm.interact" to "Clicks and types into the virtual machine: clicks on its screen, and chat with /mcav vm interact",
+    "mcav.command.vm.release" to "Powers off the virtual machine",
+    "mcav.command.vm.interact" to "Clicks and types into the virtual machine: clicks on its screen, and chat with /mcav vm interact",
     "mcav.command.vnc.create" to "Shows the desktop of a VNC server listed in vnc.allowed-hosts on a wall of maps",
-    "mcav.vnc.release" to "Disconnects from the VNC desktop",
-    "mcav.vnc.interact" to "Clicks and types on the VNC desktop: clicks on its screen, and chat with /mcav vnc interact",
+    "mcav.command.vnc.release" to "Disconnects from the VNC desktop",
+    "mcav.command.vnc.interact" to "Clicks and types on the VNC desktop: clicks on its screen, and chat with /mcav vnc interact",
 )
 
 paperPluginYaml {

@@ -27,7 +27,7 @@ to set the `host-name` to your public IP address or domain if the server is open
 3) Change the `enabled` option under `http-server` to `true`.
 4) Restart your server to apply the changes.
 5) The web server starts in the background. Once it is listening, the console prints
-`The audio web page is available at <link>.`; open that link in a browser to check it.
+`Audio web page <link> is available.`; open that link in a browser to check it.
 
 ### Option 2: Discord audio streaming
 
@@ -55,9 +55,9 @@ it's the correct version for your Minecraft server; version 2.6.24 supports Mine
 2) Open the `config.yml` file, and set the `enabled` option under the `simple-voice-chat` section to `true`.
 3) (User Side) Install the [Simple Voice Chat](https://modrinth.com/plugin/simple-voice-chat) mod on your client.
 4) Restart your server to apply the changes.
-5) Once Simple Voice Chat has started, the console prints `Simple Voice Chat audio is ready.` If Simple Voice Chat
-audio is enabled but the plugin is missing, MCAV logs one error instead, `MCAV cannot be enabled: Simple Voice Chat
-audio is enabled, but the voicechat plugin is not installed! To fix it, install the Simple Voice Chat plugin or set
+5) Once Simple Voice Chat has started, the console prints `Simple Voice Chat audio is ready.` If Simple Voice Chat audio
+is enabled but the plugin is missing, MCAV logs one error instead, `MCAV cannot be enabled: Simple Voice Chat audio is
+enabled, but the Simple Voice Chat plugin is not installed! To fix it, install the Simple Voice Chat plugin or set
 simple-voice-chat.enabled to false in config.yml.`, and disables itself. Fix either and restart the server.
 
 ---
@@ -114,8 +114,8 @@ static image can also produce no map updates, so packet silence alone does not i
 2) If you want to interact with the browser, you can use the `/mcav browser interact` command, which takes all your
    chat input and sends it to the browser as if you were typing in a real web browser. For a special key, type its key
    name, such as `Enter`, to press it. A left or right click on the browser simulates a mouse
-   click, for every player with the permission `mcav.browser.interact`. For more information on possible keys, see the
-   `KeyboardEvent.key` column
+   click, for every player with the permission `mcav.command.browser.interact`. For more information on possible keys,
+   see the `KeyboardEvent.key` column
    [here](https://developer.mozilla.org/en-US/docs/Web/API/UI_Events/Keyboard_event_key_values).
 3) Once you're done with the browser, you can close it by running the `/mcav browser release` command.
 

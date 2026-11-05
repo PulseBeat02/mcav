@@ -53,16 +53,15 @@ import org.slf4j.LoggerFactory;
  * The common flow of the image commands: parse the resolution, load the image on the worker thread, and show it
  * on the main thread with the display type of the subclass.
  *
+ * <p>This class is not thread-safe: use it on the server main thread; images load on the image manager's worker.
+ *
  * @since 1.0.0
  */
 public abstract class AbstractImageCommand implements AnnotationCommandFeature {
 
   private static final Equivalence<Object> FAILURE_IDENTITY = Equivalence.identity();
+
   private static final Logger LOGGER = LoggerFactory.getLogger(AbstractImageCommand.class);
-
-  private static final String WORKER_REFUSED = "The image worker refused to load an image.";
-
-  private static final String LOAD_FAILED = "Image {} could not be loaded.";
 
   private static final char QUOTE = '"';
   private static final int QUOTE_COUNT = 2;
@@ -74,17 +73,13 @@ public abstract class AbstractImageCommand implements AnnotationCommandFeature {
    */
   protected final MCAVSandbox plugin;
 
-  /**
-   * The manager of the displayed image.
-   *
-   * @since 1.0.0
-   */
-  protected final ImageManager manager;
+  private final ImageManager manager;
 
   /**
-   * Constructs the command.
+   * Creates the command.
    *
    * @param plugin the plugin
+   * @throws NullPointerException if {@code plugin} is null
    * @since 1.0.0
    */
   protected AbstractImageCommand(final MCAVSandbox plugin) {
@@ -102,6 +97,7 @@ public abstract class AbstractImageCommand implements AnnotationCommandFeature {
    * @param imageResolution       the resolution argument, such as {@code 640x640}
    * @param mrl                   the path or URL of the image, optionally enclosed in one pair of double quotes
    * @param filters               the {@code --filters} option, see {@link FilterChain}, or {@code null} for none
+   * @throws NullPointerException if an argument other than {@code filters} is null
    * @since 1.0.0
    */
   public void displayImage(
@@ -138,13 +134,18 @@ public abstract class AbstractImageCommand implements AnnotationCommandFeature {
     }
 
     final ImageRequest request = new ImageRequest(sender, sourceMrl, resolution, configurationProvider);
-    this.startLoading(chain.isEmpty() ? loader : () -> this.filter(loader.get(), resolution, chain), request);
+    final Supplier<ImageBuffer> filteredLoader = () -> this.filter(loader.get(), resolution, chain);
+    final Supplier<ImageBuffer> chosenLoader = chain.isEmpty() ? loader : filteredLoader;
+    this.startLoading(chosenLoader, request);
   }
 
   // resized first, which bounds the filters' work
   private ImageBuffer filter(final ImageBuffer image, final Pair<Integer, Integer> resolution, final FilterChain chain) {
     try {
-      new ResizeFilter(resolution.getFirst(), resolution.getSecond()).applyFilter(image);
+      final int width = resolution.getFirst();
+      final int height = resolution.getSecond();
+      final ResizeFilter resize = new ResizeFilter(width, height);
+      resize.applyFilter(image);
       chain.apply(image);
 
       return image;
@@ -188,11 +189,12 @@ public abstract class AbstractImageCommand implements AnnotationCommandFeature {
       generation = this.manager.beginLoad();
       loading = CompletableFuture.supplyAsync(loader, service);
     } catch (final RejectedExecutionException exception) {
-      LOGGER.error(WORKER_REFUSED, exception);
+      LOGGER.error("The image worker refused to load an image.", exception);
       final Component message = Message.UNSUPPORTED_MRL.build();
       sender.sendMessage(message);
       return;
     }
+
     TaskUtils.whenComplete(loading, (image, error) -> this.onImageLoaded(request, generation, image, error));
   }
 
@@ -206,7 +208,7 @@ public abstract class AbstractImageCommand implements AnnotationCommandFeature {
     final CommandSender sender = request.getSender();
     if (error != null) {
       final String mrl = request.getMrl();
-      LOGGER.error(LOAD_FAILED, mrl, error);
+      LOGGER.error("Image {} could not be loaded.", mrl, error);
       final Component message = Message.UNSUPPORTED_MRL.build();
       TaskUtils.runOnMainThread(this.plugin, () -> sender.sendMessage(message));
       return;
@@ -242,7 +244,7 @@ public abstract class AbstractImageCommand implements AnnotationCommandFeature {
     final ImageConfigurationProvider configurationProvider,
     final CommandSender sender
   ) {
-    final ImageBuffer image = this.manager.takeLoaded(generation);
+    final @Nullable ImageBuffer image = this.manager.takeLoaded(generation);
     if (image == null) {
       return;
     }
@@ -283,11 +285,11 @@ public abstract class AbstractImageCommand implements AnnotationCommandFeature {
 
     final SourceDetectionHelper helper = new SourceDetectionHelper();
     final Optional<Source> detected = helper.detectSource(mrl);
-    if (detected.isEmpty()) {
+    final @Nullable Source source = detected.orElse(null);
+    if (source == null) {
       return null;
     }
 
-    final Source source = detected.get();
     final boolean animated = SourceUtils.isImageGif(source);
     if (animated) {
       return null;

@@ -81,7 +81,7 @@ final class ImageEntityCommandTest {
     this.sender = mock(CommandSender.class);
 
     final FakeWorld world = new FakeWorld();
-    this.location = world.location(5.0, 70.0, -5.0);
+    this.location = world.createLocation(5.0, 70.0, -5.0);
   }
 
   @Test

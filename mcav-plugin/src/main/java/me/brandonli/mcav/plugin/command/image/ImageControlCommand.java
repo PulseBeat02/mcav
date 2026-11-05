@@ -44,15 +44,14 @@ public final class ImageControlCommand implements AnnotationCommandFeature {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(ImageControlCommand.class);
 
-  private static final String RELEASE_FAILED = "Failed to release the image.";
-
   private final MCAVSandbox plugin;
   private final ImageManager manager;
 
   /**
-   * Constructs the command.
+   * Creates the command.
    *
    * @param plugin the plugin
+   * @throws NullPointerException if {@code plugin} is null
    * @since 1.0.0
    */
   public ImageControlCommand(final MCAVSandbox plugin) {
@@ -72,6 +71,7 @@ public final class ImageControlCommand implements AnnotationCommandFeature {
    * command does nothing but still sends both messages.
    *
    * @param sender who ran the command
+   * @throws NullPointerException if {@code sender} is null
    * @since 1.0.0
    */
   @Command("mcav image release")
@@ -92,7 +92,7 @@ public final class ImageControlCommand implements AnnotationCommandFeature {
 
   private void reportRelease(final Runnable done, final @Nullable Throwable error) {
     if (error != null) {
-      LOGGER.error(RELEASE_FAILED, error);
+      LOGGER.error("Failed to release the image.", error);
       return;
     }
 

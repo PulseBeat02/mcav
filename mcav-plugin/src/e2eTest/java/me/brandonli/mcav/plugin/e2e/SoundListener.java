@@ -34,9 +34,6 @@ final class SoundListener implements WebSocket.Listener, AutoCloseable {
 
   private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(30);
 
-  private static final String URL_PREFIX = "ws://127.0.0.1:";
-  private static final String AUDIO_PATH = "/audio";
-
   private static final int POLL_INTERVAL_MILLISECONDS = 100;
 
   private static final double CROSSINGS_PER_CYCLE = 2.0;
@@ -52,7 +49,9 @@ final class SoundListener implements WebSocket.Listener, AutoCloseable {
   }
 
   static SoundListener connect(final int port) {
-    return new SoundListener(HttpClient.newHttpClient(), URI.create(URL_PREFIX + port + AUDIO_PATH));
+    final HttpClient client = HttpClient.newHttpClient();
+    final URI uri = URI.create("ws://127.0.0.1:%s/audio".formatted(port));
+    return new SoundListener(client, uri);
   }
 
   @Override
@@ -82,30 +81,40 @@ final class SoundListener implements WebSocket.Listener, AutoCloseable {
   double awaitFrequency(final int seconds, final Duration timeout) throws InterruptedException {
     final long deadline = System.nanoTime() + timeout.toNanos();
     final int wanted = seconds * SAMPLE_RATE * FRAME_BYTES;
-    byte[] heard = this.heard();
+    final byte[] heard = this.awaitSound(wanted, deadline, timeout);
+    return this.measureFrequency(heard);
+  }
+
+  private byte[] awaitSound(final int wanted, final long deadline, final Duration timeout) throws InterruptedException {
+    byte[] heard = this.copyHeardBytes();
     while (heard.length < wanted) {
       if (System.nanoTime() > deadline) {
         final String message = "Within %s, only %s bytes of sound arrived!".formatted(timeout, heard.length);
         throw new AssertionError(message);
       }
       TimeUnit.MILLISECONDS.sleep(POLL_INTERVAL_MILLISECONDS);
-      heard = this.heard();
+      heard = this.copyHeardBytes();
     }
+
+    return heard;
+  }
+
+  private double measureFrequency(final byte[] heard) {
     final ByteBuffer samples = ByteBuffer.wrap(heard).order(ByteOrder.LITTLE_ENDIAN);
     final int frames = heard.length / FRAME_BYTES;
     int crossings = 0;
-    boolean negative = samples.getShort((frames - SAMPLE_RATE) * FRAME_BYTES) < 0;
+    boolean previousNegative = samples.getShort((frames - SAMPLE_RATE) * FRAME_BYTES) < 0;
     for (int frame = frames - SAMPLE_RATE + 1; frame < frames; frame++) {
-      final boolean now = samples.getShort(frame * FRAME_BYTES) < 0;
-      if (now != negative) {
+      final boolean currentNegative = samples.getShort(frame * FRAME_BYTES) < 0;
+      if (currentNegative != previousNegative) {
         crossings++;
       }
-      negative = now;
+      previousNegative = currentNegative;
     }
     return crossings / CROSSINGS_PER_CYCLE;
   }
 
-  private byte[] heard() {
+  private byte[] copyHeardBytes() {
     synchronized (this.pcm) {
       return this.pcm.toByteArray();
     }

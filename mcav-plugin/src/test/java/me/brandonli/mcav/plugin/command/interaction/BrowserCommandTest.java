@@ -87,6 +87,8 @@ final class BrowserCommandTest {
   private static final String SITE_URL = "https://example.com";
   private static final String AUDIO_HTTP_URL = "http://mc.example.com:3000/";
 
+  private static final String BROWSER_RELEASE_FAILURE_MESSAGE = "release broke!";
+
   private BrowserCommand command;
   private MCAVSandbox plugin;
   private AudioProvider provider;
@@ -214,7 +216,7 @@ final class BrowserCommandTest {
 
     this.assertReceived(Message.BROWSER_UNSUPPORTED.build());
     this.browsers.verify(() -> BrowserPlayer.create(any(BrowserOptions.class)), never());
-    assertNull(this.command.result);
+    assertNull(this.command.output);
   }
 
   @Test
@@ -247,7 +249,7 @@ final class BrowserCommandTest {
     when(this.browser.startAsync(any(BrowserSource.class), any())).thenReturn(CompletableFuture.completedFuture(true));
     this.create(RESOLUTION, BLOCK_DIMENSIONS, AudioArgument.SIMPLE_VOICE_CHAT, PAGE_URL);
     when(this.plugin.getAudioProvider()).thenThrow(new IllegalStateException("The audio provider is not available!"));
-    Mockito.doThrow(new IllegalStateException("release broke!")).when(this.browser).release();
+    Mockito.doThrow(new IllegalStateException(BROWSER_RELEASE_FAILURE_MESSAGE)).when(this.browser).release();
     this.command.releaseBrowser(this.sender);
     verify(this.provider).releaseAudioFilter(this.browser);
     verify(this.callback).detach();
@@ -258,11 +260,11 @@ final class BrowserCommandTest {
   void shouldFailTheShutdownWhenABrowserFailsToStopWhileTheCommandShutsDown() {
     when(this.browser.startAsync(any(BrowserSource.class), any())).thenReturn(CompletableFuture.completedFuture(true));
     this.create(RESOLUTION, BLOCK_DIMENSIONS, PAGE_URL);
-    Mockito.doThrow(new IllegalStateException("release broke!")).when(this.browser).release();
+    Mockito.doThrow(new IllegalStateException(BROWSER_RELEASE_FAILURE_MESSAGE)).when(this.browser).release();
     final IllegalStateException failure = assertThrows(IllegalStateException.class, this.command::shutdown);
 
     final String message = failure.getMessage();
-    assertEquals("release broke!", message);
+    assertEquals(BROWSER_RELEASE_FAILURE_MESSAGE, message);
   }
 
   @Test
@@ -275,7 +277,8 @@ final class BrowserCommandTest {
     assertEquals(expected, received);
 
     final List<String> receivedText = Components.receivedText(this.viewer);
-    assertEquals(List.of("Click on the URL to listen onto the website! http://mc.example.com:3000/"), receivedText);
+    final List<String> expectedText = List.of("Click on the URL to listen onto the website! http://mc.example.com:3000/");
+    assertEquals(expectedText, receivedText);
 
     this.createWithTheWebPage(CompletableFuture.failedFuture(new IllegalStateException("the page broke!")));
     verify(this.provider).constructHttpUrl();
@@ -284,7 +287,8 @@ final class BrowserCommandTest {
     assertEquals(expected, componentsReceived);
 
     final List<String> componentsReceivedText = Components.receivedText(this.viewer);
-    assertEquals(List.of("Click on the URL to listen onto the website! http://mc.example.com:3000/"), componentsReceivedText);
+    final List<String> expectedComponentsText = List.of("Click on the URL to listen onto the website! http://mc.example.com:3000/");
+    assertEquals(expectedComponentsText, componentsReceivedText);
   }
 
   private void createWithTheWebPage(final CompletableFuture<Boolean> start) {
@@ -319,11 +323,11 @@ final class BrowserCommandTest {
     final Component expected = Message.BROWSER_UNAVAILABLE.build();
     assertEquals(expected, direct);
 
-    final Component BROWSER_UNAVAILABLEExpected = Message.BROWSER_UNAVAILABLE.build();
-    assertEquals(BROWSER_UNAVAILABLEExpected, wrapped);
+    final Component expectedUnavailable = Message.BROWSER_UNAVAILABLE.build();
+    assertEquals(expectedUnavailable, wrapped);
 
-    final Component BROWSER_ERRORExpected = Message.BROWSER_ERROR.build();
-    assertEquals(BROWSER_ERRORExpected, other);
+    final Component expectedError = Message.BROWSER_ERROR.build();
+    assertEquals(expectedError, other);
   }
 
   @Test
@@ -335,7 +339,7 @@ final class BrowserCommandTest {
 
     verify(this.browser, timeout(RELEASE_MILLISECONDS)).release();
     assertNull(this.command.player);
-    assertNull(this.command.result);
+    assertNull(this.command.output);
 
     final Component failed = Message.BROWSER_ERROR.build();
     this.assertReceived(Message.BROWSER_LOADING.build(), failed);
@@ -344,7 +348,7 @@ final class BrowserCommandTest {
   @Test
   void shouldNeedTheInteractPermissionForInput() {
     final String permission = this.command.getInteractionPermission();
-    assertEquals("mcav.browser.interact", permission, "clicks and chat are the input of the interact subcommand");
+    assertEquals("mcav.command.browser.interact", permission, "clicks and chat are the input of the interact subcommand");
   }
 
   @Test
@@ -435,7 +439,8 @@ final class BrowserCommandTest {
     assertTrue(confined);
 
     final List<String> refusedHosts = options.getRefusedHosts();
-    assertEquals(List.of("203.0.113.5"), refusedHosts);
+    final List<String> expectedRefusedHosts = List.of("203.0.113.5");
+    assertEquals(expectedRefusedHosts, refusedHosts);
   }
 
   private void createWithConfiguredOptions() {
@@ -479,7 +484,7 @@ final class BrowserCommandTest {
     // the screen's output owns its maps: releasing it releases them
     verify(this.ditherFilter).release();
     assertNull(this.command.player);
-    assertNull(this.command.result);
+    assertNull(this.command.output);
   }
 
   @Test
@@ -619,7 +624,7 @@ final class BrowserCommandTest {
   @ParameterizedTest
   @ValueSource(strings = { "http://example.com", "https://example.com/page?q=1#top", "HTTPS://Example.com/" })
   void shouldAcceptWebPageAddresses(final String url) {
-    final URI uri = BrowserCommand.parseWebAddress(url);
+    final URI uri = this.command.parseWebAddress(url);
 
     final URI expected = URI.create(url);
     assertEquals(expected, uri);

@@ -84,8 +84,8 @@ final class ServerProcess implements AutoCloseable {
       }
     } catch (final InterruptedException exception) {
       this.process.destroyForcibly();
-      final Thread currentThread = Thread.currentThread();
-      currentThread.interrupt();
+      final Thread current = Thread.currentThread();
+      current.interrupt();
     }
   }
 
@@ -95,13 +95,13 @@ final class ServerProcess implements AutoCloseable {
     try (final BufferedReader bufferedReader = new BufferedReader(streamReader)) {
       String line = bufferedReader.readLine();
       while (line != null) {
-        System.out.println("[server] " + line);
+        System.out.println("[server] %s".formatted(line));
         this.addLine(line);
         line = bufferedReader.readLine();
       }
     } catch (final IOException exception) {
       final String message = exception.getMessage();
-      this.addLine("[output closed: " + message + "]");
+      this.addLine("[output closed: %s]".formatted(message));
     }
   }
 
@@ -114,14 +114,15 @@ final class ServerProcess implements AutoCloseable {
 
   void command(final String command) {
     final String separator = System.lineSeparator();
-    final String consoleLine = command + separator;
+    final String consoleLine = "%s%s".formatted(command, separator);
     final byte[] bytes = consoleLine.getBytes(StandardCharsets.UTF_8);
     final OutputStream consoleInput = this.process.getOutputStream();
     try {
       consoleInput.write(bytes);
       consoleInput.flush();
     } catch (final IOException exception) {
-      throw new UncheckedIOException("The server console is closed!", exception);
+      final String message = "The server console is closed!";
+      throw new UncheckedIOException(message, exception);
     }
   }
 
@@ -140,8 +141,9 @@ final class ServerProcess implements AutoCloseable {
     while (true) {
       final int lineCount = this.lines.size();
       final Optional<String> match = this.findMatch(nextLine, lineCount, matcher);
-      if (match.isPresent()) {
-        return match.get();
+      final String matchedLine = match.orElse(null);
+      if (matchedLine != null) {
+        return matchedLine;
       }
       nextLine = lineCount;
       this.waitForMoreOutput(deadline, timeout);
@@ -171,18 +173,6 @@ final class ServerProcess implements AutoCloseable {
     TimeUnit.NANOSECONDS.timedWait(this.lines, waitNanoseconds);
   }
 
-  int getLineCount() {
-    synchronized (this.lines) {
-      return this.lines.size();
-    }
-  }
-
-  List<String> getLines() {
-    synchronized (this.lines) {
-      return List.copyOf(this.lines);
-    }
-  }
-
   int awaitExit(final Duration timeout) throws InterruptedException {
     final long milliseconds = timeout.toMillis();
     final boolean exited = this.process.waitFor(milliseconds, TimeUnit.MILLISECONDS);
@@ -201,12 +191,26 @@ final class ServerProcess implements AutoCloseable {
     try (final Stream<ProcessHandle> descendants = this.process.descendants()) {
       return descendants
         .filter(ProcessHandle::isAlive)
-        .filter(handle -> matcher.test(programOf(handle)))
+        .filter(handle -> matcher.test(this.programOf(handle)))
         .toList();
     }
   }
 
-  static String programOf(final ProcessHandle handle) {
-    return handle.info().command().orElse("");
+  String programOf(final ProcessHandle handle) {
+    final ProcessHandle.Info info = handle.info();
+    final Optional<String> command = info.command();
+    return command.orElse("");
+  }
+
+  int getLineCount() {
+    synchronized (this.lines) {
+      return this.lines.size();
+    }
+  }
+
+  List<String> getLines() {
+    synchronized (this.lines) {
+      return List.copyOf(this.lines);
+    }
   }
 }

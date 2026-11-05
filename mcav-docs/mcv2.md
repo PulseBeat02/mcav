@@ -1366,7 +1366,7 @@ burst of 5; a player without the mod sees MCV2 screens as before.
   players can reach, or to `website`.
 - The screen steps down. Its encoder takes longer than the video gives a frame, and the message says by how much.
   Give the encoders more threads, use a smaller resolution or `FAST`, or pre-encode.
-- Something else. Start the server with `-Dmcav.mcv2.debugView=true`: the pack then also draws the decoded picture
+- Something else. Start the server with `-Dmcav.mcv2.debug_view=true`: the pack then also draws the decoded picture
   one to one in a corner of the screen, with a square per page slot (green: a valid page) and one for the decoder's
   decision on each rendered frame. Check the client log (`.minecraft/logs/latest.log`) for `Failed to compile`,
   `Failed to link` or `post_effect` errors.

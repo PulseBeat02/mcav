@@ -96,7 +96,7 @@ final class VideoEntityCommandTest {
     this.selector = this.mockSelector(this.viewer);
     this.sender = mock(CommandSender.class);
     final FakeWorld world = new FakeWorld();
-    this.location = world.location(0.0, 80.0, 0.0);
+    this.location = world.createLocation(0.0, 80.0, 0.0);
   }
 
   private @Nullable Object runFilterOnMainThread(final InvocationOnMock invocation, final MCAVSandbox plugin) {

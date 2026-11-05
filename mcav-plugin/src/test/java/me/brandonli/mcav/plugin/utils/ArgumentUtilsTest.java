@@ -71,7 +71,7 @@ final class ArgumentUtilsTest {
     final IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> ArgumentUtils.parseDimensions(text));
 
     final String message = exception.getMessage();
-    assertEquals("Dimensions " + text + " must be positive integers!", message);
+    assertEquals("Dimensions %s must be positive integers!".formatted(text), message);
   }
 
   @ParameterizedTest
@@ -95,7 +95,7 @@ final class ArgumentUtilsTest {
     final IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> ArgumentUtils.parseDimensions(text));
 
     final String message = exception.getMessage();
-    assertEquals("Dimensions " + text + " must be at most 8192 on each side!", message);
+    assertEquals("Dimensions %s must be at most 8192 on each side!".formatted(text), message);
   }
 
   @Test
@@ -117,7 +117,7 @@ final class ArgumentUtilsTest {
     );
 
     final String message = exception.getMessage();
-    assertEquals("Wall " + text + " may be at most 64 maps on each side!", message);
+    assertEquals("Wall %s must be at most 64 maps on each side!".formatted(text), message);
   }
 
   @ParameterizedTest
@@ -137,7 +137,7 @@ final class ArgumentUtilsTest {
     final MultiplePlayerSelector selector = mock(MultiplePlayerSelector.class);
     final List<Player> players = List.of(first, second);
     when(selector.values()).thenReturn(players);
-    final Collection<UUID> ids = ArgumentUtils.parsePlayerSelectors(selector);
+    final Collection<UUID> ids = ArgumentUtils.resolvePlayerIds(selector);
     final List<UUID> expected = List.of(firstId, secondId);
     assertEquals(expected, ids);
   }
@@ -147,7 +147,7 @@ final class ArgumentUtilsTest {
     final MultiplePlayerSelector selector = mock(MultiplePlayerSelector.class);
     final List<Player> players = List.of();
     when(selector.values()).thenReturn(players);
-    final Collection<UUID> ids = ArgumentUtils.parsePlayerSelectors(selector);
+    final Collection<UUID> ids = ArgumentUtils.resolvePlayerIds(selector);
     final boolean empty = ids.isEmpty();
     assertTrue(empty);
   }
@@ -159,7 +159,7 @@ final class ArgumentUtilsTest {
     when(everyone.inputString()).thenReturn("@a");
 
     final Set<UUID> expected = online.getPlayers();
-    final Collection<UUID> viewers = ArgumentUtils.parseViewers(everyone, online);
+    final Collection<UUID> viewers = ArgumentUtils.resolveViewers(everyone, online);
     assertSame(expected, viewers);
   }
 
@@ -173,8 +173,9 @@ final class ArgumentUtilsTest {
       when(selector.inputString()).thenReturn(input);
       when(selector.values()).thenReturn(List.of(player));
 
-      final Collection<UUID> viewers = ArgumentUtils.parseViewers(selector, new OnlinePlayers());
-      assertEquals(List.of(id), viewers, input);
+      final Collection<UUID> viewers = ArgumentUtils.resolveViewers(selector, new OnlinePlayers());
+      final List<UUID> expectedViewers = List.of(id);
+      assertEquals(expectedViewers, viewers, input);
     }
   }
 
@@ -182,9 +183,9 @@ final class ArgumentUtilsTest {
   void shouldRefuseNullArguments() {
     assertThrows(NullPointerException.class, () -> ArgumentUtils.parseDimensions(null));
     assertThrows(NullPointerException.class, () -> ArgumentUtils.parseScreenDimensions(null));
-    assertThrows(NullPointerException.class, () -> ArgumentUtils.parsePlayerSelectors(null));
-    assertThrows(NullPointerException.class, () -> ArgumentUtils.parseViewers(null, new OnlinePlayers()));
-    assertThrows(NullPointerException.class, () -> ArgumentUtils.parseViewers(mock(MultiplePlayerSelector.class), null));
+    assertThrows(NullPointerException.class, () -> ArgumentUtils.resolvePlayerIds(null));
+    assertThrows(NullPointerException.class, () -> ArgumentUtils.resolveViewers(null, new OnlinePlayers()));
+    assertThrows(NullPointerException.class, () -> ArgumentUtils.resolveViewers(mock(MultiplePlayerSelector.class), null));
   }
 
   @Test

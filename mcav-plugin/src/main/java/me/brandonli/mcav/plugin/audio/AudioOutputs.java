@@ -35,13 +35,17 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 public final class AudioOutputs {
 
+  private static final String PROVIDER_NULL_MESSAGE = "Provider must not be null!";
+  private static final String AUDIO_TYPE_NULL_MESSAGE = "Audio type must not be null!";
+
   private AudioOutputs() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   /**
-   * Checks whether an audio output can play now. The Discord bot and the web page start in the background when the
-   * plugin is enabled, so they are only usable once they are ready.
+   * Returns the message that explains why an audio output cannot play now, or empty if it can. The Discord bot and the
+   * web page start in the background when the plugin is enabled, so they are only usable once they are ready.
    *
    * @param provider  the provider of the audio outputs
    * @param audioType the chosen output
@@ -50,12 +54,20 @@ public final class AudioOutputs {
    * @since 1.0.0
    */
   public static Optional<Component> findProblem(final AudioProvider provider, final AudioArgument audioType) {
-    Preconditions.checkNotNull(provider, "Provider must not be null!");
-    Preconditions.checkNotNull(audioType, "Audio type must not be null!");
+    Preconditions.checkNotNull(provider, PROVIDER_NULL_MESSAGE);
+    Preconditions.checkNotNull(audioType, AUDIO_TYPE_NULL_MESSAGE);
 
     return switch (audioType) {
-      case DISCORD_BOT -> describe(provider.isDiscordBotEnabled(), provider.isDiscordBotReady());
-      case HTTP_SERVER -> describe(provider.isHttpEnabled(), provider.isHttpReady());
+      case DISCORD_BOT -> {
+        final boolean enabled = provider.isDiscordBotEnabled();
+        final boolean ready = provider.isDiscordBotReady();
+        yield describe(enabled, ready);
+      }
+      case HTTP_SERVER -> {
+        final boolean enabled = provider.isHttpEnabled();
+        final boolean ready = provider.isHttpReady();
+        yield describe(enabled, ready);
+      }
       case NONE, SIMPLE_VOICE_CHAT -> Optional.empty();
     };
   }
@@ -80,6 +92,7 @@ public final class AudioOutputs {
    * @param provider  the provider of the audio outputs
    * @param audioType the chosen output
    * @param viewers   the players who see the picture
+   * @throws NullPointerException if an argument is null
    * @since 1.0.0
    */
   public static void sendLink(final AudioProvider provider, final AudioArgument audioType, final Player[] viewers) {
@@ -106,12 +119,20 @@ public final class AudioOutputs {
    * @since 1.0.0
    */
   public static Optional<Component> createLink(final AudioProvider provider, final AudioArgument audioType) {
-    Preconditions.checkNotNull(provider, "Provider must not be null!");
-    Preconditions.checkNotNull(audioType, "Audio type must not be null!");
+    Preconditions.checkNotNull(provider, PROVIDER_NULL_MESSAGE);
+    Preconditions.checkNotNull(audioType, AUDIO_TYPE_NULL_MESSAGE);
 
     return switch (audioType) {
-      case DISCORD_BOT -> Optional.of(Message.AUDIO_DISCORD.build(provider.constructVoiceChannelUrl()));
-      case HTTP_SERVER -> Optional.of(Message.AUDIO_HTTP.build(provider.constructHttpUrl()));
+      case DISCORD_BOT -> {
+        final String url = provider.constructVoiceChannelUrl();
+        final Component link = Message.AUDIO_DISCORD.build(url);
+        yield Optional.of(link);
+      }
+      case HTTP_SERVER -> {
+        final String url = provider.constructHttpUrl();
+        final Component link = Message.AUDIO_HTTP.build(url);
+        yield Optional.of(link);
+      }
       case NONE, SIMPLE_VOICE_CHAT -> Optional.empty();
     };
   }

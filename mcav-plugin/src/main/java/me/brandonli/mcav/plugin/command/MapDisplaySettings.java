@@ -70,6 +70,7 @@ public final class MapDisplaySettings {
    * @param mapId      the id of the top-left map
    * @param players    the players who see the maps
    * @return the configuration
+   * @throws NullPointerException if an argument is null
    * @since 1.0.0
    */
   public static MapConfiguration createConfiguration(

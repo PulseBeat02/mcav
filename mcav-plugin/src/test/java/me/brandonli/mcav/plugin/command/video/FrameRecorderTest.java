@@ -43,7 +43,8 @@ final class FrameRecorderTest {
     recorder.accept(new byte[] { 1 });
 
     final byte[] allBytes = Files.readAllBytes(file);
-    assertArrayEquals(new byte[] { 3, 0, 0, 0, 7, 8, 9, 1, 0, 0, 0, 1 }, allBytes);
+    final byte[] expected = { 3, 0, 0, 0, 7, 8, 9, 1, 0, 0, 0, 1 };
+    assertArrayEquals(expected, allBytes);
   }
 
   @Test

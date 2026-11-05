@@ -79,6 +79,11 @@ final class FilterChainTest {
 
   private static final int DOT_SIZE = 5;
 
+  private static final int LARGE_PICTURE_SIDE = 40;
+  private static final int SMALL_PICTURE_SIDE = 20;
+
+  private static final int OVERLAY_HEIGHT = 16;
+
   private static final int RGB_MASK = 0xffffff;
   private static final int CHANNEL_MASK = 0xff;
 
@@ -113,7 +118,7 @@ final class FilterChainTest {
     final VideoPipelineStep videoPipelineStep = none.prepend(output);
     assertSame(output, videoPipelineStep);
 
-    final List<VideoFilter> videoFilters = none.create();
+    final List<VideoFilter> videoFilters = none.createFilters();
     assertEquals(List.of(), videoFilters);
   }
 
@@ -127,7 +132,7 @@ final class FilterChainTest {
     final FilterChain chain = this.parse(
       "grayscale,INVERT,blur=15,bilateral=9,threshold=128,luminance=1.5:-20,colormap=Turbo,tint=ff8000:30"
     );
-    final List<VideoFilter> filters = chain.create();
+    final List<VideoFilter> filters = chain.createFilters();
     final List<Class<?>> kinds = List.of(
       GrayscaleFilter.class,
       InvertFilter.class,
@@ -142,26 +147,24 @@ final class FilterChainTest {
     final List<Class<?>> list = filters.stream().map(Object::getClass).toList();
     assertEquals(kinds, list);
 
-    final List<VideoFilter> more = this.parse("tint=0000ff,flip=h,flip=v,flip=hv,rotate=90,rotate=180,rotate=270,dilate=1").create();
+    final List<VideoFilter> more = this.parse("tint=0000ff,flip=h,flip=v,flip=hv,rotate=90,rotate=180,rotate=270,dilate=1").createFilters();
 
     final List<Class<?>> moreList = more.stream().map(Object::getClass).toList();
-    assertEquals(
-      List.of(
-        TintFilter.class,
-        FlipFilter.class,
-        FlipFilter.class,
-        FlipFilter.class,
-        RotationFilter.class,
-        RotationFilter.class,
-        RotationFilter.class,
-        DilationFilter.class
-      ),
-      moreList
+    final List<Class<?>> expectedKinds = List.of(
+      TintFilter.class,
+      FlipFilter.class,
+      FlipFilter.class,
+      FlipFilter.class,
+      RotationFilter.class,
+      RotationFilter.class,
+      RotationFilter.class,
+      DilationFilter.class
     );
+    assertEquals(expectedKinds, moreList);
 
     final List<VideoFilter> rest = this.parse(
       "erode=15,text=Live (1)! ok?,fps,overlay=logo,crop=0:0:100:100,rectangle=10:10:20:20:00ff00"
-    ).create();
+    ).createFilters();
 
     final VideoFilter restRest = rest.get(0);
     assertInstanceOf(ErosionFilter.class, restRest);
@@ -179,7 +182,7 @@ final class FilterChainTest {
     assertEquals(6, size);
 
     final VideoFilter expected = filters.getFirst();
-    final VideoFilter chainChain = chain.create().getFirst();
+    final VideoFilter chainChain = chain.createFilters().getFirst();
     assertNotEquals(expected, chainChain, "every video gets filters of its own");
   }
 
@@ -277,14 +280,16 @@ final class FilterChainTest {
   @Test
   void shouldBoundTheChain() {
     final int size = this.parse(String.join(FILTER_SEPARATOR, Collections.nCopies(FilterChain.MAXIMUM_FILTERS, INVERT_FILTER)))
-      .create()
+      .createFilters()
       .size();
     assertEquals(FilterChain.MAXIMUM_FILTERS, size);
     assertThrows(IllegalArgumentException.class, this::parseTooLongChain);
-    assertThrows(IllegalArgumentException.class, () -> this.parse(TEXT_FILTER_PREFIX + FILLER_TEXT.repeat(FilterChain.MAXIMUM_TEXT + 1)));
+    assertThrows(IllegalArgumentException.class, () ->
+      this.parse(TEXT_FILTER_PREFIX + FILLER_TEXT.repeat(FilterChain.MAXIMUM_TEXT_LENGTH + 1))
+    );
 
-    this.parse(TEXT_FILTER_PREFIX + FILLER_TEXT.repeat(FilterChain.MAXIMUM_TEXT));
-    assertThrows(IllegalArgumentException.class, () -> this.parse("invert," + "x".repeat(FilterChain.MAXIMUM_LENGTH)));
+    this.parse(TEXT_FILTER_PREFIX + FILLER_TEXT.repeat(FilterChain.MAXIMUM_TEXT_LENGTH));
+    assertThrows(IllegalArgumentException.class, () -> this.parse("invert,%s".formatted("x".repeat(FilterChain.MAXIMUM_LENGTH))));
     assertThrows(
       IllegalArgumentException.class,
       () -> FilterChain.parse("fps", this.overlays, MediaKind.IMAGE),
@@ -302,10 +307,10 @@ final class FilterChainTest {
   @ParameterizedTest
   @ValueSource(strings = { "bilateral", "colormap", "dilate", "erode", "flip", "overlay", "rotate", "text", "threshold" })
   void shouldRefuseASecondArgumentToAFilterThatTakesOne(final String name) {
-    final IllegalArgumentException refused = assertThrows(IllegalArgumentException.class, () -> this.parse(name + "=1:1"));
+    final IllegalArgumentException refused = assertThrows(IllegalArgumentException.class, () -> this.parse("%s=1:1".formatted(name)));
 
     final String message = refused.getMessage();
-    assertEquals("Filter " + name + " takes 1 argument!", message);
+    assertEquals("Filter %s takes 1 argument!".formatted(name), message);
   }
 
   @Test
@@ -318,15 +323,16 @@ final class FilterChainTest {
 
   @Test
   void shouldTakeTheLongestChainAndTheLargestOverlayAllowed() throws IOException {
-    final String longest =
-      String.join(FILTER_SEPARATOR, Collections.nCopies(6, TEXT_FILTER_PREFIX + FILLER_TEXT.repeat(FilterChain.MAXIMUM_TEXT))) +
-      ",text=" +
-      FILLER_TEXT.repeat(23);
+    final String filters = String.join(
+      FILTER_SEPARATOR,
+      Collections.nCopies(6, TEXT_FILTER_PREFIX + FILLER_TEXT.repeat(FilterChain.MAXIMUM_TEXT_LENGTH))
+    );
+    final String longest = "%s,text=%s".formatted(filters, FILLER_TEXT.repeat(23));
 
     final int length = longest.length();
     assertEquals(FilterChain.MAXIMUM_LENGTH, length);
 
-    final int size = this.parse(longest).create().size();
+    final int size = this.parse(longest).createFilters().size();
     assertEquals(7, size);
 
     Files.write(this.overlays.resolve(LARGEST_OVERLAY_FILE_NAME), new byte[(int) FilterChain.MAXIMUM_OVERLAY_BYTES]);
@@ -372,6 +378,21 @@ final class FilterChainTest {
   }
 
   @Test
+  void shouldTintByHalfWithoutAStrengthAndByTheStrengthTyped() {
+    final ImageBuffer halfTinted = this.picture(2, 2, 0);
+    this.parse("tint=804020").apply(halfTinted);
+
+    final int halfTint = halfTinted.getPixels()[0] & RGB_MASK;
+    assertEquals(0x402010, halfTint);
+
+    final ImageBuffer fullyTinted = this.picture(2, 2, 0);
+    this.parse("tint=ff0000:100").apply(fullyTinted);
+
+    final int fullTint = fullyTinted.getPixels()[0] & RGB_MASK;
+    assertEquals(RED, fullTint);
+  }
+
+  @Test
   void shouldLetABlurReachAsFarAsItsRadius() {
     final ImageBuffer narrow = this.whiteDot();
     this.parse(NARROW_BLUR_FILTER).apply(narrow);
@@ -397,22 +418,22 @@ final class FilterChainTest {
 
   @Test
   void shouldPlaceARegionAtThePercentsTyped() {
-    final VideoFilter inside = this.parse("rectangle=25:50:50:25:ffffff").create().getFirst();
-    final ImageBuffer framed = this.picture(40, 40, 0);
+    final VideoFilter inside = this.parse("rectangle=25:50:50:25:ffffff").createFilters().getFirst();
+    final ImageBuffer framed = this.picture(LARGE_PICTURE_SIDE, LARGE_PICTURE_SIDE, 0);
 
     final boolean filtered = inside.applyFilter(framed);
     assertTrue(filtered);
 
     for (final int[] white : new int[][] { { 10, 25 }, { 29, 25 }, { 20, 20 }, { 20, 29 } }) {
-      final int matches = framed.getPixels()[white[0] + 40 * white[1]] & RGB_MASK;
+      final int matches = framed.getPixels()[white[0] + LARGE_PICTURE_SIDE * white[1]] & RGB_MASK;
       assertEquals(WHITE, matches, Arrays.toString(white));
     }
     for (final int[] black : new int[][] { { 9, 25 }, { 30, 25 }, { 20, 19 }, { 20, 30 } }) {
-      final int secondMatches = framed.getPixels()[black[0] + 40 * black[1]] & RGB_MASK;
+      final int secondMatches = framed.getPixels()[black[0] + LARGE_PICTURE_SIDE * black[1]] & RGB_MASK;
       assertEquals(0, secondMatches, Arrays.toString(black));
     }
     try (final ImageBuffer cropped = this.quadrantPicture()) {
-      final boolean secondFiltered = this.parse("crop=0:0:50:50").create().getFirst().applyFilter(cropped);
+      final boolean secondFiltered = this.parse("crop=0:0:50:50").createFilters().getFirst().applyFilter(cropped);
       assertTrue(secondFiltered);
 
       final int width = cropped.getWidth();
@@ -488,7 +509,7 @@ final class FilterChainTest {
       final int[] pixels = zoomed.getPixels();
       assertArrayEquals(expected, pixels, "the bottom-right quadrant fills the result");
     }
-    final ImageBuffer framed = this.picture(20, 20, 0x000000);
+    final ImageBuffer framed = this.picture(SMALL_PICTURE_SIDE, SMALL_PICTURE_SIDE, 0x000000);
     this.parse("rectangle=0:0:50:50:00ff00").apply(framed);
 
     final int secondMatches = framed.getPixels()[0] & RGB_MASK;
@@ -523,9 +544,9 @@ final class FilterChainTest {
 
   @Test
   void shouldScaleALargeOverlayDownAndRemakesARegionForEverySize() throws IOException {
-    this.writeOverlay("wide", 2_048, 16);
-    final VideoFilter overlay = this.parse("overlay=wide").create().getFirst();
-    final ImageBuffer large = this.picture(1_100, 16, BLUE);
+    this.writeOverlay("wide", 2_048, OVERLAY_HEIGHT);
+    final VideoFilter overlay = this.parse("overlay=wide").createFilters().getFirst();
+    final ImageBuffer large = this.picture(1_100, OVERLAY_HEIGHT, BLUE);
     overlay.applyFilter(large);
 
     final int matches = large.getPixels()[1_023] & RGB_MASK;
@@ -537,7 +558,7 @@ final class FilterChainTest {
     final int thirdMatches = large.getPixels()[1_023 + 1_100 * 7] & RGB_MASK;
     assertEquals(RED, thirdMatches, "eight rows high");
 
-    final VideoFilter rectangle = this.parse("rectangle=50:0:50:50:ffffff").create().getFirst();
+    final VideoFilter rectangle = this.parse("rectangle=50:0:50:50:ffffff").createFilters().getFirst();
     final ImageBuffer small = this.picture(10, 10, 0);
     rectangle.applyFilter(small);
 
@@ -545,34 +566,34 @@ final class FilterChainTest {
     assertEquals(WHITE, fourthMatches);
 
     rectangle.applyFilter(small);
-    final ImageBuffer other = this.picture(20, 20, 0);
+    final ImageBuffer other = this.picture(SMALL_PICTURE_SIDE, SMALL_PICTURE_SIDE, 0);
     rectangle.applyFilter(other);
 
     final int fifthMatches = other.getPixels()[10] & RGB_MASK;
     assertEquals(WHITE, fifthMatches);
 
-    final ImageBuffer taller = this.picture(20, 40, 0);
+    final ImageBuffer taller = this.picture(SMALL_PICTURE_SIDE, LARGE_PICTURE_SIDE, 0);
     rectangle.applyFilter(taller);
 
-    final int sixthMatches = taller.getPixels()[10 + 20 * 15] & RGB_MASK;
+    final int sixthMatches = taller.getPixels()[10 + SMALL_PICTURE_SIDE * 15] & RGB_MASK;
     assertEquals(WHITE, sixthMatches, "the region is remade for the taller picture");
 
-    final int seventhMatches = taller.getPixels()[10 + 20 * 30] & RGB_MASK;
+    final int seventhMatches = taller.getPixels()[10 + SMALL_PICTURE_SIDE * 30] & RGB_MASK;
     assertEquals(0, seventhMatches);
 
-    final ImageBuffer wider = this.picture(40, 40, 0);
+    final ImageBuffer wider = this.picture(LARGE_PICTURE_SIDE, LARGE_PICTURE_SIDE, 0);
     rectangle.applyFilter(wider);
 
-    final int eighthMatches = wider.getPixels()[20 + 40 * 5] & RGB_MASK;
+    final int eighthMatches = wider.getPixels()[20 + LARGE_PICTURE_SIDE * 5] & RGB_MASK;
     assertEquals(WHITE, eighthMatches, "the region is remade for the wider picture");
   }
 
   @Test
   void shouldNotResizeAnOverlayAsWideAsAllowed() throws IOException {
-    this.writeOverlay("widest", FilterChain.MAXIMUM_OVERLAY_SIDE, 16);
+    this.writeOverlay("widest", FilterChain.MAXIMUM_OVERLAY_SIDE, OVERLAY_HEIGHT);
     final FilterChain chain = this.parse("overlay=widest");
     try (final MockedConstruction<ResizeFilter> resizers = Mockito.mockConstruction(ResizeFilter.class)) {
-      final List<VideoFilter> filters = chain.create();
+      final List<VideoFilter> filters = chain.createFilters();
 
       final int size = filters.size();
       assertEquals(1, size);
@@ -587,7 +608,7 @@ final class FilterChainTest {
   @Test
   void shouldMakeARegionOncePerPictureSizeAndPassOnItsAnswer() {
     final FilterChain chain = this.parse("rectangle=50:0:50:50:ffffff");
-    final List<VideoFilter> filters = chain.create();
+    final List<VideoFilter> filters = chain.createFilters();
     final VideoFilter rectangle = filters.getFirst();
     final ImageBuffer picture = this.picture(10, 10, 0);
     try (final MockedConstruction<RectangleFilter> regions = Mockito.mockConstruction(RectangleFilter.class)) {

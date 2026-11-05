@@ -17,14 +17,12 @@
  */
 package me.brandonli.mcav.plugin.locale;
 
-import static me.brandonli.mcav.plugin.locale.LocaleTools.direct;
-
 /**
  * Every chat message the commands of the plugin send, each bound to its key in the message file.
  *
- * <p>Server owners change the wording and colors in {@code locale/mcav_<language>.properties} in the data folder of
- * the plugin; the keys listed here must stay. Call {@code build()} on a constant to render its message in the
- * configured language right before sending it.
+ * <p>Server owners change the wording and colors in {@code locale/mcav_<language>.properties} in the data folder of the
+ * plugin; the keys listed here must stay. Call {@code build} on a constant, passing the values its message inserts, to
+ * render it in the configured language right before sending it.
  *
  * <p>This interface only holds constants, which are immutable and thread-safe.
  *
@@ -37,7 +35,7 @@ public interface Message extends LocaleTools {
    *
    * @since 1.0.0
    */
-  NullComponent HOLOGRAM_DISABLED = direct("mcav.command.hologram.disable");
+  NullComponent HOLOGRAM_DISABLED = LocaleTools.direct("mcav.command.hologram.disable");
 
   /**
    * Key {@code mcav.command.hologram.set}: confirms {@code /mcav video hologram set}, after which videos show their
@@ -45,7 +43,7 @@ public interface Message extends LocaleTools {
    *
    * @since 1.0.0
    */
-  NullComponent HOLOGRAM_LOCATION_SET = direct("mcav.command.hologram.set");
+  NullComponent HOLOGRAM_LOCATION_SET = LocaleTools.direct("mcav.command.hologram.set");
 
   /**
    * Key {@code mcav.qemu.error}: {@code /mcav vm create} was run, but QEMU was not found when the plugin started and
@@ -53,7 +51,7 @@ public interface Message extends LocaleTools {
    *
    * @since 1.0.0
    */
-  NullComponent QEMU_NOT_INSTALLED = direct("mcav.qemu.error");
+  NullComponent QEMU_NOT_INSTALLED = LocaleTools.direct("mcav.qemu.error");
 
   /**
    * Key {@code mcav.command.mcv2.pack}: sent to the viewers of an MCV2 screen right before their client is asked to
@@ -61,7 +59,7 @@ public interface Message extends LocaleTools {
    *
    * @since 1.0.0
    */
-  NullComponent MCV2_PACK = direct("mcav.command.mcv2.pack");
+  NullComponent MCV2_PACK = LocaleTools.direct("mcav.command.mcv2.pack");
 
   /**
    * Key {@code mcav.command.mcv2.refused}: a viewer's client declined the MCV2 pack or could not load it, so the
@@ -69,7 +67,7 @@ public interface Message extends LocaleTools {
    *
    * @since 1.0.0
    */
-  NullComponent MCV2_REFUSED = direct("mcav.command.mcv2.refused");
+  NullComponent MCV2_REFUSED = LocaleTools.direct("mcav.command.mcv2.refused");
 
   /**
    * Key {@code mcav.command.mcv2.screen.error}: no item frame in a loaded chunk holds the map id given to an MCV2
@@ -77,7 +75,7 @@ public interface Message extends LocaleTools {
    *
    * @since 1.0.0
    */
-  UniComponent<Integer> MCV2_SCREEN_ERROR = direct("mcav.command.mcv2.screen.error", null);
+  UniComponent<Integer> MCV2_SCREEN_ERROR = LocaleTools.direct("mcav.command.mcv2.screen.error", null);
 
   /**
    * Key {@code mcav.command.mcv2.full}: every slot of the MCV2 pack plays a screen, so the screen just started shows
@@ -85,7 +83,7 @@ public interface Message extends LocaleTools {
    *
    * @since 1.0.0
    */
-  NullComponent MCV2_FULL = direct("mcav.command.mcv2.full");
+  NullComponent MCV2_FULL = LocaleTools.direct("mcav.command.mcv2.full");
 
   /**
    * Key {@code mcav.command.mcv2.size.error}: the wall or the video of an MCV2 screen is larger than MCV2 plays, 63 maps
@@ -93,7 +91,7 @@ public interface Message extends LocaleTools {
    *
    * @since 1.0.0
    */
-  NullComponent MCV2_SIZE_ERROR = direct("mcav.command.mcv2.size.error");
+  NullComponent MCV2_SIZE_ERROR = LocaleTools.direct("mcav.command.mcv2.size.error");
 
   /**
    * Key {@code mcav.command.codec.error}: the {@code --codec} at the end of the options of {@code /mcav vm create} names
@@ -101,15 +99,15 @@ public interface Message extends LocaleTools {
    *
    * @since 1.0.0
    */
-  NullComponent UNKNOWN_CODEC = direct("mcav.command.codec.error");
+  NullComponent UNKNOWN_CODEC = LocaleTools.direct("mcav.command.codec.error");
 
   /**
-   * Key {@code mcav.command.mcv2.file.error}: the file given to {@code /mcav mcv2 play} is not an MCV2 stream; the
-   * reason is inserted.
+   * Key {@code mcav.command.mcv2.file.error}: the file given to {@code /mcav mcv2 play} or {@code /mcav mcv2 stream} is
+   * not an MCV2 stream; the reason is inserted.
    *
    * @since 1.0.0
    */
-  UniComponent<String> MCV2_FILE_ERROR = direct("mcav.command.mcv2.file.error", null);
+  UniComponent<String> MCV2_FILE_ERROR = LocaleTools.direct("mcav.command.mcv2.file.error", null);
 
   /**
    * Key {@code mcav.command.mcv2.pacing}: an MCV2 screen stepped down or back up the frame rates its encoder budget
@@ -117,7 +115,7 @@ public interface Message extends LocaleTools {
    *
    * @since 1.0.0
    */
-  UniComponent<String> MCV2_PACING = direct("mcav.command.mcv2.pacing", null);
+  UniComponent<String> MCV2_PACING = LocaleTools.direct("mcav.command.mcv2.pacing", null);
 
   /**
    * Key {@code mcav.command.mcv2.encode.start}: {@code /mcav mcv2 encode} started; what it encodes, how and on how many
@@ -125,7 +123,7 @@ public interface Message extends LocaleTools {
    *
    * @since 1.0.0
    */
-  UniComponent<String> MCV2_ENCODE_START = direct("mcav.command.mcv2.encode.start", null);
+  UniComponent<String> MCV2_ENCODE_START = LocaleTools.direct("mcav.command.mcv2.encode.start", null);
 
   /**
    * Key {@code mcav.command.mcv2.encode.progress}: how far a file encode got; the frames and the time per frame are
@@ -133,70 +131,71 @@ public interface Message extends LocaleTools {
    *
    * @since 1.0.0
    */
-  UniComponent<String> MCV2_ENCODE_PROGRESS = direct("mcav.command.mcv2.encode.progress", null);
+  UniComponent<String> MCV2_ENCODE_PROGRESS = LocaleTools.direct("mcav.command.mcv2.encode.progress", null);
 
   /**
    * Key {@code mcav.command.mcv2.encode.done}: a file encode finished; what it made and how long it took is inserted.
    *
    * @since 1.0.0
    */
-  UniComponent<String> MCV2_ENCODE_DONE = direct("mcav.command.mcv2.encode.done", null);
+  UniComponent<String> MCV2_ENCODE_DONE = LocaleTools.direct("mcav.command.mcv2.encode.done", null);
 
   /**
    * Key {@code mcav.command.mcv2.encode.error}: a file encode failed; the reason is inserted.
    *
    * @since 1.0.0
    */
-  UniComponent<String> MCV2_ENCODE_ERROR = direct("mcav.command.mcv2.encode.error", null);
+  UniComponent<String> MCV2_ENCODE_ERROR = LocaleTools.direct("mcav.command.mcv2.encode.error", null);
 
   /**
    * Key {@code mcav.command.mcv2.encode.busy}: {@code /mcav mcv2 encode} was run while another encode runs.
    *
    * @since 1.0.0
    */
-  NullComponent MCV2_ENCODE_BUSY = direct("mcav.command.mcv2.encode.busy");
+  NullComponent MCV2_ENCODE_BUSY = LocaleTools.direct("mcav.command.mcv2.encode.busy");
 
   /**
    * Key {@code mcav.command.mcv2.encode.cancelled}: a file encode stopped before it finished.
    *
    * @since 1.0.0
    */
-  NullComponent MCV2_ENCODE_CANCELLED = direct("mcav.command.mcv2.encode.cancelled");
+  NullComponent MCV2_ENCODE_CANCELLED = LocaleTools.direct("mcav.command.mcv2.encode.cancelled");
 
   /**
    * Key {@code mcav.command.mcv2.encode.none}: {@code /mcav mcv2 cancel} found no encode running.
    *
    * @since 1.0.0
    */
-  NullComponent MCV2_ENCODE_NONE = direct("mcav.command.mcv2.encode.none");
+  NullComponent MCV2_ENCODE_NONE = LocaleTools.direct("mcav.command.mcv2.encode.none");
 
   /**
-   * Key {@code mcav.command.mcv2.play}: confirms that {@code /mcav mcv2 play} started the stream.
+   * Key {@code mcav.command.mcv2.play}: confirms that {@code /mcav mcv2 play} or {@code /mcav mcv2 stream} started the
+   * stream.
    *
    * @since 1.0.0
    */
-  NullComponent MCV2_PLAY = direct("mcav.command.mcv2.play");
+  NullComponent MCV2_PLAY = LocaleTools.direct("mcav.command.mcv2.play");
 
   /**
    * Key {@code mcav.command.mcv2.stop}: confirms that {@code /mcav mcv2 stop} stopped the stream.
    *
    * @since 1.0.0
    */
-  NullComponent MCV2_STOP = direct("mcav.command.mcv2.stop");
+  NullComponent MCV2_STOP = LocaleTools.direct("mcav.command.mcv2.stop");
 
   /**
    * Key {@code mcav.command.screen.build}: confirms that {@code /mcav screen} built a wall of maps.
    *
    * @since 1.0.0
    */
-  NullComponent SCREEN_BUILD = direct("mcav.command.screen.build");
+  NullComponent SCREEN_BUILD = LocaleTools.direct("mcav.command.screen.build");
 
   /**
    * Key {@code mcav.command.image.release}: {@code /mcav image release} has removed the image.
    *
    * @since 1.0.0
    */
-  NullComponent RELEASE_IMAGE = direct("mcav.command.image.release");
+  NullComponent RELEASE_IMAGE = LocaleTools.direct("mcav.command.image.release");
 
   /**
    * Key {@code mcav.command.image.release.start}: sent as soon as {@code /mcav image release} is run, before the
@@ -204,14 +203,14 @@ public interface Message extends LocaleTools {
    *
    * @since 1.0.0
    */
-  NullComponent RELEASE_IMAGE_START = direct("mcav.command.image.release.start");
+  NullComponent RELEASE_IMAGE_START = LocaleTools.direct("mcav.command.image.release.start");
 
   /**
    * Key {@code mcav.command.image.load}: an {@code /mcav image} command has finished loading and now shows the image.
    *
    * @since 1.0.0
    */
-  NullComponent LOAD_IMAGE = direct("mcav.command.image.load");
+  NullComponent LOAD_IMAGE = LocaleTools.direct("mcav.command.image.load");
 
   /**
    * Key {@code mcav.command.image.load.start}: an {@code /mcav image} command accepted its arguments and started
@@ -219,7 +218,7 @@ public interface Message extends LocaleTools {
    *
    * @since 1.0.0
    */
-  NullComponent LOAD_IMAGE_START = direct("mcav.command.image.load.start");
+  NullComponent LOAD_IMAGE_START = LocaleTools.direct("mcav.command.image.load.start");
 
   /**
    * Key {@code mcav.command.vm.path.error}: the virtual machine could not start because the QEMU program for the
@@ -227,23 +226,23 @@ public interface Message extends LocaleTools {
    *
    * @since 1.0.0
    */
-  NullComponent VM_PATH = direct("mcav.command.vm.path.error");
+  NullComponent VM_PATH = LocaleTools.direct("mcav.command.vm.path.error");
 
   /**
-   * Key {@code mcav.command.interaction.remove}: {@code /mcav browser interact} or {@code /mcav vm interact} switched
-   * chat input off, so the chat messages of the player go to chat again.
+   * Key {@code mcav.command.interaction.remove}: {@code /mcav browser interact}, {@code /mcav vm interact} or
+   * {@code /mcav vnc interact} switched chat input off, so the chat messages of the player go to chat again.
    *
    * @since 1.0.0
    */
-  NullComponent INTERACT_DISABLE = direct("mcav.command.interaction.remove");
+  NullComponent INTERACT_DISABLE = LocaleTools.direct("mcav.command.interaction.remove");
 
   /**
-   * Key {@code mcav.command.interaction.add}: {@code /mcav browser interact} or {@code /mcav vm interact} switched
-   * chat input on, so the chat messages of the player are typed into the screen.
+   * Key {@code mcav.command.interaction.add}: {@code /mcav browser interact}, {@code /mcav vm interact} or
+   * {@code /mcav vnc interact} switched chat input on, so the chat messages of the player are typed into the screen.
    *
    * @since 1.0.0
    */
-  NullComponent INTERACT_ENABLE = direct("mcav.command.interaction.add");
+  NullComponent INTERACT_ENABLE = LocaleTools.direct("mcav.command.interaction.add");
 
   /**
    * Key {@code mcav.command.vm.loading}: {@code /mcav vm create} accepted its arguments and is starting the virtual
@@ -251,7 +250,7 @@ public interface Message extends LocaleTools {
    *
    * @since 1.0.0
    */
-  NullComponent VM_LOADING = direct("mcav.command.vm.loading");
+  NullComponent VM_LOADING = LocaleTools.direct("mcav.command.vm.loading");
 
   /**
    * Key {@code mcav.command.vm.audio.unsupported}: {@code /mcav vm create} chose an audio output for an architecture
@@ -259,21 +258,21 @@ public interface Message extends LocaleTools {
    *
    * @since 1.0.0
    */
-  NullComponent VM_NO_SOUND = direct("mcav.command.vm.audio.unsupported");
+  NullComponent VM_NO_SOUND = LocaleTools.direct("mcav.command.vm.audio.unsupported");
 
   /**
    * Key {@code mcav.command.vm.create}: the virtual machine started and now shows on the maps.
    *
    * @since 1.0.0
    */
-  NullComponent VM_CREATE = direct("mcav.command.vm.create");
+  NullComponent VM_CREATE = LocaleTools.direct("mcav.command.vm.create");
 
   /**
    * Key {@code mcav.command.vm.release}: {@code /mcav vm release} stopped the virtual machine.
    *
    * @since 1.0.0
    */
-  NullComponent VM_RELEASE = direct("mcav.command.vm.release");
+  NullComponent VM_RELEASE = LocaleTools.direct("mcav.command.vm.release");
 
   /**
    * Key {@code mcav.command.vnc.loading}: {@code /mcav vnc create} accepted its arguments and connects to the VNC
@@ -281,21 +280,21 @@ public interface Message extends LocaleTools {
    *
    * @since 1.0.0
    */
-  NullComponent VNC_LOADING = direct("mcav.command.vnc.loading");
+  NullComponent VNC_LOADING = LocaleTools.direct("mcav.command.vnc.loading");
 
   /**
    * Key {@code mcav.command.vnc.create}: the desktop of {@code /mcav vnc create} now shows on the maps.
    *
    * @since 1.0.0
    */
-  NullComponent VNC_CREATE = direct("mcav.command.vnc.create");
+  NullComponent VNC_CREATE = LocaleTools.direct("mcav.command.vnc.create");
 
   /**
    * Key {@code mcav.command.vnc.release}: {@code /mcav vnc release} disconnected from the desktop.
    *
    * @since 1.0.0
    */
-  NullComponent VNC_RELEASE = direct("mcav.command.vnc.release");
+  NullComponent VNC_RELEASE = LocaleTools.direct("mcav.command.vnc.release");
 
   /**
    * Key {@code mcav.command.vnc.error}: {@code /mcav vnc create} could not connect to the VNC server, or it refused
@@ -303,7 +302,7 @@ public interface Message extends LocaleTools {
    *
    * @since 1.0.0
    */
-  NullComponent VNC_ERROR = direct("mcav.command.vnc.error");
+  NullComponent VNC_ERROR = LocaleTools.direct("mcav.command.vnc.error");
 
   /**
    * Key {@code mcav.command.vnc.server.error}: the server named in {@code /mcav vnc create}, the argument, is not a
@@ -311,7 +310,7 @@ public interface Message extends LocaleTools {
    *
    * @since 1.0.0
    */
-  UniComponent<String> VNC_NOT_ALLOWED = direct("mcav.command.vnc.server.error", null);
+  UniComponent<String> VNC_NOT_ALLOWED = LocaleTools.direct("mcav.command.vnc.server.error", null);
 
   /**
    * Key {@code mcav.command.audio.http}: sent to every viewer of a video played with the {@code HTTP_SERVER} audio
@@ -319,7 +318,7 @@ public interface Message extends LocaleTools {
    *
    * @since 1.0.0
    */
-  UniComponent<String> AUDIO_HTTP = direct("mcav.command.audio.http", null);
+  UniComponent<String> AUDIO_HTTP = LocaleTools.direct("mcav.command.audio.http", null);
 
   /**
    * Key {@code mcav.command.audio.discord}: sent to every viewer of a video played with the {@code DISCORD_BOT} audio
@@ -327,14 +326,14 @@ public interface Message extends LocaleTools {
    *
    * @since 1.0.0
    */
-  UniComponent<String> AUDIO_DISCORD = direct("mcav.command.audio.discord", null);
+  UniComponent<String> AUDIO_DISCORD = LocaleTools.direct("mcav.command.audio.discord", null);
 
   /**
    * Key {@code mcav.command.video.resume}: confirms {@code /mcav video resume}.
    *
    * @since 1.0.0
    */
-  NullComponent RESUME_PLAYER = direct("mcav.command.video.resume");
+  NullComponent RESUME_PLAYER = LocaleTools.direct("mcav.command.video.resume");
 
   /**
    * Key {@code mcav.command.video.resume.failed}: {@code /mcav video resume} was run, but the video player could not
@@ -342,7 +341,7 @@ public interface Message extends LocaleTools {
    *
    * @since 1.0.0
    */
-  NullComponent RESUME_PLAYER_FAILED = direct("mcav.command.video.resume.failed");
+  NullComponent RESUME_PLAYER_FAILED = LocaleTools.direct("mcav.command.video.resume.failed");
 
   /**
    * Key {@code mcav.command.audio.unsupported}: a video command chose the Discord bot or the HTTP server as the audio
@@ -350,7 +349,7 @@ public interface Message extends LocaleTools {
    *
    * @since 1.0.0
    */
-  NullComponent UNSUPPORTED_AUDIO = direct("mcav.command.audio.unsupported");
+  NullComponent UNSUPPORTED_AUDIO = LocaleTools.direct("mcav.command.audio.unsupported");
 
   /**
    * Key {@code mcav.command.player.unsupported}: a video command chose the {@code VLC} player, but VLC is not
@@ -358,7 +357,7 @@ public interface Message extends LocaleTools {
    *
    * @since 1.0.0
    */
-  NullComponent UNSUPPORTED_PLAYER = direct("mcav.command.player.unsupported");
+  NullComponent UNSUPPORTED_PLAYER = LocaleTools.direct("mcav.command.player.unsupported");
 
   /**
    * Key {@code mcav.command.player.preparing}: a video command chose the {@code VLC} player while the library is still
@@ -366,7 +365,7 @@ public interface Message extends LocaleTools {
    *
    * @since 1.0.0
    */
-  NullComponent VLC_PREPARING = direct("mcav.command.player.preparing");
+  NullComponent VLC_PREPARING = LocaleTools.direct("mcav.command.player.preparing");
 
   /**
    * Key {@code mcav.command.ytdlp.preparing}: a video command was given a web page, such as a YouTube video, while the
@@ -374,7 +373,7 @@ public interface Message extends LocaleTools {
    *
    * @since 1.0.0
    */
-  NullComponent YTDLP_PREPARING = direct("mcav.command.ytdlp.preparing");
+  NullComponent YTDLP_PREPARING = LocaleTools.direct("mcav.command.ytdlp.preparing");
 
   /**
    * Key {@code mcav.command.video.release.start}: sent as soon as {@code /mcav video release} is run, before the video
@@ -382,7 +381,7 @@ public interface Message extends LocaleTools {
    *
    * @since 1.0.0
    */
-  NullComponent RELEASE_PLAYER_START = direct("mcav.command.video.release.start");
+  NullComponent RELEASE_PLAYER_START = LocaleTools.direct("mcav.command.video.release.start");
 
   /**
    * Key {@code mcav.command.video.load.error}: a video command was run while another video is still starting; only
@@ -390,21 +389,21 @@ public interface Message extends LocaleTools {
    *
    * @since 1.0.0
    */
-  NullComponent PLAYER_ERROR = direct("mcav.command.video.load.error");
+  NullComponent PLAYER_ERROR = LocaleTools.direct("mcav.command.video.load.error");
 
   /**
    * Key {@code mcav.command.video.release}: {@code /mcav video release} has stopped the video.
    *
    * @since 1.0.0
    */
-  NullComponent RELEASE_PLAYER = direct("mcav.command.video.release");
+  NullComponent RELEASE_PLAYER = LocaleTools.direct("mcav.command.video.release");
 
   /**
    * Key {@code mcav.command.video.pause}: confirms {@code /mcav video pause}.
    *
    * @since 1.0.0
    */
-  NullComponent PAUSE_PLAYER = direct("mcav.command.video.pause");
+  NullComponent PAUSE_PLAYER = LocaleTools.direct("mcav.command.video.pause");
 
   /**
    * Key {@code mcav.command.video.seek}: {@code /mcav video seek} jumped to the time inserted, from the start of the
@@ -412,7 +411,7 @@ public interface Message extends LocaleTools {
    *
    * @since 1.0.0
    */
-  UniComponent<String> SEEK_PLAYER = direct("mcav.command.video.seek", null);
+  UniComponent<String> SEEK_PLAYER = LocaleTools.direct("mcav.command.video.seek", null);
 
   /**
    * Key {@code mcav.command.video.seek.invalid}: the position given to {@code /mcav video seek}, which is inserted, is
@@ -420,7 +419,7 @@ public interface Message extends LocaleTools {
    *
    * @since 1.0.0
    */
-  UniComponent<String> SEEK_INVALID = direct("mcav.command.video.seek.invalid", null);
+  UniComponent<String> SEEK_INVALID = LocaleTools.direct("mcav.command.video.seek.invalid", null);
 
   /**
    * Key {@code mcav.command.video.seek.failed}: {@code /mcav video seek} could not jump, because nothing plays or the
@@ -428,7 +427,7 @@ public interface Message extends LocaleTools {
    *
    * @since 1.0.0
    */
-  NullComponent SEEK_FAILED = direct("mcav.command.video.seek.failed");
+  NullComponent SEEK_FAILED = LocaleTools.direct("mcav.command.video.seek.failed");
 
   /**
    * Key {@code mcav.command.video.seek.relative}: the VLC player does not tell its position, so it only jumps to a time
@@ -436,21 +435,21 @@ public interface Message extends LocaleTools {
    *
    * @since 1.0.0
    */
-  NullComponent SEEK_RELATIVE_UNSUPPORTED = direct("mcav.command.video.seek.relative");
+  NullComponent SEEK_RELATIVE_UNSUPPORTED = LocaleTools.direct("mcav.command.video.seek.relative");
 
   /**
    * Key {@code mcav.command.video.volume}: {@code /mcav video volume} set the volume in percent, which is inserted.
    *
    * @since 1.0.0
    */
-  UniComponent<Integer> VOLUME_SET = direct("mcav.command.video.volume", null);
+  UniComponent<Integer> VOLUME_SET = LocaleTools.direct("mcav.command.video.volume", null);
 
   /**
    * Key {@code mcav.command.video.speed}: {@code /mcav video speed} set the speed, which is inserted.
    *
    * @since 1.0.0
    */
-  UniComponent<String> SPEED_SET = direct("mcav.command.video.speed", null);
+  UniComponent<String> SPEED_SET = LocaleTools.direct("mcav.command.video.speed", null);
 
   /**
    * Key {@code mcav.command.video.speed.failed}: {@code /mcav video speed} could not change the speed, because
@@ -458,28 +457,28 @@ public interface Message extends LocaleTools {
    *
    * @since 1.0.0
    */
-  NullComponent SPEED_FAILED = direct("mcav.command.video.speed.failed");
+  NullComponent SPEED_FAILED = LocaleTools.direct("mcav.command.video.speed.failed");
 
   /**
    * Key {@code mcav.command.video.vlc}: the VLC player neither changes speed nor loops.
    *
    * @since 1.0.0
    */
-  NullComponent VLC_UNSUPPORTED = direct("mcav.command.video.vlc");
+  NullComponent VLC_UNSUPPORTED = LocaleTools.direct("mcav.command.video.vlc");
 
   /**
    * Key {@code mcav.command.video.loop.on}: {@code /mcav video loop true} made videos play again when they end.
    *
    * @since 1.0.0
    */
-  NullComponent LOOP_ON = direct("mcav.command.video.loop.on");
+  NullComponent LOOP_ON = LocaleTools.direct("mcav.command.video.loop.on");
 
   /**
    * Key {@code mcav.command.video.loop.off}: {@code /mcav video loop false} made videos stop at their end.
    *
    * @since 1.0.0
    */
-  NullComponent LOOP_OFF = direct("mcav.command.video.loop.off");
+  NullComponent LOOP_OFF = LocaleTools.direct("mcav.command.video.loop.off");
 
   /**
    * Key {@code mcav.command.video.devices}: {@code /mcav video devices} lists the capture devices, inserted as their
@@ -487,14 +486,14 @@ public interface Message extends LocaleTools {
    *
    * @since 1.0.0
    */
-  UniComponent<String> DEVICE_LIST = direct("mcav.command.video.devices", null);
+  UniComponent<String> DEVICE_LIST = LocaleTools.direct("mcav.command.video.devices", null);
 
   /**
    * Key {@code mcav.command.video.devices.none}: the server has no capture device.
    *
    * @since 1.0.0
    */
-  NullComponent DEVICE_NONE = direct("mcav.command.video.devices.none");
+  NullComponent DEVICE_NONE = LocaleTools.direct("mcav.command.video.devices.none");
 
   /**
    * Key {@code mcav.command.video.device.permission}: playing a capture device, or a raw FFmpeg input, needs its own
@@ -502,15 +501,15 @@ public interface Message extends LocaleTools {
    *
    * @since 1.0.0
    */
-  NullComponent DEVICE_PERMISSION = direct("mcav.command.video.device.permission");
+  NullComponent DEVICE_PERMISSION = LocaleTools.direct("mcav.command.video.device.permission");
 
   /**
-   * Key {@code mcav.command.video.device.unlisted}: the device number given to the DEVICE player, which is inserted, was
-   * not listed by {@code /mcav video devices}.
+   * Key {@code mcav.command.video.device.unlisted}: the device number given to the {@code DEVICE} player, which is
+   * inserted, was not listed by {@code /mcav video devices}.
    *
    * @since 1.0.0
    */
-  UniComponent<String> DEVICE_UNLISTED = direct("mcav.command.video.device.unlisted", null);
+  UniComponent<String> DEVICE_UNLISTED = LocaleTools.direct("mcav.command.video.device.unlisted", null);
 
   /**
    * Key {@code mcav.command.filters.invalid}: the {@code --filters} option of a video or image command cannot be used,
@@ -518,14 +517,14 @@ public interface Message extends LocaleTools {
    *
    * @since 1.0.0
    */
-  UniComponent<String> FILTERS_INVALID = direct("mcav.command.filters.invalid", null);
+  UniComponent<String> FILTERS_INVALID = LocaleTools.direct("mcav.command.filters.invalid", null);
 
   /**
    * Key {@code mcav.command.video.start}: tells the sender of a video command that the video is playing.
    *
    * @since 1.0.0
    */
-  NullComponent START_VIDEO = direct("mcav.command.video.start");
+  NullComponent START_VIDEO = LocaleTools.direct("mcav.command.video.start");
 
   /**
    * Key {@code mcav.command.video.info}: sent to every viewer while a video command resolves the media, which can
@@ -533,14 +532,14 @@ public interface Message extends LocaleTools {
    *
    * @since 1.0.0
    */
-  NullComponent LOAD_VIDEO = direct("mcav.command.video.info");
+  NullComponent LOAD_VIDEO = LocaleTools.direct("mcav.command.video.info");
 
   /**
    * Key {@code mcav.command.browser.release}: {@code /mcav browser release} closed the browser.
    *
    * @since 1.0.0
    */
-  NullComponent RELEASE_BROWSER = direct("mcav.command.browser.release");
+  NullComponent RELEASE_BROWSER = LocaleTools.direct("mcav.command.browser.release");
 
   /**
    * Key {@code mcav.command.browser.start}: the browser of {@code /mcav browser create} started and now shows on the
@@ -548,7 +547,7 @@ public interface Message extends LocaleTools {
    *
    * @since 1.0.0
    */
-  NullComponent START_BROWSER = direct("mcav.command.browser.start");
+  NullComponent START_BROWSER = LocaleTools.direct("mcav.command.browser.start");
 
   /**
    * Key {@code mcav.command.mrl.error}: the media given to a video or image command could not be found or played,
@@ -556,7 +555,7 @@ public interface Message extends LocaleTools {
    *
    * @since 1.0.0
    */
-  NullComponent UNSUPPORTED_MRL = direct("mcav.command.mrl.error");
+  NullComponent UNSUPPORTED_MRL = LocaleTools.direct("mcav.command.mrl.error");
 
   /**
    * Key {@code mcav.command.url.error}: the address given to {@code /mcav browser create} is not an {@code http} or
@@ -564,7 +563,7 @@ public interface Message extends LocaleTools {
    *
    * @since 1.0.0
    */
-  NullComponent UNSUPPORTED_URL = direct("mcav.command.url.error");
+  NullComponent UNSUPPORTED_URL = LocaleTools.direct("mcav.command.url.error");
 
   /**
    * Key {@code mcav.command.dimension.error}: a resolution or size argument is not written as
@@ -572,7 +571,7 @@ public interface Message extends LocaleTools {
    *
    * @since 1.0.0
    */
-  NullComponent UNSUPPORTED_DIMENSION = direct("mcav.command.dimension.error");
+  NullComponent UNSUPPORTED_DIMENSION = LocaleTools.direct("mcav.command.dimension.error");
 
   /**
    * Key {@code mcav.command.map.error}: the map ids of {@code /mcav screen} lie too far past the maps the world
@@ -580,7 +579,7 @@ public interface Message extends LocaleTools {
    *
    * @since 1.0.0
    */
-  NullComponent UNSUPPORTED_MAP_ID = direct("mcav.command.map.error");
+  NullComponent UNSUPPORTED_MAP_ID = LocaleTools.direct("mcav.command.map.error");
 
   /**
    * Key {@code mcav.command.flags.error}: the {@code --yt-dlp} options of a video command name an option the commands
@@ -588,7 +587,7 @@ public interface Message extends LocaleTools {
    *
    * @since 1.0.0
    */
-  UniComponent<String> UNSUPPORTED_FLAGS = direct("mcav.command.flags.error", null);
+  UniComponent<String> UNSUPPORTED_FLAGS = LocaleTools.direct("mcav.command.flags.error", null);
 
   /**
    * Key {@code mcav.command.vm.flags.error}: the QEMU options of {@code /mcav vm create} name an option the command
@@ -597,7 +596,7 @@ public interface Message extends LocaleTools {
    *
    * @since 1.0.0
    */
-  UniComponent<String> UNSUPPORTED_VM_FLAGS = direct("mcav.command.vm.flags.error", null);
+  UniComponent<String> UNSUPPORTED_VM_FLAGS = LocaleTools.direct("mcav.command.vm.flags.error", null);
 
   /**
    * Key {@code mcav.command.dump.result}: {@code /mcav dump} uploaded the diagnostic dump. The argument is its link,
@@ -605,14 +604,14 @@ public interface Message extends LocaleTools {
    *
    * @since 1.0.0
    */
-  UniComponent<String> SEND_DUMP = direct("mcav.command.dump.result", null);
+  UniComponent<String> SEND_DUMP = LocaleTools.direct("mcav.command.dump.result", null);
 
   /**
    * Key {@code mcav.command.dump.load}: sent as soon as {@code /mcav dump} starts collecting and uploading the dump.
    *
    * @since 1.0.0
    */
-  NullComponent CREATE_DUMP = direct("mcav.command.dump.load");
+  NullComponent CREATE_DUMP = LocaleTools.direct("mcav.command.dump.load");
 
   /**
    * Key {@code mcav.command.dump.error}: the dump of {@code /mcav dump} could not be uploaded; the console has the
@@ -620,7 +619,7 @@ public interface Message extends LocaleTools {
    *
    * @since 1.0.0
    */
-  NullComponent DUMP_FAILED = direct("mcav.command.dump.error");
+  NullComponent DUMP_FAILED = LocaleTools.direct("mcav.command.dump.error");
 
   /**
    * Key {@code mcav.command.browser.error}: the browser of {@code /mcav browser create} failed to start, for example
@@ -628,7 +627,7 @@ public interface Message extends LocaleTools {
    *
    * @since 1.0.0
    */
-  NullComponent BROWSER_ERROR = direct("mcav.command.browser.error");
+  NullComponent BROWSER_ERROR = LocaleTools.direct("mcav.command.browser.error");
 
   /**
    * Key {@code mcav.command.browser.loading}: {@code /mcav browser create} accepted its arguments and is starting the
@@ -636,7 +635,7 @@ public interface Message extends LocaleTools {
    *
    * @since 1.0.0
    */
-  NullComponent BROWSER_LOADING = direct("mcav.command.browser.loading");
+  NullComponent BROWSER_LOADING = LocaleTools.direct("mcav.command.browser.loading");
 
   /**
    * Key {@code mcav.command.browser.unsupported}: {@code /mcav browser create} was run on a server whose operating
@@ -644,7 +643,7 @@ public interface Message extends LocaleTools {
    *
    * @since 1.0.0
    */
-  NullComponent BROWSER_UNSUPPORTED = direct("mcav.command.browser.unsupported");
+  NullComponent BROWSER_UNSUPPORTED = LocaleTools.direct("mcav.command.browser.unsupported");
 
   /**
    * Key {@code mcav.command.browser.unavailable}: the browser cannot run on this server, because its download or the
@@ -652,7 +651,7 @@ public interface Message extends LocaleTools {
    *
    * @since 1.0.0
    */
-  NullComponent BROWSER_UNAVAILABLE = direct("mcav.command.browser.unavailable");
+  NullComponent BROWSER_UNAVAILABLE = LocaleTools.direct("mcav.command.browser.unavailable");
 
   /**
    * Key {@code mcav.command.video.start.error}: a video command failed while starting the video; the console has the
@@ -660,7 +659,7 @@ public interface Message extends LocaleTools {
    *
    * @since 1.0.0
    */
-  NullComponent VIDEO_START_ERROR = direct("mcav.command.video.start.error");
+  NullComponent VIDEO_START_ERROR = LocaleTools.direct("mcav.command.video.start.error");
 
   /**
    * Key {@code mcav.command.vm.error}: the virtual machine of {@code /mcav vm create} failed to start for a reason
@@ -668,7 +667,7 @@ public interface Message extends LocaleTools {
    *
    * @since 1.0.0
    */
-  NullComponent VM_ERROR = direct("mcav.command.vm.error");
+  NullComponent VM_ERROR = LocaleTools.direct("mcav.command.vm.error");
 
   /**
    * Key {@code mcav.command.audio.not_ready}: a video command chose the Discord bot or the HTTP server as the audio
@@ -676,7 +675,7 @@ public interface Message extends LocaleTools {
    *
    * @since 1.0.0
    */
-  NullComponent AUDIO_NOT_READY = direct("mcav.command.audio.not_ready");
+  NullComponent AUDIO_NOT_READY = LocaleTools.direct("mcav.command.audio.not_ready");
 
   /**
    * Key {@code mcav.command.scoreboard.lines.error}: a scoreboard video or image asked for more lines than the
@@ -684,5 +683,5 @@ public interface Message extends LocaleTools {
    *
    * @since 1.0.0
    */
-  NullComponent SCOREBOARD_LINES = direct("mcav.command.scoreboard.lines.error");
+  NullComponent SCOREBOARD_LINES = LocaleTools.direct("mcav.command.scoreboard.lines.error");
 }

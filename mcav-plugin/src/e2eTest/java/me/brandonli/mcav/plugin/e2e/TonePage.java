@@ -17,6 +17,7 @@
  */
 package me.brandonli.mcav.plugin.e2e;
 
+import com.sun.net.httpserver.Headers;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import java.io.IOException;
@@ -32,25 +33,26 @@ final class TonePage implements AutoCloseable {
   static final int TONE_HERTZ = 1000;
 
   private static final String PAGE = """
-  <!doctype html><html><head><style>html,body{margin:0;width:100%;height:100%;background:#ff0000;}</style></head>
+  <!doctype html><html><head><style>html,body{margin:0;width:100%%;height:100%%;background:#ff0000;}</style></head>
   <body><script>
     const context = new AudioContext();
     const oscillator = context.createOscillator();
-    oscillator.frequency.value = 1000;
+    oscillator.frequency.value = %s;
     const gain = context.createGain();
     gain.gain.value = 0.5;
     oscillator.connect(gain);
     gain.connect(context.destination);
     oscillator.start();
-    addEventListener('pointerdown', () => context.resume());
+    addEventListener("pointerdown", () => context.resume());
   </script></body></html>
-  """;
+  """.formatted(TONE_HERTZ);
 
   private static final String LOOPBACK_HOST = "localhost";
   private static final byte[] LOOPBACK_OCTETS = { 127, 0, 0, 1 };
 
+  private static final int EPHEMERAL_PORT = 0;
+
   private static final String TONE_PATH = "/tone";
-  private static final String URL_PREFIX = "http://127.0.0.1:";
 
   private final HttpServer server;
 
@@ -61,7 +63,7 @@ final class TonePage implements AutoCloseable {
   // 127.0.0.1, the address the browser is sent to, even where Java prefers IPv6
   static TonePage start() throws IOException {
     final InetAddress loopback = InetAddress.getByAddress(LOOPBACK_HOST, LOOPBACK_OCTETS);
-    final HttpServer server = HttpServer.create(new InetSocketAddress(loopback, 0), 0);
+    final HttpServer server = HttpServer.create(new InetSocketAddress(loopback, EPHEMERAL_PORT), 0);
     server.createContext(TONE_PATH, TonePage::sendPage);
     server.start();
     return new TonePage(server);
@@ -69,7 +71,8 @@ final class TonePage implements AutoCloseable {
 
   private static void sendPage(final HttpExchange exchange) throws IOException {
     final byte[] body = PAGE.getBytes(StandardCharsets.UTF_8);
-    exchange.getResponseHeaders().add("Content-Type", "text/html; charset=utf-8");
+    final Headers headers = exchange.getResponseHeaders();
+    headers.add("Content-Type", "text/html; charset=utf-8");
     exchange.sendResponseHeaders(HttpURLConnection.HTTP_OK, body.length);
     try (final OutputStream output = exchange.getResponseBody()) {
       output.write(body);
@@ -82,6 +85,9 @@ final class TonePage implements AutoCloseable {
   }
 
   URI getUri() {
-    return URI.create(URL_PREFIX + this.server.getAddress().getPort() + TONE_PATH);
+    final InetSocketAddress address = this.server.getAddress();
+    final int port = address.getPort();
+    final String url = "http://127.0.0.1:%s%s".formatted(port, TONE_PATH);
+    return URI.create(url);
   }
 }

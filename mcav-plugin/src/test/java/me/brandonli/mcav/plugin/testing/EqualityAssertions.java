@@ -29,14 +29,11 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 public final class EqualityAssertions {
 
   private EqualityAssertions() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
-  // Asserts that a value equals itself, that two values are equal in both directions with equal hash codes, that the
-  // value equals neither null nor an unrelated object, and that the value differs from every one of the different
-  // values in both directions and remains distinct from them as a hash map key. Unequal values may have equal hash
-  // codes, even when only one property differs. Hash maps use equality to distinguish keys that collide; the contract
-  // requires equal hashes only for equal values.
+  // unequal values may share a hash code; only equal values must
   public static void assertEqualityContract(final Object value, final Object equalValue, final Object... differentValues) {
     Preconditions.checkNotNull(value, "Value must not be null!");
     Preconditions.checkNotNull(equalValue, "Equal value must not be null!");
@@ -81,22 +78,21 @@ public final class EqualityAssertions {
 
   private static void assertNotEqualToNullOrUnrelated(final Object value) {
     final Object unrelated = new Object();
-    @Nullable final Object[] outsiders = { null, unrelated };
-    for (@Nullable final Object outsider : outsiders) {
+    final @Nullable Object[] outsiders = { null, unrelated };
+    for (final @Nullable Object outsider : outsiders) {
       final boolean equal = isEqual(value, outsider);
-      assertFalse(equal, () -> "a value must not equal " + outsider);
+      assertFalse(equal, () -> "a value must not equal %s".formatted(outsider));
     }
   }
 
   private static void assertDifferentInBothDirections(final Object value, final Object differentValue) {
     final boolean forward = isEqual(value, differentValue);
     final boolean backward = isEqual(differentValue, value);
-    assertFalse(forward, () -> "the value must differ from " + differentValue);
-    assertFalse(backward, () -> differentValue + " must differ from the value");
+    assertFalse(forward, () -> "the value must differ from %s".formatted(differentValue));
+    assertFalse(backward, () -> "%s must differ from the value".formatted(differentValue));
   }
 
-  // Calls Object.equals(Object) directly, so the assertions check the implementation of the value rather than a
-  // shortcut such as the identity check of java.util.Objects.equals(Object, Object).
+  // not Objects.equals, whose identity shortcut would skip the value's equals
   private static boolean isEqual(final Object receiver, final @Nullable Object argument) {
     return receiver.equals(argument);
   }

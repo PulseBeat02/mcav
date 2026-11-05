@@ -20,25 +20,25 @@ granted.
 | `mcav.command.video.chat`, `.block`, `.entity`, `.scoreboard`, `.map`, `.pause`, `.resume`, `.release`, `.seek`, `.volume`, `.speed`, `.loop` | the `/mcav video` commands of those names |
 | `mcav.command.video.device` | `/mcav video devices`, the `DEVICE` player, and raw FFmpeg inputs (`format\|\|input`) in any video command |
 | `mcav.command.browser.create` | `/mcav browser create` |
-| `mcav.browser.release` | `/mcav browser release` |
-| `mcav.browser.interact` | `/mcav browser interact`, and clicking the screen of the browser |
+| `mcav.command.browser.release` | `/mcav browser release` |
+| `mcav.command.browser.interact` | `/mcav browser interact`, and clicking the screen of the browser |
 | `mcav.command.vm.create` | `/mcav vm create` |
-| `mcav.vm.release` | `/mcav vm release` |
-| `mcav.vm.interact` | `/mcav vm interact`, and clicking the screen of the virtual machine |
+| `mcav.command.vm.release` | `/mcav vm release` |
+| `mcav.command.vm.interact` | `/mcav vm interact`, and clicking the screen of the virtual machine |
 | `mcav.command.vnc.create` | `/mcav vnc create` |
-| `mcav.vnc.release` | `/mcav vnc release` |
-| `mcav.vnc.interact` | `/mcav vnc interact`, and clicking the screen of the desktop |
+| `mcav.command.vnc.release` | `/mcav vnc release` |
+| `mcav.command.vnc.interact` | `/mcav vnc interact`, and clicking the screen of the desktop |
 | `mcav.command.video.mcv2` | `/mcav video mcv2` |
 | `mcav.command.mcv2.play` | `/mcav mcv2 play`, `stream` and `stop` |
 | `mcav.command.mcv2.encode` | `/mcav mcv2 encode` and `cancel` |
 
 ```{important}
-`mcav.browser.interact`, `mcav.vm.interact` and `mcav.vnc.interact` do not only switch chat input on: they are also what
-lets a player click a browser, a virtual machine or a desktop by clicking its map screen. The screen stands in the
-world, so anyone can reach it; without the permission a click does nothing, while the frames of the screen stay
-protected for everyone. The permission is the only check: a region plugin that protects the area, or a chat plugin that
-cancels the message, does not stop a click or typed text from a player who has it. To keep a screen to some players or
-places, give the permission only there, for example per world with your permissions plugin.
+`mcav.command.browser.interact`, `mcav.command.vm.interact` and `mcav.command.vnc.interact` do not only switch chat
+input on: they are also what lets a player click a browser, a virtual machine or a desktop by clicking its map screen.
+The screen stands in the world, so anyone can reach it; without the permission a click does nothing, while the frames of
+the screen stay protected for everyone. The permission is the only check: a region plugin that protects the area, or a
+chat plugin that cancels the message, does not stop a click or typed text from a player who has it. To keep a screen to
+some players or places, give the permission only there, for example per world with your permissions plugin.
 ```
 
 ## General commands
@@ -309,11 +309,11 @@ every device there is.
 
 | Command                                      | `/mcav video mcv2`                                                                                                                         |
 |----------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------|
-| Usage                                        | `/mcav video mcv2 <playerSelector> <playerType> <audioType> <videoResolution> <blockDimensions> <mapId> <profile> <ditheringAlgorithm> <ytdlpOptions> <mrl> [--filters "<chain>"]` |
+| Usage                                        | `/mcav video mcv2 <playerSelector> <playerType> <audioType> <videoResolution> <blockDimensions> <mapId> <preset> <ditheringAlgorithm> <ytdlpOptions> <mrl> [--filters "<chain>"]`  |
 | Permission                                   | `mcav.command.video.mcv2`                                                                                                                  |
-| Description                                  | Plays a video on a map screen with MCV2, like `/mcav video map ... --codec mcv2`, with the encoder profile of your choice                  |
+| Description                                  | Plays a video on a map screen with MCV2, like `/mcav video map ... --codec mcv2`, with the encoder preset of your choice                   |
 | Arguments                                    |                                                                                                                                            |
-| &nbsp;&nbsp;&nbsp;&nbsp;`profile`            | The encoder preset: `DEFAULT` (the default of `--codec mcv2`), `FAST` (the fastest search, for a server that can't keep up; more bandwidth) |
+| &nbsp;&nbsp;&nbsp;&nbsp;`preset`             | The encoder preset: `DEFAULT` (the default of `--codec mcv2`), `FAST` (the fastest search, for a server that can't keep up; more bandwidth) |
 |                                              | The other arguments are those of `/mcav video map`; the dithering algorithm is for the viewers without the pack                          |
 
 ---
@@ -340,7 +340,7 @@ every device there is.
 | Command         | `/mcav browser interact`                                                                                            |
 |-----------------|---------------------------------------------------------------------------------------------------------------------|
 | Usage           | `/mcav browser interact`                                                                                            |
-| Permission      | `mcav.browser.interact`                                                                                             |
+| Permission      | `mcav.command.browser.interact`                                                                                     |
 | Description     | Switches browser interaction mode on or off for the player: while it is on, their chat messages are typed into the browser instead of sent to chat. Clicking the screen needs no mode, only the permission. |
 | Arguments       | None                                                                                                                |
 
@@ -349,7 +349,7 @@ every device there is.
 | Command         | `/mcav browser release`                                     |
 |-----------------|-------------------------------------------------------------|
 | Usage           | `/mcav browser release`                                     |
-| Permission      | `mcav.browser.release`                                      |
+| Permission      | `mcav.command.browser.release`                              |
 | Description     | Releases/removes the browser that was previously displayed. |
 | Arguments       | None                                                        |
 
@@ -383,7 +383,7 @@ installed and configured to use these commands.
 | Command         | `/mcav vm interact`                                                                                                      |
 |-----------------|--------------------------------------------------------------------------------------------------------------------------|
 | Usage           | `/mcav vm interact`                                                                                                      |
-| Permission      | `mcav.vm.interact`                                                                                                       |
+| Permission      | `mcav.command.vm.interact`                                                                                               |
 | Description     | Switches VM interaction mode on or off for the player: while it is on, their chat messages are typed into the virtual machine instead of sent to chat. Clicking the screen needs no mode, only the permission. |
 | Arguments       | None                                                                                                                     |
 
@@ -392,7 +392,7 @@ installed and configured to use these commands.
 | Command         | `/mcav vm release`                                     |
 |-----------------|--------------------------------------------------------|
 | Usage           | `/mcav vm release`                                     |
-| Permission      | `mcav.vm.release`                                      |
+| Permission      | `mcav.command.vm.release`                              |
 | Description     | Releases/removes the VM that was previously displayed. |
 | Arguments       | None                                                   |
 
@@ -445,7 +445,7 @@ message types and encodings outside what the client supports close the connectio
 | Command         | `/mcav vnc interact`                                                                                                   |
 |-----------------|------------------------------------------------------------------------------------------------------------------------|
 | Usage           | `/mcav vnc interact`                                                                                                   |
-| Permission      | `mcav.vnc.interact`                                                                                                    |
+| Permission      | `mcav.command.vnc.interact`                                                                                            |
 | Description     | Toggles typing into the desktop: while it is on, what you write in the chat is typed into the desktop and not sent    |
 | Arguments       | None                                                                                                                   |
 
@@ -454,7 +454,7 @@ message types and encodings outside what the client supports close the connectio
 | Command         | `/mcav vnc release`                                                              |
 |-----------------|----------------------------------------------------------------------------------|
 | Usage           | `/mcav vnc release`                                                              |
-| Permission      | `mcav.vnc.release`                                                               |
+| Permission      | `mcav.command.vnc.release`                                                       |
 | Description     | Disconnects from the desktop and clears its maps for every viewer               |
 | Arguments       | None                                                                             |
 
@@ -466,14 +466,14 @@ They have no sound. Stream files live in the plugin's `mcv2` folder; a name that
 
 | Command                                   | `/mcav mcv2 encode`                                                                                    |
 |-------------------------------------------|--------------------------------------------------------------------------------------------------------|
-| Usage                                     | `/mcav mcv2 encode <file> <output> <resolution> <profile>`                                            |
+| Usage                                     | `/mcav mcv2 encode <file> <output> <resolution> <preset>`                                             |
 | Permission                                | `mcav.command.mcv2.encode`                                                                             |
 | Description                               | Encodes a video file into a stream file ahead of time, on the encoder threads every MCV2 screen shares, telling you the progress every thirty seconds. One encode runs at a time |
 | Arguments                                 |                                                                                                        |
 | &nbsp;&nbsp;&nbsp;&nbsp;`file`            | The video file on the server                                                                           |
 | &nbsp;&nbsp;&nbsp;&nbsp;`output`          | The stream file to write in the plugin's `mcv2` folder; an existing one is replaced when the encode ends |
 | &nbsp;&nbsp;&nbsp;&nbsp;`resolution`      | The video size in width×height format (example, 1280x720)                                              |
-| &nbsp;&nbsp;&nbsp;&nbsp;`profile`         | The encoder preset, usually `DEFAULT`, the best picture for its bandwidth; `FAST` is faster |
+| &nbsp;&nbsp;&nbsp;&nbsp;`preset`          | The encoder preset, usually `DEFAULT`, the best picture for its bandwidth; `FAST` is faster |
 
 ---
 

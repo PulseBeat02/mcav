@@ -51,29 +51,48 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *
  * @since 1.0.0
  */
-public final class JukeBoxListener implements Listener {
+public final class JukeboxListener implements Listener {
 
   private static final PlainTextComponentSerializer PLAIN_TEXT = PlainTextComponentSerializer.plainText();
-  private static final Pattern BRACKETS = Pattern.compile("[\\[\\]]");
-  private static final Pattern ILLEGAL_FILE_NAME_CHARACTERS = Pattern.compile("[\\\\/:*?\"<>|]");
+
   private static final String MUSIC_DISC_PREFIX = "MUSIC_DISC_";
 
+  private static final Pattern BRACKETS = Pattern.compile("[\\[\\]]");
+  private static final Pattern ILLEGAL_FILE_NAME_CHARACTERS = Pattern.compile("[\\\\/:*?\"<>|]");
   private static final String NAME_REPLACEMENT = "_";
 
-  private final MCAVSandbox sandbox;
+  private static final String VM_RESOLUTION = "640x640";
+
+  private static final int TARGET_FRAMES_PER_SECOND = 30;
+
+  private static final String BLOCK_DIMENSIONS = "5x5";
+
+  private static final int MAP_ID = 0;
+
+  private static final String DITHERING_ALGORITHM = "FILTER_LITE";
+
+  private static final String ARCHITECTURE = "X86_64";
+
+  private static final String AUDIO_TYPE = "NONE";
+
+  private static final String MEMORY = "2048M";
+
+  private final MCAVSandbox plugin;
   private final Path isoFolder;
 
   /**
-   * Constructs the listener and creates the {@code iso} folder.
+   * Creates the listener and the {@code iso} folder.
    *
-   * @param sandbox the plugin
+   * @param plugin the plugin
+   * @throws NullPointerException                           if {@code plugin} is null
+   * @throws me.brandonli.mcav.utils.FileOperationException if the {@code iso} folder cannot be created
    * @since 1.0.0
    */
-  public JukeBoxListener(final MCAVSandbox sandbox) {
-    Preconditions.checkNotNull(sandbox, "Sandbox must not be null!");
+  public JukeboxListener(final MCAVSandbox plugin) {
+    Preconditions.checkNotNull(plugin, "Plugin must not be null!");
 
-    this.sandbox = sandbox;
-    final Path dataFolder = sandbox.getDataPath();
+    this.plugin = plugin;
+    final Path dataFolder = plugin.getDataPath();
     this.isoFolder = DiskImages.folderOf(dataFolder);
     IoUtils.createDirectoryIfNotExists(this.isoFolder);
   }
@@ -86,7 +105,7 @@ public final class JukeBoxListener implements Listener {
   public void start() {
     final Server server = Bukkit.getServer();
     final PluginManager pluginManager = server.getPluginManager();
-    pluginManager.registerEvents(this, this.sandbox);
+    pluginManager.registerEvents(this, this.plugin);
   }
 
   /**
@@ -104,6 +123,7 @@ public final class JukeBoxListener implements Listener {
    * lower priorities, may have denied the player the jukebox; a denied use boots nothing.
    *
    * @param event the interaction
+   * @throws NullPointerException if {@code event} is null
    * @since 1.0.0
    */
   @EventHandler(priority = EventPriority.HIGHEST)
@@ -125,12 +145,21 @@ public final class JukeBoxListener implements Listener {
     }
 
     event.setCancelled(true);
+
     final Player player = event.getPlayer();
     final String playerName = player.getName();
     final Path absolute = image.toAbsolutePath();
-    final String command = "mcav vm create %s 640x640 30 5x5 0 FILTER_LITE X86_64 NONE -cdrom \"%s\" -m 2048M".formatted(
+    final String command = "mcav vm create %s %s %s %s %s %s %s %s -cdrom \"%s\" -m %s".formatted(
       playerName,
-      absolute
+      VM_RESOLUTION,
+      TARGET_FRAMES_PER_SECOND,
+      BLOCK_DIMENSIONS,
+      MAP_ID,
+      DITHERING_ALGORITHM,
+      ARCHITECTURE,
+      AUDIO_TYPE,
+      absolute,
+      MEMORY
     );
     player.performCommand(command);
   }

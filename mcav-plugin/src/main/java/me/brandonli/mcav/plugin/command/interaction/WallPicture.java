@@ -17,28 +17,37 @@
  */
 package me.brandonli.mcav.plugin.command.interaction;
 
+import me.brandonli.mcav.bukkit.media.map.MapLayout;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 record WallPicture(int wallWidth, int wallHeight, int sourceWidth, int sourceHeight, boolean stretched) {
-  private static final int MAP_PIXELS = 128;
-
   private static final int SIDES = 2;
 
   static WallPicture of(final int columns, final int rows, final int sourceWidth, final int sourceHeight, final boolean stretched) {
-    return new WallPicture(columns * MAP_PIXELS, rows * MAP_PIXELS, sourceWidth, sourceHeight, stretched);
+    final int wallWidth = columns * MapLayout.MAP_SIZE;
+    final int wallHeight = rows * MapLayout.MAP_SIZE;
+    return new WallPicture(wallWidth, wallHeight, sourceWidth, sourceHeight, stretched);
   }
 
   int @Nullable [] toSource(final int wallX, final int wallY) {
     if (this.stretched) {
-      final int sourceX = (int) (((long) wallX * this.sourceWidth) / this.wallWidth);
-      final int sourceY = (int) (((long) wallY * this.sourceHeight) / this.wallHeight);
+      final int sourceX = this.scale(wallX, this.sourceWidth, this.wallWidth);
+      final int sourceY = this.scale(wallY, this.sourceHeight, this.wallHeight);
       return new int[] { sourceX, sourceY };
     }
 
-    // centred as the maps centre it (MapLayout): the same offset on both sides, rounded down
-    final int sourceX = wallX - (this.wallWidth - this.sourceWidth) / SIDES;
-    final int sourceY = wallY - (this.wallHeight - this.sourceHeight) / SIDES;
+    // centered as the maps center it (MapLayout): the same offset on both sides, rounded down
+    final int offsetX = (this.wallWidth - this.sourceWidth) / SIDES;
+    final int offsetY = (this.wallHeight - this.sourceHeight) / SIDES;
+    final int sourceX = wallX - offsetX;
+    final int sourceY = wallY - offsetY;
     final boolean inside = sourceX >= 0 && sourceY >= 0 && sourceX < this.sourceWidth && sourceY < this.sourceHeight;
     return inside ? new int[] { sourceX, sourceY } : null;
+  }
+
+  private int scale(final int wallCoordinate, final int sourceSide, final int wallSide) {
+    final long scaled = (long) wallCoordinate * sourceSide;
+    final long divided = scaled / wallSide;
+    return (int) divided;
   }
 }

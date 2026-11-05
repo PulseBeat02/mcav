@@ -90,6 +90,7 @@ final class AbstractImageCommandTest {
   private static final int RED_PIXEL = 0xFFFF0000;
 
   private static final char QUOTE = '"';
+  private static final String EMPTY_QUOTED_SOURCE = "\"\"";
 
   private static final String CONFIGURATION = "configuration";
 
@@ -114,6 +115,10 @@ final class AbstractImageCommandTest {
   private static final String SCHEDULE_FATAL_FILE_NAME = "schedule-fatal.png";
   private static final String DISCARD_FATAL_FILE_NAME = "discard-fatal.png";
   private static final String CONFIGURATION_CLEANUP_FATAL_FILE_NAME = "config-cleanup-fatal.png";
+
+  private static final int EPHEMERAL_PORT = 0;
+
+  private static final String IMAGE_RELEASE_FAILURE_MESSAGE = "image release failed!";
 
   @TempDir
   private Path folder;
@@ -324,7 +329,8 @@ final class AbstractImageCommandTest {
     final Component refused = Message.FILTERS_INVALID.build("Filter fps counts the frames of a video, and an image has one!");
 
     final List<Component> received = Components.received(this.sender);
-    assertEquals(List.of(refused), received);
+    final List<Component> expectedMessages = List.of(refused);
+    assertEquals(expectedMessages, received);
 
     verify(this.manager, never()).beginLoad();
   }
@@ -343,13 +349,13 @@ final class AbstractImageCommandTest {
     final String path = PICTURE_PATH;
     final byte[] bytes = this.encode(PNG_FORMAT);
     final InetAddress loopback = InetAddress.getLoopbackAddress();
-    final InetSocketAddress address = new InetSocketAddress(loopback, 0);
+    final InetSocketAddress address = new InetSocketAddress(loopback, EPHEMERAL_PORT);
     this.server = HttpServer.create(address, 0);
     this.server.createContext(path, exchange -> this.sendImage(exchange, bytes));
     this.server.start();
     final InetSocketAddress bound = this.server.getAddress();
     final int port = bound.getPort();
-    return "http://127.0.0.1:" + port + path;
+    return "http://127.0.0.1:%s%s".formatted(port, path);
   }
 
   private void sendImage(final HttpExchange exchange, final byte[] bytes) throws IOException {
@@ -384,7 +390,7 @@ final class AbstractImageCommandTest {
   }
 
   @ParameterizedTest
-  @ValueSource(strings = { "", "\"", "\"\"", "\"missing.png", "missing.png\"", "\"\"missing.png\"\"" })
+  @ValueSource(strings = { "", "\"", EMPTY_QUOTED_SOURCE, "\"missing.png", "missing.png\"", "\"\"missing.png\"\"" })
   void shouldRejectEmptyOrMalformedQuotedSources(final String mrl) {
     this.command.displayImage(_ -> CONFIGURATION, this.sender, LARGE_SCREEN_SIZE, mrl, null);
     this.assertNothingShown();
@@ -406,12 +412,13 @@ final class AbstractImageCommandTest {
         this.detectQuotesAsImage(helper, imageSource)
       )
     ) {
-      this.command.displayImage(_ -> CONFIGURATION, this.sender, LARGE_SCREEN_SIZE, "\"\"", null);
+      this.command.displayImage(_ -> CONFIGURATION, this.sender, LARGE_SCREEN_SIZE, EMPTY_QUOTED_SOURCE, null);
       this.assertNothingShown();
 
       final List<Component> messages = Components.received(this.sender);
       final Component invalid = Message.UNSUPPORTED_MRL.build();
-      assertEquals(List.of(invalid), messages);
+      final List<Component> expectedMessages = List.of(invalid);
+      assertEquals(expectedMessages, messages);
 
       final List<SourceDetectionHelper> lookups = detection.constructed();
 
@@ -421,7 +428,7 @@ final class AbstractImageCommandTest {
   }
 
   private void detectQuotesAsImage(final SourceDetectionHelper helper, final FileSource imageSource) {
-    when(helper.detectSource("\"\"")).thenReturn(Optional.of(imageSource));
+    when(helper.detectSource(EMPTY_QUOTED_SOURCE)).thenReturn(Optional.of(imageSource));
   }
 
   @Test
@@ -470,7 +477,7 @@ final class AbstractImageCommandTest {
       this.command.displayImage(_ -> CONFIGURATION, this.sender, SCREEN_SIZE, mrl, null);
       output = capture.getOutput();
     }
-    final boolean named = output.contains("Image " + mrl + " could not be loaded.");
+    final boolean named = output.contains("Image %s could not be loaded.".formatted(mrl));
     assertTrue(named, "the log of a failed image names the media it could not load");
   }
 
@@ -490,13 +497,8 @@ final class AbstractImageCommandTest {
   }
 
   @Test
-  void shouldUseTheImageManagerOfThePlugin() {
-    assertSame(this.manager, this.command.manager);
-  }
-
-  @Test
   void shouldReleaseTheLoadedImageWhenThePluginWasDisabledMeanwhile() throws IOException {
-    final BukkitScheduler scheduler = TestServer.scheduler();
+    final BukkitScheduler scheduler = TestServer.getScheduler();
     final IllegalPluginAccessException disabled = new IllegalPluginAccessException("disabled!");
     when(scheduler.runTask(any(Plugin.class), any(Runnable.class))).thenThrow(disabled);
     final Path file = this.writeImage(PICTURE_FILE_NAME, PNG_FORMAT);
@@ -679,8 +681,8 @@ final class AbstractImageCommandTest {
     final Path file = this.writeImage(SCHEDULE_FAILURE_FILE_NAME, PNG_FORMAT);
     final String mrl = file.toString();
     final IllegalStateException primary = new IllegalStateException("scheduler rejected the loaded image!");
-    final RuntimeException cleanup = cleanupMode == 1 ? primary : new IllegalArgumentException("image release failed!");
-    final BukkitScheduler scheduler = TestServer.scheduler();
+    final RuntimeException cleanup = cleanupMode == 1 ? primary : new IllegalArgumentException(IMAGE_RELEASE_FAILURE_MESSAGE);
+    final BukkitScheduler scheduler = TestServer.getScheduler();
     when(scheduler.runTask(any(Plugin.class), any(Runnable.class))).thenThrow(primary);
     final String output;
     try (
@@ -722,7 +724,7 @@ final class AbstractImageCommandTest {
     final String mrl = file.toString();
     final RecordingCommand failing = spy(this.command);
     final IllegalStateException primary = new IllegalStateException("invalid image configuration!");
-    final RuntimeException cleanup = sameFailure ? primary : new IllegalArgumentException("image release failed!");
+    final RuntimeException cleanup = sameFailure ? primary : new IllegalArgumentException(IMAGE_RELEASE_FAILURE_MESSAGE);
     Mockito.doThrow(primary).when(failing).createImage(any(), any());
     try (
       final MockedConstruction<MatImageBuffer> buffers = Mockito.mockConstruction(MatImageBuffer.class, (image, context) ->
@@ -760,7 +762,7 @@ final class AbstractImageCommandTest {
     final Path file = this.writeImage(SCHEDULE_FATAL_FILE_NAME, PNG_FORMAT);
     final String mrl = file.toString();
     final OutOfMemoryError fatal = new OutOfMemoryError("fatal scheduling sentinel!");
-    final BukkitScheduler scheduler = TestServer.scheduler();
+    final BukkitScheduler scheduler = TestServer.getScheduler();
     when(scheduler.runTask(any(Plugin.class), any(Runnable.class))).thenThrow(fatal);
 
     final String output;
@@ -787,7 +789,7 @@ final class AbstractImageCommandTest {
     final String mrl = file.toString();
     final IllegalStateException primary = new IllegalStateException("scheduling rejected!");
     final OutOfMemoryError fatal = new OutOfMemoryError("fatal discard sentinel!");
-    final BukkitScheduler scheduler = TestServer.scheduler();
+    final BukkitScheduler scheduler = TestServer.getScheduler();
     when(scheduler.runTask(any(Plugin.class), any(Runnable.class))).thenThrow(primary);
 
     final String output;
@@ -848,6 +850,7 @@ final class AbstractImageCommandTest {
   private static final class RecordingCommand extends AbstractImageCommand {
 
     private final DisplayableImage display;
+
     private final List<Pair<Integer, Integer>> resolutions;
     private final List<ImageConfigurationProvider> providers;
 

@@ -32,7 +32,8 @@ public final class Components {
   private static final PlainTextComponentSerializer PLAIN_TEXT = PlainTextComponentSerializer.plainText();
 
   private Components() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   public static String plain(final Component component) {
@@ -49,11 +50,6 @@ public final class Components {
 
   public static List<String> receivedText(final Audience audience) {
     final List<Component> messages = received(audience);
-    final List<String> texts = new ArrayList<>();
-    for (final Component message : messages) {
-      final String text = plain(message);
-      texts.add(text);
-    }
-    return texts;
+    return messages.stream().map(Components::plain).toList();
   }
 }

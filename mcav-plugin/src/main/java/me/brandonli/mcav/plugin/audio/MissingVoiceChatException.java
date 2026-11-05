@@ -39,4 +39,8 @@ public final class MissingVoiceChatException extends PluginException {
   MissingVoiceChatException(final String message) {
     super(message);
   }
+
+  MissingVoiceChatException(final String message, final Throwable cause) {
+    super(message, cause);
+  }
 }

@@ -44,27 +44,33 @@ final class WallPictureTest {
     final WallPicture picture = WallPicture.of(WALL_COLUMNS, WALL_ROWS, SOURCE_WIDTH, SOURCE_HEIGHT, true);
 
     final int[] source = picture.toSource(WALL_CENTER_X, WALL_CENTER_Y);
-    assertArrayEquals(new int[] { SOURCE_CENTER_X, SOURCE_CENTER_Y }, source);
+    final int[] expectedSource = { SOURCE_CENTER_X, SOURCE_CENTER_Y };
+    assertArrayEquals(expectedSource, source);
 
     final int[] pictureSource = picture.toSource(LAST_WALL_PIXEL_X, LAST_WALL_PIXEL_Y);
-    assertArrayEquals(new int[] { 1279, LAST_SOURCE_PIXEL_Y }, pictureSource);
+    final int[] expectedPictureSource = { 1279, LAST_SOURCE_PIXEL_Y };
+    assertArrayEquals(expectedPictureSource, pictureSource);
 
     final int[] secondSource = picture.toSource(0, 0);
-    assertArrayEquals(new int[] { 0, 0 }, secondSource);
+    final int[] expectedSecondSource = { 0, 0 };
+    assertArrayEquals(expectedSecondSource, secondSource);
   }
 
   @Test
-  void shouldShiftACentredPictureByItsBorderAndLeaveNoPixelThere() {
+  void shouldShiftACenteredPictureByItsBorderAndLeaveNoPixelThere() {
     final WallPicture picture = WallPicture.of(WALL_COLUMNS, WALL_ROWS, SOURCE_WIDTH, SOURCE_HEIGHT, false);
 
     final int[] source = picture.toSource(WALL_CENTER_X, WALL_CENTER_Y);
-    assertArrayEquals(new int[] { SOURCE_CENTER_X, SOURCE_CENTER_Y }, source);
+    final int[] expectedSource = { SOURCE_CENTER_X, SOURCE_CENTER_Y };
+    assertArrayEquals(expectedSource, source);
 
     final int[] pictureSource = picture.toSource(100, 24);
-    assertArrayEquals(new int[] { 100, 0 }, pictureSource);
+    final int[] expectedPictureSource = { 100, 0 };
+    assertArrayEquals(expectedPictureSource, pictureSource);
 
     final int[] secondSource = picture.toSource(100, 743);
-    assertArrayEquals(new int[] { 100, LAST_SOURCE_PIXEL_Y }, secondSource);
+    final int[] expectedSecondSource = { 100, LAST_SOURCE_PIXEL_Y };
+    assertArrayEquals(expectedSecondSource, secondSource);
 
     final int[] thirdSource = picture.toSource(100, 23);
     assertNull(thirdSource);
@@ -74,25 +80,28 @@ final class WallPictureTest {
   }
 
   @Test
-  void shouldCutOffACentredPictureLargerThanTheWallEquallyOnEachSide() {
+  void shouldCutOffACenteredPictureLargerThanTheWallEquallyOnEachSide() {
     final WallPicture picture = WallPicture.of(WALL_COLUMNS, WALL_ROWS, 1920, 1080, false);
 
     final int[] source = picture.toSource(0, 0);
-    assertArrayEquals(new int[] { 320, 156 }, source);
+    final int[] expectedSource = { 320, 156 };
+    assertArrayEquals(expectedSource, source);
 
     final int[] pictureSource = picture.toSource(LAST_WALL_PIXEL_X, LAST_WALL_PIXEL_Y);
-    assertArrayEquals(new int[] { 1599, 923 }, pictureSource);
+    final int[] expectedPictureSource = { 1599, 923 };
+    assertArrayEquals(expectedPictureSource, pictureSource);
   }
 
   @Test
-  void shouldLeaveNoPixelOnTheSidesOfACentredPictureNarrowerThanTheWall() {
+  void shouldLeaveNoPixelOnTheSidesOfACenteredPictureNarrowerThanTheWall() {
     final WallPicture picture = WallPicture.of(4, 3, 384, 384, false);
 
     final int[] source = picture.toSource(63, 10);
     assertNull(source);
 
     final int[] pictureSource = picture.toSource(64, 10);
-    assertArrayEquals(new int[] { 0, 10 }, pictureSource);
+    final int[] expectedPictureSource = { 0, 10 };
+    assertArrayEquals(expectedPictureSource, pictureSource);
 
     final int[] secondSource = picture.toSource(448, 10);
     assertNull(secondSource);

@@ -18,7 +18,6 @@
 package me.brandonli.mcav.plugin.locale;
 
 import static net.kyori.adventure.text.Component.text;
-import static net.kyori.adventure.text.Component.translatable;
 
 import com.google.common.base.Preconditions;
 import java.util.function.Function;
@@ -135,7 +134,7 @@ public interface LocaleTools {
   }
 
   private static Component renderMessage(final String key) {
-    final TranslatableComponent component = translatable(key);
+    final TranslatableComponent component = Component.translatable(key);
     return MANAGER.render(component);
   }
 
@@ -145,7 +144,7 @@ public interface LocaleTools {
     final @Nullable Function<ArgumentType, String> function
   ) {
     final Component text = createFinalText(argument, function);
-    final TranslatableComponent component = translatable(key, text);
+    final TranslatableComponent component = Component.translatable(key, text);
     return MANAGER.render(component);
   }
 
@@ -158,7 +157,7 @@ public interface LocaleTools {
   ) {
     final Component firstText = createFinalText(firstArgument, firstFunction);
     final Component secondText = createFinalText(secondArgument, secondFunction);
-    final TranslatableComponent component = translatable(key, firstText, secondText);
+    final TranslatableComponent component = Component.translatable(key, firstText, secondText);
     return MANAGER.render(component);
   }
 
@@ -174,7 +173,7 @@ public interface LocaleTools {
     final Component firstText = createFinalText(firstArgument, firstFunction);
     final Component secondText = createFinalText(secondArgument, secondFunction);
     final Component thirdText = createFinalText(thirdArgument, thirdFunction);
-    final TranslatableComponent component = translatable(key, firstText, secondText, thirdText);
+    final TranslatableComponent component = Component.translatable(key, firstText, secondText, thirdText);
     return MANAGER.render(component);
   }
 
@@ -235,7 +234,7 @@ public interface LocaleTools {
      * @throws java.util.MissingResourceException if the message file has no message with the key
      * @since 1.0.0
      */
-    Component build(ArgumentType argument);
+    Component build(final ArgumentType argument);
   }
 
   /**
@@ -258,7 +257,7 @@ public interface LocaleTools {
      * @throws java.util.MissingResourceException if the message file has no message with the key
      * @since 1.0.0
      */
-    Component build(FirstType firstArgument, SecondType secondArgument);
+    Component build(final FirstType firstArgument, final SecondType secondArgument);
   }
 
   /**
@@ -283,6 +282,6 @@ public interface LocaleTools {
      * @throws java.util.MissingResourceException if the message file has no message with the key
      * @since 1.0.0
      */
-    Component build(FirstType firstArgument, SecondType secondArgument, ThirdType thirdArgument);
+    Component build(final FirstType firstArgument, final SecondType secondArgument, final ThirdType thirdArgument);
   }
 }

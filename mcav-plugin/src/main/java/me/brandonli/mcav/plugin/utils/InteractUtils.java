@@ -25,6 +25,8 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Queue;
 import java.util.Set;
+import me.brandonli.mcav.bukkit.media.map.MapLayout;
+import org.bukkit.Axis;
 import org.bukkit.Location;
 import org.bukkit.NamespacedKey;
 import org.bukkit.Rotation;
@@ -45,7 +47,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * <p>The frames of a wall are tagged with {@link Keys#MAP_KEY}, and its top left and bottom right frames are
  * additionally tagged with {@link Keys#FIRST_MAP_KEY} and {@link Keys#LAST_MAP_KEY}.
  * New screens also carry a shared {@link Keys#SCREEN_KEY}; neighboring legacy screens with ambiguous corners are
- * rejected. The pixel coordinates are measured from the top left corner of the wall, with every map being {@value #MAP_PIXELS} pixels wide.
+ * rejected. The pixel coordinates are measured from the top left corner of the wall, with every map being
+ * {@value MapLayout#MAP_SIZE} pixels wide.
  *
  * <p>This class is stateless; call it on the server main thread, since it reads the entities of the world.
  *
@@ -53,13 +56,16 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 public final class InteractUtils {
 
-  private static final int MAP_PIXELS = 128;
+  private static final String PLAYER_NULL_MESSAGE = "Player must not be null!";
+
   private static final int MAXIMUM_TARGET_DISTANCE = 100;
+
   private static final double FRAME_SEARCH_RADIUS = 2.0;
   private static final double BLOCK_CENTER_OFFSET = 0.5;
 
   private InteractUtils() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   /**
@@ -73,15 +79,15 @@ public final class InteractUtils {
    * @throws IllegalStateException    if the player targets a block face that is not a side of a block
    * @since 1.0.0
    */
-  public static Optional<int[]> getBoardCoordinates(final Player player) {
-    Preconditions.checkNotNull(player, "Player must not be null!");
+  public static Optional<int[]> findBoardCoordinates(final Player player) {
+    Preconditions.checkNotNull(player, PLAYER_NULL_MESSAGE);
 
     final Entity targetEntity = player.getTargetEntity(MAXIMUM_TARGET_DISTANCE);
     if (targetEntity == null) {
       return Optional.empty();
     }
 
-    return getBoardCoordinates(player, targetEntity);
+    return findBoardCoordinates(player, targetEntity);
   }
 
   /**
@@ -96,33 +102,36 @@ public final class InteractUtils {
    * @throws IllegalStateException    if the player targets a block face that is not a side of a block
    * @since 1.0.0
    */
-  public static Optional<int[]> getBoardCoordinates(final Player player, final Entity entity) {
-    Preconditions.checkNotNull(player, "Player must not be null!");
+  public static Optional<int[]> findBoardCoordinates(final Player player, final Entity entity) {
+    Preconditions.checkNotNull(player, PLAYER_NULL_MESSAGE);
     Preconditions.checkNotNull(entity, "Entity must not be null!");
 
     if (!(entity instanceof final ItemFrame frame)) {
-      throw new IllegalArgumentException("Target entity is not an ItemFrame!");
+      final String message = "Target entity is not an ItemFrame!";
+      throw new IllegalArgumentException(message);
     }
 
-    final int[] mapIndex = getRelativeMapIndex(player, frame);
+    final int[] mapIndex = findRelativeMapIndex(player, frame);
     if (mapIndex == null) {
       return Optional.empty();
     }
 
-    final double[] framePosition = getRotatedFramePosition(player, frame);
+    final double[] framePosition = findRotatedFramePosition(player, frame);
     if (framePosition == null) {
       return Optional.empty();
     }
 
-    final int pixelX = Math.clamp((int) (framePosition[0] * MAP_PIXELS), 0, MAP_PIXELS - 1);
-    final int pixelY = Math.clamp((int) (framePosition[1] * MAP_PIXELS), 0, MAP_PIXELS - 1);
-    final int absoluteX = mapIndex[0] * MAP_PIXELS + pixelX;
-    final int absoluteY = mapIndex[1] * MAP_PIXELS + pixelY;
+    final int scaledX = (int) (framePosition[0] * MapLayout.MAP_SIZE);
+    final int pixelX = Math.clamp(scaledX, 0, MapLayout.MAP_SIZE - 1);
+    final int scaledY = (int) (framePosition[1] * MapLayout.MAP_SIZE);
+    final int pixelY = Math.clamp(scaledY, 0, MapLayout.MAP_SIZE - 1);
+    final int absoluteX = mapIndex[0] * MapLayout.MAP_SIZE + pixelX;
+    final int absoluteY = mapIndex[1] * MapLayout.MAP_SIZE + pixelY;
     final int[] coordinates = new int[] { absoluteX, absoluteY };
     return Optional.of(coordinates);
   }
 
-  private static int @Nullable [] getRelativeMapIndex(final Player player, final ItemFrame frame) {
+  private static int @Nullable [] findRelativeMapIndex(final Player player, final ItemFrame frame) {
     final BlockFace hitFace = player.getTargetBlockFace(MAXIMUM_TARGET_DISTANCE);
     if (hitFace == null) {
       return null;
@@ -172,8 +181,8 @@ public final class InteractUtils {
     };
   }
 
-  private static double @Nullable [] getRotatedFramePosition(final Player player, final ItemFrame frame) {
-    final double[] position = getFramePosition(player, frame);
+  private static double @Nullable [] findRotatedFramePosition(final Player player, final ItemFrame frame) {
+    final double[] position = findFramePosition(player, frame);
     if (position == null) {
       return null;
     }
@@ -190,7 +199,7 @@ public final class InteractUtils {
   }
 
   // as if the map were not rotated; null for misses and floor or ceiling frames
-  private static double @Nullable [] getFramePosition(final Player player, final ItemFrame frame) {
+  private static double @Nullable [] findFramePosition(final Player player, final ItemFrame frame) {
     final BlockFace face = frame.getAttachedFace();
     final boolean alongX = face == BlockFace.EAST || face == BlockFace.WEST;
     final boolean alongZ = face == BlockFace.NORTH || face == BlockFace.SOUTH;
@@ -198,7 +207,8 @@ public final class InteractUtils {
       return null;
     }
 
-    final Vector lookedAt = findLookedAtPoint(player, frame, alongX);
+    final Axis axis = alongX ? Axis.X : Axis.Z;
+    final Vector lookedAt = findLookedAtPoint(player, frame, axis);
     if (lookedAt == null) {
       return null;
     }
@@ -208,7 +218,8 @@ public final class InteractUtils {
     final int horizontalOrigin = alongX ? frameLocation.getBlockZ() : frameLocation.getBlockX();
     final double horizontal = horizontalCoordinate - horizontalOrigin;
     final double verticalFraction = lookedAt.getY() - frameLocation.getBlockY();
-    if (!(horizontal >= 0 && horizontal <= 1 && verticalFraction >= 0 && verticalFraction <= 1)) {
+    final boolean insideFrame = horizontal >= 0 && horizontal <= 1 && verticalFraction >= 0 && verticalFraction <= 1;
+    if (!insideFrame) {
       return null;
     }
 
@@ -218,19 +229,21 @@ public final class InteractUtils {
     return new double[] { fromLeft, fromTop };
   }
 
-  private static @Nullable Vector findLookedAtPoint(final Player player, final ItemFrame frame, final boolean alongX) {
+  private static @Nullable Vector findLookedAtPoint(final Player player, final ItemFrame frame, final Axis axis) {
     final Location eyeLocation = player.getEyeLocation();
     final Location frameLocation = frame.getLocation();
     final Vector direction = eyeLocation.getDirection();
     direction.normalize();
-    final double distance = alongX ? frameLocation.getX() - eyeLocation.getX() : frameLocation.getZ() - eyeLocation.getZ();
-    final double directionComponent = alongX ? direction.getX() : direction.getZ();
+
+    final double distance = axis == Axis.X ? frameLocation.getX() - eyeLocation.getX() : frameLocation.getZ() - eyeLocation.getZ();
+    final double directionComponent = axis == Axis.X ? direction.getX() : direction.getZ();
     final double scale = distance / directionComponent;
     if (!Double.isFinite(scale) || scale < 0) {
       return null;
     }
 
     direction.multiply(scale);
+
     final Vector eyePosition = eyeLocation.toVector();
     return eyePosition.add(direction);
   }
@@ -259,6 +272,7 @@ public final class InteractUtils {
       final Block block = pending.remove();
       addNearbyWallFrames(world, block, hitFace, screen, wallFrames, pending);
     }
+
     return wallFrames;
   }
 
@@ -306,6 +320,7 @@ public final class InteractUtils {
       }
       tagged = frame;
     }
+
     return tagged;
   }
 

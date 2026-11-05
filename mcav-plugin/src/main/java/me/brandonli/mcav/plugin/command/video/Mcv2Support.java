@@ -22,24 +22,34 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Function;
+import me.brandonli.mcav.bukkit.media.config.MapConfiguration;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2.Settings;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Configuration;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder;
+import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Pacer;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Pack;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2PackServer;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Result;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Viewers;
+import me.brandonli.mcav.bukkit.media.result.CompressedMapResult;
 import me.brandonli.mcav.bukkit.resourcepack.provider.PackHosting;
+import me.brandonli.mcav.media.player.pipeline.filter.video.FunctionalVideoFilter;
+import me.brandonli.mcav.media.player.pipeline.filter.video.dither.DitherFilter;
+import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.DitherAlgorithm;
+import me.brandonli.mcav.plugin.command.MapDisplaySettings;
+import me.brandonli.mcav.plugin.command.video.VideoMcv2Command.Mcv2Settings;
 import me.brandonli.mcav.plugin.locale.Message;
 import me.brandonli.mcav.plugin.utils.DitheringArgument;
 import me.brandonli.mcav.utils.immutable.Pair;
+import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
+import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
+import org.bukkit.block.BlockFace;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.ItemFrame;
 import org.bukkit.entity.Player;
@@ -68,7 +78,7 @@ public final class Mcv2Support {
    *
    * @since 1.0.0
    */
-  public static final String DEBUG_VIEW = "mcav.mcv2.debugView";
+  public static final String DEBUG_VIEW_PROPERTY = "mcav.mcv2.debug_view";
 
   /**
    * The system property naming a folder that the frames every MCV2 screen started next sends are recorded into, one
@@ -78,39 +88,53 @@ public final class Mcv2Support {
    */
   public static final String RECORD_PROPERTY = "mcav.sandbox.mcv2.record";
 
+  private static final String NO_LIMIT = "none";
+
+  private static final int NO_UNSENT_LIMIT = 0;
+
+  // for measurements; unset or 0 keeps MCAV's default
+  static final String PAGE_SLOTS_PROPERTY = "mcav.sandbox.mcv2.page_slots";
+  static final String BACKLOG_PROPERTY = "mcav.sandbox.mcv2.backlog_limit";
+
   private static final String PACK_FOLDER = "pack";
 
   private static final int[][] SMALLER_FRACTIONS = { { 2, 3 }, { 1, 2 } };
 
   private static final int MINIMUM_WIDTH = 128;
-
   private static final int MINIMUM_HEIGHT = 72;
 
-  private final Mcv2PackServer packs;
+  private static final int EVEN_MASK = ~1;
+
+  private static final int DEFAULT_PAGE_SLOTS = 0;
+
+  private final Mcv2PackServer packServer;
 
   /**
-   * Constructs the support, which serves nothing until {@link #start()}.
+   * Creates the support, which serves nothing until {@link #start()}.
    *
    * @param dataFolder the plugin's data folder; the pack is written in {@code mcv2/pack} inside it
-   * @param hosting    hosts a written pack
+   * @param hosting    the function that hosts a written pack
    * @since 1.0.0
    */
   public Mcv2Support(final Path dataFolder, final Function<Path, PackHosting> hosting) {
-    this(
-      new Mcv2PackServer(
-        dataFolder.resolve(Mcv2PlayCommand.STREAMS).resolve(PACK_FOLDER),
-        hosting,
-        Boolean.getBoolean(DEBUG_VIEW) ? Mcv2Pack.DebugView.SHOWN : Mcv2Pack.DebugView.HIDDEN,
-        Mcv2Support::tellOffered,
-        Mcv2Support::tellRefused
-      )
+    final Path streamFolder = dataFolder.resolve(Mcv2PlayCommand.STREAM_FOLDER);
+    final Path packFolder = streamFolder.resolve(PACK_FOLDER);
+    final boolean debug = Boolean.getBoolean(DEBUG_VIEW_PROPERTY);
+    final Mcv2Pack.DebugView debugView = debug ? Mcv2Pack.DebugView.SHOWN : Mcv2Pack.DebugView.HIDDEN;
+    final Mcv2PackServer packServer = new Mcv2PackServer(
+      packFolder,
+      hosting,
+      debugView,
+      Mcv2Support::tellOffered,
+      Mcv2Support::tellRefused
     );
+    this(packServer);
   }
 
-  Mcv2Support(final Mcv2PackServer packs) {
-    Preconditions.checkNotNull(packs, "Pack server must not be null!");
+  Mcv2Support(final Mcv2PackServer packServer) {
+    Preconditions.checkNotNull(packServer, "Pack server must not be null!");
 
-    this.packs = packs;
+    this.packServer = packServer;
   }
 
   /**
@@ -119,7 +143,7 @@ public final class Mcv2Support {
    * @since 1.0.0
    */
   public void start() {
-    this.packs.start();
+    this.packServer.start();
   }
 
   /**
@@ -128,15 +152,17 @@ public final class Mcv2Support {
    * @since 1.0.0
    */
   public void shutdown() {
-    this.packs.shutdown();
+    this.packServer.shutdown();
   }
 
   static void tellOffered(final Player player) {
-    player.sendMessage(Message.MCV2_PACK.build());
+    final Component message = Message.MCV2_PACK.build();
+    player.sendMessage(message);
   }
 
   static void tellRefused(final Player player) {
-    player.sendMessage(Message.MCV2_REFUSED.build());
+    final Component message = Message.MCV2_REFUSED.build();
+    player.sendMessage(message);
   }
 
   /**
@@ -148,7 +174,7 @@ public final class Mcv2Support {
    * @param blocks     the size of the wall in maps
    * @param resolution the encoded resolution
    * @param mapId      the id of the top-left map
-   * @param settings   the encoder profile
+   * @param settings   the encoder settings
    * @param viewers    the players who watch
    * @return the configuration, or empty if the screen is too large for MCV2 or no frame holds the map
    * @since 1.0.0
@@ -162,39 +188,75 @@ public final class Mcv2Support {
     final Collection<UUID> viewers
   ) {
     // the library refuses such a screen with an exception, which no command expects
-    if (!this.fitsMcv2(blocks, resolution)) {
-      sender.sendMessage(Message.MCV2_SIZE_ERROR.build());
+    if (!this.isWithinMcv2Limits(blocks, resolution)) {
+      final Component message = Message.MCV2_SIZE_ERROR.build();
+      sender.sendMessage(message);
       return Optional.empty();
     }
 
-    final Optional<ItemFrame> foundFrame = findFrame(Bukkit.getWorlds(), mapId);
+    final List<World> worlds = Bukkit.getWorlds();
+    final Optional<ItemFrame> foundFrame = findFrame(worlds, mapId);
     final @Nullable ItemFrame frame = foundFrame.orElse(null);
     if (frame == null) {
-      sender.sendMessage(Message.MCV2_SCREEN_ERROR.build(mapId));
+      final Component message = Message.MCV2_SCREEN_ERROR.build(mapId);
+      sender.sendMessage(message);
       return Optional.empty();
     }
 
+    final int pageSlots = Integer.getInteger(PAGE_SLOTS_PROPERTY, DEFAULT_PAGE_SLOTS);
+    final Location location = frame.getLocation();
+    final BlockFace facing = frame.getFacing();
+    final int columns = blocks.getFirst();
+    final int rows = blocks.getSecond();
+    final int videoWidth = resolution.getFirst();
+    final int videoHeight = resolution.getSecond();
     final Mcv2Configuration configuration = Mcv2Configuration.builder()
       .viewers(viewers)
-      .origin(frame.getLocation())
-      .facing(frame.getFacing())
+      .origin(location)
+      .facing(facing)
       .map(mapId)
-      .columns(blocks.getFirst())
-      .rows(blocks.getSecond())
-      .video(resolution.getFirst(), resolution.getSecond())
+      .columns(columns)
+      .rows(rows)
+      .video(videoWidth, videoHeight)
       .settings(settings)
-      .pageSlots(Integer.getInteger(VideoMcv2Command.PAGE_SLOTS_PROPERTY, 0))
-      .backlogLimit(VideoMcv2Command.backlogLimit())
-      .unsentLimit(VideoMcv2Command.unsentLimit())
+      .pageSlots(pageSlots)
+      .backlogLimit(this.readBacklogLimit())
+      .unsentLimit(this.readUnsentLimit())
       .build();
     return Optional.of(configuration);
   }
 
-  private boolean fitsMcv2(final Pair<Integer, Integer> blocks, final Pair<Integer, Integer> resolution) {
-    final boolean maps = blocks.getFirst() <= Mcv2Configuration.MAXIMUM_SIDE && blocks.getSecond() <= Mcv2Configuration.MAXIMUM_SIDE;
-    final boolean pixels =
-      resolution.getFirst() <= Mcv2Decoder.MAXIMUM_DIMENSION && resolution.getSecond() <= Mcv2Decoder.MAXIMUM_DIMENSION;
-    return maps && pixels;
+  long readBacklogLimit() {
+    final @Nullable String value = System.getProperty(BACKLOG_PROPERTY);
+    if (value == null) {
+      return Mcv2Configuration.DEFAULT_BACKLOG_LIMIT;
+    }
+
+    if (this.isBacklogUnlimited(value)) {
+      return Long.MAX_VALUE;
+    }
+
+    return Long.parseLong(value);
+  }
+
+  private boolean isBacklogUnlimited(final @Nullable String value) {
+    return NO_LIMIT.equals(value);
+  }
+
+  // none turns backpressure off, for measurements
+  int readUnsentLimit() {
+    final @Nullable String value = System.getProperty(BACKLOG_PROPERTY);
+    return this.isBacklogUnlimited(value) ? NO_UNSENT_LIMIT : Mcv2Configuration.DEFAULT_UNSENT_LIMIT;
+  }
+
+  private boolean isWithinMcv2Limits(final Pair<Integer, Integer> blocks, final Pair<Integer, Integer> resolution) {
+    final int columns = blocks.getFirst();
+    final int rows = blocks.getSecond();
+    final boolean mapsFit = columns <= Mcv2Configuration.MAXIMUM_SIDE && rows <= Mcv2Configuration.MAXIMUM_SIDE;
+    final int videoWidth = resolution.getFirst();
+    final int videoHeight = resolution.getSecond();
+    final boolean pixelsFit = videoWidth <= Mcv2Decoder.MAXIMUM_DIMENSION && videoHeight <= Mcv2Decoder.MAXIMUM_DIMENSION;
+    return mapsFit && pixelsFit;
   }
 
   /**
@@ -208,10 +270,11 @@ public final class Mcv2Support {
    */
   public Optional<Mcv2PackServer.Lease> open(final CommandSender sender, final Mcv2Configuration configuration) {
     try {
-      final Mcv2PackServer.Lease lease = this.packs.open(configuration);
+      final Mcv2PackServer.Lease lease = this.packServer.open(configuration);
       return Optional.of(lease);
     } catch (final IllegalStateException exception) {
-      sender.sendMessage(Message.MCV2_FULL.build());
+      final Component message = Message.MCV2_FULL.build();
+      sender.sendMessage(message);
       return Optional.empty();
     }
   }
@@ -235,33 +298,76 @@ public final class Mcv2Support {
     }
 
     final Mcv2Configuration slotted = lease.getConfiguration();
-    final Mcv2Result result = new Mcv2Result(slotted, this.getViewers(), dithering.createAlgorithm());
-    result.setPacingListener(change -> sender.sendMessage(Message.MCV2_PACING.build(change.describe())));
-    result.setSmallerSizes(smallerSizes(slotted.getVideoWidth(), slotted.getVideoHeight()), lease);
-    final String record = System.getProperty(RECORD_PROPERTY);
-    if (record != null) {
-      final String name = String.format(
-        Locale.getDefault(Locale.Category.FORMAT),
-        "screen-%d-%d.mcs",
-        slotted.getStreamId(),
-        System.currentTimeMillis()
-      );
-      result.setFrameListener(new FrameRecorder(Path.of(record).resolve(name)));
+    final Mcv2Viewers viewers = this.getViewers();
+    final DitherAlgorithm algorithm = dithering.createAlgorithm();
+    final Mcv2Result result = new Mcv2Result(slotted, viewers, algorithm);
+    result.setPacingListener(change -> this.tellPacing(sender, change));
+    final int videoWidth = slotted.getVideoWidth();
+    final int videoHeight = slotted.getVideoHeight();
+    final List<int[]> sizes = this.computeSmallerSizes(videoWidth, videoHeight);
+    result.setSmallerSizes(sizes, lease);
+
+    final @Nullable String recordFolder = System.getProperty(RECORD_PROPERTY);
+    if (recordFolder != null) {
+      final long streamId = slotted.getStreamId();
+      final long startMilliseconds = System.currentTimeMillis();
+      final String name = "screen-%s-%s.mcs".formatted(streamId, startMilliseconds);
+      final Path folder = Path.of(recordFolder);
+      final Path recordFile = folder.resolve(name);
+      final FrameRecorder recorder = new FrameRecorder(recordFile);
+      result.setFrameListener(recorder);
     }
+
     final Mcv2Output output = new Mcv2Output(result, lease);
     return Optional.of(output);
   }
 
-  static List<int[]> smallerSizes(final int width, final int height) {
+  private void tellPacing(final CommandSender sender, final Mcv2Pacer.Change change) {
+    final String description = change.describe();
+    final Component message = Message.MCV2_PACING.build(description);
+    sender.sendMessage(message);
+  }
+
+  // when every pack slot plays a screen, falls back to the dithered maps of the same wall
+  FunctionalVideoFilter createMcv2Filter(final Mcv2Settings settings) {
+    final Mcv2Configuration configuration = settings.configuration();
+    final CommandSender sender = settings.sender();
+    final DitheringArgument dithering = settings.dithering();
+    final Optional<Mcv2Output> foundOutput = this.output(sender, configuration, dithering);
+    final @Nullable Mcv2Output output = foundOutput.orElse(null);
+    if (output != null) {
+      return output;
+    }
+
+    final int columns = configuration.getColumns();
+    final int rows = configuration.getRows();
+    final Pair<Integer, Integer> blocks = Pair.pair(columns, rows);
+    final int videoWidth = configuration.getVideoWidth();
+    final int videoHeight = configuration.getVideoHeight();
+    final Pair<Integer, Integer> resolution = Pair.pair(videoWidth, videoHeight);
+    final int mapId = configuration.getMap();
+    final Collection<UUID> viewers = configuration.getViewers();
+    final MapConfiguration mapConfiguration = MapDisplaySettings.createConfiguration(blocks, resolution, mapId, viewers);
+    final DitherAlgorithm algorithm = dithering.createAlgorithm();
+    final CompressedMapResult result = new CompressedMapResult(mapConfiguration);
+    return DitherFilter.dither(algorithm, result);
+  }
+
+  List<int[]> computeSmallerSizes(final int width, final int height) {
     final List<int[]> sizes = new ArrayList<>();
     for (final int[] fraction : SMALLER_FRACTIONS) {
-      final int smallerWidth = ((width * fraction[0]) / fraction[1]) & ~1;
-      final int smallerHeight = ((height * fraction[0]) / fraction[1]) & ~1;
+      final int smallerWidth = this.scaleToEven(width, fraction);
+      final int smallerHeight = this.scaleToEven(height, fraction);
       if (smallerWidth >= MINIMUM_WIDTH && smallerHeight >= MINIMUM_HEIGHT) {
         sizes.add(new int[] { smallerWidth, smallerHeight });
       }
     }
+
     return sizes;
+  }
+
+  private int scaleToEven(final int side, final int[] fraction) {
+    return ((side * fraction[0]) / fraction[1]) & EVEN_MASK;
   }
 
   /**
@@ -279,15 +385,19 @@ public final class Mcv2Support {
         return Optional.of(frame);
       }
     }
+
     return Optional.empty();
   }
 
   private static @Nullable ItemFrame findFrameInWorld(final World world, final int mapId) {
-    for (final ItemFrame frame : world.getEntitiesByClass(ItemFrame.class)) {
-      if (holdsMap(frame.getItem(), mapId)) {
+    final Collection<ItemFrame> frames = world.getEntitiesByClass(ItemFrame.class);
+    for (final ItemFrame frame : frames) {
+      final ItemStack item = frame.getItem();
+      if (holdsMap(item, mapId)) {
         return frame;
       }
     }
+
     return null;
   }
 
@@ -297,7 +407,7 @@ public final class Mcv2Support {
     }
 
     final ItemMeta metadata = item.getItemMeta();
-    return metadata instanceof final MapMeta map && map.hasMapId() && map.getMapId() == mapId;
+    return metadata instanceof final MapMeta mapMetadata && mapMetadata.hasMapId() && mapMetadata.getMapId() == mapId;
   }
 
   /**
@@ -307,6 +417,6 @@ public final class Mcv2Support {
    * @since 1.0.0
    */
   public Mcv2Viewers getViewers() {
-    return this.packs.getViewers();
+    return this.packServer.getViewers();
   }
 }

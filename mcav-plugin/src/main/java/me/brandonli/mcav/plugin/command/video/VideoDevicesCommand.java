@@ -20,6 +20,7 @@ package me.brandonli.mcav.plugin.command.video;
 import com.google.common.base.Preconditions;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
 import java.util.stream.Collectors;
 import me.brandonli.mcav.plugin.MCAVSandbox;
 import me.brandonli.mcav.plugin.command.AnnotationCommandFeature;
@@ -47,20 +48,18 @@ public final class VideoDevicesCommand implements AnnotationCommandFeature {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(VideoDevicesCommand.class);
 
-  private static final String LIST_ERROR = "Failed to list the capture devices.";
-
   private static final String LABEL_SEPARATOR = ": ";
 
   private static final String NAME_SEPARATOR = ", ";
 
   private final MCAVSandbox plugin;
-
   private final VideoPlayerManager manager;
 
   /**
-   * Constructs the command.
+   * Creates the command.
    *
    * @param plugin the plugin, whose video player manager must be available
+   * @throws NullPointerException if {@code plugin} is null
    * @since 1.0.0
    */
   public VideoDevicesCommand(final MCAVSandbox plugin) {
@@ -77,6 +76,7 @@ public final class VideoDevicesCommand implements AnnotationCommandFeature {
    * <p>Requires the permission {@code mcav.command.video.device}, which playing a device requires too.
    *
    * @param sender who ran the command
+   * @throws NullPointerException if {@code sender} is null
    * @since 1.0.0
    */
   @Command("mcav video devices")
@@ -85,24 +85,35 @@ public final class VideoDevicesCommand implements AnnotationCommandFeature {
   public void listDevices(final CommandSender sender) {
     Preconditions.checkNotNull(sender, "Sender must not be null!");
 
-    final CompletableFuture<List<CaptureDevices.Device>> listing = CompletableFuture.supplyAsync(
-      CaptureDevices::list,
-      this.manager.getService()
-    );
-    TaskUtils.whenComplete(listing, (devices, error) -> this.report(sender, devices, error));
+    final ExecutorService service = this.manager.getService();
+    final CompletableFuture<List<CaptureDevices.Device>> listing = CompletableFuture.supplyAsync(CaptureDevices::list, service);
+    TaskUtils.whenComplete(listing, (devices, error) -> this.onDevicesListed(sender, devices, error));
   }
 
-  private void report(final CommandSender sender, final @Nullable List<CaptureDevices.Device> devices, final @Nullable Throwable error) {
+  private void onDevicesListed(
+    final CommandSender sender,
+    final @Nullable List<CaptureDevices.Device> devices,
+    final @Nullable Throwable error
+  ) {
     if (error != null) {
-      LOGGER.error(LIST_ERROR, error);
+      LOGGER.error("Failed to list the capture devices.", error);
     }
+
     final List<CaptureDevices.Device> listed = devices == null ? List.of() : devices;
     this.manager.setDevices(listed);
-    final String names = listed
-      .stream()
-      .map(device -> device.getIndex() + LABEL_SEPARATOR + device.getName())
-      .collect(Collectors.joining(NAME_SEPARATOR));
+
+    this.tellDevices(sender, listed);
+  }
+
+  private void tellDevices(final CommandSender sender, final List<CaptureDevices.Device> listed) {
+    final String names = listed.stream().map(this::describeDevice).collect(Collectors.joining(NAME_SEPARATOR));
     final Component message = listed.isEmpty() ? Message.DEVICE_NONE.build() : Message.DEVICE_LIST.build(names);
     TaskUtils.runOnMainThread(this.plugin, () -> sender.sendMessage(message));
+  }
+
+  private String describeDevice(final CaptureDevices.Device device) {
+    final int index = device.getIndex();
+    final String name = device.getName();
+    return "%s%s%s".formatted(index, LABEL_SEPARATOR, name);
   }
 }

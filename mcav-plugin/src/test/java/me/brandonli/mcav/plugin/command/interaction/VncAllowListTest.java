@@ -223,7 +223,8 @@ final class VncAllowListTest {
   @Test
   void shouldGiveThePasswordOnlyOfAServerThatHasOne() {
     final Optional<String> password = DESKTOP.getPassword();
-    assertEquals(Optional.of(DESKTOP_PASSWORD), password);
+    final Optional<String> expectedPassword = Optional.of(DESKTOP_PASSWORD);
+    assertEquals(expectedPassword, password);
 
     final Optional<String> loopbackPassword = LOOPBACK.getPassword();
     assertEquals(Optional.empty(), loopbackPassword);

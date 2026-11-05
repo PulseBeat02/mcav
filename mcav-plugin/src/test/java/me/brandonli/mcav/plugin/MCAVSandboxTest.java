@@ -63,7 +63,7 @@ import me.brandonli.mcav.plugin.command.image.ImageManager;
 import me.brandonli.mcav.plugin.command.video.Mcv2Support;
 import me.brandonli.mcav.plugin.command.video.VideoPlayerManager;
 import me.brandonli.mcav.plugin.data.PluginDataConfigurationMapper;
-import me.brandonli.mcav.plugin.listener.JukeBoxListener;
+import me.brandonli.mcav.plugin.listener.JukeboxListener;
 import me.brandonli.mcav.plugin.listener.OnlinePlayers;
 import me.brandonli.mcav.plugin.testing.TestCommandManager;
 import me.brandonli.mcav.plugin.testing.TestServer;
@@ -132,7 +132,7 @@ final class MCAVSandboxTest {
     this.mockLibrary();
 
     this.commands = new TestCommandManager();
-    final LegacyPaperCommandManager<CommandSender> paperManager = this.commands.asPaperManager();
+    final LegacyPaperCommandManager<CommandSender> paperManager = this.commands.createPaperManager();
     this.javaPlugins = Mockito.mockStatic(JavaPlugin.class);
     this.javaPlugins.when(() -> JavaPlugin.getPlugin(MCAVSandbox.class)).thenReturn(this.sandbox);
     this.paperManagers = Mockito.mockStatic();
@@ -189,23 +189,23 @@ final class MCAVSandboxTest {
     final IllegalStateException mcv2 = assertThrows(IllegalStateException.class, this.sandbox::getMcv2Support);
 
     final String message = mcv2.getMessage();
-    assertEquals("The MCV2 support is not available before the plugin is enabled!", message);
+    assertEquals("The MCV2 support is only available while the plugin is enabled!", message);
 
     final IllegalStateException online = assertThrows(IllegalStateException.class, this.sandbox::getOnlinePlayers);
 
     final String onlineMessage = online.getMessage();
-    assertEquals("The list of online players is not available before the plugin is enabled!", onlineMessage);
+    assertEquals("The list of online players is only available while the plugin is enabled!", onlineMessage);
 
     final String libraryMessage = library.getMessage();
     final String configurationMessage = configuration.getMessage();
     final String videosMessage = videos.getMessage();
     final String audioMessage = audio.getMessage();
     final String imagesMessage = images.getMessage();
-    assertEquals("The library is not available before the plugin is enabled!", libraryMessage);
-    assertEquals("The configuration is not available before the plugin is enabled!", configurationMessage);
-    assertEquals("The video player manager is not available before the plugin is enabled!", videosMessage);
-    assertEquals("The audio provider is not available before the plugin is enabled!", audioMessage);
-    assertEquals("The image manager is not available before the plugin is enabled!", imagesMessage);
+    assertEquals("The library is only available while the plugin is enabled!", libraryMessage);
+    assertEquals("The configuration is only available while the plugin is enabled!", configurationMessage);
+    assertEquals("The video player manager is only available while the plugin is enabled!", videosMessage);
+    assertEquals("The audio provider is only available while the plugin is enabled!", audioMessage);
+    assertEquals("The image manager is only available while the plugin is enabled!", imagesMessage);
 
     final boolean qemuAvailable = this.sandbox.isQemuAvailable();
     assertFalse(qemuAvailable);
@@ -232,7 +232,7 @@ final class MCAVSandboxTest {
     final VideoPlayerManager videoManager = this.sandbox.getVideoPlayerManager();
     final ImageManager imageManager = this.sandbox.getImageManager();
     final OnlinePlayers online = this.sandbox.getOnlinePlayers();
-    verify(TestServer.pluginManager()).registerEvents(online, this.sandbox);
+    verify(TestServer.getPluginManager()).registerEvents(online, this.sandbox);
 
     this.sandbox.onDisable();
     verify(this.api).release();
@@ -299,12 +299,12 @@ final class MCAVSandboxTest {
   }
 
   private void assertCommandsAndListenerRegistered() {
-    final Set<String> syntaxes = this.commands.syntaxes();
+    final Set<String> syntaxes = this.commands.getSyntaxes();
     final int count = syntaxes.size();
     assertEquals(39, count);
 
-    final PluginManager pluginManager = TestServer.pluginManager();
-    verify(pluginManager).registerEvents(any(JukeBoxListener.class), eq(this.sandbox));
+    final PluginManager pluginManager = TestServer.getPluginManager();
+    verify(pluginManager).registerEvents(any(JukeboxListener.class), eq(this.sandbox));
   }
 
   @Test
@@ -359,7 +359,7 @@ final class MCAVSandboxTest {
   @Test
   void shouldStopTheListenerTheCommandsAndTheAudioWhenDisabled() {
     try (
-      final MockedConstruction<JukeBoxListener> listeners = Mockito.mockConstruction(JukeBoxListener.class);
+      final MockedConstruction<JukeboxListener> listeners = Mockito.mockConstruction(JukeboxListener.class);
       final MockedConstruction<AnnotationParserHandler> handlers = Mockito.mockConstruction(AnnotationParserHandler.class);
       final MockedConstruction<AudioProvider> providers = Mockito.mockConstruction(AudioProvider.class);
       final MockedConstruction<Mcv2Support> supports = Mockito.mockConstruction(Mcv2Support.class)
@@ -369,7 +369,7 @@ final class MCAVSandboxTest {
       verify(supports.constructed().getFirst()).start();
       verify(supports.constructed().getFirst()).shutdown();
 
-      final List<JukeBoxListener> constructedListeners = listeners.constructed();
+      final List<JukeboxListener> constructedListeners = listeners.constructed();
       final List<AnnotationParserHandler> constructedHandlers = handlers.constructed();
       final List<AudioProvider> constructedProviders = providers.constructed();
 
@@ -382,7 +382,7 @@ final class MCAVSandboxTest {
       final int constructedProvidersSize = constructedProviders.size();
       assertEquals(1, constructedProvidersSize);
 
-      final JukeBoxListener listener = constructedListeners.getFirst();
+      final JukeboxListener listener = constructedListeners.getFirst();
       final AnnotationParserHandler handler = constructedHandlers.getFirst();
       final AudioProvider provider = constructedProviders.getFirst();
       verify(listener).shutdown();
@@ -418,7 +418,7 @@ final class MCAVSandboxTest {
   void shouldKeepOwnershipWhenListenerStartupFails() {
     final IllegalStateException failure = new IllegalStateException("partial listener startup!");
     try (
-      final MockedConstruction<JukeBoxListener> listeners = Mockito.mockConstruction(JukeBoxListener.class, (listener, _) ->
+      final MockedConstruction<JukeboxListener> listeners = Mockito.mockConstruction(JukeboxListener.class, (listener, _) ->
         this.failListenerStart(listener, failure)
       )
     ) {
@@ -426,14 +426,14 @@ final class MCAVSandboxTest {
       assertSame(failure, thrown);
 
       this.sandbox.onDisable();
-      final List<JukeBoxListener> constructed = listeners.constructed();
-      final JukeBoxListener listener = constructed.getFirst();
+      final List<JukeboxListener> constructed = listeners.constructed();
+      final JukeboxListener listener = constructed.getFirst();
       verify(listener).shutdown();
       verify(this.api).release();
     }
   }
 
-  private void failListenerStart(final JukeBoxListener listener, final IllegalStateException failure) {
+  private void failListenerStart(final JukeboxListener listener, final IllegalStateException failure) {
     doThrow(failure).when(listener).start();
   }
 
@@ -448,7 +448,7 @@ final class MCAVSandboxTest {
       final MockedConstruction<ImageManager> images = Mockito.mockConstruction(ImageManager.class, (manager, _) ->
         this.failShutdown(manager, second)
       );
-      final MockedConstruction<JukeBoxListener> listeners = Mockito.mockConstruction(JukeBoxListener.class);
+      final MockedConstruction<JukeboxListener> listeners = Mockito.mockConstruction(JukeboxListener.class);
       final MockedConstruction<AnnotationParserHandler> handlers = Mockito.mockConstruction(AnnotationParserHandler.class);
       final MockedConstruction<AudioProvider> providers = Mockito.mockConstruction(AudioProvider.class)
     ) {
@@ -457,17 +457,18 @@ final class MCAVSandboxTest {
       assertSame(first, thrown);
 
       final Throwable[] suppressed = thrown.getSuppressed();
-      assertArrayEquals(new Throwable[] { second }, suppressed);
+      final Throwable[] expected = { second };
+      assertArrayEquals(expected, suppressed);
 
       this.sandbox.onDisable();
       final List<VideoPlayerManager> videoManagers = videos.constructed();
       final List<ImageManager> imageManagers = images.constructed();
-      final List<JukeBoxListener> createdListeners = listeners.constructed();
+      final List<JukeboxListener> createdListeners = listeners.constructed();
       final List<AnnotationParserHandler> createdHandlers = handlers.constructed();
       final List<AudioProvider> audioProviders = providers.constructed();
       final VideoPlayerManager videoManager = videoManagers.getFirst();
       final ImageManager imageManager = imageManagers.getFirst();
-      final JukeBoxListener listener = createdListeners.getFirst();
+      final JukeboxListener listener = createdListeners.getFirst();
       final AnnotationParserHandler handler = createdHandlers.getFirst();
       final AudioProvider provider = audioProviders.getFirst();
       verify(videoManager, times(1)).shutdown();
@@ -510,7 +511,7 @@ final class MCAVSandboxTest {
 
     // a sum of two timestamps instead of their difference would be billions of milliseconds
     final boolean plausible = milliseconds >= 0 && milliseconds < 600_000;
-    assertTrue(plausible, "the log reports how long loading took, which was " + milliseconds + " ms");
+    assertTrue(plausible, "the log reports how long loading took, which was %s ms".formatted(milliseconds));
 
     this.sandbox.onDisable();
   }
@@ -527,7 +528,9 @@ final class MCAVSandboxTest {
   void shouldWarnWhenThereIsNoBrowserForThisServer() {
     when(this.vmModule.isQemuAvailable()).thenReturn(true);
     this.sandbox.onEnable();
-    verify(this.logger).warn("There is no browser for the operating system and processor of this server, browsers will not be available.");
+    verify(this.logger).warn(
+      "There is no browser for the operating system and processor of this server, so browsers will not be available."
+    );
 
     final boolean browserSupported = this.sandbox.isBrowserSupported();
     assertFalse(browserSupported);
@@ -549,7 +552,7 @@ final class MCAVSandboxTest {
 
   @Test
   void shouldDisableItselfWithOneErrorOnAnUnsupportedServerVersion() {
-    final Server server = TestServer.server();
+    final Server server = TestServer.getServer();
     when(server.getMinecraftVersion()).thenReturn("1.20.1");
     final UnsupportedServerVersionException failure = assertThrows(
       UnsupportedServerVersionException.class,
@@ -575,7 +578,7 @@ final class MCAVSandboxTest {
 
     this.sandbox.onEnable();
 
-    final String reason = "Simple Voice Chat audio is enabled, but the voicechat plugin is not installed!";
+    final String reason = "Simple Voice Chat audio is enabled, but the Simple Voice Chat plugin is not installed!";
     final String remedy = "install the Simple Voice Chat plugin or set simple-voice-chat.enabled to false in config.yml";
     this.assertDisabledItselfWithOneError(reason, remedy);
 
@@ -591,7 +594,7 @@ final class MCAVSandboxTest {
     verify(this.logger).error("MCAV cannot be enabled: {} To fix it, {}.", reason, remedy);
     verify(this.logger).error(anyString(), any(), any());
 
-    final PluginManager pluginManager = TestServer.pluginManager();
+    final PluginManager pluginManager = TestServer.getPluginManager();
     verify(pluginManager).disablePlugin(this.sandbox);
   }
 
@@ -604,7 +607,7 @@ final class MCAVSandboxTest {
 
     assertSame(failure, exception, "an unexpected failure is not turned into a setup problem");
 
-    final PluginManager pluginManager = TestServer.pluginManager();
+    final PluginManager pluginManager = TestServer.getPluginManager();
     verify(pluginManager, never()).disablePlugin(this.sandbox);
     verify(this.logger, never()).error(anyString(), any(), any());
 

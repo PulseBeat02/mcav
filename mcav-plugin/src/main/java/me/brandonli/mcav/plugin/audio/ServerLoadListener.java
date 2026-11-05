@@ -40,19 +40,19 @@ import org.bukkit.plugin.ServicesManager;
  */
 public final class ServerLoadListener implements Listener {
 
-  private final MCAVSandbox sandbox;
+  private final MCAVSandbox plugin;
 
   /**
-   * Constructs the listener.
+   * Creates the listener.
    *
-   * @param sandbox the plugin
+   * @param plugin the plugin
    * @throws NullPointerException if the plugin is {@code null}
    * @since 1.0.0
    */
-  public ServerLoadListener(final MCAVSandbox sandbox) {
-    Preconditions.checkNotNull(sandbox, "Plugin must not be null!");
+  public ServerLoadListener(final MCAVSandbox plugin) {
+    Preconditions.checkNotNull(plugin, "Plugin must not be null!");
 
-    this.sandbox = sandbox;
+    this.plugin = plugin;
   }
 
   /**
@@ -71,13 +71,13 @@ public final class ServerLoadListener implements Listener {
     final ServicesManager manager = server.getServicesManager();
     final BukkitVoicechatService voiceChatService = manager.load(BukkitVoicechatService.class);
     if (voiceChatService == null) {
-      throw new PluginException(
-        "Simple Voice Chat audio is enabled, but Simple Voice Chat offers no voice chat service, so voice chat audio is not available!"
-      );
+      final String message =
+        "Simple Voice Chat audio is enabled, but Simple Voice Chat offers no voice chat service, so voice chat audio is not available!";
+      throw new PluginException(message);
     }
 
-    final MCAVVoiceChatPlugin plugin = new MCAVVoiceChatPlugin(this.sandbox);
-    voiceChatService.registerPlugin(plugin);
+    final MCAVVoiceChatPlugin voiceChatPlugin = new MCAVVoiceChatPlugin(this.plugin);
+    voiceChatService.registerPlugin(voiceChatPlugin);
 
     final HandlerList handlers = ServerLoadEvent.getHandlerList();
     handlers.unregister(this);

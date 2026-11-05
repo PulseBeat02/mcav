@@ -46,11 +46,15 @@ final class PluginDescriptorTest {
 
   private static final String DESCRIPTOR_RESOURCE_PATH = "/paper-plugin.yml";
 
+  private static final String CLASS_FILE_EXTENSION = ".class";
+
+  private static final char PATH_SEPARATOR = '/';
+
   @Test
   void shouldDeclareInTheDescriptorEveryPermissionTheCommandsCheckForOperatorsAndNoOther()
     throws IOException, URISyntaxException, InvalidConfigurationException {
     final YamlConfiguration descriptor = new YamlConfiguration();
-    descriptor.options().pathSeparator('/');
+    descriptor.options().pathSeparator(PATH_SEPARATOR);
     try (final InputStream in = PluginDescriptorTest.class.getResourceAsStream(DESCRIPTOR_RESOURCE_PATH)) {
       assertNotNull(in, "the build writes the descriptor");
 
@@ -67,11 +71,11 @@ final class PluginDescriptorTest {
 
     final String pluginDefault = descriptor.getString("default-permission");
     for (final String name : declared) {
-      final String string = permissions.getString(name + "/default", pluginDefault);
-      assertEquals("op", string, name + " is for operators until granted");
+      final String string = permissions.getString("%s/default".formatted(name), pluginDefault);
+      assertEquals("op", string, "%s is for operators until granted".formatted(name));
 
-      final boolean blank = permissions.getString(name + "/description", "").isBlank();
-      assertFalse(blank, name + " says what it allows");
+      final boolean blank = permissions.getString("%s/description".formatted(name), "").isBlank();
+      assertFalse(blank, "%s says what it allows".formatted(name));
     }
   }
 
@@ -80,12 +84,12 @@ final class PluginDescriptorTest {
     final Set<String> checked = new TreeSet<>();
     final List<Path> files;
     try (final Stream<Path> walk = Files.walk(classes.resolve(COMMANDS))) {
-      files = walk.filter(file -> file.toString().endsWith(".class")).toList();
+      files = walk.filter(file -> file.toString().endsWith(CLASS_FILE_EXTENSION)).toList();
     }
     final ClassLoader loader = PluginDescriptorTest.class.getClassLoader();
     for (final Path file : files) {
       final String relative = classes.relativize(file).toString().replace(file.getFileSystem().getSeparator(), "/");
-      final String name = relative.substring(0, relative.length() - ".class".length()).replace('/', '.');
+      final String name = relative.substring(0, relative.length() - CLASS_FILE_EXTENSION.length()).replace(PATH_SEPARATOR, '.');
       final Class<?> type;
       try {
         type = Class.forName(name, false, loader);

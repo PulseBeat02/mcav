@@ -35,7 +35,8 @@ import me.brandonli.mcav.plugin.MCAVSandbox;
 public final class IoUtils {
 
   private IoUtils() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   /**
@@ -56,8 +57,8 @@ public final class IoUtils {
    *
    * @param path the path of the resource inside the plugin jar, such as {@code config.yml}
    * @return the stream of the resource, which the caller closes
-   * @throws NullPointerException if the path is {@code null} or there is no such resource, with the path as the
-   *                              message in the second case
+   * @throws NullPointerException     if the path is {@code null}
+   * @throws IllegalArgumentException if there is no such resource
    * @since 1.0.0
    */
   public static InputStream getResourceAsStream(final String path) {
@@ -65,12 +66,12 @@ public final class IoUtils {
 
     final Class<IoUtils> utilsClass = IoUtils.class;
     final ClassLoader nullableLoader = utilsClass.getClassLoader();
-    final ClassLoader loader = requireNonNull(nullableLoader);
+    final ClassLoader loader = requireNonNull(nullableLoader); // checker framework
 
     final InputStream stream = loader.getResourceAsStream(path);
     if (stream == null) {
       final String message = "Resource %s does not exist!".formatted(path);
-      throw new NullPointerException(message);
+      throw new IllegalArgumentException(message);
     }
 
     return stream;

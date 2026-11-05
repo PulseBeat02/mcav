@@ -60,20 +60,24 @@ final class YtdlpArgumentAssertions {
     "referer"
   );
 
+  private static final String LONG_OPTION_PREFIX = "--";
+  private static final String OPTION_PREFIX = "-";
+
   private YtdlpArgumentAssertions() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   static void assertSafe(final String typed, final String[] arguments) {
     int index = 0;
     while (index < arguments.length) {
       final String argument = arguments[index];
-      final boolean option = argument.startsWith("--");
-      assertTrue(option, () -> "'" + argument + "' reaches yt-dlp where an option belongs, from '" + typed + "'");
+      final boolean option = argument.startsWith(LONG_OPTION_PREFIX);
+      assertTrue(option, () -> "'%s' reaches yt-dlp where an option belongs, from '%s'".formatted(argument, typed));
 
-      final String name = argument.substring(2);
+      final String name = argument.substring(LONG_OPTION_PREFIX.length());
       final boolean accepted = SWITCHES.contains(name) || VALUE_OPTIONS.contains(name);
-      assertTrue(accepted, () -> "the option " + name + " is not accepted, from '" + typed + "'");
+      assertTrue(accepted, () -> "the option %s is not accepted, from '%s'".formatted(name, typed));
 
       index++;
 
@@ -81,11 +85,11 @@ final class YtdlpArgumentAssertions {
         continue;
       }
       final boolean hasValue = index < arguments.length;
-      assertTrue(hasValue, () -> "the option " + name + " lost its value, from '" + typed + "'");
+      assertTrue(hasValue, () -> "the option %s lost its value, from '%s'".formatted(name, typed));
 
       final String value = arguments[index];
-      final boolean readAsOption = value.startsWith("-");
-      assertFalse(readAsOption, () -> "yt-dlp would read the value '" + value + "' as an option, from '" + typed + "'");
+      final boolean readAsOption = value.startsWith(OPTION_PREFIX);
+      assertFalse(readAsOption, () -> "yt-dlp would read the value '%s' as an option, from '%s'".formatted(value, typed));
 
       index++;
     }

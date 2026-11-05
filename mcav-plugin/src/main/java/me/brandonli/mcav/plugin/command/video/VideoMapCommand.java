@@ -32,6 +32,8 @@ import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.plugin.MCAVSandbox;
 import me.brandonli.mcav.plugin.command.MapDisplaySettings;
 import me.brandonli.mcav.plugin.command.SuggestionProvider;
+import me.brandonli.mcav.plugin.data.PluginDataConfigurationMapper;
+import me.brandonli.mcav.plugin.listener.OnlinePlayers;
 import me.brandonli.mcav.plugin.utils.ArgumentUtils;
 import me.brandonli.mcav.plugin.utils.AudioArgument;
 import me.brandonli.mcav.plugin.utils.DitheringArgument;
@@ -61,9 +63,10 @@ import org.incendo.cloud.bukkit.data.MultiplePlayerSelector;
 public final class VideoMapCommand extends AbstractVideoCommand {
 
   /**
-   * Constructs the command.
+   * Creates the command.
    *
    * @param plugin the plugin
+   * @throws NullPointerException if {@code plugin} is null
    * @since 1.0.0
    */
   public VideoMapCommand(final MCAVSandbox plugin) {
@@ -73,11 +76,10 @@ public final class VideoMapCommand extends AbstractVideoCommand {
   /**
    * Handles {@code /mcav video map <playerSelector> <playerType> <audioType> <videoResolution> <blockDimensions>
    * <mapId> <ditheringAlgorithm> <ytdlpOptions> <mrl> [--codec dither|mcv2]}: shows a video on a wall of maps, the
-   * highest quality way to show a video in the world. The yt-dlp options are named so, not {@code flags} as in the
-   * other video commands, because Cloud names the component of the command's flags so. With {@code --codec mcv2}, or without the flag when
+   * highest quality way to show a video in the world. With {@code --codec mcv2}, or without the flag when
    * {@code mcv2.default-codec} is {@code mcv2}, the video is encoded as it plays with the default live preset for the
    * players whose client loads the MCV2 resource pack, and dithered for everyone else, like {@code /mcav video mcv2}
-   * with the {@code DEFAULT} profile.
+   * with the {@code DEFAULT} preset.
    *
    * <p>Build the wall first with {@code /mcav screen}, using the same block dimensions and map id. Each map holds
    * 128x128 pixels, and the maps are numbered row by row from the top left one. Frames are scaled to the
@@ -110,6 +112,7 @@ public final class VideoMapCommand extends AbstractVideoCommand {
    *                           absent
    * @param filters            the {@code --filters} option: filters applied to every frame in order, such as
    *                           {@code "grayscale,blur=3"}, see {@link FilterChain}; none when absent
+   * @throws NullPointerException if {@code playerSelector} or {@code ditheringAlgorithm} is null
    * @since 1.0.0
    */
   @Command(
@@ -140,11 +143,14 @@ public final class VideoMapCommand extends AbstractVideoCommand {
       return;
     }
 
-    final Collection<UUID> players = ArgumentUtils.parseViewers(playerSelector, this.plugin.getOnlinePlayers());
-    final MapCodec chosen = codec != null ? codec : this.plugin.getConfiguration().getMcv2DefaultCodec();
+    final OnlinePlayers onlinePlayers = this.plugin.getOnlinePlayers();
+    final Collection<UUID> players = ArgumentUtils.resolveViewers(playerSelector, onlinePlayers);
+    final PluginDataConfigurationMapper pluginConfiguration = this.plugin.getConfiguration();
+    final MapCodec defaultCodec = pluginConfiguration.getMcv2DefaultCodec();
+    final MapCodec chosenCodec = codec != null ? codec : defaultCodec;
     VideoConfigurationProvider configurationProvider = resolution ->
       this.createSettings(blocks, resolution, mapId, players, ditheringAlgorithm);
-    if (chosen == MapCodec.MCV2) {
+    if (chosenCodec == MapCodec.MCV2) {
       final Optional<Pair<Integer, Integer>> parsedResolution = parseDimensions(sender, videoResolution);
       final @Nullable Pair<Integer, Integer> resolution = parsedResolution.orElse(null);
       if (resolution == null) {
@@ -165,6 +171,7 @@ public final class VideoMapCommand extends AbstractVideoCommand {
         configurationProvider = _ -> new VideoMcv2Command.Mcv2Settings(configuration, ditheringAlgorithm, sender);
       }
     }
+
     this.playVideo(configurationProvider, sender, playerSelector, playerType, audioType, videoResolution, mrl, ytdlpOptions, filters);
   }
 
@@ -187,9 +194,10 @@ public final class VideoMapCommand extends AbstractVideoCommand {
    * @param resolution            the resolution frames are scaled to
    * @param configurationProvider the provider created by
    *                              {@link #playMapVideo(CommandSender, MultiplePlayerSelector, PlayerArgument, AudioArgument, String, String, int, DitheringArgument, String, String, MapCodec, String)},
-   *                              which returns {@link MapDisplaySettings}, or {@link VideoMcv2Command.Mcv2Settings}
-   *                              for MCV2
-   * @return the pipeline that dithers the frames onto the maps
+   *                              which returns {@link MapDisplaySettings}, or {@code Mcv2Settings} for MCV2
+   * @return the pipeline step that dithers the frames onto the maps, or that encodes them with MCV2
+   * @throws NullPointerException                       if an argument is null
+   * @throws java.util.concurrent.CancellationException if the video startup was cancelled or the manager is shut down
    * @since 1.0.0
    */
   @Override
@@ -201,9 +209,11 @@ public final class VideoMapCommand extends AbstractVideoCommand {
     Preconditions.checkNotNull(configurationProvider, "Configuration provider must not be null!");
 
     final Object built = configurationProvider.buildConfiguration(resolution);
-    if (built instanceof final VideoMcv2Command.Mcv2Settings mcv2) {
-      final FunctionalVideoFilter output = VideoMcv2Command.mcv2Filter(this.plugin.getMcv2Support(), mcv2);
+    if (built instanceof final VideoMcv2Command.Mcv2Settings mcv2Settings) {
+      final Mcv2Support support = this.plugin.getMcv2Support();
+      final FunctionalVideoFilter output = support.createMcv2Filter(mcv2Settings);
       this.manager.startFilter(output);
+
       return VideoPipelineStep.of(output);
     }
 
@@ -212,7 +222,6 @@ public final class VideoMapCommand extends AbstractVideoCommand {
     final DitherAlgorithm algorithm = settings.createAlgorithm();
     final CompressedMapResult result = new CompressedMapResult(configuration);
     final FunctionalVideoFilter ditherFilter = DitherFilter.dither(algorithm, result);
-
     this.manager.startFilter(ditherFilter);
 
     return VideoPipelineStep.of(ditherFilter);

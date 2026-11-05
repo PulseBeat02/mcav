@@ -45,16 +45,18 @@ SOFTWARE.
 
 import static java.util.Objects.requireNonNull;
 import static net.kyori.adventure.text.Component.text;
-import static net.kyori.adventure.text.format.NamedTextColor.RED;
 
 import com.google.common.base.Preconditions;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.NamespacedKey;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
@@ -79,6 +81,8 @@ import org.bukkit.persistence.PersistentDataType;
  */
 public final class MapUtils {
 
+  private static final String MAP_ID_NEGATIVE_MESSAGE = "Map id %s must not be negative!";
+
   /**
    * The largest number of maps one call creates to reach a map id, which is the number of maps of the largest wall.
    * Creating a map writes a file, so an id far past the maps of the world would otherwise tie up the main thread.
@@ -90,7 +94,8 @@ public final class MapUtils {
   private static final double HALF_BLOCK = 0.5;
 
   private MapUtils() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   /**
@@ -104,15 +109,15 @@ public final class MapUtils {
    * @throws IllegalStateException    if the requested historical map is missing and its id cannot be allocated again
    * @since 1.0.0
    */
-  public static ItemStack getMapFromId(final int id) {
-    Preconditions.checkArgument(id >= 0, "Map id %s must not be negative!", id);
+  public static ItemStack createMapItem(final int id) {
+    Preconditions.checkArgument(id >= 0, MAP_ID_NEGATIVE_MESSAGE, id);
 
     final ItemStack map = createMapItemStack(id);
     final ItemMeta nullableMetadata = map.getItemMeta();
-    final ItemMeta itemMetadata = requireNonNull(nullableMetadata);
+    final ItemMeta itemMetadata = requireNonNull(nullableMetadata); // checker framework
 
     final String name = "Map ID [%s]".formatted(id);
-    final Component lore = text(name, RED);
+    final Component lore = text(name, NamedTextColor.RED);
     final List<Component> lines = List.of(lore);
     itemMetadata.lore(lines);
     map.setItemMeta(itemMetadata);
@@ -123,7 +128,7 @@ public final class MapUtils {
     final MapView view = findOrCreateMap(id);
     final ItemStack map = new ItemStack(Material.FILLED_MAP);
     final MapMeta nullableMetadata = (MapMeta) map.getItemMeta();
-    final MapMeta mapMetadata = requireNonNull(nullableMetadata);
+    final MapMeta mapMetadata = requireNonNull(nullableMetadata); // checker framework
     mapMetadata.setMapView(view);
     map.setItemMeta(mapMetadata);
     return map;
@@ -144,6 +149,7 @@ public final class MapUtils {
     final World world = worlds.getFirst();
     MapView created = Bukkit.createMap(world);
     int currentId = created.getId();
+
     final long missing = (long) id - currentId;
     Preconditions.checkArgument(
       missing <= MAXIMUM_NEW_MAPS,
@@ -157,6 +163,7 @@ public final class MapUtils {
       created = Bukkit.createMap(world);
       currentId = created.getId();
     }
+
     Preconditions.checkState(currentId == id, "Map id %s is unavailable, because the server allocated %s instead!", id, currentId);
 
     return created;
@@ -175,9 +182,9 @@ public final class MapUtils {
    * @param height   the height of the screen in blocks, at least 1
    * @param map      the id of the map in the top left corner, zero or more
    * @throws NullPointerException     if the sender, the location or the material is {@code null}
-   * @throws IllegalArgumentException if the width or the height is not positive, the map id is negative, or the
-   *                                  last map id of the screen is more than {@link #MAXIMUM_NEW_MAPS} ids past the next
-   *                                  map id; nothing is built then
+   * @throws IllegalArgumentException if the width or the height is not positive, the map id is negative, the last map
+   *                                  id of the screen is more than {@link Integer#MAX_VALUE}, or it is more than
+   *                                  {@link #MAXIMUM_NEW_MAPS} ids past the next map id; nothing is built then
    * @throws IllegalStateException    if a map id of the screen belonged to a map that no longer exists
    * @since 1.0.0
    */
@@ -194,7 +201,7 @@ public final class MapUtils {
     Preconditions.checkNotNull(material, "Material must not be null!");
     Preconditions.checkArgument(width > 0, "Width %s must be positive!", width);
     Preconditions.checkArgument(height > 0, "Height %s must be positive!", height);
-    Preconditions.checkArgument(map >= 0, "Map id %s must not be negative!", map);
+    Preconditions.checkArgument(map >= 0, MAP_ID_NEGATIVE_MESSAGE, map);
 
     final long count = (long) width * height;
     final long lastMap = map + count - 1;
@@ -220,28 +227,32 @@ public final class MapUtils {
   private static void fillWall(final Wall wall, final int width, final int height, final int firstMap) {
     final UUID identifier = UUID.randomUUID();
     final String screen = identifier.toString();
+    final List<ItemFrame> frames = new ArrayList<>();
     int mapId = firstMap;
     for (int row = height - 1; row >= 0; row--) {
       for (int column = 0; column < width; column++) {
         final ItemFrame frame = wall.place(column, row, width, mapId);
-        final boolean first = row == height - 1 && column == 0;
-        final boolean last = row == 0 && column == width - 1;
-        tagFrame(frame, first, last, screen);
+        tagFrame(frame, screen);
+        frames.add(frame);
         mapId++;
       }
     }
+
+    final ItemFrame topLeft = frames.getFirst();
+    final ItemFrame bottomRight = frames.getLast();
+    tagCorner(topLeft, Keys.FIRST_MAP_KEY);
+    tagCorner(bottomRight, Keys.LAST_MAP_KEY);
   }
 
-  private static void tagFrame(final ItemFrame frame, final boolean first, final boolean last, final String screen) {
+  private static void tagFrame(final ItemFrame frame, final String screen) {
     final PersistentDataContainer container = frame.getPersistentDataContainer();
-    if (first) {
-      container.set(Keys.FIRST_MAP_KEY, PersistentDataType.BOOLEAN, true);
-    }
-    if (last) {
-      container.set(Keys.LAST_MAP_KEY, PersistentDataType.BOOLEAN, true);
-    }
     container.set(Keys.MAP_KEY, PersistentDataType.BOOLEAN, true);
     container.set(Keys.SCREEN_KEY, PersistentDataType.STRING, screen);
+  }
+
+  private static void tagCorner(final ItemFrame frame, final NamespacedKey key) {
+    final PersistentDataContainer container = frame.getPersistentDataContainer();
+    container.set(key, PersistentDataType.BOOLEAN, true);
   }
 
   private static final class Wall {
@@ -280,7 +291,7 @@ public final class MapUtils {
       final ItemFrame frame = this.world.spawn(frameLocation, ItemFrame.class);
       frame.setFacingDirection(this.outward);
 
-      final ItemStack item = getMapFromId(map);
+      final ItemStack item = createMapItem(map);
       frame.setItem(item);
       frame.setInvulnerable(true);
       frame.setGravity(false);
@@ -289,9 +300,9 @@ public final class MapUtils {
 
     // a block holds one frame per side, so an old frame would push the new one behind the map
     private void clearFrames(final Block frameBlock) {
-      final Location centre = frameBlock.getLocation();
-      centre.add(HALF_BLOCK, HALF_BLOCK, HALF_BLOCK);
-      final Collection<Entity> occupants = this.world.getNearbyEntities(centre, HALF_BLOCK, HALF_BLOCK, HALF_BLOCK);
+      final Location blockLocation = frameBlock.getLocation();
+      final Location center = blockLocation.add(HALF_BLOCK, HALF_BLOCK, HALF_BLOCK);
+      final Collection<Entity> occupants = this.world.getNearbyEntities(center, HALF_BLOCK, HALF_BLOCK, HALF_BLOCK);
       for (final Entity occupant : occupants) {
         if (occupant instanceof ItemFrame) {
           occupant.remove();

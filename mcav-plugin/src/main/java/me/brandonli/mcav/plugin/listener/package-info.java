@@ -18,7 +18,7 @@
 /**
  * Listeners for server events: a jukebox that boots virtual machines, and the players online.
  *
- * <p>{@link me.brandonli.mcav.plugin.listener.JukeBoxListener} boots a virtual machine when a player puts a renamed
+ * <p>{@link me.brandonli.mcav.plugin.listener.JukeboxListener} boots a virtual machine when a player puts a renamed
  * music disc into a jukebox, and {@link me.brandonli.mcav.plugin.listener.OnlinePlayers} keeps the players online as
  * they join and leave.
  *

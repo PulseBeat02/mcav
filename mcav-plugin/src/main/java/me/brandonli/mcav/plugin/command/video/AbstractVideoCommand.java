@@ -19,9 +19,11 @@ package me.brandonli.mcav.plugin.command.video;
 
 import com.google.common.base.Equivalence;
 import com.google.common.base.Preconditions;
+import java.io.File;
 import java.net.URI;
 import java.nio.file.Path;
 import java.util.Collection;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CancellationException;
@@ -86,15 +88,17 @@ import org.slf4j.LoggerFactory;
  * The common flow of the video commands: validate the arguments, resolve the media on the worker thread, start
  * the player with the display type of the subclass, and report the outcome to the sender.
  *
+ * <p>This class is not thread-safe: use it on the server main thread; the media resolves and starts on the video player
+ * manager's worker, which calls {@link #createVideoFilter}.
+ *
  * @since 1.0.0
  */
 public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
 
+  private static final String SENDER_NULL_MESSAGE = "Sender must not be null!";
+  private static final String TEXT_NULL_MESSAGE = "Text must not be null!";
+
   private static final Logger LOGGER = LoggerFactory.getLogger(AbstractVideoCommand.class);
-
-  private static final String WORKER_REFUSED = "The video worker refused to start a video.";
-
-  private static final String PLAYBACK_FAILED = "Failed to play a video.";
 
   private static final FfmpegDirectSourceDetector RAW_INPUTS = new FfmpegDirectSourceDetector();
 
@@ -108,12 +112,7 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
    */
   protected final MCAVSandbox plugin;
 
-  /**
-   * The provider of audio outputs.
-   *
-   * @since 1.0.0
-   */
-  protected final AudioProvider provider;
+  private final AudioProvider provider;
 
   /**
    * The manager of the running video player.
@@ -123,9 +122,10 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
   protected final VideoPlayerManager manager;
 
   /**
-   * Constructs the command.
+   * Creates the command.
    *
    * @param plugin the plugin, whose video player manager and audio provider must be available
+   * @throws NullPointerException if {@code plugin} is null
    * @since 1.0.0
    */
   protected AbstractVideoCommand(final MCAVSandbox plugin) {
@@ -152,6 +152,7 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
    * @param mrl                   the path, URL, device index, or FFmpeg input
    * @param flags                 the optional flags, may be empty
    * @param filters               the {@code --filters} option, see {@link FilterChain}, or {@code null} for none
+   * @throws NullPointerException if an argument other than {@code filters} is null
    * @since 1.0.0
    */
   public void playVideo(
@@ -166,7 +167,7 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     final @Nullable String filters
   ) {
     Preconditions.checkNotNull(configurationProvider, "Configuration provider must not be null!");
-    Preconditions.checkNotNull(sender, "Sender must not be null!");
+    Preconditions.checkNotNull(sender, SENDER_NULL_MESSAGE);
     Preconditions.checkNotNull(selector, "Player selector must not be null!");
     Preconditions.checkNotNull(playerType, "Player type must not be null!");
     Preconditions.checkNotNull(audioType, "Audio type must not be null!");
@@ -180,7 +181,7 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
       return;
     }
 
-    final String[] ytdlpArguments = this.parseFlags(sender, flags);
+    final String @Nullable [] ytdlpArguments = this.parseFlags(sender, flags);
     if (ytdlpArguments == null) {
       return;
     }
@@ -221,8 +222,8 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
       this.launch(sender, request);
     } catch (final RuntimeException | Error exception) {
       ThrowableUtils.throwIfFatal(exception);
-      final AtomicBoolean initializing = this.manager.getStatus();
-      initializing.set(false);
+      final AtomicBoolean starting = this.manager.getStarting();
+      starting.set(false);
       throw exception;
     }
   }
@@ -235,6 +236,7 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
    * @param filters the option as typed, or {@code null} for none
    * @param kind    what the pictures come from
    * @return the chain, or empty if the option is not valid
+   * @throws NullPointerException if an argument other than {@code filters} is null
    * @since 1.0.0
    */
   public static Optional<FilterChain> parseFilters(
@@ -243,16 +245,25 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     final @Nullable String filters,
     final MediaKind kind
   ) {
+    Preconditions.checkNotNull(sender, SENDER_NULL_MESSAGE);
+    Preconditions.checkNotNull(plugin, "Plugin must not be null!");
+    Preconditions.checkNotNull(kind, "Media kind must not be null!");
+
     if (filters == null || filters.isEmpty()) {
       return Optional.of(FilterChain.NONE);
     }
 
-    final Path overlays = plugin.getDataFolder().toPath().resolve(FilterChain.OVERLAY_FOLDER);
+    final File dataFolder = plugin.getDataFolder();
+    final Path dataPath = dataFolder.toPath();
+    final Path overlays = dataPath.resolve(FilterChain.OVERLAY_FOLDER);
     try {
       final FilterChain chain = FilterChain.parse(filters, overlays, kind);
       return Optional.of(chain);
     } catch (final IllegalArgumentException exception) {
-      sender.sendMessage(Message.FILTERS_INVALID.build(Objects.requireNonNullElse(exception.getMessage(), "")));
+      final String cause = exception.getMessage();
+      final String reason = Objects.requireNonNullElse(cause, "");
+      final Component message = Message.FILTERS_INVALID.build(reason);
+      sender.sendMessage(message);
       return Optional.empty();
     }
   }
@@ -267,8 +278,8 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
    * @since 1.0.0
    */
   protected static Optional<Pair<Integer, Integer>> parseDimensions(final CommandSender sender, final String text) {
-    Preconditions.checkNotNull(sender, "Sender must not be null!");
-    Preconditions.checkNotNull(text, "Text must not be null!");
+    Preconditions.checkNotNull(sender, SENDER_NULL_MESSAGE);
+    Preconditions.checkNotNull(text, TEXT_NULL_MESSAGE);
 
     try {
       final Pair<Integer, Integer> dimensions = ArgumentUtils.parseDimensions(text);
@@ -291,8 +302,8 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
    * @since 1.0.0
    */
   protected static Optional<Pair<Integer, Integer>> parseScreenDimensions(final CommandSender sender, final String text) {
-    Preconditions.checkNotNull(sender, "Sender must not be null!");
-    Preconditions.checkNotNull(text, "Text must not be null!");
+    Preconditions.checkNotNull(sender, SENDER_NULL_MESSAGE);
+    Preconditions.checkNotNull(text, TEXT_NULL_MESSAGE);
 
     try {
       final Pair<Integer, Integer> dimensions = ArgumentUtils.parseScreenDimensions(text);
@@ -305,8 +316,8 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
   }
 
   private boolean claim() {
-    final AtomicBoolean initializing = this.manager.getStatus();
-    return initializing.compareAndSet(false, true);
+    final AtomicBoolean starting = this.manager.getStarting();
+    return starting.compareAndSet(false, true);
   }
 
   private Player[] collectViewers(final MultiplePlayerSelector selector) {
@@ -335,7 +346,7 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
   }
 
   private void launch(final CommandSender sender, final PlaybackRequest request) {
-    final AtomicBoolean initializing = this.manager.getStatus();
+    final AtomicBoolean starting = this.manager.getStarting();
     final ExecutorService service = this.manager.getService();
     final CompletableFuture<Boolean> start;
     final long generation;
@@ -343,8 +354,8 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
       generation = this.manager.beginStart();
       start = CompletableFuture.supplyAsync(() -> this.startPlayer(request, generation), service);
     } catch (final RejectedExecutionException | CancellationException exception) {
-      initializing.set(false);
-      LOGGER.error(WORKER_REFUSED, exception);
+      starting.set(false);
+      LOGGER.error("The video worker refused to start a video.", exception);
       final Component message = Message.VIDEO_START_ERROR.build();
       sender.sendMessage(message);
       return;
@@ -360,8 +371,8 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     final @Nullable Boolean started,
     final @Nullable Throwable error
   ) {
-    final AtomicBoolean initializing = this.manager.getStatus();
-    initializing.set(false);
+    final AtomicBoolean starting = this.manager.getStarting();
+    starting.set(false);
     TaskUtils.runOnMainThread(this.plugin, () -> this.reportIfCurrent(sender, request, generation, started, error));
   }
 
@@ -387,7 +398,7 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     final @Nullable Throwable error
   ) {
     if (error != null) {
-      LOGGER.error(PLAYBACK_FAILED, error);
+      LOGGER.error("Failed to play a video.", error);
       final Component message = Message.VIDEO_START_ERROR.build();
       sender.sendMessage(message);
       return;
@@ -411,7 +422,7 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     final AudioArgument audioType,
     final String mrl
   ) {
-    final Component deviceProblem = this.findDeviceProblem(sender, playerType, mrl);
+    final @Nullable Component deviceProblem = this.findDeviceProblem(sender, playerType, mrl);
     return deviceProblem != null ? deviceProblem : this.findProblem(playerType, audioType, mrl);
   }
 
@@ -426,7 +437,14 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
       return Message.DEVICE_PERMISSION.build();
     }
 
-    return isDevice && CaptureDevices.find(this.manager.getDevices(), mrl).isEmpty() ? Message.DEVICE_UNLISTED.build(mrl) : null;
+    if (!isDevice) {
+      return null;
+    }
+
+    final List<CaptureDevices.Device> devices = this.manager.getDevices();
+    final Optional<CaptureDevices.Device> device = CaptureDevices.find(devices, mrl);
+    final boolean unlisted = device.isEmpty();
+    return unlisted ? Message.DEVICE_UNLISTED.build(mrl) : null;
   }
 
   private @Nullable Component findProblem(final PlayerArgument playerType, final AudioArgument audioType, final String mrl) {
@@ -436,7 +454,7 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
       return audioProblem;
     }
 
-    final Component playerProblem = this.findPlayerProblem(playerType);
+    final @Nullable Component playerProblem = this.findPlayerProblem(playerType);
     if (playerProblem != null) {
       return playerProblem;
     }
@@ -479,7 +497,7 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     this.manager.checkStart();
     final String mrl = request.getMrl();
     final String[] ytdlpArguments = request.getYtdlpArguments();
-    final SourceSelection selection = this.selectSources(mrl, ytdlpArguments);
+    final @Nullable SourceSelection selection = this.selectSources(mrl, ytdlpArguments);
     this.manager.checkStart();
 
     if (selection == null) {
@@ -516,7 +534,9 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
   private VideoPlayerMultiplexer createPlayer(final PlaybackRequest request, final UrlParseDump dump) {
     final Pair<Integer, Integer> resolution = request.getResolution();
     final VideoConfigurationProvider configurationProvider = request.getConfigurationProvider();
-    final VideoPipelineStep videoPipeline = request.getFilters().prepend(this.createVideoFilter(resolution, configurationProvider));
+    final FilterChain filters = request.getFilters();
+    final VideoPipelineStep display = this.createVideoFilter(resolution, configurationProvider);
+    final VideoPipelineStep videoPipeline = filters.prepend(display);
 
     final AudioArgument audioType = request.getAudioType();
     final Player[] viewers = request.getViewers();
@@ -553,8 +573,16 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
 
   private boolean startPlayback(final VideoPlayerMultiplexer player, final SourceSelection selection) {
     final Source video = selection.getVideo();
-    final Source audio = selection.getAudio();
-    return this.manager.startNative(() -> audio == null ? player.start(video) : player.start(video, audio));
+    final @Nullable Source audio = selection.getAudio();
+    return this.manager.startNative(() -> this.startSources(player, video, audio));
+  }
+
+  private boolean startSources(final VideoPlayerMultiplexer player, final Source video, final @Nullable Source audio) {
+    if (audio == null) {
+      return player.start(video);
+    }
+
+    return player.start(video, audio);
   }
 
   private void cleanupAfterFailure(final Throwable failure, final Runnable cleanup) {
@@ -603,6 +631,7 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
    * @param resolution            the parsed resolution
    * @param configurationProvider the provider passed to {@link #playVideo}
    * @return the pipeline
+   * @throws CancellationException if the video startup was cancelled or the manager is shut down
    * @since 1.0.0
    */
   public abstract VideoPipelineStep createVideoFilter(
@@ -613,11 +642,11 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
   private @Nullable SourceSelection selectSources(final String mrl, final String[] ytdlpArguments) {
     final SourceDetectionHelper helper = new SourceDetectionHelper();
     final Optional<Source> detected = helper.detectSource(mrl);
-    if (detected.isEmpty()) {
+    final @Nullable Source source = detected.orElse(null);
+    if (source == null) {
       return null;
     }
 
-    final Source source = detected.get();
     if (source instanceof final UriSource page && !page.isDirect()) {
       return this.resolveWithYtdlp(page, ytdlpArguments);
     }
@@ -630,12 +659,12 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     if (source instanceof final FfmpegDirectSource ffmpegSource) {
       final String input = ffmpegSource.getMrl();
       final String format = ffmpegSource.getFormat();
-      return this.createDump(input, "FFmpeg input " + format);
+      return this.createDump(input, "FFmpeg input %s".formatted(format));
     }
 
     if (source instanceof final DeviceSource device) {
       final int deviceId = device.getDeviceId();
-      return this.createDump("Device " + deviceId, "Video from a capture device");
+      return this.createDump("Device %s".formatted(deviceId), "Video from a capture device");
     }
 
     if (source instanceof final FileSource file) {
@@ -660,7 +689,7 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     } catch (final InstallationException | DownloadException | FileOperationException | ProcessException exception) {
       final String reason = exception.getMessage();
       final URI uri = page.getUri();
-      final String message = "yt-dlp could not resolve %s (%s)!".formatted(uri, reason);
+      final String message = "Because of \"%s\", page %s could not be resolved by yt-dlp!".formatted(reason, uri);
       throw new PluginException(message, exception);
     }
 

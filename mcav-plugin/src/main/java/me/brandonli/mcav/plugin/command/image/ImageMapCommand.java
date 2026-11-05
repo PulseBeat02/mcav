@@ -31,6 +31,7 @@ import me.brandonli.mcav.plugin.command.MapDisplaySettings;
 import me.brandonli.mcav.plugin.command.SuggestionProvider;
 import me.brandonli.mcav.plugin.command.video.Mcv2Output;
 import me.brandonli.mcav.plugin.command.video.Mcv2Support;
+import me.brandonli.mcav.plugin.data.PluginDataConfigurationMapper;
 import me.brandonli.mcav.plugin.locale.Message;
 import me.brandonli.mcav.plugin.utils.ArgumentUtils;
 import me.brandonli.mcav.plugin.utils.DitheringArgument;
@@ -61,9 +62,10 @@ import org.incendo.cloud.bukkit.data.MultiplePlayerSelector;
 public final class ImageMapCommand extends AbstractImageCommand {
 
   /**
-   * Constructs the command.
+   * Creates the command.
    *
    * @param plugin the plugin
+   * @throws NullPointerException if {@code plugin} is null
    * @since 1.0.0
    */
   public ImageMapCommand(final MCAVSandbox plugin) {
@@ -99,16 +101,17 @@ public final class ImageMapCommand extends AbstractImageCommand {
    *                           results for most images, see {@link DitheringArgument}
    * @param mrl                the image to show: a path to a file on the server or an {@code http} or
    *                           {@code https} URL; the rest of the command line up to a flag, so it may contain spaces
-   * @param filters            the {@code --filters} option: filters applied to the image in order, such as
-   *                           {@code "grayscale,blur=3"}, see {@link FilterChain}; none when absent
    * @param codec              how the picture reaches the players, see {@link MapCodec}; the configured default when
    *                           absent
+   * @param filters            the {@code --filters} option: filters applied to the image in order, such as
+   *                           {@code "grayscale,blur=3"}, see {@link FilterChain}; none when absent
+   * @throws NullPointerException if an argument other than {@code codec} and {@code filters} is null
    * @since 1.0.0
    */
   @Command("mcav image map <playerSelector> <imageResolution> <blockDimensions> <mapId> <ditheringAlgorithm> <mrl>")
   @Permission("mcav.command.image.map")
   @CommandDescription("mcav.command.image.map.info")
-  public void showMapImage(
+  public void showImage(
     final CommandSender sender,
     final MultiplePlayerSelector playerSelector,
     @Argument(suggestions = SuggestionProvider.RESOLUTIONS) @Quoted final String imageResolution,
@@ -126,17 +129,21 @@ public final class ImageMapCommand extends AbstractImageCommand {
     Preconditions.checkNotNull(ditheringAlgorithm, "Dithering algorithm must not be null!");
     Preconditions.checkNotNull(mrl, "MRL must not be null!");
 
-    final Pair<Integer, Integer> blocks = this.parseBlocks(sender, blockDimensions);
+    final Pair<Integer, Integer> blocks = this.parseBlocks(blockDimensions);
     if (blocks == null) {
+      final Component message = Message.UNSUPPORTED_DIMENSION.build();
+      sender.sendMessage(message);
       return;
     }
 
-    final Collection<UUID> players = ArgumentUtils.parseViewers(playerSelector, this.plugin.getOnlinePlayers());
-    final MapCodec chosen = codec != null ? codec : this.plugin.getConfiguration().getMcv2DefaultCodec();
-    final ImageConfigurationProvider configurationProvider =
-      chosen == MapCodec.MCV2
-        ? resolution -> new Mcv2ImageSettings(sender, blocks, resolution, mapId, players, ditheringAlgorithm)
-        : this.createProvider(blocks, mapId, players, ditheringAlgorithm);
+    final Collection<UUID> players = ArgumentUtils.resolveViewers(playerSelector, this.plugin.getOnlinePlayers());
+    final PluginDataConfigurationMapper configuration = this.plugin.getConfiguration();
+    final MapCodec defaultCodec = configuration.getMcv2DefaultCodec();
+    final MapCodec chosen = codec != null ? codec : defaultCodec;
+    final ImageConfigurationProvider configurationProvider = switch (chosen) {
+      case MCV2 -> this.createMcv2Provider(sender, blocks, mapId, players, ditheringAlgorithm);
+      case DITHER -> this.createProvider(blocks, mapId, players, ditheringAlgorithm);
+    };
     this.displayImage(configurationProvider, sender, imageResolution, mrl, filters);
   }
 
@@ -149,12 +156,20 @@ public final class ImageMapCommand extends AbstractImageCommand {
     return resolution -> this.createSettings(blocks, resolution, mapId, players, dithering);
   }
 
-  private @Nullable Pair<Integer, Integer> parseBlocks(final CommandSender sender, final String blockDimensions) {
+  private ImageConfigurationProvider createMcv2Provider(
+    final CommandSender sender,
+    final Pair<Integer, Integer> blocks,
+    final int mapId,
+    final Collection<UUID> players,
+    final DitheringArgument dithering
+  ) {
+    return resolution -> new Mcv2ImageSettings(sender, blocks, resolution, mapId, players, dithering);
+  }
+
+  private @Nullable Pair<Integer, Integer> parseBlocks(final String blockDimensions) {
     try {
       return ArgumentUtils.parseScreenDimensions(blockDimensions);
     } catch (final IllegalArgumentException exception) {
-      final Component message = Message.UNSUPPORTED_DIMENSION.build();
-      sender.sendMessage(message);
       return null;
     }
   }
@@ -171,12 +186,13 @@ public final class ImageMapCommand extends AbstractImageCommand {
   }
 
   /**
-   * Creates a map display from the {@link MapDisplaySettings} built by the provider of {@link #showMapImage}, with
+   * Creates a map display from the {@link MapDisplaySettings} built by the provider of {@link #showImage}, with
    * a dithering algorithm created for this image alone.
    *
    * @param resolution            the parsed resolution, in pixels
    * @param configurationProvider the provider that builds the map display settings
    * @return the map display
+   * @throws NullPointerException if an argument is null
    * @since 1.0.0
    */
   @Override
@@ -185,14 +201,21 @@ public final class ImageMapCommand extends AbstractImageCommand {
     Preconditions.checkNotNull(configurationProvider, "Configuration provider must not be null!");
 
     final Object built = configurationProvider.buildConfiguration(resolution);
-    if (built instanceof final Mcv2ImageSettings mcv2) {
-      final DisplayableImage image = this.createMcv2Image(mcv2);
+    if (built instanceof final Mcv2ImageSettings mcv2Settings) {
+      final @Nullable DisplayableImage image = this.createMcv2Image(mcv2Settings);
       if (image != null) {
         return image;
       }
 
-      final MapConfiguration fallback = MapDisplaySettings.createConfiguration(mcv2.blocks(), resolution, mcv2.mapId(), mcv2.viewers());
-      return DisplayableImage.map(fallback, mcv2.dithering().createAlgorithm());
+      final MapConfiguration fallback = MapDisplaySettings.createConfiguration(
+        mcv2Settings.blocks(),
+        resolution,
+        mcv2Settings.mapId(),
+        mcv2Settings.viewers()
+      );
+      final DitheringArgument dithering = mcv2Settings.dithering();
+      final DitherAlgorithm algorithm = dithering.createAlgorithm();
+      return DisplayableImage.map(fallback, algorithm);
     }
 
     final MapDisplaySettings settings = (MapDisplaySettings) built;

@@ -44,12 +44,10 @@ public final class DumpCommand implements AnnotationCommandFeature {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(DumpCommand.class);
 
-  private static final String UPLOAD_FAILED = "Failed to upload the dump.";
-
   private final Supplier<String> uploader;
 
   /**
-   * Constructs the command.
+   * Creates the command.
    *
    * @since 1.0.0
    */
@@ -65,9 +63,10 @@ public final class DumpCommand implements AnnotationCommandFeature {
   }
 
   /**
-   * Uploads a dump in the background and sends its link to the sender. Failures are only logged.
+   * Uploads a dump in the background and sends its link to the sender. A failure is logged and reported to the sender.
    *
    * @param sender who ran the command
+   * @throws NullPointerException if {@code sender} is null
    * @since 1.0.0
    */
   @Permission("mcav.command.dump")
@@ -85,7 +84,7 @@ public final class DumpCommand implements AnnotationCommandFeature {
 
   private void reportUpload(final CommandSender sender, final String url, final @Nullable Throwable error) {
     if (error != null) {
-      LOGGER.error(UPLOAD_FAILED, error);
+      LOGGER.error("Failed to upload the dump.", error);
       final Component failure = Message.DUMP_FAILED.build();
       sender.sendMessage(failure);
       return;

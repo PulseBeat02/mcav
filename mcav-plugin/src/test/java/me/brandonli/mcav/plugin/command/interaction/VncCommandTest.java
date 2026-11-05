@@ -132,7 +132,8 @@ final class VncCommandTest {
     assertEquals(5901, port);
 
     final Optional<String> password = source.getPassword();
-    assertEquals(Optional.of("secret"), password);
+    final Optional<String> expectedPassword = Optional.of("secret");
+    assertEquals(expectedPassword, password);
 
     final int screenWidth = source.getScreenWidth();
     assertEquals(1280, screenWidth);
@@ -164,7 +165,8 @@ final class VncCommandTest {
 
   private void assertReceived(final Component... expected) {
     final List<Component> received = Components.received(this.sender);
-    assertEquals(List.of(expected), received);
+    final List<Component> expectedMessages = List.of(expected);
+    assertEquals(expectedMessages, received);
   }
 
   @Test
@@ -173,7 +175,7 @@ final class VncCommandTest {
 
     this.assertReceived(Message.VNC_NOT_ALLOWED.build("10.0.0.2:5900"));
     this.desktops.verifyNoInteractions();
-    assertNull(this.command.result);
+    assertNull(this.command.output);
   }
 
   @Test
@@ -181,7 +183,7 @@ final class VncCommandTest {
     this.create("wide", DESKTOP_ADDRESS);
 
     this.desktops.verifyNoInteractions();
-    assertNull(this.command.result);
+    assertNull(this.command.output);
   }
 
   @Test
@@ -199,7 +201,7 @@ final class VncCommandTest {
     );
 
     this.desktops.verifyNoInteractions();
-    assertNull(this.command.result);
+    assertNull(this.command.output);
   }
 
   @Test
@@ -216,7 +218,7 @@ final class VncCommandTest {
   @Test
   void shouldGiveNoPasswordToAServerWithoutOne() {
     final VncAllowList.Entry open = VncAllowList.Entry.of(LOOPBACK_HOST, 5902, null);
-    final VncSource source = VncCommand.createSource(open, Pair.pair(640, 480), 10);
+    final VncSource source = this.command.createSource(open, Pair.pair(640, 480), 10);
 
     final Optional<String> password = source.getPassword();
     assertEquals(Optional.empty(), password);

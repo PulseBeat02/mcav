@@ -66,7 +66,7 @@ final class Mcv2ImageTest {
     this.plugin = mock(Plugin.class);
     this.output = mock(Mcv2Output.class);
     this.task = mock(BukkitTask.class);
-    when(TestServer.scheduler().runTaskTimerAsynchronously(any(Plugin.class), any(Runnable.class), anyLong(), anyLong())).thenReturn(
+    when(TestServer.getScheduler().runTaskTimerAsynchronously(any(Plugin.class), any(Runnable.class), anyLong(), anyLong())).thenReturn(
       this.task
     );
     doAnswer(this::recordAndAlterFrame).when(this.output).applyFilter(any(), any());
@@ -75,8 +75,10 @@ final class Mcv2ImageTest {
   private boolean recordAndAlterFrame(final InvocationOnMock invocation) {
     final ImageBuffer frame = invocation.getArgument(0);
     final OriginalVideoMetadata metadata = invocation.getArgument(1);
-    assertEquals(IMAGE_WIDTH, metadata.getVideoWidth());
-    assertEquals(IMAGE_HEIGHT, metadata.getVideoHeight());
+    final int width = metadata.getVideoWidth();
+    assertEquals(IMAGE_WIDTH, width);
+    final int height = metadata.getVideoHeight();
+    assertEquals(IMAGE_HEIGHT, height);
 
     this.given.add(frame.getPixels().clone());
     // the screen may resize the frame in place: it is the screen's own copy
@@ -97,7 +99,7 @@ final class Mcv2ImageTest {
     verify(this.output).start();
 
     final ArgumentCaptor<Runnable> feeds = ArgumentCaptor.forClass(Runnable.class);
-    verify(TestServer.scheduler()).runTaskTimerAsynchronously(eq(this.plugin), feeds.capture(), eq(0L), eq(Mcv2Image.PERIOD_TICKS));
+    verify(TestServer.getScheduler()).runTaskTimerAsynchronously(eq(this.plugin), feeds.capture(), eq(0L), eq(Mcv2Image.PERIOD_TICKS));
 
     feeds.getValue().run();
     feeds.getValue().run();
@@ -130,7 +132,7 @@ final class Mcv2ImageTest {
     image.displayImage(ImageBuffer.buffer(PIXELS.clone(), IMAGE_WIDTH, IMAGE_HEIGHT));
 
     final ArgumentCaptor<Runnable> feeds = ArgumentCaptor.forClass(Runnable.class);
-    verify(TestServer.scheduler()).runTaskTimerAsynchronously(eq(this.plugin), feeds.capture(), eq(0L), eq(Mcv2Image.PERIOD_TICKS));
+    verify(TestServer.getScheduler()).runTaskTimerAsynchronously(eq(this.plugin), feeds.capture(), eq(0L), eq(Mcv2Image.PERIOD_TICKS));
 
     // a client that missed the keyframe its viewer started with shows nothing until the next, which a video of 30
     // frames a second has four seconds later, and the encoder's own every 120 frames, a minute at two a second

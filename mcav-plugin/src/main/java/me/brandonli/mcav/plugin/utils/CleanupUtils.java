@@ -34,7 +34,8 @@ public final class CleanupUtils {
   private static final Equivalence<Object> FAILURE_IDENTITY = Equivalence.identity();
 
   private CleanupUtils() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   /**
@@ -42,6 +43,8 @@ public final class CleanupUtils {
    * Fatal virtual-machine failures are rethrown immediately without attempting further cleanup.
    *
    * @param actions the independent cleanup actions
+   * @throws NullPointerException if {@code actions} is null
+   * @throws RuntimeException     if an action fails: the first such failure, with the later ones suppressed
    * @since 1.0.0
    */
   public static void runAll(final Runnable... actions) {
@@ -56,8 +59,9 @@ public final class CleanupUtils {
         failure = combine(failure, exception);
       }
     }
-    if (failure instanceof final RuntimeException exception) {
-      throw exception;
+
+    if (failure instanceof final RuntimeException runtimeException) {
+      throw runtimeException;
     }
 
     if (failure instanceof final Error error) {
@@ -74,6 +78,7 @@ public final class CleanupUtils {
     if (!sameFailure) {
       first.addSuppressed(next);
     }
+
     return first;
   }
 }

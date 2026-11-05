@@ -172,11 +172,11 @@ final class VideoFlagsParserTest {
   void shouldAcceptEverySupportedOption() {
     final List<String> supported = VideoFlagsParser.supportedOptions();
     for (final String option : supported) {
-      final String[] withValue = this.parseOrEmpty(option + "=value");
+      final String[] withValue = this.parseOrEmpty("%s=value".formatted(option));
       final String[] asSwitch = this.parseOrEmpty(option);
-      final boolean takesValue = Arrays.equals(new String[] { "--" + option, "value" }, withValue);
-      final boolean isSwitch = Arrays.equals(new String[] { "--" + option }, asSwitch);
-      assertTrue(takesValue != isSwitch, option + " must be either a switch or an option with a value");
+      final boolean takesValue = Arrays.equals(new String[] { "--%s".formatted(option), "value" }, withValue);
+      final boolean isSwitch = Arrays.equals(new String[] { "--%s".formatted(option) }, asSwitch);
+      assertTrue(takesValue != isSwitch, "%s must be either a switch or an option with a value".formatted(option));
     }
   }
 
@@ -192,11 +192,11 @@ final class VideoFlagsParserTest {
   @ValueSource(strings = { "exec", "output", "paths", "config-location", "cookies", "downloader", "load-info-json" })
   void shouldRefuseOptionsOutsideTheSupportedList(final String option) {
     final IllegalArgumentException refused = assertThrows(IllegalArgumentException.class, () ->
-      this.parser.parseYtdlpFlags(FLAG_OPENING + option + "=value}")
+      this.parser.parseYtdlpFlags("%s%s=value}".formatted(FLAG_OPENING, option))
     );
 
     final String message = refused.getMessage();
-    final boolean namesTheOption = message.startsWith("yt-dlp option " + option + " is not supported, ");
+    final boolean namesTheOption = message.startsWith("yt-dlp option %s is not supported, ".formatted(option));
     assertTrue(namesTheOption, message);
     final IllegalArgumentException asSwitch = assertThrows(IllegalArgumentException.class, () ->
       this.parser.parseYtdlpFlags(FLAG_OPENING + option + FLAG_CLOSING)
@@ -204,7 +204,7 @@ final class VideoFlagsParserTest {
 
     final String switchMessage = asSwitch.getMessage();
 
-    final boolean prefixed = switchMessage.startsWith("yt-dlp option " + option + " is not supported, ");
+    final boolean prefixed = switchMessage.startsWith("yt-dlp option %s is not supported, ".formatted(option));
     assertTrue(prefixed, switchMessage);
   }
 
@@ -236,7 +236,7 @@ final class VideoFlagsParserTest {
     );
 
     final String message = refused.getMessage();
-    final String expected = "Value " + value + " of the yt-dlp option format must not start with a dash!";
+    final String expected = "Value %s of the yt-dlp option format must not start with a dash!".formatted(value);
     assertEquals(expected, message);
   }
 

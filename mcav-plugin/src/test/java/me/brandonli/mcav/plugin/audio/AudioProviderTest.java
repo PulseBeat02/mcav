@@ -98,6 +98,8 @@ final class AudioProviderTest {
 
   private static final String MACHINE_TITLE = "The machine";
 
+  private static final String MISSING_VOICE_CONNECT_PERMISSION_MESSAGE = "Missing permission VOICE_CONNECT!";
+
   private final UrlParseDump dump = GsonProvider.getSimple().fromJson("{}", UrlParseDump.class);
   private final Object[] players = { "Steve" };
   private final List<Runnable> deferred = new ArrayList<>();
@@ -223,7 +225,7 @@ final class AudioProviderTest {
     this.builders.verifyNoInteractions();
     this.httpResults.verifyNoInteractions();
 
-    final PluginManager pluginManager = TestServer.pluginManager();
+    final PluginManager pluginManager = TestServer.getPluginManager();
     verifyNoInteractions(pluginManager);
 
     final boolean discordReady = this.provider.isDiscordBotReady();
@@ -429,7 +431,7 @@ final class AudioProviderTest {
   @Test
   void shouldRegisterForTheServerLoadWhenVoiceChatIsInstalled() {
     when(this.configuration.isSimpleVoiceChatEnabled()).thenReturn(true);
-    final PluginManager pluginManager = TestServer.pluginManager();
+    final PluginManager pluginManager = TestServer.getPluginManager();
     when(pluginManager.isPluginEnabled("voicechat")).thenReturn(true);
     this.provider.initialize();
     verify(pluginManager).registerEvents(any(ServerLoadListener.class), eq(this.sandbox));
@@ -441,9 +443,9 @@ final class AudioProviderTest {
     final MissingVoiceChatException exception = assertThrows(MissingVoiceChatException.class, this.provider::initialize);
 
     final String message = exception.getMessage();
-    assertEquals("Simple Voice Chat audio is enabled, but the voicechat plugin is not installed!", message);
+    assertEquals("Simple Voice Chat audio is enabled, but the Simple Voice Chat plugin is not installed!", message);
 
-    final PluginManager pluginManager = TestServer.pluginManager();
+    final PluginManager pluginManager = TestServer.getPluginManager();
     verify(pluginManager, never()).registerEvents(any(), any());
   }
 
@@ -607,7 +609,7 @@ final class AudioProviderTest {
     final Object machine = new Object();
     final AudioFilter video = this.provider.constructFilter(AudioArgument.DISCORD_BOT, this.dump, this.players);
     this.provider.constructFilter(AudioArgument.HTTP_SERVER, UrlParseDump.of(MACHINE_TITLE), this.players, machine);
-    doThrow(new IllegalStateException("Missing permission VOICE_CONNECT!")).when(this.audioManager).openAudioConnection(this.channel);
+    doThrow(new IllegalStateException(MISSING_VOICE_CONNECT_PERMISSION_MESSAGE)).when(this.audioManager).openAudioConnection(this.channel);
     this.provider.releaseAudioFilter(machine);
 
     final boolean filtered = video.applyFilter(
@@ -662,7 +664,7 @@ final class AudioProviderTest {
     this.provider.constructFilter(AudioArgument.HTTP_SERVER, this.dump, this.players);
     this.provider.constructFilter(AudioArgument.DISCORD_BOT, this.dump, this.players);
     this.provider.constructFilter(AudioArgument.SIMPLE_VOICE_CHAT, this.dump, this.players, machine);
-    doThrow(new IllegalStateException("Missing permission VOICE_CONNECT!")).when(this.audioManager).openAudioConnection(this.channel);
+    doThrow(new IllegalStateException(MISSING_VOICE_CONNECT_PERMISSION_MESSAGE)).when(this.audioManager).openAudioConnection(this.channel);
     this.provider.releaseAudioFilter(machine);
     this.provider.constructFilter(AudioArgument.SIMPLE_VOICE_CHAT, this.dump, this.players, browser);
     this.provider.releaseAudioFilter(browser);
@@ -800,10 +802,12 @@ final class AudioProviderTest {
   ) throws InterruptedException {
     entered.countDown();
     try {
-      assertTrue(finishStartup.await(10, TimeUnit.SECONDS));
+      final boolean startupFinished = finishStartup.await(10, TimeUnit.SECONDS);
+      assertTrue(startupFinished);
     } catch (final InterruptedException exception) {
       interrupted.countDown();
-      assertTrue(finishStartup.await(10, TimeUnit.SECONDS));
+      final boolean startupFinished = finishStartup.await(10, TimeUnit.SECONDS);
+      assertTrue(startupFinished);
     }
     return null;
   }

@@ -172,11 +172,16 @@ final class Mcv2PlayCommandTest {
   private static final String SUBFOLDER_STREAM_PATH = "sub/clip.mcs";
   private static final String PARENT_STREAM_PATH = "../clip.mcs";
   private static final String ESCAPING_STREAM_PATH = "sub/../../clip.mcs";
+  private static final String ABSOLUTE_STREAM_PATH = "/etc/passwd";
   private static final String PARENT_PLAY_PATH = "../stream.mcs";
   private static final String ESCAPING_ENCODE_PATH = "../../escape.mcs";
 
   private static final String PROGRESS_PATTERN = "MCV2 encode: (\\d+) frames, (\\d+) ms per frame";
   private static final String DURATION_PATTERN = " in (\\d+) s, ";
+
+  private static final String MISSING_VIDEO_MESSAGE = "no such video!";
+
+  private static final String REJECTED_SOURCE_MESSAGE = "reader rejected the source!";
 
   @TempDir
   private Path folder;
@@ -208,7 +213,7 @@ final class Mcv2PlayCommandTest {
     TestServer.reset();
     this.plugin = mock(MCAVSandbox.class);
     when(this.plugin.getDataFolder()).thenReturn(this.folder.toFile());
-    this.streams = this.folder.resolve(Mcv2PlayCommand.STREAMS);
+    this.streams = this.folder.resolve(Mcv2PlayCommand.STREAM_FOLDER);
     this.packs = mock(Mcv2PackServer.class);
     when(this.packs.getViewers()).thenReturn(mock(Mcv2Viewers.class));
     this.lease = mock(Mcv2PackServer.Lease.class);
@@ -228,12 +233,12 @@ final class Mcv2PlayCommandTest {
     when(frame.getLocation()).thenReturn(new Location(world, 5, 64, 7));
     when(frame.getFacing()).thenReturn(BlockFace.SOUTH);
     when(world.getEntitiesByClass(ItemFrame.class)).thenReturn(List.of(frame));
-    when(TestServer.server().getWorlds()).thenReturn(List.of(world));
+    when(TestServer.getServer().getWorlds()).thenReturn(List.of(world));
     this.task = mock(BukkitTask.class);
-    when(TestServer.scheduler().runTaskTimerAsynchronously(any(Plugin.class), any(Runnable.class), anyLong(), anyLong())).thenReturn(
+    when(TestServer.getScheduler().runTaskTimerAsynchronously(any(Plugin.class), any(Runnable.class), anyLong(), anyLong())).thenReturn(
       this.task
     );
-    when(TestServer.scheduler().runTask(any(Plugin.class), any(Runnable.class))).thenAnswer(this::recordHandOver);
+    when(TestServer.getScheduler().runTask(any(Plugin.class), any(Runnable.class))).thenAnswer(this::recordHandOver);
   }
 
   private Mcv2PackServer.Lease openLease(final InvocationOnMock invocation, final AtomicReference<Mcv2Configuration> opened) {
@@ -267,10 +272,11 @@ final class Mcv2PlayCommandTest {
       assertEquals(32, videoHeight);
 
       final List<UUID> copy = List.copyOf(configurations.getValue().getViewers());
-      assertEquals(List.of(this.viewer), copy);
+      final List<UUID> expectedViewers = List.of(this.viewer);
+      assertEquals(expectedViewers, copy);
 
       final ArgumentCaptor<Runnable> playbacks = ArgumentCaptor.forClass(Runnable.class);
-      verify(TestServer.scheduler()).runTaskTimerAsynchronously(eq(this.plugin), playbacks.capture(), eq(0L), eq(PERIOD_TICKS));
+      verify(TestServer.getScheduler()).runTaskTimerAsynchronously(eq(this.plugin), playbacks.capture(), eq(0L), eq(PERIOD_TICKS));
 
       final Runnable value = playbacks.getValue();
       assertInstanceOf(Mcv2Playback.class, value);
@@ -300,14 +306,19 @@ final class Mcv2PlayCommandTest {
   }
 
   private Path archive(final List<byte[]> frames) throws IOException {
-    final ByteArrayOutputStream out = new ByteArrayOutputStream();
+    final ByteArrayOutputStream output = new ByteArrayOutputStream();
     for (final byte[] frame : frames) {
-      out.write(new byte[] { (byte) frame.length, (byte) (frame.length >> 8), (byte) (frame.length >> 16), (byte) (frame.length >> 24) });
-      out.write(frame);
+      output.write(new byte[] {
+        (byte) frame.length,
+        (byte) (frame.length >> 8),
+        (byte) (frame.length >> 16),
+        (byte) (frame.length >> 24),
+      });
+      output.write(frame);
     }
     Files.createDirectories(this.streams);
     final Path file = Files.createTempFile(this.streams, STREAM_PREFIX, STREAM_SUFFIX);
-    Files.write(file, out.toByteArray());
+    Files.write(file, output.toByteArray());
     return file;
   }
 
@@ -315,7 +326,7 @@ final class Mcv2PlayCommandTest {
   void shouldReadTheStreamFileOffTheMainThreadAndOpenTheScreenOnIt() throws IOException, InterruptedException {
     final Path file = this.archive(Mcv2PlaybackTest.stream());
     final List<Boolean> fromMainThread = new CopyOnWriteArrayList<>();
-    when(TestServer.scheduler().runTask(any(Plugin.class), any(Runnable.class))).thenAnswer(invocation ->
+    when(TestServer.getScheduler().runTask(any(Plugin.class), any(Runnable.class))).thenAnswer(invocation ->
       this.recordThreadAndHandOver(invocation, fromMainThread)
     );
     try (final MockedConstruction<Mcv2Channel> channels = Mockito.mockConstruction(Mcv2Channel.class)) {
@@ -324,10 +335,11 @@ final class Mcv2PlayCommandTest {
       verify(this.sender, never()).sendMessage(any(Component.class));
 
       this.runHandedOver();
-      assertEquals(List.of(false), fromMainThread, "the file is read on a thread of its own, which hands the screen over");
+      final List<Boolean> expectedThreads = List.of(false);
+      assertEquals(expectedThreads, fromMainThread, "the file is read on a thread of its own, which hands the screen over");
       verify(channels.constructed().getFirst()).open();
       verify(this.packs).open(any());
-      verify(TestServer.scheduler()).runTaskTimerAsynchronously(eq(this.plugin), any(Runnable.class), eq(0L), eq(PERIOD_TICKS));
+      verify(TestServer.getScheduler()).runTaskTimerAsynchronously(eq(this.plugin), any(Runnable.class), eq(0L), eq(PERIOD_TICKS));
       verify(this.sender).sendMessage(Message.MCV2_PLAY.build());
     }
   }
@@ -352,8 +364,8 @@ final class Mcv2PlayCommandTest {
       assertEquals(1, size);
 
       verify(this.packs).open(any());
-      verify(TestServer.scheduler()).runTaskTimerAsynchronously(eq(this.plugin), any(Runnable.class), eq(0L), eq(LATER_PERIOD_TICKS));
-      verify(TestServer.scheduler(), never()).runTaskTimerAsynchronously(
+      verify(TestServer.getScheduler()).runTaskTimerAsynchronously(eq(this.plugin), any(Runnable.class), eq(0L), eq(LATER_PERIOD_TICKS));
+      verify(TestServer.getScheduler(), never()).runTaskTimerAsynchronously(
         any(Plugin.class),
         any(Runnable.class),
         anyLong(),
@@ -379,7 +391,7 @@ final class Mcv2PlayCommandTest {
       final int size = channels.constructed().size();
       assertEquals(1, size);
 
-      verify(TestServer.scheduler()).runTaskTimerAsynchronously(eq(this.plugin), any(Runnable.class), eq(0L), eq(LATER_PERIOD_TICKS));
+      verify(TestServer.getScheduler()).runTaskTimerAsynchronously(eq(this.plugin), any(Runnable.class), eq(0L), eq(LATER_PERIOD_TICKS));
     }
   }
 
@@ -421,7 +433,7 @@ final class Mcv2PlayCommandTest {
       verify(channel).open();
       // 100 frames a second from the stream's own thread, not from the server's scheduler
       verify(channel, Mockito.timeout(5000).atLeast(10)).send(any());
-      verify(TestServer.scheduler(), never()).runTaskTimerAsynchronously(any(Plugin.class), any(Runnable.class), anyLong(), anyLong());
+      verify(TestServer.getScheduler(), never()).runTaskTimerAsynchronously(any(Plugin.class), any(Runnable.class), anyLong(), anyLong());
       verify(this.sender).sendMessage(Message.MCV2_PLAY.build());
 
       this.command.stop(this.sender);
@@ -455,7 +467,7 @@ final class Mcv2PlayCommandTest {
     this.command.play(this.sender, this.selector, SCREEN_SIZE, MAP_ID, TICKS, this.archive(Mcv2PlaybackTest.stream()).toString());
     this.runHandedOver();
     verify(this.sender).sendMessage(Message.MCV2_FULL.build());
-    verify(TestServer.scheduler(), never()).runTaskTimerAsynchronously(any(Plugin.class), any(Runnable.class), anyLong(), anyLong());
+    verify(TestServer.getScheduler(), never()).runTaskTimerAsynchronously(any(Plugin.class), any(Runnable.class), anyLong(), anyLong());
   }
 
   @Test
@@ -497,7 +509,8 @@ final class Mcv2PlayCommandTest {
     this.command.setOpener((video, width, height) -> this.recordOpening(video, width, height, opened, frames));
     this.command.encode(this.sender, VIDEO_FILE_NAME, STREAM_FILE_NAME, ENCODE_DIMENSIONS, Mcv2Profile.DEFAULT);
     final List<String> told = this.finish();
-    assertEquals(List.of("clip.mp4 16x16"), opened);
+    final List<String> expectedOpened = List.of("clip.mp4 16x16");
+    assertEquals(expectedOpened, opened);
 
     final int size = told.size();
     assertEquals(2, size);
@@ -505,16 +518,16 @@ final class Mcv2PlayCommandTest {
     final int threads = Pool.shared().getThreads();
 
     final String expected = this.text(
-      Message.MCV2_ENCODE_START.build("clip.mp4 into " + output + " at 16x16 with the default profile, on " + threads + " encoder threads")
+      Message.MCV2_ENCODE_START.build("clip.mp4 into %s at 16x16 with the default preset, on %s encoder threads".formatted(output, threads))
     );
     final String toldTold = told.getFirst();
     assertEquals(expected, toldTold);
 
-    final boolean prefixed = told.get(1).startsWith("MCV2 encode finished: 3 frames (1 keyframes) into " + output);
+    final boolean prefixed = told.get(1).startsWith("MCV2 encode finished: 3 frames (1 keyframes) into %s".formatted(output));
     assertTrue(prefixed, told.get(1));
     assertTrue(frames.closed);
 
-    final int mcv2PlayCommandSize = Mcv2PlayCommand.read(output).size();
+    final int mcv2PlayCommandSize = this.command.read(output).size();
     assertEquals(FRAME_COUNT, mcv2PlayCommandSize);
 
     final boolean exists = Files.exists(this.streams.resolve(CLIP_PART_FILE_NAME));
@@ -526,7 +539,7 @@ final class Mcv2PlayCommandTest {
     this.command.cancel(this.sender);
     verify(this.sender).sendMessage(Message.MCV2_ENCODE_NONE.build());
 
-    final int secondSize = Mcv2PlayCommand.read(this.streams.resolve(NEXT_STREAM_FILE_NAME)).size();
+    final int secondSize = this.command.read(this.streams.resolve(NEXT_STREAM_FILE_NAME)).size();
     assertEquals(1, secondSize);
   }
 
@@ -537,7 +550,7 @@ final class Mcv2PlayCommandTest {
     final List<String> opened,
     final SolidFrames frames
   ) {
-    opened.add(video + " " + width + "x" + height);
+    opened.add("%s %sx%s".formatted(video, width, height));
 
     return frames;
   }
@@ -547,7 +560,7 @@ final class Mcv2PlayCommandTest {
   }
 
   private List<String> finish() throws InterruptedException {
-    final Thread thread = this.command.getEncoding();
+    final Thread thread = this.command.getEncodingThread();
     if (thread != null) {
       thread.join(TimeUnit.SECONDS.toMillis(JOIN_TIMEOUT_SECONDS));
 
@@ -563,7 +576,7 @@ final class Mcv2PlayCommandTest {
   @Test
   void shouldTellTheProgressAndTheFailures() throws Exception {
     final Path output = this.folder.resolve(PROGRESS_STREAM_FILE_NAME);
-    Mcv2PlayCommand.encodeFile(
+    this.command.encodeFile(
       this.sender,
       (_, _, _) -> new SolidFrames(SHORT_FRAME_COUNT, new CountDownLatch(0)),
       Path.of(VIDEO_A_FILE_NAME),
@@ -586,7 +599,7 @@ final class Mcv2PlayCommandTest {
     assertTrue(toldPrefixed, told.get(1));
 
     Mockito.clearInvocations(this.sender);
-    Mcv2PlayCommand.encodeFile(
+    this.command.encodeFile(
       this.sender,
       (_, _, _) -> this.throwMissingVideo(),
       Path.of(VIDEO_B_FILE_NAME),
@@ -597,7 +610,7 @@ final class Mcv2PlayCommandTest {
       Pool.shared(),
       0
     );
-    Mcv2PlayCommand.encodeFile(
+    this.command.encodeFile(
       this.sender,
       (_, _, _) -> new SolidFrames(1, new CountDownLatch(0)),
       Path.of(VIDEO_C_FILE_NAME),
@@ -610,7 +623,7 @@ final class Mcv2PlayCommandTest {
     );
     final Path blocked = this.folder.resolve(BLOCKED_STREAM_FILE_NAME);
     Files.createDirectories(this.folder.resolve(BLOCKED_PART_FILE_NAME).resolve(INSIDE_FOLDER_NAME));
-    Mcv2PlayCommand.encodeFile(
+    this.command.encodeFile(
       this.sender,
       (_, _, _) -> new SolidFrames(1, new CountDownLatch(0)),
       Path.of(VIDEO_D_FILE_NAME),
@@ -623,7 +636,7 @@ final class Mcv2PlayCommandTest {
     );
     final List<String> failures = this.finish();
 
-    final String expected = this.text(Message.MCV2_ENCODE_ERROR.build("no such video!"));
+    final String expected = this.text(Message.MCV2_ENCODE_ERROR.build(MISSING_VIDEO_MESSAGE));
     final String failure = failures.getFirst();
     assertEquals(expected, failure);
 
@@ -641,20 +654,21 @@ final class Mcv2PlayCommandTest {
   }
 
   private Mcv2FileEncoder.FrameReader throwMissingVideo() throws IOException {
-    throw new IOException("no such video!");
+    final String message = MISSING_VIDEO_MESSAGE;
+    throw new IOException(message);
   }
 
   @Test
   void shouldTellTheProgressOnceAWholeIntervalHasPassed() {
     final long now = LAST_REPORT_NANOSECONDS + PROGRESS_INTERVAL_NANOSECONDS;
-    final boolean due = Mcv2PlayCommand.isProgressDue(now, LAST_REPORT_NANOSECONDS, PROGRESS_INTERVAL_NANOSECONDS);
+    final boolean due = this.command.isProgressDue(now, LAST_REPORT_NANOSECONDS, PROGRESS_INTERVAL_NANOSECONDS);
     assertTrue(due);
   }
 
   @Test
   void shouldNotTellTheProgressBeforeAWholeIntervalHasPassed() {
     final long now = LAST_REPORT_NANOSECONDS + PROGRESS_INTERVAL_NANOSECONDS - 1;
-    final boolean due = Mcv2PlayCommand.isProgressDue(now, LAST_REPORT_NANOSECONDS, PROGRESS_INTERVAL_NANOSECONDS);
+    final boolean due = this.command.isProgressDue(now, LAST_REPORT_NANOSECONDS, PROGRESS_INTERVAL_NANOSECONDS);
     assertFalse(due);
   }
 
@@ -667,7 +681,7 @@ final class Mcv2PlayCommandTest {
     try {
       this.command.encode(this.sender, VIDEO_FILE_NAME, LIMIT_STREAM_FILE_NAME, dimensions, Mcv2Profile.DEFAULT);
 
-      final Thread encoding = this.command.getEncoding();
+      final Thread encoding = this.command.getEncodingThread();
       assertNull(encoding, "invalid codec dimensions cannot start a worker");
 
       Mockito.verifyNoInteractions(opener);
@@ -689,7 +703,7 @@ final class Mcv2PlayCommandTest {
     this.command.encode(this.sender, VIDEO_FILE_NAME, LIMIT_STREAM_FILE_NAME, dimensions, Mcv2Profile.DEFAULT);
     this.finish();
 
-    final int size = Mcv2PlayCommand.read(this.streams.resolve(LIMIT_STREAM_FILE_NAME)).size();
+    final int size = this.command.read(this.streams.resolve(LIMIT_STREAM_FILE_NAME)).size();
     assertEquals(1, size);
 
     verify(frames).close();
@@ -708,11 +722,11 @@ final class Mcv2PlayCommandTest {
     final byte[] allBytes = Files.readAllBytes(target);
     assertArrayEquals(previous, allBytes);
 
-    verify(this.sender).sendMessage(Message.MCV2_ENCODE_ERROR.build("reader rejected the source!"));
+    verify(this.sender).sendMessage(Message.MCV2_ENCODE_ERROR.build(REJECTED_SOURCE_MESSAGE));
   }
 
   private void encodeRejectedSource(final Path target) {
-    Mcv2PlayCommand.encodeFile(
+    this.command.encodeFile(
       this.sender,
       (_, _, _) -> this.throwRejectedSource(),
       Path.of(VIDEO_FILE_NAME),
@@ -726,7 +740,8 @@ final class Mcv2PlayCommandTest {
   }
 
   private Mcv2FileEncoder.FrameReader throwRejectedSource() {
-    throw new IllegalStateException("reader rejected the source!");
+    final String message = REJECTED_SOURCE_MESSAGE;
+    throw new IllegalStateException(message);
   }
 
   @Test
@@ -736,13 +751,13 @@ final class Mcv2PlayCommandTest {
     this.command.setOpener((_, _, _) -> frames);
     final Path output = this.streams.resolve(LONG_STREAM_FILE_NAME);
     this.command.encode(this.sender, LONG_VIDEO_FILE_NAME, LONG_STREAM_FILE_NAME, ENCODE_DIMENSIONS, Mcv2Profile.DEFAULT);
-    final Thread thread = this.command.getEncoding();
+    final Thread thread = this.command.getEncodingThread();
     this.command.encode(this.sender, OTHER_VIDEO_FILE_NAME, OTHER_STREAM_FILE_NAME, ENCODE_DIMENSIONS, Mcv2Profile.DEFAULT);
     verify(this.sender).sendMessage(Message.MCV2_ENCODE_BUSY.build());
 
     this.command.cancel(this.sender);
 
-    final Thread encoding = this.command.getEncoding();
+    final Thread encoding = this.command.getEncodingThread();
     assertSame(thread, encoding, "the cancelled encode is the running one until its thread ends");
 
     Objects.requireNonNull(thread).join(TimeUnit.SECONDS.toMillis(JOIN_TIMEOUT_SECONDS));
@@ -764,7 +779,7 @@ final class Mcv2PlayCommandTest {
 
     this.command.encode(this.sender, VIDEO_FILE_NAME, LONG_STREAM_FILE_NAME, "big", Mcv2Profile.DEFAULT);
 
-    final Thread commandEncoding = this.command.getEncoding();
+    final Thread commandEncoding = this.command.getEncodingThread();
     assertSame(thread, commandEncoding);
   }
 
@@ -774,7 +789,7 @@ final class Mcv2PlayCommandTest {
     final DropsInterrupts frames = new DropsInterrupts(cancelled);
     this.command.setOpener((_, _, _) -> frames);
     this.command.encode(this.sender, LONG_VIDEO_FILE_NAME, LONG_STREAM_FILE_NAME, ENCODE_DIMENSIONS, Mcv2Profile.DEFAULT);
-    final Thread thread = Objects.requireNonNull(this.command.getEncoding());
+    final Thread thread = Objects.requireNonNull(this.command.getEncodingThread());
     this.command.cancel(this.sender);
     cancelled.countDown();
     thread.join(TimeUnit.SECONDS.toMillis(JOIN_TIMEOUT_SECONDS));
@@ -797,7 +812,7 @@ final class Mcv2PlayCommandTest {
     final AtomicBoolean dropped = new AtomicBoolean();
     this.command.setOpener((_, _, _) -> this.openDroppingTheInterrupt(cancelled, dropped));
     this.command.encode(this.sender, LONG_VIDEO_FILE_NAME, LONG_STREAM_FILE_NAME, ENCODE_DIMENSIONS, Mcv2Profile.DEFAULT);
-    final Thread thread = Objects.requireNonNull(this.command.getEncoding());
+    final Thread thread = Objects.requireNonNull(this.command.getEncodingThread());
     this.command.cancel(this.sender);
     cancelled.countDown();
     thread.join(TimeUnit.SECONDS.toMillis(JOIN_TIMEOUT_SECONDS));
@@ -826,7 +841,7 @@ final class Mcv2PlayCommandTest {
     this.command.cancel(this.sender);
     verify(this.sender).sendMessage(Message.MCV2_ENCODE_NONE.build());
 
-    final Thread encoding = this.command.getEncoding();
+    final Thread encoding = this.command.getEncodingThread();
     assertNull(encoding);
   }
 
@@ -835,14 +850,14 @@ final class Mcv2PlayCommandTest {
     final CountDownLatch mayClose = new CountDownLatch(1);
     this.command.setOpener((_, _, _) -> new SlowToClose(mayClose));
     this.command.encode(this.sender, LONG_VIDEO_FILE_NAME, LONG_STREAM_FILE_NAME, ENCODE_DIMENSIONS, Mcv2Profile.DEFAULT);
-    final Thread cancelled = Objects.requireNonNull(this.command.getEncoding());
+    final Thread cancelled = Objects.requireNonNull(this.command.getEncodingThread());
     this.command.cancel(this.sender);
     final CountDownLatch released = new CountDownLatch(0);
     this.command.setOpener((_, _, _) -> new SolidFrames(SHORT_FRAME_COUNT, released));
     this.command.encode(this.sender, AGAIN_VIDEO_FILE_NAME, LONG_STREAM_FILE_NAME, ENCODE_DIMENSIONS, Mcv2Profile.DEFAULT);
     verify(this.sender).sendMessage(Message.MCV2_ENCODE_BUSY.build());
 
-    final Thread encoding = this.command.getEncoding();
+    final Thread encoding = this.command.getEncodingThread();
     assertSame(cancelled, encoding);
 
     mayClose.countDown();
@@ -852,7 +867,7 @@ final class Mcv2PlayCommandTest {
     assertFalse(alive);
 
     this.command.encode(this.sender, AGAIN_VIDEO_FILE_NAME, LONG_STREAM_FILE_NAME, ENCODE_DIMENSIONS, Mcv2Profile.DEFAULT);
-    final Thread again = Objects.requireNonNull(this.command.getEncoding());
+    final Thread again = Objects.requireNonNull(this.command.getEncodingThread());
     again.join(TimeUnit.SECONDS.toMillis(JOIN_TIMEOUT_SECONDS));
 
     final boolean exists = Files.exists(this.streams.resolve(LONG_STREAM_FILE_NAME));
@@ -878,7 +893,7 @@ final class Mcv2PlayCommandTest {
   void shouldRemoveTheUnfinishedFileOfAFailedEncode() throws Exception {
     final Path target = this.folder.resolve(TAKEN_STREAM_FILE_NAME);
     Files.createDirectories(target.resolve(INSIDE_FOLDER_NAME));
-    Mcv2PlayCommand.encodeFile(
+    this.command.encodeFile(
       this.sender,
       (_, _, _) -> new SolidFrames(1, new CountDownLatch(0)),
       Path.of(VIDEO_E_FILE_NAME),
@@ -902,7 +917,7 @@ final class Mcv2PlayCommandTest {
     final Path output = this.folder.resolve(TIMED_STREAM_FILE_NAME);
     final AtomicLong openingNanoseconds = new AtomicLong();
     final long started = System.nanoTime();
-    Mcv2PlayCommand.encodeFile(
+    this.command.encodeFile(
       this.sender,
       (_, _, _) -> this.openSlowly(openingNanoseconds),
       Path.of(VIDEO_F_FILE_NAME),
@@ -927,7 +942,7 @@ final class Mcv2PlayCommandTest {
     assertEquals(FRAME_COUNT, frames);
 
     final boolean matches = Integer.parseInt(progress.group(2)) <= took / FRAME_COUNT + 0.5;
-    assertTrue(matches, told.get(2) + " in " + took + " ms");
+    assertTrue(matches, "%s in %s ms".formatted(told.get(2), took));
 
     final boolean secondMatches = Integer.parseInt(progress.group(2)) >= openingMilliseconds / FRAME_COUNT - 0.5;
     assertTrue(secondMatches, "progress includes source opening");
@@ -938,7 +953,7 @@ final class Mcv2PlayCommandTest {
     assertTrue(doneFound, told.getLast());
 
     final boolean thirdMatches = Integer.parseInt(done.group(1)) <= took / 1000 + 0.5;
-    assertTrue(thirdMatches, told.getLast() + " in " + took + " ms");
+    assertTrue(thirdMatches, "%s in %s ms".formatted(told.getLast(), took));
 
     final boolean fourthMatches = Integer.parseInt(done.group(1)) >= openingMilliseconds / 1000 - 0.5;
     assertTrue(fourthMatches, "completion includes source opening");
@@ -962,7 +977,7 @@ final class Mcv2PlayCommandTest {
     final SolidFrames frames = new SolidFrames(LONG_FRAME_COUNT, new CountDownLatch(1));
     this.command.setOpener((_, _, _) -> frames);
     this.command.encode(this.sender, LONG_VIDEO_FILE_NAME, LONG_STREAM_FILE_NAME, ENCODE_DIMENSIONS, Mcv2Profile.DEFAULT);
-    final Thread thread = Objects.requireNonNull(this.command.getEncoding());
+    final Thread thread = Objects.requireNonNull(this.command.getEncodingThread());
     this.command.shutdown();
     thread.join(TimeUnit.SECONDS.toMillis(JOIN_TIMEOUT_SECONDS));
 
@@ -981,31 +996,31 @@ final class Mcv2PlayCommandTest {
     assertFalse(exists);
 
     final Path expected = folder.resolve(STREAM_FILE_NAME);
-    final Path streamFile = this.command.streamFile(STREAM_FILE_NAME);
+    final Path streamFile = this.command.prepareStreamFile(STREAM_FILE_NAME);
     assertEquals(expected, streamFile);
 
     final boolean directory = Files.isDirectory(folder);
     assertTrue(directory);
 
     final Path folderExpected = folder.resolve(STREAM_FILE_NAME);
-    final Path commandStreamFile = this.command.streamFile(REDUNDANT_STREAM_PATH);
+    final Path commandStreamFile = this.command.prepareStreamFile(REDUNDANT_STREAM_PATH);
     assertEquals(folderExpected, commandStreamFile);
 
     final Path secondExpected = folder.resolve(SUBFOLDER_STREAM_PATH);
-    final Path secondStreamFile = this.command.streamFile(folder.resolve(SUBFOLDER_STREAM_PATH).toString());
+    final Path secondStreamFile = this.command.prepareStreamFile(folder.resolve(SUBFOLDER_STREAM_PATH).toString());
     assertEquals(secondExpected, secondStreamFile);
 
     for (final String name : List.of(
       PARENT_STREAM_PATH,
       ESCAPING_STREAM_PATH,
-      "/etc/passwd",
+      ABSOLUTE_STREAM_PATH,
       this.folder.resolve(STREAM_FILE_NAME).toString(),
       "",
       "."
     )) {
-      assertThrows(IOException.class, () -> this.command.streamFile(name), name);
+      assertThrows(IOException.class, () -> this.command.prepareStreamFile(name), name);
     }
-    this.command.play(this.sender, this.selector, SCREEN_SIZE, MAP_ID, TICKS, "/etc/passwd");
+    this.command.play(this.sender, this.selector, SCREEN_SIZE, MAP_ID, TICKS, ABSOLUTE_STREAM_PATH);
     this.runHandedOver();
     this.command.stream(this.sender, this.selector, SCREEN_SIZE, MAP_ID, FRAMES_PER_SECOND, PARENT_PLAY_PATH);
     this.runHandedOver();
@@ -1013,7 +1028,7 @@ final class Mcv2PlayCommandTest {
 
     this.command.encode(this.sender, VIDEO_FILE_NAME, ESCAPING_ENCODE_PATH, ENCODE_DIMENSIONS, Mcv2Profile.DEFAULT);
 
-    final Thread encoding = this.command.getEncoding();
+    final Thread encoding = this.command.getEncodingThread();
     assertNull(encoding);
 
     final List<String> told = this.finish();
@@ -1021,7 +1036,7 @@ final class Mcv2PlayCommandTest {
     final int size = told.size();
     assertEquals(3, size);
 
-    final String refusal = "Stream file ../../escape.mcs is not a file in " + folder + ", where stream files are kept!";
+    final String refusal = "Stream file ../../escape.mcs is not a file in %s, where stream files are kept!".formatted(folder);
 
     final String thirdExpected = this.text(Message.MCV2_ENCODE_ERROR.build(refusal));
     final String toldTold = told.get(2);
@@ -1034,7 +1049,7 @@ final class Mcv2PlayCommandTest {
   @Test
   void shouldReadLengthPrefixedFrames() throws IOException {
     final List<byte[]> stream = Mcv2PlaybackTest.stream();
-    final List<byte[]> read = Mcv2PlayCommand.read(this.archive(stream));
+    final List<byte[]> read = this.command.read(this.archive(stream));
 
     final int size = read.size();
     assertEquals(3, size);
@@ -1045,64 +1060,63 @@ final class Mcv2PlayCommandTest {
 
     final Path truncatedLength = Files.write(this.folder.resolve(STREAM_A_FILE_NAME), new byte[] { 1, 0, 0 });
 
-    final String message = assertThrows(IOException.class, () -> Mcv2PlayCommand.read(truncatedLength)).getMessage();
+    final String message = assertThrows(IOException.class, () -> this.command.read(truncatedLength)).getMessage();
     assertEquals("Truncated frame length!", message);
 
     final Path truncatedFrame = Files.write(this.folder.resolve(STREAM_B_FILE_NAME), new byte[] { 9, 0, 0, 0, 1 });
 
-    final String secondMessage = assertThrows(IOException.class, () -> Mcv2PlayCommand.read(truncatedFrame)).getMessage();
+    final String secondMessage = assertThrows(IOException.class, () -> this.command.read(truncatedFrame)).getMessage();
     assertEquals("Truncated frame!", secondMessage);
 
     final Path empty = Files.write(this.folder.resolve(STREAM_C_FILE_NAME), new byte[0]);
 
-    final String thirdMessage = assertThrows(IOException.class, () -> Mcv2PlayCommand.read(empty)).getMessage();
+    final String thirdMessage = assertThrows(IOException.class, () -> this.command.read(empty)).getMessage();
     assertEquals("Empty stream!", thirdMessage);
 
-    final String secondExpected = "File " + this.folder.getFileName() + " is not a stream file!";
-    final String fourthMessage = assertThrows(IOException.class, () -> Mcv2PlayCommand.read(this.folder)).getMessage();
+    final String secondExpected = "File %s is not a stream file!".formatted(this.folder.getFileName());
+    final String fourthMessage = assertThrows(IOException.class, () -> this.command.read(this.folder)).getMessage();
     assertEquals(secondExpected, fourthMessage);
 
-    final String fifthMessage = assertThrows(IOException.class, () -> Mcv2PlayCommand.read(truncatedFrame, 4)).getMessage();
+    final String fifthMessage = assertThrows(IOException.class, () -> this.command.read(truncatedFrame, 4)).getMessage();
     assertEquals("The stream file is larger than 4 bytes!", fifthMessage);
 
     final byte[] shortest = this.record(Mcv2Decoder.HEADER_BYTES);
 
-    final int mcv2PlayCommandSize = Mcv2PlayCommand.read(
-      Files.write(this.folder.resolve(STREAM_D_FILE_NAME), shortest),
-      shortest.length
-    ).size();
+    final int mcv2PlayCommandSize = this.command
+      .read(Files.write(this.folder.resolve(STREAM_D_FILE_NAME), shortest), shortest.length)
+      .size();
     assertEquals(1, mcv2PlayCommandSize);
 
     // after a first frame: three bytes are no length, a length past the end no frame
     final Path shortTail = Files.write(this.folder.resolve(STREAM_E_FILE_NAME), this.concatenate(shortest, new byte[] { 1, 0, 0 }));
 
-    final String sixthMessage = assertThrows(IOException.class, () -> Mcv2PlayCommand.read(shortTail)).getMessage();
+    final String sixthMessage = assertThrows(IOException.class, () -> this.command.read(shortTail)).getMessage();
     assertEquals("Truncated frame length!", sixthMessage);
 
     final Path longTail = Files.write(this.folder.resolve(STREAM_F_FILE_NAME), this.concatenate(shortest, new byte[] { 9, 0, 0, 0, 1 }));
 
-    final String seventhMessage = assertThrows(IOException.class, () -> Mcv2PlayCommand.read(longTail)).getMessage();
+    final String seventhMessage = assertThrows(IOException.class, () -> this.command.read(longTail)).getMessage();
     assertEquals("Truncated frame!", seventhMessage);
 
     // a record shorter than a frame's header is no frame, an empty one neither
     final Path tiny = Files.write(this.folder.resolve(STREAM_G_FILE_NAME), new byte[] { 1, 0, 0, 0, 7 });
 
-    final String eighthMessage = assertThrows(IOException.class, () -> Mcv2PlayCommand.read(tiny)).getMessage();
+    final String eighthMessage = assertThrows(IOException.class, () -> this.command.read(tiny)).getMessage();
     assertEquals("MCV2 frame length 1 is invalid!", eighthMessage);
 
     final Path empties = Files.write(this.folder.resolve(STREAM_I_FILE_NAME), this.concatenate(shortest, new byte[] { 0, 0, 0, 0 }));
 
-    final String ninthMessage = assertThrows(IOException.class, () -> Mcv2PlayCommand.read(empties)).getMessage();
+    final String ninthMessage = assertThrows(IOException.class, () -> this.command.read(empties)).getMessage();
     assertEquals("MCV2 frame length 0 is invalid!", ninthMessage);
 
     final Path huge = Files.write(this.folder.resolve(STREAM_J_FILE_NAME), this.record(Mcv2Decoder.MAXIMUM_FRAME_BYTES + 1));
 
-    final String tenthMessage = assertThrows(IOException.class, () -> Mcv2PlayCommand.read(huge)).getMessage();
-    assertEquals("MCV2 frame length " + (Mcv2Decoder.MAXIMUM_FRAME_BYTES + 1) + " is invalid!", tenthMessage);
+    final String tenthMessage = assertThrows(IOException.class, () -> this.command.read(huge)).getMessage();
+    assertEquals("MCV2 frame length %s is invalid!".formatted(Mcv2Decoder.MAXIMUM_FRAME_BYTES + 1), tenthMessage);
 
     final byte[] longest = this.record(Mcv2Decoder.MAXIMUM_FRAME_BYTES);
 
-    final int secondSize = Mcv2PlayCommand.read(Files.write(this.folder.resolve(STREAM_K_FILE_NAME), longest)).size();
+    final int secondSize = this.command.read(Files.write(this.folder.resolve(STREAM_K_FILE_NAME), longest)).size();
     assertEquals(1, secondSize);
 
     // every byte of the length counts, little-endian: 16 bytes follow, fewer than any of these lengths
@@ -1112,7 +1126,7 @@ final class Mcv2PlayCommandTest {
       data[high] = 1;
       final Path file = Files.write(this.folder.resolve(HIGH_STREAM_PREFIX + high + STREAM_SUFFIX), data);
 
-      final String eleventhMessage = assertThrows(IOException.class, () -> Mcv2PlayCommand.read(file)).getMessage();
+      final String eleventhMessage = assertThrows(IOException.class, () -> this.command.read(file)).getMessage();
       assertEquals("Truncated frame!", eleventhMessage);
     }
     assertThrows(NullPointerException.class, () -> new Mcv2PlayCommand(null));

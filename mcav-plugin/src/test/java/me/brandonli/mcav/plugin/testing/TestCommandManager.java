@@ -23,6 +23,7 @@ import static org.mockito.Mockito.withSettings;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.stream.Collectors;
 import org.bukkit.command.CommandSender;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.incendo.cloud.Command;
@@ -38,6 +39,8 @@ import org.mockito.stubbing.Answer;
 
 public final class TestCommandManager extends CommandManager<CommandSender> {
 
+  private static final String SYNTAX_SEPARATOR = " ";
+
   // Bukkit parsers read the server when first loaded, so the test server is installed first
   public TestCommandManager() {
     super(ExecutionCoordinator.simpleCoordinator(), CommandRegistrationHandler.nullCommandRegistrationHandler());
@@ -51,25 +54,20 @@ public final class TestCommandManager extends CommandManager<CommandSender> {
   }
 
   // the real Paper manager can only be created inside a server
-  public LegacyPaperCommandManager<CommandSender> asPaperManager() {
+  public LegacyPaperCommandManager<CommandSender> createPaperManager() {
     final MockSettings settings = withSettings();
     final Answer<Object> delegation = AdditionalAnswers.delegatesTo(this);
     settings.defaultAnswer(delegation);
     return mock(settings);
   }
 
-  public Set<String> syntaxes() {
-    final Set<String> syntaxes = new TreeSet<>();
-    for (final Command<CommandSender> command : this.commands()) {
-      final String syntax = this.syntax(command);
-      syntaxes.add(syntax);
-    }
-    return syntaxes;
+  public Set<String> getSyntaxes() {
+    return this.commands().stream().map(this::formatSyntax).collect(Collectors.toCollection(TreeSet::new));
   }
 
-  public Command<CommandSender> command(final String syntax) {
+  public Command<CommandSender> getCommand(final String syntax) {
     for (final Command<CommandSender> command : this.commands()) {
-      final String candidate = this.syntax(command);
+      final String candidate = this.formatSyntax(command);
       if (candidate.equals(syntax)) {
         return command;
       }
@@ -78,16 +76,8 @@ public final class TestCommandManager extends CommandManager<CommandSender> {
     throw new AssertionError(message);
   }
 
-  private String syntax(final Command<CommandSender> command) {
+  private String formatSyntax(final Command<CommandSender> command) {
     final List<CommandComponent<CommandSender>> components = command.components();
-    final StringBuilder syntax = new StringBuilder();
-    for (final CommandComponent<CommandSender> component : components) {
-      if (!syntax.isEmpty()) {
-        syntax.append(' ');
-      }
-      final String name = component.name();
-      syntax.append(name);
-    }
-    return syntax.toString();
+    return components.stream().map(CommandComponent::name).collect(Collectors.joining(SYNTAX_SEPARATOR));
   }
 }

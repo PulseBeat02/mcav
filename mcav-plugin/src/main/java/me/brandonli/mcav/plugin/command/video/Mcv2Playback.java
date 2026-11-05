@@ -18,7 +18,9 @@
 package me.brandonli.mcav.plugin.command.video;
 
 import com.google.common.base.Preconditions;
+import java.util.Collection;
 import java.util.List;
+import java.util.UUID;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Channel;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder;
 
@@ -26,13 +28,10 @@ import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder;
 final class Mcv2Playback implements Runnable {
 
   private final Mcv2Channel channel;
-
   private final List<byte[]> frames;
-
   private final long span;
 
   private int next;
-
   private long offset;
 
   // the frames start with a keyframe
@@ -42,9 +41,11 @@ final class Mcv2Playback implements Runnable {
 
     this.channel = channel;
     this.frames = List.copyOf(frames);
+
     long highest = 0;
     for (final byte[] frame : this.frames) {
-      highest = Math.max(highest, Mcv2Decoder.u32(frame, Mcv2Decoder.FRAME_ID_OFFSET));
+      final long frameId = Mcv2Decoder.u32(frame, Mcv2Decoder.FRAME_ID_OFFSET);
+      highest = Math.max(highest, frameId);
     }
     this.span = highest + 1;
     this.offset = firstFrameId;
@@ -53,30 +54,41 @@ final class Mcv2Playback implements Runnable {
   @Override
   public void run() {
     this.channel.update();
+
     if (this.channel.takeKeyframeRequest() && this.next != 0) {
-      this.next = 0;
-      this.offset += this.span;
+      this.restartFromFirstFrame();
     }
-    if (this.channel.getRecipients().isEmpty()) {
+
+    final Collection<UUID> recipients = this.channel.getRecipients();
+    if (recipients.isEmpty()) {
       return;
     }
 
-    this.channel.send(this.shifted(this.frames.get(this.next)));
+    final byte[] frame = this.frames.get(this.next);
+    final byte[] shifted = this.copyWithShiftedIds(frame);
+    this.channel.send(shifted);
     this.next++;
+
     if (this.next == this.frames.size()) {
-      this.next = 0;
-      this.offset += this.span;
+      this.restartFromFirstFrame();
     }
   }
 
-  private byte[] shifted(final byte[] frame) {
+  private void restartFromFirstFrame() {
+    this.next = 0;
+    this.offset += this.span;
+  }
+
+  private byte[] copyWithShiftedIds(final byte[] frame) {
     final byte[] copy = frame.clone();
-    shift(copy, Mcv2Decoder.FRAME_ID_OFFSET);
-    shift(copy, Mcv2Decoder.REFERENCE_ID_OFFSET);
+    this.shiftId(copy, Mcv2Decoder.FRAME_ID_OFFSET);
+    this.shiftId(copy, Mcv2Decoder.REFERENCE_ID_OFFSET);
     return copy;
   }
 
-  private void shift(final byte[] frame, final int field) {
-    Mcv2Decoder.putU32(frame, field, (Mcv2Decoder.u32(frame, field) + this.offset) & Mcv2Decoder.MAXIMUM_UNSIGNED_INT);
+  private void shiftId(final byte[] frame, final int fieldOffset) {
+    final long id = Mcv2Decoder.u32(frame, fieldOffset);
+    final long shiftedId = (id + this.offset) & Mcv2Decoder.MAXIMUM_UNSIGNED_INT;
+    Mcv2Decoder.putU32(frame, fieldOffset, shiftedId);
   }
 }

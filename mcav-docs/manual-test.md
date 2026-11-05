@@ -49,14 +49,14 @@ them from there. From the repository root, build and publish before starting eit
 with a separately installed Python 3 (`python3` on `PATH`):
 
 ```sh
-./gradlew :mcav-plugin:shadowJar -Pmcav.e2e=true -Pmcav.e2e.repositoryPort=8765
+./gradlew :mcav-plugin:shadowJar -Pmcav.e2e=true -Pmcav.e2e.repository_port=8765
 python3 -m http.server 8765 --bind 127.0.0.1 --directory build/e2e-repository
 ```
 
 In a second shell at the repository root:
 
 ```sh
-./gradlew :mcav-plugin:runServer -Pmcav.e2e=true -Pmcav.e2e.repositoryPort=8765
+./gradlew :mcav-plugin:runServer -Pmcav.e2e=true -Pmcav.e2e.repository_port=8765
 ```
 
 The build bakes the port into the plugin's `mcav/plugin/dependencies.txt` as the first repository, so the server asks it
@@ -105,7 +105,7 @@ and malformed image sources still report `Invalid MRL!`.
 `HTTP_SERVER` audio needs the audio web page, which is off by default: set `enabled: true` under `http-server` in
 `mcav-plugin/run/plugins/MCAV/config.yml` and restart the server, or the plugin refuses the command. At startup the
 console then
-prints `The audio web page is available at http://localhost:3000/.` (port 3000 unless `http-server.port` says
+prints `Audio web page http://localhost:3000/ is available.` (port 3000 unless `http-server.port` says
 otherwise); open that page in a browser (forward port 3000 the same way) and press play. Listen for audio and compare
 its timing with the video; a successful connection alone does not verify synchronization.
 

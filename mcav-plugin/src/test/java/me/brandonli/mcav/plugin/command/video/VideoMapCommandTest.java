@@ -115,6 +115,7 @@ final class VideoMapCommandTest {
     when(this.configuration.getMcv2DefaultCodec()).thenReturn(MapCodec.DITHER);
     when(plugin.getConfiguration()).thenReturn(this.configuration);
     this.support = mock(Mcv2Support.class);
+    Mockito.doCallRealMethod().when(this.support).createMcv2Filter(any());
     when(plugin.getMcv2Support()).thenReturn(this.support);
     final VideoMapCommand realCommand = new VideoMapCommand(plugin);
     this.command = spy(realCommand);
@@ -350,10 +351,8 @@ final class VideoMapCommandTest {
     );
 
     final Pair<Integer, Integer> resolution = Pair.pair(RESOLUTION_WIDTH, RESOLUTION_HEIGHT);
-    final VideoMcv2Command.Mcv2Settings settings = assertInstanceOf(
-      VideoMcv2Command.Mcv2Settings.class,
-      providers.getValue().buildConfiguration(resolution)
-    );
+    final Object builtConfiguration = providers.getValue().buildConfiguration(resolution);
+    final VideoMcv2Command.Mcv2Settings settings = assertInstanceOf(VideoMcv2Command.Mcv2Settings.class, builtConfiguration);
 
     final Mcv2Configuration configuration = settings.configuration();
     assertSame(wall, configuration);

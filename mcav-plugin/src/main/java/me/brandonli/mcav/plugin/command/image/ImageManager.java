@@ -45,25 +45,29 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 public final class ImageManager {
 
-  private @Nullable ImagePlayer player;
-  private @Nullable DisplayableImage image;
-  private @Nullable Image currentImage;
+  private static final String PLUGIN_NULL_MESSAGE = "Plugin must not be null!";
 
   private final MCAVSandbox plugin;
   private final ExecutorService service;
   private final Object loadingLock;
+
+  private @Nullable ImagePlayer player;
+  private @Nullable DisplayableImage image;
+  private @Nullable Image currentImage;
+
   private long loadGeneration;
   private boolean closed;
   private @Nullable ImageBuffer pendingImage;
 
   /**
-   * Constructs the manager.
+   * Creates the manager.
    *
    * @param plugin the plugin
+   * @throws NullPointerException if {@code plugin} is null
    * @since 1.0.0
    */
   public ImageManager(final MCAVSandbox plugin) {
-    Preconditions.checkNotNull(plugin, "Plugin must not be null!");
+    Preconditions.checkNotNull(plugin, PLUGIN_NULL_MESSAGE);
 
     this.plugin = plugin;
     this.service = Executors.newSingleThreadExecutor();
@@ -71,7 +75,7 @@ public final class ImageManager {
   }
 
   ImageManager(final MCAVSandbox plugin, final ExecutorService service) {
-    Preconditions.checkNotNull(plugin, "Plugin must not be null!");
+    Preconditions.checkNotNull(plugin, PLUGIN_NULL_MESSAGE);
     Preconditions.checkNotNull(service, "Executor must not be null!");
 
     this.plugin = plugin;
@@ -88,6 +92,7 @@ public final class ImageManager {
     synchronized (this.loadingLock) {
       this.closed = true;
     }
+
     CleanupUtils.runAll(
       () -> this.releaseImage(ReleaseThread.CALLING_THREAD),
       () -> ExecutorUtils.shutdownExecutorGracefully(this.service)
@@ -96,20 +101,23 @@ public final class ImageManager {
 
   // pending images stay the manager's until a main-thread task takes them, so cancelling cannot leak them
   long beginLoad() {
-    final ImageBuffer previous;
+    final @Nullable ImageBuffer previous;
     final long generation;
     synchronized (this.loadingLock) {
       if (this.closed) {
-        throw new RejectedExecutionException("The image manager is shut down!");
+        final String message = "The image manager is shut down!";
+        throw new RejectedExecutionException(message);
       }
 
       generation = ++this.loadGeneration;
       previous = this.pendingImage;
       this.pendingImage = null;
     }
+
     if (previous != null) {
       previous.release();
     }
+
     return generation;
   }
 
@@ -131,7 +139,7 @@ public final class ImageManager {
         return null;
       }
 
-      final ImageBuffer loaded = this.pendingImage;
+      final @Nullable ImageBuffer loaded = this.pendingImage;
       this.pendingImage = null;
 
       return loaded;
@@ -139,7 +147,7 @@ public final class ImageManager {
   }
 
   void discardLoaded(final long generation) {
-    final ImageBuffer loaded = this.takeLoaded(generation);
+    final @Nullable ImageBuffer loaded = this.takeLoaded(generation);
     if (loaded != null) {
       loaded.release();
     }
@@ -160,12 +168,13 @@ public final class ImageManager {
   }
 
   private void cancelPendingLoads() {
-    final ImageBuffer pending;
+    final @Nullable ImageBuffer pending;
     synchronized (this.loadingLock) {
       this.loadGeneration++;
       pending = this.pendingImage;
       this.pendingImage = null;
     }
+
     if (pending != null) {
       pending.release();
     }
@@ -177,9 +186,9 @@ public final class ImageManager {
   }
 
   private void releaseNow() {
-    final DisplayableImage display = this.image;
-    final Image shown = this.currentImage;
-    final ImagePlayer imagePlayer = this.player;
+    final @Nullable DisplayableImage display = this.image;
+    final @Nullable Image shown = this.currentImage;
+    final @Nullable ImagePlayer imagePlayer = this.player;
     this.image = null;
     this.currentImage = null;
     this.player = null;

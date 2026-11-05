@@ -32,7 +32,8 @@ import me.brandonli.mcav.utils.immutable.Pair;
 public final class ScoreboardArguments {
 
   private ScoreboardArguments() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   /**
@@ -54,6 +55,7 @@ public final class ScoreboardArguments {
     } catch (final IllegalArgumentException exception) {
       return false;
     }
+
     final int lines = dimensions.getSecond();
     return lines > ScoreboardConfiguration.MAXIMUM_LINES;
   }

@@ -21,18 +21,26 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Locale;
+import me.brandonli.mcav.plugin.MCAVSandbox;
 import me.brandonli.mcav.plugin.utils.MapCodec;
 import net.jqwik.api.Arbitraries;
 import net.jqwik.api.Arbitrary;
 import net.jqwik.api.ForAll;
 import net.jqwik.api.Property;
 import net.jqwik.api.Provide;
+import org.mockito.Mockito;
 
 final class VmCodecFlagPropertyTest {
 
   private static final String SEED = "20260928";
 
   private static final String CODEC_FLAG = "--codec";
+
+  private final VirtualizeCommand command;
+
+  VmCodecFlagPropertyTest() {
+    this.command = new VirtualizeCommand(Mockito.mock(MCAVSandbox.class));
+  }
 
   @Provide
   Arbitrary<String> options() {
@@ -63,7 +71,7 @@ final class VmCodecFlagPropertyTest {
     @ForAll("gaps") final String gap
   ) {
     final String name = upper ? codec.name() : codec.name().toLowerCase(Locale.ROOT);
-    final VirtualizeCommand.CodecSplit split = VirtualizeCommand.splitCodec(options + gap + CODEC_FLAG + gap + name + gap);
+    final VirtualizeCommand.CodecSplit split = this.command.splitCodec(options + gap + CODEC_FLAG + gap + name + gap);
 
     final VirtualizeCommand.CodecSplit expected = new VirtualizeCommand.CodecSplit(options.strip(), codec);
     assertEquals(expected, split);
@@ -72,13 +80,13 @@ final class VmCodecFlagPropertyTest {
   @Property(seed = SEED)
   void shouldLeaveOptionsWithoutATrailingCodecWhole(@ForAll("options") final String options) {
     final VirtualizeCommand.CodecSplit expected = new VirtualizeCommand.CodecSplit(options, null);
-    final VirtualizeCommand.CodecSplit split = VirtualizeCommand.splitCodec(options);
+    final VirtualizeCommand.CodecSplit split = this.command.splitCodec(options);
     assertEquals(expected, split);
   }
 
   @Property(seed = SEED)
   void shouldSplitWhateverIsTypedIntoAPrefixAndACodecOrNothing(@ForAll final String typed) {
-    final VirtualizeCommand.CodecSplit split = VirtualizeCommand.splitCodec(typed);
+    final VirtualizeCommand.CodecSplit split = this.command.splitCodec(typed);
     if (split == null) {
       final boolean contained = typed.contains(CODEC_FLAG);
       assertTrue(contained, typed);

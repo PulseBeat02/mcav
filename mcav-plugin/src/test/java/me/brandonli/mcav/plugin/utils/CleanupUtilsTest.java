@@ -38,7 +38,8 @@ final class CleanupUtilsTest {
     assertSame(first, thrown);
 
     final Throwable[] suppressed = thrown.getSuppressed();
-    assertArrayEquals(new Throwable[] { second }, suppressed);
+    final Throwable[] expectedSuppressed = { second };
+    assertArrayEquals(expectedSuppressed, suppressed);
 
     final List<Integer> expected = List.of(1, 2, 3);
     assertEquals(expected, cleaned);

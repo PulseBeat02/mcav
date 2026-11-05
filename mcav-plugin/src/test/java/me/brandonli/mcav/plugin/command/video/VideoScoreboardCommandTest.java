@@ -241,7 +241,7 @@ final class VideoScoreboardCommandTest {
       anyString(),
       isNull()
     );
-    verify(this.manager, never()).getStatus();
+    verify(this.manager, never()).getStarting();
     verify(this.manager, never()).getService();
   }
 }
