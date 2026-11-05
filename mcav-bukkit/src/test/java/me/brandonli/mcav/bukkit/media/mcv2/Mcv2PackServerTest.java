@@ -942,13 +942,7 @@ final class Mcv2PackServerTest {
   @Test
   void shouldStopThePreviousHttpHostingThatHoldsThePortOfANewOne() {
     final List<HttpHosting> servers = new ArrayList<>();
-    this.packs = this.packServer(zip -> {
-      final HttpHosting hosting = mock(HttpHosting.class);
-      when(hosting.getZip()).thenReturn(zip);
-      when(hosting.getRawUrl()).thenReturn("http://203.0.113.7:8080");
-      servers.add(hosting);
-      return hosting;
-    });
+    this.packs = this.packServer(archive -> this.recordHttpHosting(archive, servers));
     this.packs.open(this.screen(SCREEN_WIDTH, Set.of()));
     this.settle();
     this.packs.open(this.screen(SMALL_SCREEN_WIDTH, Set.of()));
@@ -960,17 +954,19 @@ final class Mcv2PackServerTest {
     order.verify(servers.get(1)).start();
   }
 
+  private PackHosting recordHttpHosting(final Path archive, final List<HttpHosting> servers) {
+    final HttpHosting hosting = mock(HttpHosting.class);
+    when(hosting.getZip()).thenReturn(archive);
+    when(hosting.getRawUrl()).thenReturn("http://203.0.113.7:8080");
+    servers.add(hosting);
+
+    return hosting;
+  }
+
   @Test
   void shouldNotServeAPackThatCannotBeHostedAndTryAgainOnTheNextChange() {
     final CraftPlayer alice = this.online(ALICE);
-    this.packs = this.packServer(zip -> {
-      if (this.hostings.isEmpty()) {
-        this.hostings.add(mock(PackHosting.class));
-        throw new IllegalStateException("upload failed!");
-      }
-
-      return this.hosting(zip);
-    });
+    this.packs = this.packServer(this::rejectFirstHosting);
     this.packs.open(this.screen(SCREEN_WIDTH, Set.of(ALICE)));
     this.settle();
     verify(alice, never()).sendResourcePacks(any(ResourcePackRequest.class));
@@ -982,6 +978,16 @@ final class Mcv2PackServerTest {
     this.settle();
 
     this.requestSentTo(alice);
+  }
+
+  private PackHosting rejectFirstHosting(final Path archive) {
+    if (this.hostings.isEmpty()) {
+      this.hostings.add(mock(PackHosting.class));
+      final String message = "upload failed!";
+      throw new IllegalStateException(message);
+    }
+
+    return this.hosting(archive);
   }
 
   @Test
@@ -1049,12 +1055,7 @@ final class Mcv2PackServerTest {
 
   @Test
   void shouldStopAtOnceAPackHostedWhileTheServerShutsDown() {
-    this.packs = this.packServer(zip -> {
-      final PackHosting hosting = this.hosting(zip);
-      this.packs.shutdown();
-
-      return hosting;
-    });
+    this.packs = this.packServer(this::hostPackDuringShutdown);
     this.packs.open(this.screen(SCREEN_WIDTH, Set.of()));
 
     this.settle();
@@ -1064,6 +1065,13 @@ final class Mcv2PackServerTest {
 
     final int scheduledTaskCount = this.server.getScheduledTaskCount();
     assertEquals(0, scheduledTaskCount);
+  }
+
+  private PackHosting hostPackDuringShutdown(final Path archive) {
+    final PackHosting hosting = this.hosting(archive);
+    this.packs.shutdown();
+
+    return hosting;
   }
 
   @Test
@@ -1121,10 +1129,7 @@ final class Mcv2PackServerTest {
     final AtomicReference<Thread> writerThread = new AtomicReference<>();
     final Mcv2PackServer own = new Mcv2PackServer(
       this.folder,
-      zip -> {
-        writerThread.set(Thread.currentThread());
-        return this.hosting(zip);
-      },
+      archive -> this.recordHostingThread(archive, writerThread),
       Mcv2Pack.DebugView.SHOWN,
       this.offered::add,
       this.refused::add
@@ -1148,6 +1153,12 @@ final class Mcv2PackServerTest {
     final int hostingCount = this.hostings.size();
     assertEquals(1, hostingCount);
     verify(this.hostings.getFirst()).shutdown();
+  }
+
+  private PackHosting recordHostingThread(final Path archive, final AtomicReference<Thread> writerThread) {
+    writerThread.set(Thread.currentThread());
+
+    return this.hosting(archive);
   }
 
   @Test
@@ -1179,12 +1190,7 @@ final class Mcv2PackServerTest {
 
   @Test
   void shouldLeaveAPackThatCannotBeDeletedForTheNextStart() throws IOException {
-    this.packs = this.packServer(zip -> {
-      final PackHosting hosting = this.hosting(zip);
-      // a folder with a file in it cannot be deleted
-      when(hosting.getZip()).thenReturn(this.folder);
-      return hosting;
-    });
+    this.packs = this.packServer(this::hostUndeletableFolder);
     Files.writeString(this.folder.resolve(KEPT_FILE_NAME), "x");
     this.packs.open(this.screen(SCREEN_WIDTH, Set.of()));
     this.settle();
@@ -1194,6 +1200,14 @@ final class Mcv2PackServerTest {
 
     final boolean folderKept = Files.isDirectory(this.folder);
     assertTrue(folderKept);
+  }
+
+  private PackHosting hostUndeletableFolder(final Path archive) {
+    final PackHosting hosting = this.hosting(archive);
+    // a folder with a file in it cannot be deleted
+    when(hosting.getZip()).thenReturn(this.folder);
+
+    return hosting;
   }
 
   @Test

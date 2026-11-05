@@ -355,10 +355,7 @@ final class McPackHostingTest {
   void shouldKeepTheInterruptFlagWhenInterruptedDuringTheUpload() {
     final Thread testThread = Thread.currentThread();
     final CountDownLatch release = new CountDownLatch(1);
-    this.service.setUploadHook(() -> {
-      testThread.interrupt();
-      this.awaitRelease(release);
-    });
+    this.service.setUploadHook(() -> this.interruptUploadAndAwaitRelease(testThread, release));
     final McPackHosting hosting = this.createHosting(this.zip);
 
     try {
@@ -372,6 +369,11 @@ final class McPackHostingTest {
     } finally {
       release.countDown();
     }
+  }
+
+  private void interruptUploadAndAwaitRelease(final Thread testThread, final CountDownLatch release) {
+    testThread.interrupt();
+    this.awaitRelease(release);
   }
 
   private void awaitRelease(final CountDownLatch release) {
@@ -600,19 +602,21 @@ final class McPackHostingTest {
       final InetSocketAddress address = new InetSocketAddress(loopback, EPHEMERAL_PORT);
       final HttpServer httpServer = HttpServer.create(address, 0);
       final PackService service = new PackService(httpServer);
-      httpServer.createContext(UPLOAD_PATH, exchange -> {
-        try {
-          service.recordUpload(exchange);
-        } catch (final AssertionError exception) {
-          service.handlerFailure.compareAndSet(null, exception);
-        } finally {
-          exchange.close();
-        }
-      });
+      httpServer.createContext(UPLOAD_PATH, service::recordAndCloseUpload);
       httpServer.createContext(PACK_PATH, service::answerDownload);
       httpServer.setExecutor(service.handlers);
       httpServer.start();
       return service;
+    }
+
+    private void recordAndCloseUpload(final HttpExchange exchange) throws IOException {
+      try {
+        this.recordUpload(exchange);
+      } catch (final AssertionError exception) {
+        this.handlerFailure.compareAndSet(null, exception);
+      } finally {
+        exchange.close();
+      }
     }
 
     private void recordUpload(final HttpExchange exchange) throws IOException {

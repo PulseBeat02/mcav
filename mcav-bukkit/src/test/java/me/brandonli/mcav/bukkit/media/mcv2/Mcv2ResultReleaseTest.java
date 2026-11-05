@@ -40,6 +40,7 @@ import org.bukkit.block.BlockFace;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.invocation.InvocationOnMock;
 
 final class Mcv2ResultReleaseTest {
 
@@ -69,10 +70,7 @@ final class Mcv2ResultReleaseTest {
     final Mcv2Screen screen = mock(Mcv2Screen.class);
     when(screen.getAnchors()).thenReturn(List.of());
     final DitherAlgorithm algorithm = mock(DitherAlgorithm.class);
-    when(algorithm.ditherIntoBytes(any())).thenAnswer(invocation -> {
-      final ImageBuffer image = invocation.getArgument(0);
-      return new byte[image.getWidth() * image.getHeight()];
-    });
+    when(algorithm.ditherIntoBytes(any())).thenAnswer(this::createEmptyPixels);
     final Mcv2Configuration configuration = Mcv2Configuration.builder()
       .viewers(List.of(WITH_PACK, WITHOUT))
       .origin(new Location(mock(World.class), 0, 64, 0))
@@ -112,5 +110,10 @@ final class Mcv2ResultReleaseTest {
       .map(packet -> packet.mapId().id())
       .toList();
     assertEquals(expectedMapIds, clearedMapIds, "every map of the wall is cleared, not the first only");
+  }
+
+  private byte[] createEmptyPixels(final InvocationOnMock invocation) {
+    final ImageBuffer image = invocation.getArgument(0);
+    return new byte[image.getWidth() * image.getHeight()];
   }
 }

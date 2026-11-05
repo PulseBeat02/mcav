@@ -56,12 +56,14 @@ import org.bukkit.block.BlockFace;
 import org.bukkit.craftbukkit.entity.CraftPlayer;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitTask;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.mockito.invocation.InvocationOnMock;
 
 final class Mcv2ChannelTest {
 
@@ -244,19 +246,7 @@ final class Mcv2ChannelTest {
   @ValueSource(ints = { 0, 1, 2 })
   void shouldNotKeepALinkForAViewerRetiredDuringShow(final int retirement) {
     final Mcv2Channel channel = new Mcv2Channel(this.configuration, this.viewers, this.screen);
-    doAnswer(_ -> {
-      if (retirement == 2) {
-        this.configuration.getViewers().remove(LOADED);
-      } else {
-        when(this.viewers.isLoaded(LOADED)).thenReturn(false);
-      }
-
-      if (retirement == 0) {
-        channel.update();
-      }
-
-      return null;
-    })
+    doAnswer(_ -> this.retireViewerDuringShow(retirement, channel))
       .when(this.screen)
       .show(this.player);
     channel.update();
@@ -266,20 +256,26 @@ final class Mcv2ChannelTest {
     verify(this.screen).hide(this.player);
   }
 
+  private @Nullable Object retireViewerDuringShow(final int retirement, final Mcv2Channel channel) {
+    if (retirement == 2) {
+      this.configuration.getViewers().remove(LOADED);
+    } else {
+      when(this.viewers.isLoaded(LOADED)).thenReturn(false);
+    }
+
+    if (retirement == 0) {
+      channel.update();
+    }
+
+    return null;
+  }
+
   @Test
   void shouldLetAConcurrentCloseOwnTheCleanupOfAPublishedLink() {
     final Mcv2Channel channel = new Mcv2Channel(this.configuration, this.viewers, this.screen);
     channel.update();
     final AtomicInteger loadedChecks = new AtomicInteger();
-    when(this.viewers.isLoaded(LOADED)).thenAnswer(_ -> {
-      if (loadedChecks.getAndIncrement() == 0) {
-        return true;
-      }
-
-      channel.close();
-
-      return false;
-    });
+    when(this.viewers.isLoaded(LOADED)).thenAnswer(_ -> this.closeChannelAfterFirstCheck(loadedChecks, channel));
     this.server.runTasks();
     final int checks = loadedChecks.get();
     assertEquals(2, checks, "close overlaps the check after link publication");
@@ -295,6 +291,16 @@ final class Mcv2ChannelTest {
 
     final boolean keyframeRequested = channel.takeKeyframeRequest();
     assertFalse(keyframeRequested, "a retired show must not request another frame");
+  }
+
+  private boolean closeChannelAfterFirstCheck(final AtomicInteger loadedChecks, final Mcv2Channel channel) {
+    if (loadedChecks.getAndIncrement() == 0) {
+      return true;
+    }
+
+    channel.close();
+
+    return false;
   }
 
   @Test
@@ -355,20 +361,28 @@ final class Mcv2ChannelTest {
     // whichever viewer the update reaches second
     final List<Runnable> hides = new ArrayList<>();
     final AtomicBoolean closed = new AtomicBoolean();
-    doAnswer(invocation -> {
-      if (closed.compareAndSet(false, true)) {
-        channel.close();
-      }
-
-      hides.add(invocation.getArgument(1));
-      return mock(BukkitTask.class);
-    })
+    doAnswer(invocation -> this.recordHideAfterClosing(invocation, closed, channel, hides))
       .when(this.server.getScheduler())
       .runTask(any(Plugin.class), any(Runnable.class));
     channel.update();
     hides.forEach(Runnable::run);
     verify(this.screen).hide(this.player);
     verify(this.screen).hide(secondPlayer);
+  }
+
+  private BukkitTask recordHideAfterClosing(
+    final InvocationOnMock invocation,
+    final AtomicBoolean closed,
+    final Mcv2Channel channel,
+    final List<Runnable> hides
+  ) {
+    if (closed.compareAndSet(false, true)) {
+      channel.close();
+    }
+
+    hides.add(invocation.getArgument(1));
+
+    return mock(BukkitTask.class);
   }
 
   @Test

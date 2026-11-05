@@ -70,6 +70,7 @@ import org.mockito.ArgumentMatchers;
 import org.mockito.MockedConstruction;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
+import org.mockito.invocation.InvocationOnMock;
 
 final class Mcv2ScreenTest {
 
@@ -105,21 +106,24 @@ final class Mcv2ScreenTest {
     this.server.injectModule();
     this.world = mock(World.class);
     when(this.world.spawn(any(Location.class), eq(ItemFrame.class), ArgumentMatchers.<Consumer<? super ItemFrame>>any())).thenAnswer(
-      invocation -> {
-        final ItemFrame frame = mock(ItemFrame.class);
-        when(frame.getUniqueId()).thenReturn(UUID.randomUUID());
-        final Consumer<? super ItemFrame> configurator = invocation.getArgument(2);
-        configurator.accept(frame);
-        this.spawned.add(invocation.getArgument(0));
-        this.frames.add(frame);
-        return frame;
-      }
+      this::spawnItemFrame
     );
     // item components are only bound on a running server, so the tests that build a screen get mock page items
     this.statics = Mockito.mockStatic(Mcv2Screen.class, Mockito.CALLS_REAL_METHODS);
     this.statics
       .when(() -> Mcv2Screen.pageItem(ArgumentMatchers.anyInt()))
       .thenAnswer(invocation -> this.items.computeIfAbsent(invocation.getArgument(0), _ -> mock(ItemStack.class)));
+  }
+
+  private ItemFrame spawnItemFrame(final InvocationOnMock invocation) {
+    final ItemFrame frame = mock(ItemFrame.class);
+    when(frame.getUniqueId()).thenReturn(UUID.randomUUID());
+    final Consumer<? super ItemFrame> configurator = invocation.getArgument(2);
+    configurator.accept(frame);
+    this.spawned.add(invocation.getArgument(0));
+    this.frames.add(frame);
+
+    return frame;
   }
 
   @AfterEach

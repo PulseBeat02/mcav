@@ -49,12 +49,7 @@ final class Mcv2WorkersTest {
     final List<Integer> visited = new ArrayList<>();
     final AtomicInteger scratches = new AtomicInteger();
     final Thread caller = Thread.currentThread();
-    Workers.SEQUENTIAL.forEach(5, scratches::incrementAndGet, (_, index) -> {
-      final Thread current = Thread.currentThread();
-      assertEquals(caller, current);
-
-      visited.add(index);
-    });
+    Workers.SEQUENTIAL.forEach(5, scratches::incrementAndGet, (_, index) -> this.recordIndexOnCallingThread(index, caller, visited));
 
     final List<Integer> expected = List.of(0, 1, 2, 3, 4);
     assertEquals(expected, visited);
@@ -64,6 +59,13 @@ final class Mcv2WorkersTest {
 
     final int threadCount = Workers.SEQUENTIAL.threads();
     assertEquals(1, threadCount);
+  }
+
+  private void recordIndexOnCallingThread(final int index, final Thread caller, final List<Integer> visited) {
+    final Thread current = Thread.currentThread();
+    assertEquals(caller, current);
+
+    visited.add(index);
   }
 
   @Test
@@ -77,12 +79,7 @@ final class Mcv2WorkersTest {
       final AtomicIntegerArray counts = new AtomicIntegerArray(1000);
       final Set<Thread> threads = ConcurrentHashMap.newKeySet();
       final AtomicInteger scratches = new AtomicInteger();
-      workers.forEach(counts.length(), scratches::incrementAndGet, (_, index) -> {
-        counts.incrementAndGet(index);
-        threads.add(Thread.currentThread());
-        final @Nullable ForkJoinPool currentPool = ForkJoinTask.getPool();
-        assertSame(pool, currentPool, "every index must run on the supplied pool");
-      });
+      workers.forEach(counts.length(), scratches::incrementAndGet, (_, index) -> this.recordIndexOnPool(index, counts, threads, pool));
       for (int position = 0; position < counts.length(); position++) {
         final int count = counts.get(position);
         assertEquals(1, count, "index " + position);
@@ -96,6 +93,13 @@ final class Mcv2WorkersTest {
     } finally {
       pool.shutdownNow();
     }
+  }
+
+  private void recordIndexOnPool(final int index, final AtomicIntegerArray counts, final Set<Thread> threads, final ForkJoinPool pool) {
+    counts.incrementAndGet(index);
+    threads.add(Thread.currentThread());
+    final @Nullable ForkJoinPool currentPool = ForkJoinTask.getPool();
+    assertSame(pool, currentPool, "every index must run on the supplied pool");
   }
 
   @Test

@@ -78,11 +78,9 @@ final class NativeConformanceTest {
   void shouldKeepNoFrameOnceItIsEncoded(final Level level) {
     final Supplier<?> factory = NativeTesting.factory(level);
     final List<NativeKernels> made = new CopyOnWriteArrayList<>();
-    final Mcv2 encoder = NativeTesting.encoder(Settings.DEFAULT, 2, Mcv2.Verification.UNVERIFIED, () -> {
-      final Object kernels = factory.get();
-      made.add(NativeTesting.view(kernels));
-      return kernels;
-    });
+    final Mcv2 encoder = NativeTesting.encoder(Settings.DEFAULT, 2, Mcv2.Verification.UNVERIFIED, () ->
+      this.recordNativeKernels(factory, made)
+    );
     final byte[] source = Mcv2Fixtures.read(CROP_SOURCE_PATH);
     final int frameBytes = WIDTH * HEIGHT * 3;
     for (int frameIndex = 0; frameIndex < 2; frameIndex++) {
@@ -93,6 +91,13 @@ final class NativeConformanceTest {
       final boolean keepsNoFrame = made.stream().noneMatch(kernels -> kernels.keeps(rgb));
       assertTrue(keepsNoFrame, "frame " + frameIndex);
     }
+  }
+
+  private Object recordNativeKernels(final Supplier<?> factory, final List<NativeKernels> made) {
+    final Object kernels = factory.get();
+    made.add(NativeTesting.view(kernels));
+
+    return kernels;
   }
 
   @ParameterizedTest(name = "{0}")

@@ -166,19 +166,22 @@ final class RendererResultsTest {
     assertEquals(CHARACTER, text);
 
     final List<Integer> colors = new ArrayList<>();
-    textCaptor.getValue().visit((style, characters) -> {
-      for (int index = 0; index < characters.length(); index++) {
-        colors.add(style.getColor() == null ? -1 : style.getColor().getValue());
-      }
-
-      return Optional.empty();
-    }, Style.EMPTY);
+    textCaptor.getValue().visit((style, characters) -> this.recordCharacterColors(style, characters, colors), Style.EMPTY);
     final List<Integer> expectedColors = List.of(0x000000);
     assertEquals(expectedColors, colors, "the submitted image's exact color reaches the display");
     verify(display).remove();
     assertThrows(NullPointerException.class, () -> new EntityResult(null));
 
     this.assertRejectsMissingFrames(result);
+  }
+
+  private Optional<Object> recordCharacterColors(final Style style, final String characters, final List<Integer> colors) {
+    for (int index = 0; index < characters.length(); index++) {
+      final int color = style.getColor() == null ? -1 : style.getColor().getValue();
+      colors.add(color);
+    }
+
+    return Optional.empty();
   }
 
   @Test

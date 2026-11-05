@@ -126,12 +126,7 @@ final class Mcv2PipelineTest {
     final Field factory = Mcv2.class.getDeclaredField(KERNELS_FIELD);
     factory.setAccessible(true);
     final Object original = factory.get(encoder);
-    factory.set(
-      encoder,
-      (Supplier<?>) () -> {
-        throw new IllegalStateException("search failed!");
-      }
-    );
+    factory.set(encoder, (Supplier<?>) this::failSearch);
     final byte[] failed = new byte[32 * 32 * 3];
     Arrays.fill(failed, (byte) 255);
     assertThrows(IllegalStateException.class, () -> encoder.begin(failed, 32, 32, 0));
@@ -149,6 +144,11 @@ final class Mcv2PipelineTest {
       final byte[] reference = encoder.getReference().orElseThrow();
       assertArrayEquals(expectedReference, reference);
     }
+  }
+
+  private Object failSearch() {
+    final String message = "search failed!";
+    throw new IllegalStateException(message);
   }
 
   @Test

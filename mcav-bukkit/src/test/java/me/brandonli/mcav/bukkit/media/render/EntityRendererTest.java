@@ -244,17 +244,20 @@ final class EntityRendererTest {
     assertEquals("##", plain);
 
     final List<Integer> colors = new ArrayList<>();
-    text.visit((style, characters) -> {
-      for (int index = 0; index < characters.length(); index++) {
-        colors.add(style.getColor() == null ? -1 : style.getColor().getValue());
-      }
-
-      return Optional.empty();
-    }, Style.EMPTY);
+    text.visit((style, characters) -> this.recordCharacterColors(style, characters, colors), Style.EMPTY);
     final List<Integer> expectedColors = List.of(0x123456, 0xABCDEF);
     assertEquals(expectedColors, colors, "each rendered pixel retains its exact RGB");
     assertEquals(2, width);
     assertEquals(1, height);
+  }
+
+  private Optional<Object> recordCharacterColors(final Style style, final String characters, final List<Integer> colors) {
+    for (int index = 0; index < characters.length(); index++) {
+      final int color = style.getColor() == null ? -1 : style.getColor().getValue();
+      colors.add(color);
+    }
+
+    return Optional.empty();
   }
 
   @Test

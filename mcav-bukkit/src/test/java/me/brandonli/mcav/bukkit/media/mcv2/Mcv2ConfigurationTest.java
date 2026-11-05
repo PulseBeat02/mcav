@@ -335,12 +335,16 @@ final class Mcv2ConfigurationTest {
 
   private void refuses(final String message, final Consumer<Mcv2ConfigurationBuilder> change) {
     final Mcv2ConfigurationBuilder builder = complete();
-    final IllegalArgumentException failure = assertThrows(IllegalArgumentException.class, () -> {
-      change.accept(builder);
-      builder.build();
-    });
+    final IllegalArgumentException failure = assertThrows(IllegalArgumentException.class, () ->
+      this.buildChangedConfiguration(change, builder)
+    );
     final String failureMessage = failure.getMessage();
     assertEquals(message, failureMessage);
+  }
+
+  private void buildChangedConfiguration(final Consumer<Mcv2ConfigurationBuilder> change, final Mcv2ConfigurationBuilder builder) {
+    change.accept(builder);
+    builder.build();
   }
 
   @Test

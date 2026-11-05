@@ -211,18 +211,27 @@ final class SimpleResourcePackTest {
   }
 
   private SimpleResourcePack.FileMover recordingMover(final List<List<CopyOption>> moves, final AtomicMoves atomicMoves) {
-    return (from, to, options) -> {
-      final List<CopyOption> optionList = List.of(options);
-      moves.add(optionList);
+    return (source, destination, options) -> this.recordFileMove(source, destination, options, moves, atomicMoves);
+  }
 
-      if (atomicMoves == AtomicMoves.UNSUPPORTED && optionList.contains(StandardCopyOption.ATOMIC_MOVE)) {
-        final String fromText = from.toString();
-        final String toText = to.toString();
-        throw new AtomicMoveNotSupportedException(fromText, toText, "network share");
-      }
+  private void recordFileMove(
+    final Path source,
+    final Path destination,
+    final CopyOption[] options,
+    final List<List<CopyOption>> moves,
+    final AtomicMoves atomicMoves
+  ) throws IOException {
+    final List<CopyOption> optionList = List.of(options);
+    moves.add(optionList);
 
-      Files.move(from, to, options);
-    };
+    if (atomicMoves == AtomicMoves.UNSUPPORTED && optionList.contains(StandardCopyOption.ATOMIC_MOVE)) {
+      final String sourceText = source.toString();
+      final String destinationText = destination.toString();
+      final String message = "network share";
+      throw new AtomicMoveNotSupportedException(sourceText, destinationText, message);
+    }
+
+    Files.move(source, destination, options);
   }
 
   private Path zipFullPack() {

@@ -40,6 +40,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ForkJoinPool;
@@ -72,6 +73,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
+import org.mockito.invocation.InvocationOnMock;
 
 final class CompressedMapResultTest {
 
@@ -791,15 +793,21 @@ final class CompressedMapResultTest {
 
   private ParallelDitherAlgorithm createRecordingAlgorithm(final List<ForkJoinPool> pools, final List<Thread> workers) {
     final ParallelDitherAlgorithm parallel = mock(ParallelDitherAlgorithm.class);
-    when(parallel.ditherIntoBytes(any(ImageBuffer.class), any(ForkJoinPool.class))).thenAnswer(invocation -> {
-      final ForkJoinPool pool = invocation.getArgument(1);
-      final ForkJoinTask<Thread> task = pool.submit(Thread::currentThread);
-      final Thread worker = task.get();
-      pools.add(pool);
-      workers.add(worker);
-      return MapPackets.pattern(MAP_SIZE * MAP_SIZE, 4);
-    });
+    when(parallel.ditherIntoBytes(any(ImageBuffer.class), any(ForkJoinPool.class))).thenAnswer(invocation ->
+      this.recordDitherWorker(invocation, pools, workers)
+    );
     return parallel;
+  }
+
+  private byte[] recordDitherWorker(final InvocationOnMock invocation, final List<ForkJoinPool> pools, final List<Thread> workers)
+    throws InterruptedException, ExecutionException {
+    final ForkJoinPool pool = invocation.getArgument(1);
+    final ForkJoinTask<Thread> task = pool.submit(Thread::currentThread);
+    final Thread worker = task.get();
+    pools.add(pool);
+    workers.add(worker);
+
+    return MapPackets.pattern(MAP_SIZE * MAP_SIZE, 4);
   }
 
   @Test
@@ -829,14 +837,21 @@ final class CompressedMapResultTest {
 
   private ParallelDitherAlgorithm createFailingAlgorithm(final RuntimeException failure) {
     final ParallelDitherAlgorithm parallel = mock(ParallelDitherAlgorithm.class);
-    when(parallel.ditherIntoBytes(any(ImageBuffer.class), any(ForkJoinPool.class))).thenAnswer(invocation -> {
-      final ForkJoinPool pool = invocation.getArgument(1);
-      pool.execute(() -> {
-        throw failure;
-      });
-      return MapPackets.pattern(MAP_SIZE * MAP_SIZE, 4);
-    });
+    when(parallel.ditherIntoBytes(any(ImageBuffer.class), any(ForkJoinPool.class))).thenAnswer(invocation ->
+      this.submitDitherFailure(invocation, failure)
+    );
     return parallel;
+  }
+
+  private byte[] submitDitherFailure(final InvocationOnMock invocation, final RuntimeException failure) {
+    final ForkJoinPool pool = invocation.getArgument(1);
+    pool.execute(() -> this.throwDitherFailure(failure));
+
+    return MapPackets.pattern(MAP_SIZE * MAP_SIZE, 4);
+  }
+
+  private void throwDitherFailure(final RuntimeException failure) {
+    throw failure;
   }
 
   @Test

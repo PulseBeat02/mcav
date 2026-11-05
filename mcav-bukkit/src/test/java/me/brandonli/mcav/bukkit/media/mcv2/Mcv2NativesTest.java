@@ -319,20 +319,17 @@ final class Mcv2NativesTest {
     final String missingDescription = missing.description();
     assertEquals("Java, no library for linux-x86_64", missingDescription);
 
-    final Resolution unreadable = Natives.resolve(
-      Mcv2.NATIVE_AUTO,
-      LINUX_PLATFORM,
-      this.folder,
-      platform -> {
-        throw new UncheckedIOException(new IOException(UNREADABLE_MESSAGE));
-      },
-      null
-    );
+    final Resolution unreadable = Natives.resolve(Mcv2.NATIVE_AUTO, LINUX_PLATFORM, this.folder, this::rejectUnreadableLibrary, null);
     final boolean unreadableFailed = unreadable.failed();
     assertTrue(unreadableFailed);
 
     final boolean unreadableDescribed = unreadable.description().startsWith("Java, the library could not be read");
     assertTrue(unreadableDescribed);
+  }
+
+  private byte[] rejectUnreadableLibrary(final String platform) {
+    final IOException failure = new IOException(UNREADABLE_MESSAGE);
+    throw new UncheckedIOException(failure);
   }
 
   @Test

@@ -44,6 +44,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.mockito.invocation.InvocationOnMock;
 
 final class MapResultTest {
 
@@ -66,10 +67,12 @@ final class MapResultTest {
     this.server.injectModule();
 
     this.algorithm = mock(DitherAlgorithm.class);
-    when(this.algorithm.ditherIntoBytes(any(ImageBuffer.class))).thenAnswer(invocation -> {
-      final ImageBuffer frame = invocation.getArgument(0);
-      return MapPackets.pattern(frame);
-    });
+    when(this.algorithm.ditherIntoBytes(any(ImageBuffer.class))).thenAnswer(this::createPatternedPixels);
+  }
+
+  private byte[] createPatternedPixels(final InvocationOnMock invocation) {
+    final ImageBuffer frame = invocation.getArgument(0);
+    return MapPackets.pattern(frame);
   }
 
   @AfterEach
@@ -153,12 +156,7 @@ final class MapResultTest {
   @ValueSource(ints = { 1, 3 })
   void shouldClearTheEntirePreviousPictureWhenShrinkingAFrame(final int columns) {
     final MapResult result = new MapResult(this.createGridConfiguration(columns, 1));
-    when(this.algorithm.ditherIntoBytes(any(ImageBuffer.class))).thenAnswer(invocation -> {
-      final ImageBuffer frame = invocation.getArgument(0);
-      final byte[] pixels = new byte[frame.getWidth() * frame.getHeight()];
-      Arrays.fill(pixels, frame.getWidth() == RESOLUTION ? (byte) 9 : (byte) 7);
-      return pixels;
-    });
+    when(this.algorithm.ditherIntoBytes(any(ImageBuffer.class))).thenAnswer(this::createSizedPixels);
     try (
       final ImageBuffer large = Images.solid(columns * MAP_SIZE, MAP_SIZE, FRAME_COLOR);
       final ImageBuffer small = Images.solid(RESOLUTION, RESOLUTION, 0xFF304050)
@@ -183,6 +181,14 @@ final class MapResultTest {
     }
 
     assertArrayEquals(expected, actual, "the current picture is surrounded by transparent pixels, including uncovered maps");
+  }
+
+  private byte[] createSizedPixels(final InvocationOnMock invocation) {
+    final ImageBuffer frame = invocation.getArgument(0);
+    final byte[] pixels = new byte[frame.getWidth() * frame.getHeight()];
+    Arrays.fill(pixels, frame.getWidth() == RESOLUTION ? (byte) 9 : (byte) 7);
+
+    return pixels;
   }
 
   private void copyPacket(final byte[] actual, final ClientboundMapItemDataPacket packet, final int columns) {

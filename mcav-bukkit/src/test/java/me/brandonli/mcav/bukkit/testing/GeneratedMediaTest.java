@@ -107,11 +107,7 @@ final class GeneratedMediaTest {
     Files.writeString(output, "partial from a failed older attempt");
     final AtomicInteger invocations = new AtomicInteger();
     final AtomicReference<Path> temporary = new AtomicReference<>();
-    final Path generated = GeneratedMedia.generate(output, path -> {
-      invocations.incrementAndGet();
-      temporary.set(path);
-      return this.command(path, SUCCESS_ARGUMENT);
-    });
+    final Path generated = GeneratedMedia.generate(output, path -> this.recordGenerationCommand(path, invocations, temporary));
     final String content = Files.readString(generated);
     assertEquals(COMPLETED_MEDIA, content);
 
@@ -124,14 +120,24 @@ final class GeneratedMediaTest {
     final boolean stagedAtTheOutput = staged.equals(output);
     assertFalse(stagedAtTheOutput, "the encoder writes into a temporary sibling");
 
-    final Path cached = GeneratedMedia.generate(output, _ -> {
-      throw new AssertionError("Successfully generated media must be reused!");
-    });
+    final Path cached = GeneratedMedia.generate(output, this::rejectCachedGeneration);
     final int commands = invocations.get();
     assertEquals(generated, cached);
     assertEquals(1, commands);
 
     this.assertNoPartialFiles();
+  }
+
+  private List<String> recordGenerationCommand(final Path path, final AtomicInteger invocations, final AtomicReference<Path> temporary) {
+    invocations.incrementAndGet();
+    temporary.set(path);
+
+    return this.command(path, SUCCESS_ARGUMENT);
+  }
+
+  private List<String> rejectCachedGeneration(final Path path) {
+    final String message = "Successfully generated media must be reused!";
+    throw new AssertionError(message);
   }
 
   @Test

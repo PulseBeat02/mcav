@@ -63,6 +63,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.Isolated;
 import org.mockito.ArgumentCaptor;
 import org.mockito.ArgumentMatchers;
+import org.mockito.invocation.InvocationOnMock;
 
 // changes the default time zone
 @Isolated
@@ -107,15 +108,18 @@ final class StandardVideoHologramTest {
     this.location = new Location(this.world, 1, 2, 3);
     this.spawnedDisplays = new ArrayList<>();
     when(this.world.spawn(eq(this.location), eq(TextDisplay.class), ArgumentMatchers.<Consumer<? super TextDisplay>>any())).thenAnswer(
-      invocation -> {
-        final TextDisplay display = mock(TextDisplay.class);
-        when(display.isValid()).thenReturn(true);
-        final Consumer<TextDisplay> configurator = invocation.getArgument(2);
-        configurator.accept(display);
-        this.spawnedDisplays.add(display);
-        return display;
-      }
+      this::spawnDisplay
     );
+  }
+
+  private TextDisplay spawnDisplay(final InvocationOnMock invocation) {
+    final TextDisplay display = mock(TextDisplay.class);
+    when(display.isValid()).thenReturn(true);
+    final Consumer<TextDisplay> configurator = invocation.getArgument(2);
+    configurator.accept(display);
+    this.spawnedDisplays.add(display);
+
+    return display;
   }
 
   @AfterEach
