@@ -17,9 +17,10 @@
  */
 package me.brandonli.mcav.plugin.command.image;
 
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.base.Equivalence;
 import com.google.common.base.Preconditions;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -214,7 +215,7 @@ public abstract class AbstractImageCommand implements AnnotationCommandFeature {
       return;
     }
 
-    final ImageBuffer loaded = Objects.requireNonNull(image);
+    final ImageBuffer loaded = requireNonNull(image);
     final boolean retained = this.manager.retainLoaded(generation, loaded);
     if (!retained) {
       loaded.release();
