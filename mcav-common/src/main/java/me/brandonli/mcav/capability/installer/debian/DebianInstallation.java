@@ -155,8 +155,10 @@ final class DebianInstallation {
     }
 
     final URI uri = URI.create(url);
+    final Optional<String> mirror = download.getMirror();
+    final @Nullable URI mirrorUri = mirror.map(URI::create).orElse(null);
     final Path archive = staging.resolve(PACKAGE_FILE);
-    this.sources.download(uri, archive, sha256, MAXIMUM_PACKAGE_SIZE);
+    this.sources.download(uri, mirrorUri, archive, sha256, MAXIMUM_PACKAGE_SIZE);
     DebianPackageExtractor.extract(archive, extracted, this.trees);
 
     final Set<String> libraries = this.listLibraries(extracted);
