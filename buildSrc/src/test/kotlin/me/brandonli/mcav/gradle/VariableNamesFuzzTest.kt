@@ -23,8 +23,7 @@ import com.code_intelligence.jazzer.junit.FuzzTest
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Tag
 
-// The variableNames task parses every Java source of a module with javac, so any text, compilable or not, must be
-// searched without a failure, and every name it reports must be in the source, on one of its lines.
+// The variableNames task parses every Java source with javac, so any text, compilable or not, must be searched without a failure.
 @Tag("fuzz")
 class VariableNamesFuzzTest {
 

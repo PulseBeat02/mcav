@@ -26,8 +26,7 @@ import java.nio.file.Path
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Tag
 
-// The coverage exceptions of a module are written by hand, so any file must either be refused as an
-// IllegalArgumentException or read into exceptions that each spell out an entry of the file.
+// Coverage exceptions are written by hand, so any file must either be refused as an IllegalArgumentException or be read.
 @Tag("fuzz")
 class CoverageExceptionsFuzzTest {
 

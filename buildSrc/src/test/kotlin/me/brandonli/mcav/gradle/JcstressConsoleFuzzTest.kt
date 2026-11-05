@@ -24,8 +24,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Tag
 
-// The console of a jcstress run is read after the run, so any lines must be searched without a failure: each skipped
-// test is named once, by a line that holds its name.
+// The console of a jcstress run is read after the run, so any lines must be searched without a failure.
 @Tag("fuzz")
 class JcstressConsoleFuzzTest {
 

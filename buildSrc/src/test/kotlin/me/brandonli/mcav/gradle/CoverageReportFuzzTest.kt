@@ -26,8 +26,7 @@ import java.nio.file.Path
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Tag
 
-// JaCoCo writes the coverage report, so the counters of its lines and the source they point into are any values: every
-// line with a missed instruction or branch is either reported as a gap or excused by one unused exception.
+// JaCoCo writes the coverage report, so the counters of its lines and the source they point into can be any values.
 @Tag("fuzz")
 class CoverageReportFuzzTest {
 

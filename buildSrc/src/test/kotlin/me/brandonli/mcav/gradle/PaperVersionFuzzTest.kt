@@ -23,8 +23,7 @@ import com.code_intelligence.jazzer.junit.FuzzTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Tag
 
-// The Paper version can be set from the command line, so any text must either fail as an IllegalArgumentException or
-// name a build that reads back the same when it is written out again.
+// The Paper version can be set from the command line, so any text must either fail as an IllegalArgumentException or round-trip.
 @Tag("fuzz")
 class PaperVersionFuzzTest {
 

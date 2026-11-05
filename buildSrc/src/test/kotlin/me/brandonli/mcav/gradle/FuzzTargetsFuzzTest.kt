@@ -23,8 +23,7 @@ import com.code_intelligence.jazzer.junit.FuzzTest
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Tag
 
-// Fuzz test sources are read when the build is configured, so any text must be searched without a failure: every
-// method found is a word of the source, and no more methods are found than the source has annotations.
+// Fuzz test sources are read when the build is configured, so any text must be searched without a failure.
 @Tag("fuzz")
 class FuzzTargetsFuzzTest {
 
