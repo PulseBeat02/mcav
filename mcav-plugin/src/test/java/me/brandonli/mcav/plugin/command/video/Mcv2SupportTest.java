@@ -47,6 +47,7 @@ import me.brandonli.mcav.plugin.locale.Message;
 import me.brandonli.mcav.plugin.testing.TestServer;
 import me.brandonli.mcav.plugin.utils.DitheringArgument;
 import me.brandonli.mcav.utils.immutable.Pair;
+import net.kyori.adventure.text.Component;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
@@ -67,6 +68,8 @@ import org.mockito.Mockito;
 final class Mcv2SupportTest {
 
   private static final int MAP_ID = 20;
+
+  private static final String WORLD_NAME = "world";
 
   private static final int COLUMNS = 5;
   private static final int ROWS = 3;
@@ -104,6 +107,8 @@ final class Mcv2SupportTest {
     final ItemFrame frame = frame(map(Material.FILLED_MAP, true, MAP_ID));
     when(frame.getLocation()).thenReturn(new Location(this.world, 5.5, 64.5, 7.03));
     when(frame.getFacing()).thenReturn(BlockFace.SOUTH);
+    when(frame.getWorld()).thenReturn(this.world);
+    when(this.world.getName()).thenReturn(WORLD_NAME);
     when(this.world.getEntitiesByClass(ItemFrame.class)).thenReturn(List.of(frame));
     when(TestServer.getServer().getWorlds()).thenReturn(List.of(this.world));
   }
@@ -127,8 +132,9 @@ final class Mcv2SupportTest {
   }
 
   @Test
-  void shouldFindTheFrameHoldingAMap() {
+  void shouldFindEveryFrameHoldingAMap() {
     final ItemFrame wrongMap = frame(map(Material.FILLED_MAP, true, 3));
+    final ItemFrame earlier = frame(map(Material.FILLED_MAP, true, 7));
     final ItemFrame noId = frame(map(Material.FILLED_MAP, false, 7));
     final ItemFrame other = frame(map(Material.STONE, true, 7));
     final ItemStack plain = mock(ItemStack.class);
@@ -137,15 +143,16 @@ final class Mcv2SupportTest {
     final ItemFrame notAMap = frame(plain);
     final ItemFrame wanted = frame(map(Material.FILLED_MAP, true, 7));
     final World first = mock(World.class);
-    when(first.getEntitiesByClass(ItemFrame.class)).thenReturn(List.of(wrongMap, noId));
+    when(first.getEntitiesByClass(ItemFrame.class)).thenReturn(List.of(wrongMap, earlier, noId));
     final World second = mock(World.class);
     when(second.getEntitiesByClass(ItemFrame.class)).thenReturn(List.of(other, notAMap, wanted));
 
-    final ItemFrame frame = Mcv2Support.findFrame(List.of(first, second), 7).orElseThrow();
-    assertSame(wanted, frame);
+    final List<ItemFrame> frames = Mcv2Support.findFrames(List.of(first, second), 7);
+    final List<ItemFrame> expected = List.of(earlier, wanted);
+    assertEquals(expected, frames);
 
-    final Optional<ItemFrame> mcv2SupportFrame = Mcv2Support.findFrame(List.of(first, second), 8);
-    assertEquals(Optional.empty(), mcv2SupportFrame);
+    final List<ItemFrame> noFrames = Mcv2Support.findFrames(List.of(first, second), 8);
+    assertEquals(List.of(), noFrames);
 
     final boolean holdsMap = Mcv2Support.holdsMap(map(Material.FILLED_MAP, true, 3), 7);
     assertFalse(holdsMap);
@@ -269,6 +276,25 @@ final class Mcv2SupportTest {
     assertEquals(Optional.empty(), configured);
 
     verify(this.sender).sendMessage(Message.MCV2_SCREEN_ERROR.build(21));
+  }
+
+  @Test
+  void shouldRefuseAMapThatSeveralFramesHold() {
+    final World nether = mock(World.class);
+    when(nether.getName()).thenReturn("world_nether");
+    final ItemFrame copy = frame(map(Material.FILLED_MAP, true, MAP_ID));
+    when(copy.getWorld()).thenReturn(nether);
+    when(copy.getLocation()).thenReturn(new Location(nether, 2010.5, -59.5, 2990.03));
+    when(nether.getEntitiesByClass(ItemFrame.class)).thenReturn(List.of(copy));
+    when(TestServer.getServer().getWorlds()).thenReturn(List.of(this.world, nether));
+
+    final Optional<Mcv2Configuration> configured = this.configure(MAP_ID);
+    assertEquals(Optional.empty(), configured);
+
+    final String reason =
+      "map 20 hangs in 2 item frames, at world 5 64 7, world_nether 2010 -60 2990. MCV2 plays on one wall per map, so remove the other walls or build each screen with its own map id!";
+    final Component refused = Message.MCV2_SCREEN_DUPLICATE.build(reason);
+    verify(this.sender).sendMessage(refused);
   }
 
   @Test

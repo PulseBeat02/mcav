@@ -1355,6 +1355,10 @@ burst of 5; a player without the mod sees MCV2 screens as before.
   that started it says which.
 - The wall shows the backs of item frames. More than one item frame hangs in a block of the wall. Rebuild it with
   `/mcav screen`, which removes the frames already hanging where it places one.
+- An MCV2 command answers `The MCV2 screen was refused: map <id> hangs in <n> item frames, at ...`. More than one
+  item frame near a player holds the top-left map of the screen, usually a second wall built with the same map id.
+  MCV2 plays on one wall per map: remove the other walls the reply names, or build each screen with its own map id.
+  A `--codec mcv2` video on maps then plays its dithered maps, which show on every such wall.
 - The pack loaded, but the wall shows nothing new. Another pack that overrides `core/text` or `entity_outline.json`
   was loaded after it; the client uses improved transparency, an Iris shader pack without the client mod, or the Vulkan
   backend, which was never tested; the window is lower than the transport strip of the screens playing (a small window

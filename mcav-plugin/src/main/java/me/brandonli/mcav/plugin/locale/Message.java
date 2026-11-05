@@ -78,6 +78,15 @@ public interface Message extends LocaleTools {
   UniComponent<Integer> MCV2_SCREEN_ERROR = LocaleTools.direct("mcav.command.mcv2.screen.error", null);
 
   /**
+   * Key {@code mcav.command.mcv2.screen.duplicate}: more than one item frame in loaded chunks holds the map id given
+   * to an MCV2 command, so the command cannot tell which wall to play on. The argument names the map, the number of
+   * frames and the place of each, inserted at {@code <arg:0>}.
+   *
+   * @since 1.0.0
+   */
+  UniComponent<String> MCV2_SCREEN_DUPLICATE = LocaleTools.direct("mcav.command.mcv2.screen.duplicate", null);
+
+  /**
    * Key {@code mcav.command.mcv2.full}: every slot of the MCV2 pack plays a screen, so the screen just started shows
    * dithered maps.
    *
