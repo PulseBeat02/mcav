@@ -137,6 +137,7 @@ public final class FakeServer implements AutoCloseable {
   private void stubScheduler() {
     when(this.scheduler.runTaskTimer(any(Plugin.class), any(Runnable.class), anyLong(), anyLong())).thenAnswer(this::scheduleRepeating);
     when(this.scheduler.runTask(any(Plugin.class), any(Runnable.class))).thenAnswer(this::scheduleOnce);
+    when(this.scheduler.runTaskAsynchronously(any(Plugin.class), any(Runnable.class))).thenAnswer(this::scheduleOnce);
     when(this.scheduler.runTaskLater(any(Plugin.class), any(Runnable.class), anyLong())).thenAnswer(this::scheduleLater);
   }
 
@@ -153,6 +154,11 @@ public final class FakeServer implements AutoCloseable {
   private BukkitTask scheduleLater(final InvocationOnMock invocation) {
     final Runnable runnable = invocation.getArgument(1);
     return this.schedule(runnable, Repetition.ONCE, this.laterTasks);
+  }
+
+  // a static mock holds only on the thread that made it, so a worker thread that calls Bukkit needs its own
+  public MockedStatic<Bukkit> mockBukkitOnThisThread() {
+    return this.mockBukkit();
   }
 
   private MockedStatic<Bukkit> mockBukkit() {

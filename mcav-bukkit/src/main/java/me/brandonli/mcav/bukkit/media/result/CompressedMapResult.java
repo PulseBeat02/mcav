@@ -32,6 +32,7 @@ import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.ForkJoinWorkerThread;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import me.brandonli.mcav.bukkit.BukkitModule;
 import me.brandonli.mcav.bukkit.media.config.MapConfiguration;
 import me.brandonli.mcav.bukkit.media.map.DeltaMapEncoder;
 import me.brandonli.mcav.bukkit.media.map.MapLayout;
@@ -43,6 +44,15 @@ import me.brandonli.mcav.media.player.pipeline.filter.video.ResizeFilter;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.DitherResultStep;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.DitherAlgorithm;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.ParallelDitherAlgorithm;
+import org.bukkit.Bukkit;
+import org.bukkit.event.EventPriority;
+import org.bukkit.event.HandlerList;
+import org.bukkit.event.Listener;
+import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.plugin.EventExecutor;
+import org.bukkit.plugin.Plugin;
+import org.bukkit.plugin.PluginManager;
+import org.bukkit.scheduler.BukkitScheduler;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -56,8 +66,9 @@ import org.slf4j.LoggerFactory;
  * before it covers it and skipped otherwise, so a scene cut does not flood the connections of the viewers and they
  * never see parts of two frames. See {@link DeltaMapEncoder} for how the changes are found.
  *
- * <p>Players that start viewing while the video is playing, for example because they joined the server, first
- * receive the current picture once and then follow the updates like every other viewer.
+ * <p>Players that start viewing, for example because they joined the server, first receive the current picture once
+ * and then follow the updates like every other viewer. After {@link #start()}, a player who joins receives it at once,
+ * even while no frames arrive, such as while the video is paused; otherwise on the next frame.
  *
  * <p>When the frame size changes or a viewer starts watching again, pixels previously sent by this result but
  * outside the current snapshot are cleared. Cleanup leaves pixels never sent by this result untouched. Coverage history
@@ -77,7 +88,8 @@ import org.slf4j.LoggerFactory;
  *
  * <p>This class is thread-safe: processing, start and release are serialized by an internal lock. The result owns any
  * dithering pool it creates, but does not own the supplied algorithm. Release waits for the current process call to
- * leave the lock; start permits reuse, with a new encoder created on the next frame.
+ * leave the lock; start permits reuse, with a new encoder created on the next frame. The picture for a player who
+ * joins is sent from an asynchronous Bukkit task under the same lock, so the server thread never waits for a frame.
  *
  * {@snippet :
  * final CompressedMapResult result = new CompressedMapResult(configuration);
@@ -113,6 +125,7 @@ public final class CompressedMapResult implements DitherResultStep {
 
   private @Nullable DeltaMapEncoder encoder;
   private @Nullable ForkJoinPool ditherPool;
+  private @Nullable Listener joinListener;
   private boolean released;
 
   /**
@@ -152,16 +165,19 @@ public final class CompressedMapResult implements DitherResultStep {
   }
 
   /**
-   * Accepts frames again. The encoder itself is created lazily when the first frame arrives, because the frame size
-   * is unknown until then; this only undoes a previous {@link #release()}, so the same result can show a second
-   * video, the way every other result of this module can.
+   * Accepts frames again and listens for players who join, to send them the current picture. The encoder itself is
+   * created lazily when the first frame arrives, because the frame size is unknown until then. Starting undoes a
+   * previous {@link #release()}, so the same result can show a second video, the way every other result of this
+   * module can.
    *
+   * @throws IllegalStateException if no plugin has been injected
    * @since 1.0.0
    */
   @Override
   public void start() {
     this.lock.lock();
     try {
+      this.listenForJoins();
       this.released = false;
     } finally {
       this.lock.unlock();
@@ -169,8 +185,8 @@ public final class CompressedMapResult implements DitherResultStep {
   }
 
   /**
-   * Stops processing frames, shuts down the dithering threads, and clears the maps of every viewer. Frames that
-   * arrive after this method was called are ignored.
+   * Stops processing frames and listening for joins, shuts down the dithering threads, and clears the maps of every
+   * viewer. Frames that arrive after this method was called are ignored.
    *
    * @since 1.0.0
    */
@@ -183,6 +199,7 @@ public final class CompressedMapResult implements DitherResultStep {
       }
 
       this.released = true;
+      this.stopListeningForJoins();
       this.encoder = null;
       this.activeViewers.clear();
       this.sentPixels.clear();
@@ -198,6 +215,48 @@ public final class CompressedMapResult implements DitherResultStep {
     } finally {
       this.lock.unlock();
     }
+  }
+
+  private void listenForJoins() {
+    if (this.joinListener != null) {
+      return;
+    }
+
+    final Plugin plugin = BukkitModule.getPlugin();
+    final Listener listener = new Listener() {};
+    final EventExecutor executor = (_, _) -> this.sendToNewViewersLater(plugin);
+    final PluginManager pluginManager = Bukkit.getPluginManager();
+    pluginManager.registerEvent(PlayerJoinEvent.class, listener, EventPriority.MONITOR, executor, plugin);
+    this.joinListener = listener;
+  }
+
+  private void sendToNewViewersLater(final Plugin plugin) {
+    final BukkitScheduler scheduler = Bukkit.getScheduler();
+    scheduler.runTaskAsynchronously(plugin, this::sendToNewViewers);
+  }
+
+  private void sendToNewViewers() {
+    this.lock.lock();
+    try {
+      final DeltaMapEncoder currentEncoder = this.encoder;
+      if (currentEncoder == null) {
+        return;
+      }
+
+      this.sendToViewers(currentEncoder, List.of());
+    } finally {
+      this.lock.unlock();
+    }
+  }
+
+  private void stopListeningForJoins() {
+    final Listener listener = this.joinListener;
+    if (listener == null) {
+      return;
+    }
+
+    HandlerList.unregisterAll(listener);
+    this.joinListener = null;
   }
 
   private void clearMaps() {

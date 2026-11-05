@@ -25,8 +25,12 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -61,17 +65,30 @@ import me.brandonli.mcav.bukkit.utils.PacketUtils;
 import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.DitherAlgorithm;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.ParallelDitherAlgorithm;
+import net.kyori.adventure.text.Component;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientboundMapItemDataPacket;
 import net.minecraft.world.level.saveddata.maps.MapId;
 import net.minecraft.world.level.saveddata.maps.MapItemSavedData;
 import org.apache.logging.log4j.Level;
+import org.bukkit.Bukkit;
+import org.bukkit.entity.Player;
+import org.bukkit.event.EventException;
+import org.bukkit.event.EventPriority;
+import org.bukkit.event.HandlerList;
+import org.bukkit.event.Listener;
+import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.plugin.EventExecutor;
+import org.bukkit.plugin.Plugin;
+import org.bukkit.plugin.PluginManager;
+import org.bukkit.plugin.RegisteredListener;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
+import org.mockito.ArgumentCaptor;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
@@ -107,6 +124,11 @@ final class CompressedMapResultTest {
     this.server.addPlayer(FIRST);
     this.server.injectModule();
 
+    final PluginManager pluginManager = this.server.getPluginManager();
+    doAnswer(this::registerJoinListener)
+      .when(pluginManager)
+      .registerEvent(eq(PlayerJoinEvent.class), any(Listener.class), any(EventPriority.class), any(EventExecutor.class), any(Plugin.class));
+
     final List<UUID> initialViewers = List.of(FIRST, SECOND);
     this.viewers = new CopyOnWriteArrayList<>(initialViewers);
     this.nextFrame = MapPackets.pattern(MAP_SIZE * MAP_SIZE, 4);
@@ -116,7 +138,21 @@ final class CompressedMapResultTest {
 
   @AfterEach
   void stopServer() {
+    HandlerList.unregisterAll();
     this.server.close();
+  }
+
+  // a real handler list shows whether a released result still listens
+  private @Nullable Object registerJoinListener(final InvocationOnMock invocation) {
+    final Listener listener = invocation.getArgument(1);
+    final EventPriority priority = invocation.getArgument(2);
+    final EventExecutor executor = invocation.getArgument(3);
+    final Plugin plugin = invocation.getArgument(4);
+    final RegisteredListener registered = new RegisteredListener(listener, executor, priority, plugin, false);
+    final HandlerList handlers = PlayerJoinEvent.getHandlerList();
+    handlers.register(registered);
+
+    return null;
   }
 
   private MapConfiguration createConfiguration(final int columns, final int rows, final Sizing sizing) {
@@ -355,6 +391,158 @@ final class CompressedMapResultTest {
     MapPackets.assertMapPacket(snapshotPacket, 3, 0, 0, MAP_SIZE, MAP_SIZE, firstFrame);
     MapPackets.assertMapPacket(firstDeltaPacket, 3, 0, 0, 16, 16, tileColors);
     MapPackets.assertMapPacket(secondDeltaPacket, 3, 0, 0, 16, 16, tileColors);
+  }
+
+  @Test
+  void shouldSendTheCurrentPictureToAViewerWhoJoinsWhileNoFrameArrives() throws EventException {
+    final MapConfiguration configuration = this.createConfiguration(1, 1, Sizing.ORIGINAL);
+    final CompressedMapResult result = new CompressedMapResult(configuration, LARGE_BYTE_BUDGET);
+    final byte[] firstFrame = this.nextFrame.clone();
+    try (final ImageBuffer image = Images.solid(MAP_SIZE, MAP_SIZE, BLACK)) {
+      result.start();
+      result.process(image, this.algorithm);
+      this.join(SECOND);
+
+      final int secondPacketCount = this.secondViewerPacketCount();
+      assertEquals(1, secondPacketCount, "the joining viewer does not wait for the next frame");
+
+      final List<ClientboundMapItemDataPacket> snapshot = this.packetsOf(SECOND, 0);
+      final int snapshotSize = snapshot.size();
+      assertEquals(1, snapshotSize);
+
+      MapPackets.assertMapPacket(snapshot.getFirst(), 3, 0, 0, MAP_SIZE, MAP_SIZE, firstFrame);
+      final int firstPacketCount = this.firstViewerPacketCount();
+      assertEquals(1, firstPacketCount, "a viewer who already watches is sent nothing for a join");
+
+      this.nextFrame = this.changedFrame();
+      assertTimeoutPreemptively(
+        TIMEOUT,
+        () -> this.runInAnotherThread(() -> result.process(image, this.algorithm)),
+        "the send to the joining viewer releases the lock again"
+      );
+      final byte[] changed = this.topLeftTile(this.nextFrame);
+      final List<ClientboundMapItemDataPacket> firstDelta = this.packetsOf(FIRST, 1);
+      final List<ClientboundMapItemDataPacket> secondDelta = this.packetsOf(SECOND, 1);
+      MapPackets.assertMapPacket(firstDelta.getFirst(), 3, 0, 0, 16, 16, changed);
+      MapPackets.assertMapPacket(secondDelta.getFirst(), 3, 0, 0, 16, 16, changed);
+    } finally {
+      result.release();
+    }
+  }
+
+  private void join(final UUID uuid) throws EventException {
+    final Player player = this.server.addPlayer(uuid);
+    PacketUtils.initialize();
+
+    final Listener listener = this.joinListener();
+    final EventExecutor executor = this.joinExecutor();
+    final PlayerJoinEvent event = new PlayerJoinEvent(player, (Component) null);
+    executor.execute(listener, event);
+    this.server.runTasks();
+  }
+
+  private Listener joinListener() {
+    final ArgumentCaptor<Listener> listeners = ArgumentCaptor.forClass(Listener.class);
+    final PluginManager pluginManager = this.server.getPluginManager();
+    verify(pluginManager, atLeastOnce()).registerEvent(
+      eq(PlayerJoinEvent.class),
+      listeners.capture(),
+      eq(EventPriority.MONITOR),
+      any(EventExecutor.class),
+      any(Plugin.class)
+    );
+    return listeners.getValue();
+  }
+
+  private EventExecutor joinExecutor() {
+    final ArgumentCaptor<EventExecutor> executors = ArgumentCaptor.forClass(EventExecutor.class);
+    final PluginManager pluginManager = this.server.getPluginManager();
+    verify(pluginManager, atLeastOnce()).registerEvent(
+      eq(PlayerJoinEvent.class),
+      any(Listener.class),
+      eq(EventPriority.MONITOR),
+      executors.capture(),
+      any(Plugin.class)
+    );
+    return executors.getValue();
+  }
+
+  private int secondViewerPacketCount() {
+    final List<Packet<?>> packets = this.server.getSentPackets(SECOND);
+    return packets.size();
+  }
+
+  @Test
+  void shouldSendNothingToAViewerWhoJoinsBeforeTheFirstFrame() throws EventException {
+    final MapConfiguration configuration = this.createConfiguration(1, 1, Sizing.ORIGINAL);
+    final CompressedMapResult result = new CompressedMapResult(configuration, LARGE_BYTE_BUDGET);
+    try {
+      result.start();
+      this.join(SECOND);
+
+      final int firstPacketCount = this.firstViewerPacketCount();
+      final int secondPacketCount = this.secondViewerPacketCount();
+      assertEquals(0, firstPacketCount);
+      assertEquals(0, secondPacketCount, "there is no picture before the first frame");
+    } finally {
+      result.release();
+    }
+  }
+
+  @Test
+  void shouldSendNothingToAViewerWhoJoinsAfterTheRelease() throws EventException {
+    final MapConfiguration configuration = this.createConfiguration(1, 1, Sizing.ORIGINAL);
+    final CompressedMapResult result = new CompressedMapResult(configuration, LARGE_BYTE_BUDGET);
+    try (final ImageBuffer image = Images.solid(MAP_SIZE, MAP_SIZE, BLACK)) {
+      result.start();
+      result.process(image, this.algorithm);
+    }
+
+    final Listener listener = this.joinListener();
+    final boolean listeningWhileStarted = this.isListeningForJoins(listener);
+    assertTrue(listeningWhileStarted);
+
+    result.release();
+    final boolean listeningAfterRelease = this.isListeningForJoins(listener);
+    assertFalse(listeningAfterRelease, "a released result stops listening for joins");
+
+    this.join(SECOND);
+    final int secondPacketCount = this.secondViewerPacketCount();
+    assertEquals(0, secondPacketCount, "a join already under way finds no picture after the release");
+  }
+
+  private boolean isListeningForJoins(final Listener listener) {
+    final HandlerList handlers = PlayerJoinEvent.getHandlerList();
+    final RegisteredListener[] registered = handlers.getRegisteredListeners();
+    return Arrays.stream(registered).map(RegisteredListener::getListener).anyMatch(listener::equals);
+  }
+
+  @Test
+  void shouldListenForJoinsOnceWhenStartedTwice() {
+    final MapConfiguration configuration = this.createConfiguration(1, 1, Sizing.ORIGINAL);
+    final CompressedMapResult result = new CompressedMapResult(configuration, LARGE_BYTE_BUDGET);
+    try {
+      result.start();
+      result.start();
+      this.verifyJoinRegistrations(1);
+
+      result.release();
+      result.start();
+      this.verifyJoinRegistrations(2);
+    } finally {
+      result.release();
+    }
+  }
+
+  private void verifyJoinRegistrations(final int count) {
+    final PluginManager pluginManager = this.server.getPluginManager();
+    verify(pluginManager, times(count)).registerEvent(
+      eq(PlayerJoinEvent.class),
+      any(Listener.class),
+      eq(EventPriority.MONITOR),
+      any(EventExecutor.class),
+      any(Plugin.class)
+    );
   }
 
   @Test
@@ -1014,7 +1202,9 @@ final class CompressedMapResultTest {
 
   private void restart(final CompressedMapResult result, final ImageBuffer image, final CountDownLatch restarting) {
     restarting.countDown();
-    result.start();
+    try (final MockedStatic<Bukkit> _ = this.server.mockBukkitOnThisThread()) {
+      result.start();
+    }
     result.process(image, this.algorithm);
   }
 
