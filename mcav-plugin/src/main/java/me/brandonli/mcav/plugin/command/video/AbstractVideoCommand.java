@@ -17,6 +17,8 @@
  */
 package me.brandonli.mcav.plugin.command.video;
 
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.base.Equivalence;
 import com.google.common.base.Preconditions;
 import java.io.File;
@@ -711,7 +713,7 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
   private Duration readDuration(final FileSource file) {
     try {
       final Optional<Duration> duration = MetadataUtils.parseDuration(file);
-      return duration.orElse(Duration.ZERO);
+      return requireNonNull(duration.orElse(Duration.ZERO)); // checker framework
     } catch (final InputMetadataException exception) {
       final Path path = file.getPath();
       LOGGER.debug("The length of {} could not be read, so its hologram shows no progress.", path, exception);
