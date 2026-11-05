@@ -142,6 +142,9 @@ final class AbstractVideoCommandTest {
 
   private static final String FATAL_FAILURE_MESSAGE = "fatal sentinel!";
 
+  private static final String ERROR_LEVEL = "ERROR";
+  private static final String STACK_FRAME = "\tat ";
+
   @TempDir
   private Path folder;
 
@@ -611,12 +614,13 @@ final class AbstractVideoCommandTest {
 
   @ParameterizedTest
   @CsvSource({
-    "file:///home/minecraft/world/level.dat, https://cdn.example.com/audio",
-    "https://cdn.example.com/video, concat:/etc/hostname",
-    "http://cdn.example.com/video, file:///etc/hostname",
-    "tcp://127.0.0.1:25575, https://cdn.example.com/audio",
+    "file:///home/minecraft/world/level.dat, https://cdn.example.com/audio, file",
+    "https://cdn.example.com/video, concat:/etc/hostname, concat",
+    "http://cdn.example.com/video, file:///etc/hostname, file",
+    "tcp://127.0.0.1:25575, https://cdn.example.com/audio, tcp",
   })
-  void shouldRefuseStreamsOfAWebPageThatAreNotOnTheWeb(final String videoStream, final String audioStream) throws IOException {
+  void shouldRefuseStreamsOfAWebPageThatAreNotOnTheWeb(final String videoStream, final String audioStream, final String scheme)
+    throws IOException {
     final UrlParseDump resolved = GsonProvider.getSimple().fromJson("{}", UrlParseDump.class);
     when(this.parser.parse(any(UriSource.class))).thenReturn(resolved);
     final UriSource videoStreamSource = UriSource.uri(URI.create(videoStream));
@@ -625,8 +629,7 @@ final class AbstractVideoCommandTest {
 
     this.playWebPage(strategies, "");
 
-    final Component error = Message.VIDEO_START_ERROR.build();
-    this.assertSenderReceived(error);
+    this.assertRefusedForScheme(scheme);
     verify(this.player, never()).start(any(), any());
     verify(this.manager, never()).setPlayer(any());
     this.assertNotStarting();
@@ -682,13 +685,11 @@ final class AbstractVideoCommandTest {
       output = errors.getOutput();
     }
 
-    final Component error = Message.VIDEO_START_ERROR.build();
-    this.assertSenderReceived(error);
+    this.assertRefusedForScheme(scheme);
     verify(this.player, never()).start(any(), any());
 
-    final String refusal = "whose scheme %s is not http or https!".formatted(scheme);
-    final boolean refused = output.contains(refusal);
-    assertTrue(refused, output);
+    final boolean logged = output.contains(ERROR_LEVEL) || output.contains(STACK_FRAME);
+    assertFalse(logged, output);
   }
 
   private String createVideoFormat(final String url) {
@@ -720,6 +721,12 @@ final class AbstractVideoCommandTest {
     assertEquals(expectedAudio, audio);
   }
 
+  private void assertRefusedForScheme(final String scheme) {
+    final String reason = "yt-dlp reported a stream of %s whose scheme %s is not http or https!".formatted(WEB_PAGE, scheme);
+    final Component refused = Message.VIDEO_STREAM_REFUSED.build(reason);
+    this.assertSenderReceived(refused);
+  }
+
   @Test
   void shouldReportWebPagesThatYtdlpCannotResolve() {
     when(this.parser.parse(any(UriSource.class))).thenThrow(new InstallationException("offline!"));
@@ -731,6 +738,24 @@ final class AbstractVideoCommandTest {
     verify(this.manager, never()).clearCurrentVideo();
     verify(this.manager, never()).setPlayer(any());
     this.assertNotStarting();
+  }
+
+  @Test
+  void shouldLogAPageThatYtdlpCannotResolveAsAnErrorWithItsTrace() {
+    when(this.parser.parse(any(UriSource.class))).thenThrow(new InstallationException("offline!"));
+
+    final String output;
+    try (final StandardErrorCapture errors = StandardErrorCapture.start()) {
+      this.play(PlayerArgument.FFMPEG, AudioArgument.NONE, WEB_PAGE, "");
+      output = errors.getOutput();
+    }
+
+    final Component error = Message.VIDEO_START_ERROR.build();
+    this.assertSenderReceived(error);
+
+    final boolean logged =
+      output.contains(ERROR_LEVEL) && output.contains(STACK_FRAME) && output.contains("could not be resolved by yt-dlp!");
+    assertTrue(logged, output);
   }
 
   @Test
