@@ -36,16 +36,21 @@ public final class FfmpegExtractorExample {
 
   private static final String OUTPUT_FILE_NAME = "output.ogg";
 
-  private FfmpegExtractorExample() {}
+  private FfmpegExtractorExample() {
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
+  }
 
   static void main() throws IOException {
     final MCAVApi api = MCAV.api();
     try {
       api.install();
+
       final CompletableFuture<Boolean> ready = api.whenCapabilityReady(Capability.YT_DLP);
       final boolean available = ready.join();
       if (!available) {
-        throw new IllegalStateException("yt-dlp is unavailable!");
+        final String message = "yt-dlp is unavailable!";
+        throw new IllegalStateException(message);
       }
 
       final URI uri = URI.create("https://www.youtube.com/watch?v=dQw4w9WgXcQ");
@@ -65,7 +70,7 @@ public final class FfmpegExtractorExample {
 
       final CommandTask task = command.createTask();
       task.runChecked();
-      System.out.println("Wrote " + absolute);
+      System.out.println("Wrote %s".formatted(absolute));
     } finally {
       api.release();
     }

@@ -87,10 +87,12 @@ final class RenderThreadFailureTest {
     }
 
     if (failureSite == 1) {
-      throw new IllegalStateException("handler will fail!");
+      final String message = "handler will fail!";
+      throw new IllegalStateException(message);
     }
 
-    throw new InterruptedException("natural loop exit!");
+    final String message = "natural loop exit!";
+    throw new InterruptedException(message);
   }
 
   private void recordCleanup(

@@ -48,7 +48,8 @@ public final class DitherUtils {
   private static final String PALETTE_NULL_MESSAGE = "Palette must not be null!";
 
   private DitherUtils() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   /**
@@ -115,7 +116,7 @@ public final class DitherUtils {
   private static void checkChannels(final int red, final int green, final int blue) {
     final int combined = red | green | blue;
     final boolean inRange = (combined & ~CHANNEL_MASK) == 0;
-    Preconditions.checkArgument(inRange, "Color components %s, %s and %s must be between 0 and 255!", red, green, blue);
+    Preconditions.checkArgument(inRange, "Color components %s, %s and %s must be between 0 and 255 inclusive!", red, green, blue);
   }
 
   /**

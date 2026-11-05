@@ -124,7 +124,8 @@ final class QemuHardwareValuesPropertyTest {
     };
     assertDoesNotThrow(() -> QemuHardwareValues.check(option, validBase));
 
-    final String value = validBase + PROPERTY_SEPARATOR + property + VALUE_SEPARATOR + prefix.replace(PROPERTY_SEPARATOR, "") + "file";
+    final String strippedPrefix = prefix.replace(PROPERTY_SEPARATOR, "");
+    final String value = "%s%s%s%s%sfile".formatted(validBase, PROPERTY_SEPARATOR, property, VALUE_SEPARATOR, strippedPrefix);
     assertThrows(IllegalArgumentException.class, () -> QemuHardwareValues.check(option, value));
   }
 
@@ -143,6 +144,6 @@ final class QemuHardwareValuesPropertyTest {
     @ForAll final String value
   ) {
     final String part = property + VALUE_SEPARATOR + value.replace(PROPERTY_SEPARATOR, "");
-    assertThrows(IllegalArgumentException.class, () -> QemuHardwareValues.checkDriveProperty(part, "file=disk.img," + part));
+    assertThrows(IllegalArgumentException.class, () -> QemuHardwareValues.checkDriveProperty(part, "file=disk.img,%s".formatted(part)));
   }
 }

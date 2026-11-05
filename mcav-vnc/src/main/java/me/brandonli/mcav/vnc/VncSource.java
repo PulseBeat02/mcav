@@ -120,7 +120,7 @@ public interface VncSource extends DynamicSource {
   int getTargetFrameRate();
 
   /**
-   * Builds a diagnostic resource identifier from the host and port, without credentials.
+   * Returns a diagnostic resource identifier built from the host and port, without credentials.
    *
    * @return {@code vnc://} followed by the host verbatim, a colon and the decimal port; this does not
    *         escape or bracket the host and is not a general-purpose URI serializer

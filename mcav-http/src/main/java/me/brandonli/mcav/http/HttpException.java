@@ -23,14 +23,14 @@ import me.brandonli.mcav.MCAVException;
 /**
  * Thrown when the HTTP server cannot be started, for example because the port is already in use.
  *
- * <p>This is the base exception of the module and an {@link MCAVException}: starting the server depends on the
+ * <p>This is the module's own exception and an {@link MCAVException}: starting the server depends on the
  * machine, such as another program that already listens on the port, not on the state of the server object or on a
  * programming error. It is unchecked, so a caller that cannot recover does not have to declare it, and a caller that
  * can recover catches it and tries another port.
  *
  * @since 1.0.0
  */
-public class HttpException extends MCAVException {
+public final class HttpException extends MCAVException {
 
   @Serial
   private static final long serialVersionUID = -4536819561346624904L;

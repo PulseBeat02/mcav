@@ -24,8 +24,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Tag
 
-// The sources of every module are masked before the lint tasks search them, so any text must come out with its
-// length and its line breaks in place, and with each character either kept or blanked.
+// The lint tasks search masked sources, so any text must keep its length and line breaks, each character kept or blanked.
 @Tag("fuzz")
 class JavaSourceFuzzTest {
 

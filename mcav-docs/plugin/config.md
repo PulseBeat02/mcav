@@ -26,7 +26,7 @@ discord-bot:
   # Whether or not the bot is enabled
   enabled: false
 
-  # The token of the discord bot
+  # The token of the Discord bot
   # Default is none
   token: none
 
@@ -42,17 +42,17 @@ discord-bot:
 # HTTP WEBSITE CONFIGURATION
 # ======================================================================
 
-# This is the HTTP server that plays audio into onto a website using the following options.
+# This is the HTTP server that plays audio on the audio web page using the following options.
 http-server:
 
   # Whether or not the HTTP server is enabled
   enabled: false
 
-  # The host name of the daemon (for example, google.com)
+  # The host name in the link players are sent (for example, play.example.com)
   # Default is localhost
   host-name: localhost
 
-  # The port of the daemon (for example, 3000)
+  # The port of the HTTP server (for example, 3000)
   # Default is 3000
   port: 3000
 
@@ -88,7 +88,7 @@ mcv2:
   # Default is auto
   native: auto
 
-  # How a wall of maps shows its picture when the command that starts it has no --codec flag: dither, map colours
+  # How a wall of maps shows its picture when the command that starts it has no --codec flag: dither, map colors
   # every client shows, or mcv2, the MCV2 resource pack's decoder at the resolution the command asks for, which the
   # players are offered and may decline (those who do see the dithered maps). /mcav video map, /mcav image map,
   # /mcav browser create, /mcav vm create and /mcav vnc create take the flag, for example --codec mcv2.
@@ -133,7 +133,7 @@ mcv2:
 #       password: secret
 vnc:
 
-  # Default is none
+  # Default is []
   allowed-hosts: []
 
 # ======================================================================
@@ -156,9 +156,9 @@ browser:
   # Default is false
   javascript-jit: false
 
-  # Whether pages play sound right away. Off, a page plays sound only once a player clicked its screen or typed into
-  # it, as in a desktop browser, so a page cannot play sound before anyone looked at it. Turn it on for a screen that
-  # should play a video with sound as soon as it opens.
+  # Whether pages play sound right away. Off, a page plays sound only once a player has clicked its screen or typed into
+  # it, as in a desktop browser, so a page cannot play sound before anyone has looked at it. Turn it on for a screen
+  # that should play a video with sound as soon as it opens.
   # Default is false
   autoplay-sound: false
 
@@ -207,12 +207,13 @@ sent. On Linux and macOS, ports below 1024 need administrator rights, so keep th
 The page keeps a tenth of a second of sound ahead of what it plays, so a short hold-up of the connection does not
 break the sound. Sound that arrives while the browser's audio is still starting, such as for a player who opens the
 page while a video plays, or all at once after a stalled connection, is dropped instead of delaying everything after
-it. Measured with a vanilla client drawing in software and a browser playing into a virtual sound device, the sound
-left the device 0.1 to 0.15 s after the wall showed the same moment.
+it. With a vanilla client drawing in software and a browser playing into a virtual sound device, the sound
+leaves the device 0.1 to 0.15 s after the wall shows the same moment.
 
 The Discord bot and the web page start in the background, so they never delay the server start. The console reports
-when each output is ready: `The audio web page is available at <link>.` for the web page and
-`Simple Voice Chat audio is ready.` for Simple Voice Chat. If the Discord bot or the web page cannot start, the plugin
+when the web page and Simple Voice Chat audio are ready: `Audio web page <link> is available.` and
+`Simple Voice Chat audio is ready.`; the Discord bot logs only when it cannot connect. If the Discord bot or the web
+page cannot start, the plugin
 logs an error and that output stays off without affecting the rest of the plugin; until an output is ready, video
 commands that use it tell the player so.
 
@@ -220,7 +221,7 @@ Simple Voice Chat audio is checked when the plugin starts: if `simple-voice-chat
 Voice Chat plugin (`voicechat`) is not installed, MCAV logs one error line and disables itself:
 
 ```text
-MCAV cannot be enabled: Simple Voice Chat audio is enabled, but the voicechat plugin is not installed! To fix it, install the Simple Voice Chat plugin or set simple-voice-chat.enabled to false in config.yml.
+MCAV cannot be enabled: Simple Voice Chat audio is enabled, but the Simple Voice Chat plugin is not installed! To fix it, install the Simple Voice Chat plugin or set simple-voice-chat.enabled to false in config.yml.
 ```
 
 Install the plugin or set the option to `false`, then restart the server.
@@ -231,7 +232,7 @@ addresses, public ones included. Turn on
 every page they open and every player who may click on it reach services that only the server can reach, such as a
 router, a database console or the metadata service of a cloud server. `browser.javascript-jit` makes pages with heavy
 scripts faster, at the cost of the protection described in the [browser module](../library/browser.md#security).
-`browser.autoplay-sound` lets pages play sound before a player clicked their screen.
+`browser.autoplay-sound` lets pages play sound before a player clicks their screen.
 
 The browser keeps what it downloads in the MCAV cache folder of the user running the server, like VLC and yt-dlp:
 Chromium in `~/.mcav/cache/jcef` (about 136 to 163 MiB) and, on Linux, the libraries it needs that the server lacks in
@@ -240,7 +241,7 @@ has no setting of its own; delete it to download everything again.
 
 A virtual machine's guest gets a network card that reaches nothing, neither the internet nor the server.
 `vm.allow-network` gives it QEMU's own user-mode network instead, which reaches the internet and every service the
-server offers only on its loopback address. Where a machine's sound plays is chosen with the audio type of
+server offers only on its loopback address. You choose where a machine's sound plays with the audio type of
 `/mcav vm create`, and MCAV gives an `X86_64` machine its sound card itself.
 
 ## MCV2

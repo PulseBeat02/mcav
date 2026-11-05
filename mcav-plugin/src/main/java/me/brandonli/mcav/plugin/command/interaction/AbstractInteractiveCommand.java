@@ -53,6 +53,8 @@ import me.brandonli.mcav.plugin.command.AnnotationCommandFeature;
 import me.brandonli.mcav.plugin.command.MapDisplaySettings;
 import me.brandonli.mcav.plugin.command.video.Mcv2Output;
 import me.brandonli.mcav.plugin.command.video.Mcv2Support;
+import me.brandonli.mcav.plugin.data.PluginDataConfigurationMapper;
+import me.brandonli.mcav.plugin.listener.OnlinePlayers;
 import me.brandonli.mcav.plugin.locale.Message;
 import me.brandonli.mcav.plugin.utils.ArgumentUtils;
 import me.brandonli.mcav.plugin.utils.AudioArgument;
@@ -95,6 +97,7 @@ import org.bukkit.projectiles.ProjectileSource;
 import org.bukkit.util.RayTraceResult;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.incendo.cloud.annotations.AnnotationParser;
+import org.incendo.cloud.bukkit.data.MultiplePlayerSelector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -117,12 +120,17 @@ import org.slf4j.LoggerFactory;
  */
 public abstract class AbstractInteractiveCommand<PlayerType> implements AnnotationCommandFeature, Listener {
 
+  private static final String SENDER_NULL_MESSAGE = "Sender must not be null!";
+  private static final String TEXT_NULL_MESSAGE = "Text must not be null!";
+  private static final String EVENT_NULL_MESSAGE = "Event must not be null!";
+
   private static final Equivalence<Object> IDENTITY = Equivalence.identity();
+
   private static final Logger LOGGER = LoggerFactory.getLogger(AbstractInteractiveCommand.class);
-  private static final String START_FAILED = "Starting {} failed.";
+
   private static final PlainTextComponentSerializer PLAIN_TEXT = PlainTextComponentSerializer.plainText();
+
   private static final int REACH = 100;
-  private static final String CANNOT_RELEASE = "A player failed to stop.";
 
   private static final double HALF_BLOCK = 0.5;
 
@@ -142,6 +150,7 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
 
   private final Set<Player> activePlayers;
   private final Object lock;
+
   private volatile @Nullable Screen screen;
   private boolean closed;
 
@@ -151,7 +160,7 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
    *
    * @since 1.0.0
    */
-  protected volatile @Nullable FunctionalVideoFilter result;
+  protected volatile @Nullable FunctionalVideoFilter output;
 
   /**
    * The running player. Changed only while holding the lock of this command.
@@ -165,20 +174,14 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
   private volatile @Nullable AudioProvider soundProvider;
 
   /**
-   * Constructs the command and the thread that starts its players.
+   * Creates the command and the thread that starts its players.
    *
    * @param plugin the plugin
+   * @throws NullPointerException if {@code plugin} is null
    * @since 1.0.0
    */
   protected AbstractInteractiveCommand(final MCAVSandbox plugin) {
-    Preconditions.checkNotNull(plugin, "Plugin must not be null!");
-
-    this.plugin = plugin;
-    this.service = Executors.newSingleThreadExecutor();
-    final WeakHashMap<Player, Boolean> backing = new WeakHashMap<>();
-    final Set<Player> players = Collections.newSetFromMap(backing);
-    this.activePlayers = Collections.synchronizedSet(players);
-    this.lock = new Object();
+    this(plugin, Executors.newSingleThreadExecutor());
   }
 
   AbstractInteractiveCommand(final MCAVSandbox plugin, final ExecutorService service) {
@@ -197,6 +200,7 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
    * Registers this command as a listener, so clicks on screens and chat messages reach the running player.
    *
    * @param parser the parser the annotations of this command are about to be parsed with
+   * @throws NullPointerException if {@code parser} is null
    * @since 1.0.0
    */
   @Override
@@ -237,19 +241,19 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
    */
   protected final void releaseCurrent() {
     final PlayerType current;
-    final FunctionalVideoFilter maps;
+    final FunctionalVideoFilter output;
     final Screen oldScreen;
     synchronized (this.lock) {
       current = this.player;
-      maps = this.result;
+      output = this.output;
       oldScreen = this.screen;
       this.player = null;
-      this.result = null;
+      this.output = null;
       this.screen = null;
     }
     final boolean workerOwnsCleanup = oldScreen != null && oldScreen.cancel();
     final @Nullable PlayerType releasable = workerOwnsCleanup ? null : current;
-    CleanupUtils.runAll(() -> this.releasePlayerIfPresent(releasable), () -> this.releaseMapsIfPresent(maps));
+    CleanupUtils.runAll(() -> this.releasePlayerIfPresent(releasable), () -> this.releaseOutputIfPresent(output));
   }
 
   private void releasePlayerIfPresent(final @Nullable PlayerType player) {
@@ -258,9 +262,9 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
     }
   }
 
-  private void releaseMapsIfPresent(final @Nullable FunctionalVideoFilter maps) {
-    if (maps != null) {
-      maps.release();
+  private void releaseOutputIfPresent(final @Nullable FunctionalVideoFilter output) {
+    if (output != null) {
+      output.release();
     }
   }
 
@@ -286,7 +290,7 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
       release.run();
     } catch (final RuntimeException | Error exception) {
       ThrowableUtils.throwIfFatal(exception);
-      LOGGER.error(CANNOT_RELEASE, exception);
+      LOGGER.error("A player failed to stop.", exception);
     }
   }
 
@@ -299,7 +303,8 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
     final AudioProvider provider = this.plugin.getAudioProvider();
     this.soundProvider = provider;
     final UrlParseDump dump = UrlParseDump.of(title);
-    final AudioFilter filter = provider.constructFilter(type, dump, sound.getViewers(), owner);
+    final Player[] viewers = sound.getViewers();
+    final AudioFilter filter = provider.constructFilter(type, dump, viewers, owner);
     audio.attach(AudioPipelineStep.of(filter));
   }
 
@@ -323,7 +328,9 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
 
   private void sendSoundLinkUnlessCancelled(final AudioProvider provider, final Screen screen, final ScreenSound sound) {
     if (!screen.isCancelled()) {
-      AudioOutputs.sendLink(provider, sound.getType(), sound.getViewers());
+      final AudioArgument type = sound.getType();
+      final Player[] viewers = sound.getViewers();
+      AudioOutputs.sendLink(provider, type, viewers);
     }
   }
 
@@ -345,8 +352,8 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
    * @since 1.0.0
    */
   protected static Optional<Pair<Integer, Integer>> parseDimensions(final CommandSender sender, final String text) {
-    Preconditions.checkNotNull(sender, "Sender must not be null!");
-    Preconditions.checkNotNull(text, "Text must not be null!");
+    Preconditions.checkNotNull(sender, SENDER_NULL_MESSAGE);
+    Preconditions.checkNotNull(text, TEXT_NULL_MESSAGE);
 
     try {
       final Pair<Integer, Integer> dimensions = ArgumentUtils.parseDimensions(text);
@@ -369,8 +376,8 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
    * @since 1.0.0
    */
   protected static Optional<Pair<Integer, Integer>> parseScreenDimensions(final CommandSender sender, final String text) {
-    Preconditions.checkNotNull(sender, "Sender must not be null!");
-    Preconditions.checkNotNull(text, "Text must not be null!");
+    Preconditions.checkNotNull(sender, SENDER_NULL_MESSAGE);
+    Preconditions.checkNotNull(text, TEXT_NULL_MESSAGE);
 
     try {
       final Pair<Integer, Integer> dimensions = ArgumentUtils.parseScreenDimensions(text);
@@ -387,16 +394,18 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
       Preconditions.checkState(!this.closed, "The interactive command is shut down!");
     }
     this.releaseCurrent();
-    final Collection<UUID> players = ArgumentUtils.parseViewers(settings.getViewers(), this.plugin.getOnlinePlayers());
+    final MultiplePlayerSelector viewers = settings.getViewers();
+    final OnlinePlayers onlinePlayers = this.plugin.getOnlinePlayers();
+    final Collection<UUID> players = ArgumentUtils.resolveViewers(viewers, onlinePlayers);
     final FunctionalVideoFilter output = this.createOutput(settings, players);
     synchronized (this.lock) {
-      this.result = output;
+      this.output = output;
     }
     try {
       return this.startScreen(settings, output);
     } catch (final RuntimeException | Error exception) {
       ThrowableUtils.throwIfFatal(exception);
-      this.releaseAfterFailure(exception);
+      this.cleanupAfterFailure(exception, this::releaseCurrent);
       throw exception;
     }
   }
@@ -408,26 +417,31 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
     final int columns = blocks.getFirst();
     final int rows = blocks.getSecond();
     final long mapCount = (long) columns * rows;
-    final VideoPipelineStep announcement = VideoPipelineStep.of(announceFirstPicture(mapId, mapCount, LOGGER::info));
+    final VideoPipelineStep announcement = VideoPipelineStep.of(this.announceFirstPicture(mapId, mapCount, LOGGER::info));
     final VideoPipelineStep pipeline = VideoPipelineStep.of(announcement, output);
     final Pair<Integer, Integer> resolution = settings.getResolution();
     final boolean stretched = output instanceof Mcv2Output;
-    final WallPicture picture = WallPicture.of(columns, rows, resolution.getFirst(), resolution.getSecond(), stretched);
+    final int width = resolution.getFirst();
+    final int height = resolution.getSecond();
+    final WallPicture picture = WallPicture.of(columns, rows, width, height, stretched);
     final Screen created = new Screen(output, pipeline, mapId, mapCount, picture);
     synchronized (this.lock) {
-      this.result = output;
+      this.output = output;
       this.screen = created;
     }
     return created;
   }
 
   final MapCodec chooseCodec(final @Nullable MapCodec flag) {
-    return flag != null ? flag : this.plugin.getConfiguration().getMcv2DefaultCodec();
+    final PluginDataConfigurationMapper configuration = this.plugin.getConfiguration();
+    final MapCodec defaultCodec = configuration.getMcv2DefaultCodec();
+    return flag != null ? flag : defaultCodec;
   }
 
   // releasing the output releases the maps
   private FunctionalVideoFilter createOutput(final ScreenSettings settings, final Collection<UUID> players) {
-    if (settings.getCodec() == MapCodec.MCV2) {
+    final MapCodec codec = settings.getCodec();
+    if (codec == MapCodec.MCV2) {
       final Mcv2Output output = this.createMcv2Output(settings, players);
       if (output != null) {
         return output;
@@ -444,10 +458,8 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
     final Mcv2Support support = this.plugin.getMcv2Support();
     final CommandSender sender = settings.getSender();
     final Optional<Mcv2Configuration> foundConfiguration = support.configure(sender, blocks, resolution, mapId, Settings.DEFAULT, players);
-    final @Nullable Mcv2Configuration configuration = foundConfiguration.orElse(null);
-    final Optional<Mcv2Output> foundOutput = configuration == null ? Optional.empty() : support.output(sender, configuration, dithering);
-    final @Nullable Mcv2Output output = foundOutput.orElse(null);
-    return output;
+    final Optional<Mcv2Output> output = foundConfiguration.flatMap(configuration -> support.output(sender, configuration, dithering));
+    return output.orElse(null);
   }
 
   private FunctionalVideoFilter createDitheredOutput(final ScreenSettings settings, final Collection<UUID> players) {
@@ -462,23 +474,19 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
       return DitherFilter.dither(algorithm, maps);
     } catch (final RuntimeException | Error exception) {
       ThrowableUtils.throwIfFatal(exception);
-      try {
-        maps.release();
-      } catch (final RuntimeException | Error cleanupException) {
-        ThrowableUtils.throwIfFatal(cleanupException);
-        exception.addSuppressed(cleanupException);
-      }
+      this.cleanupAfterFailure(exception, maps::release);
       throw exception;
     }
   }
 
-  static VideoFilter announceFirstPicture(final int mapId, final long mapCount, final Consumer<String> log) {
+  VideoFilter announceFirstPicture(final int mapId, final long mapCount, final Consumer<String> log) {
     final AtomicBoolean announced = new AtomicBoolean();
-    final String message = "Maps " + mapId + " to " + (mapId + mapCount - 1) + " show their first picture";
-    return (image, metadata) -> announceOnce(announced, message, log);
+    final long lastMapId = mapId + mapCount - 1;
+    final String message = "Maps %s to %s show their first picture.".formatted(mapId, lastMapId);
+    return (image, metadata) -> this.announceOnce(announced, message, log);
   }
 
-  private static boolean announceOnce(final AtomicBoolean announced, final String message, final Consumer<String> log) {
+  private boolean announceOnce(final AtomicBoolean announced, final String message, final Consumer<String> log) {
     if (announced.compareAndSet(false, true)) {
       log.accept(message);
     }
@@ -497,20 +505,8 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
       create.run();
     } catch (final RuntimeException | Error exception) {
       ThrowableUtils.throwIfFatal(exception);
-      this.releaseAfterFailure(exception);
+      this.cleanupAfterFailure(exception, this::releaseCurrent);
       throw exception;
-    }
-  }
-
-  private void releaseAfterFailure(final Throwable exception) {
-    try {
-      this.releaseCurrent();
-    } catch (final RuntimeException | Error cleanupException) {
-      ThrowableUtils.throwIfFatal(cleanupException);
-      final boolean same = IDENTITY.equivalent(exception, cleanupException);
-      if (!same) {
-        exception.addSuppressed(cleanupException);
-      }
     }
   }
 
@@ -578,29 +574,29 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
       }
     }
     screen.bindStart(start);
-    final FunctionalVideoFilter maps = screen.getOutput();
-    final StartAttempt<PlayerType> attempt = new StartAttempt<>(sender, started, maps, screen, description);
+    final FunctionalVideoFilter output = screen.getOutput();
+    final StartAttempt<PlayerType> attempt = new StartAttempt<>(sender, started, output, screen, description);
     TaskUtils.whenComplete(start, (succeeded, error) -> this.onStartCompleted(attempt, succeeded, error));
   }
 
   private void onStartCompleted(final StartAttempt<PlayerType> attempt, final @Nullable Boolean started, final @Nullable Throwable error) {
-    final Screen screen = attempt.getScreen();
+    final Screen screen = attempt.screen();
     if (screen.isCancelled()) {
       return;
     }
 
     final boolean succeeded = error == null && Boolean.TRUE.equals(started);
     if (!succeeded) {
-      final String description = attempt.getDescription();
-      LOGGER.error(START_FAILED, description, error);
-      final PlayerType failed = attempt.getPlayer();
-      final FunctionalVideoFilter maps = attempt.getMaps();
-      this.releaseIfCurrent(failed, maps);
+      final String description = attempt.description();
+      LOGGER.error("Starting {} failed.", description, error);
+      final PlayerType failed = attempt.player();
+      final FunctionalVideoFilter output = attempt.output();
+      this.releaseIfCurrent(failed, output);
     }
 
     final StartOutcome outcome = succeeded ? StartOutcome.STARTED : StartOutcome.FAILED;
     final Component message = this.createStartMessage(outcome, error);
-    final CommandSender sender = attempt.getSender();
+    final CommandSender sender = attempt.sender();
     TaskUtils.runOnMainThread(this.plugin, () -> this.sendUnlessCancelled(screen, sender, message));
   }
 
@@ -610,26 +606,26 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
     }
   }
 
-  // a player or maps no longer running were replaced and released by a newer command
-  private void releaseIfCurrent(final PlayerType failed, final FunctionalVideoFilter maps) {
+  // a player or output no longer running was replaced and released by a newer command
+  private void releaseIfCurrent(final PlayerType failed, final FunctionalVideoFilter output) {
     final boolean playerCurrent;
-    final boolean mapsCurrent;
+    final boolean outputCurrent;
     synchronized (this.lock) {
       final PlayerType current = this.player;
       playerCurrent = IDENTITY.equivalent(current, failed);
       if (playerCurrent) {
         this.player = null;
       }
-      mapsCurrent = IDENTITY.equivalent(maps, this.result);
-      if (mapsCurrent) {
-        this.result = null;
+      outputCurrent = IDENTITY.equivalent(output, this.output);
+      if (outputCurrent) {
+        this.output = null;
         this.screen = null;
       }
     }
 
     final @Nullable PlayerType releasable = playerCurrent ? failed : null;
-    final @Nullable FunctionalVideoFilter releasableMaps = mapsCurrent ? maps : null;
-    CleanupUtils.runAll(() -> this.releasePlayerIfPresent(releasable), () -> this.releaseMapsIfPresent(releasableMaps));
+    final @Nullable FunctionalVideoFilter releasableOutput = outputCurrent ? output : null;
+    CleanupUtils.runAll(() -> this.releasePlayerIfPresent(releasable), () -> this.releaseOutputIfPresent(releasableOutput));
   }
 
   /**
@@ -641,11 +637,12 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
    * {@link #getInteractionPermission()}. Other block breaks are left alone.
    *
    * @param event the block break
+   * @throws NullPointerException if {@code event} is null
    * @since 1.0.0
    */
   @EventHandler
   public void onBlockBreak(final BlockBreakEvent event) {
-    Preconditions.checkNotNull(event, "Event must not be null!");
+    Preconditions.checkNotNull(event, EVENT_NULL_MESSAGE);
 
     final PlayerType current = this.player;
     if (current == null) {
@@ -653,13 +650,13 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
     }
 
     final Player breaker = event.getPlayer();
-    final ItemFrame frame = this.findScreenInSight(breaker);
+    final ItemFrame frame = this.findScreenFrameInSight(breaker);
     final Screen shown = frame == null ? null : this.screenOf(frame);
     if (frame == null || shown == null) {
       return;
     }
 
-    final Optional<int[]> foundCoordinates = InteractUtils.getBoardCoordinates(breaker, frame);
+    final Optional<int[]> foundCoordinates = InteractUtils.findBoardCoordinates(breaker, frame);
     final int @Nullable [] coordinates = foundCoordinates.orElse(null);
     if (coordinates == null) {
       return;
@@ -667,7 +664,7 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
 
     // the wall stays intact whoever breaks the block, but only a player with the permission clicks with it
     event.setCancelled(true);
-    final boolean allowed = this.mayInteract(breaker);
+    final boolean allowed = this.canInteract(breaker);
     final int[] pixel = shown.toSource(coordinates[0], coordinates[1]);
     if (allowed && pixel != null) {
       this.forwardLeftClick(current, pixel[0], pixel[1]);
@@ -695,7 +692,7 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
     return current.ownsMap(mapId) ? current : null;
   }
 
-  private @Nullable ItemFrame findScreenInSight(final Player viewer) {
+  private @Nullable ItemFrame findScreenFrameInSight(final Player viewer) {
     final RayTraceResult ray = viewer.rayTraceBlocks(REACH, FluidCollisionMode.NEVER);
     if (ray == null) {
       return null;
@@ -706,31 +703,31 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
       return null;
     }
 
-    return this.findClosestScreen(block);
+    return this.findClosestScreenFrame(block);
   }
 
-  private @Nullable ItemFrame findClosestScreen(final Block block) {
+  private @Nullable ItemFrame findClosestScreenFrame(final Block block) {
     final Location location = block.getLocation();
     final World world = location.getWorld();
     final Collection<Entity> entities = world.getNearbyEntities(location, HALF_BLOCK, HALF_BLOCK, HALF_BLOCK);
     ItemFrame closest = null;
-    double closestDistance = Double.MAX_VALUE;
+    double closestDistanceSquared = Double.MAX_VALUE;
     for (final Entity entity : entities) {
-      final boolean isScreen = this.isScreen(entity);
-      if (!isScreen) {
+      final boolean screenFrame = this.isScreenFrame(entity);
+      if (!screenFrame) {
         continue;
       }
       final Location frameLocation = entity.getLocation();
-      final double distance = frameLocation.distanceSquared(location);
-      if (distance < closestDistance) {
-        closestDistance = distance;
+      final double distanceSquared = frameLocation.distanceSquared(location);
+      if (distanceSquared < closestDistanceSquared) {
+        closestDistanceSquared = distanceSquared;
         closest = (ItemFrame) entity;
       }
     }
     return closest;
   }
 
-  private boolean isScreen(final Entity entity) {
+  private boolean isScreenFrame(final Entity entity) {
     if (!(entity instanceof final ItemFrame frame)) {
       return false;
     }
@@ -748,15 +745,16 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
    * player looks at; hits by projectiles are not forwarded.
    *
    * @param event the damage
+   * @throws NullPointerException if {@code event} is null
    * @since 1.0.0
    */
   @EventHandler
   public void onScreenDamage(final EntityDamageByEntityEvent event) {
-    Preconditions.checkNotNull(event, "Event must not be null!");
+    Preconditions.checkNotNull(event, EVENT_NULL_MESSAGE);
 
     final Entity entity = event.getEntity();
-    final boolean isScreen = this.isScreen(entity);
-    if (!isScreen) {
+    final boolean screenFrame = this.isScreenFrame(entity);
+    if (!screenFrame) {
       return;
     }
 
@@ -776,12 +774,12 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
       return;
     }
 
-    final boolean allowed = this.mayInteract(attacker);
+    final boolean allowed = this.canInteract(attacker);
     if (!allowed) {
       return;
     }
 
-    final Optional<int[]> foundCoordinates = InteractUtils.getBoardCoordinates(attacker, entity);
+    final Optional<int[]> foundCoordinates = InteractUtils.findBoardCoordinates(attacker, entity);
     final int @Nullable [] coordinates = foundCoordinates.orElse(null);
     final int[] pixel = coordinates == null ? null : shown.toSource(coordinates[0], coordinates[1]);
     if (pixel != null) {
@@ -811,22 +809,23 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
    * {@link #getInteractionPermission()}. Otherwise the right click behaves as usual.
    *
    * @param event the interaction
+   * @throws NullPointerException if {@code event} is null
    * @since 1.0.0
    */
   @EventHandler
   public void onPlayerInteractEntity(final PlayerInteractEntityEvent event) {
-    Preconditions.checkNotNull(event, "Event must not be null!");
+    Preconditions.checkNotNull(event, EVENT_NULL_MESSAGE);
 
     final PlayerType current = this.player;
     final Entity entity = event.getRightClicked();
-    final boolean isScreen = this.isScreen(entity);
-    final Screen shown = isScreen ? this.screenOf((ItemFrame) entity) : null;
+    final boolean screenFrame = this.isScreenFrame(entity);
+    final Screen shown = screenFrame ? this.screenOf((ItemFrame) entity) : null;
     if (current == null || shown == null) {
       return;
     }
 
     final Player clicker = event.getPlayer();
-    final Optional<int[]> foundCoordinates = InteractUtils.getBoardCoordinates(clicker, entity);
+    final Optional<int[]> foundCoordinates = InteractUtils.findBoardCoordinates(clicker, entity);
     final int @Nullable [] coordinates = foundCoordinates.orElse(null);
     if (coordinates == null) {
       return;
@@ -834,7 +833,7 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
 
     // the map keeps its rotation whoever right clicks it, but only a player with the permission clicks with it
     event.setCancelled(true);
-    final boolean allowed = this.mayInteract(clicker);
+    final boolean allowed = this.canInteract(clicker);
     final int[] pixel = shown.toSource(coordinates[0], coordinates[1]);
     if (allowed && pixel != null) {
       this.forwardRightClick(current, pixel[0], pixel[1]);
@@ -850,11 +849,12 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
    * and its plain text, without colors or formatting, is sent as typed text. Other chat messages are left alone.
    *
    * @param event the chat message
+   * @throws NullPointerException if {@code event} is null
    * @since 1.0.0
    */
   @EventHandler
   public void onChatMessage(final AsyncChatEvent event) {
-    Preconditions.checkNotNull(event, "Event must not be null!");
+    Preconditions.checkNotNull(event, EVENT_NULL_MESSAGE);
 
     final Player chatter = event.getPlayer();
     final boolean active = this.activePlayers.contains(chatter);
@@ -864,7 +864,7 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
     }
 
     // the permission is checked again here, because it may have been taken away since the sender switched this on
-    final boolean allowed = this.mayInteract(chatter);
+    final boolean allowed = this.canInteract(chatter);
     if (!allowed) {
       return;
     }
@@ -883,15 +883,16 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
    * {@code /kill}, which removes them without breaking them.
    *
    * @param event the break of a hanging entity
+   * @throws NullPointerException if {@code event} is null
    * @since 1.0.0
    */
   @EventHandler
   public void onScreenBreak(final HangingBreakEvent event) {
-    Preconditions.checkNotNull(event, "Event must not be null!");
+    Preconditions.checkNotNull(event, EVENT_NULL_MESSAGE);
 
     final Entity entity = event.getEntity();
-    final boolean isScreen = this.isScreen(entity);
-    if (isScreen) {
+    final boolean screenFrame = this.isScreenFrame(entity);
+    if (screenFrame) {
       event.setCancelled(true);
     }
   }
@@ -902,6 +903,7 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
    * @param chatter        the player
    * @param enableMessage  the message shown when interaction is enabled
    * @param disableMessage the message shown when interaction is disabled
+   * @throws NullPointerException if an argument is null
    * @since 1.0.0
    */
   protected void toggleInteraction(final Player chatter, final Component enableMessage, final Component disableMessage) {
@@ -924,17 +926,18 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
    *
    * @param sender  who ran the command
    * @param message the message to send
+   * @throws NullPointerException if an argument is null
    * @since 1.0.0
    */
   protected void releaseResource(final CommandSender sender, final Component message) {
-    Preconditions.checkNotNull(sender, "Sender must not be null!");
+    Preconditions.checkNotNull(sender, SENDER_NULL_MESSAGE);
     Preconditions.checkNotNull(message, "Message must not be null!");
 
     this.releaseCurrent();
     sender.sendMessage(message);
   }
 
-  private boolean mayInteract(final Player player) {
+  private boolean canInteract(final Player player) {
     final String permission = this.getInteractionPermission();
     return player.hasPermission(permission);
   }
@@ -990,51 +993,16 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
   /**
    * Releases a player; its maps are released by the caller.
    *
-   * @param current the player to release, which is no longer the running one
+   * @param player the player to release, which is no longer the running one
    * @since 1.0.0
    */
-  protected abstract void releasePlayer(final PlayerType current);
+  protected abstract void releasePlayer(final PlayerType player);
 
-  private static final class StartAttempt<PlayerType> {
-
-    private final CommandSender sender;
-    private final PlayerType player;
-    private final FunctionalVideoFilter maps;
-    private final Screen screen;
-    private final String description;
-
-    StartAttempt(
-      final CommandSender sender,
-      final PlayerType player,
-      final FunctionalVideoFilter maps,
-      final Screen screen,
-      final String description
-    ) {
-      this.sender = sender;
-      this.player = player;
-      this.maps = maps;
-      this.screen = screen;
-      this.description = description;
-    }
-
-    private CommandSender getSender() {
-      return this.sender;
-    }
-
-    private PlayerType getPlayer() {
-      return this.player;
-    }
-
-    private FunctionalVideoFilter getMaps() {
-      return this.maps;
-    }
-
-    private Screen getScreen() {
-      return this.screen;
-    }
-
-    private String getDescription() {
-      return this.description;
-    }
-  }
+  private record StartAttempt<PlayerType>(
+    CommandSender sender,
+    PlayerType player,
+    FunctionalVideoFilter output,
+    Screen screen,
+    String description
+  ) {}
 }

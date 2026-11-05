@@ -33,23 +33,26 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 
-/**
- * Landlock, the sandbox of the Linux kernel (5.13 and later) that a process can put itself in without privileges: a
- * thread that restricts itself, and every thread and process it starts afterwards, reaches only the files and folders
- * its rules name, in the ways they allow. The restriction cannot be lifted, and the other threads of the process stay
- * free. It runs in the helper process, which has only the browser module and JCEF on its class path.
- */
+// Linux's unprivileged sandbox (5.13 and later): a restricted thread, and what it starts afterwards, reaches only what
+// its rules allow, for good, while the other threads of the process stay free.
 final class Landlock {
 
   // the system call numbers of Landlock are the same on every architecture
   private static final long CREATE_RULESET = 444;
   private static final long ADD_RULE = 445;
   private static final long RESTRICT_SELF = 446;
+
   private static final long CREATE_RULESET_VERSION = 1;
   private static final long RULE_PATH_BENEATH = 1;
+
   private static final int SET_NO_NEW_PRIVILEGES = 38;
+  private static final long ENABLE = 1L;
+
+  private static final long NO_ARGUMENT = 0L;
+
   private static final int OPEN_PATH = 0x20_0000;
   private static final int OPEN_CLOSE_ON_EXEC = 0x8_0000;
+
   private static final int NO_SUCH_SYSTEM_CALL = 38;
   private static final int NOT_SUPPORTED = 95;
 
@@ -64,10 +67,11 @@ final class Landlock {
   private static final long MAKE_SOCKET = 1L << 9;
   private static final long MAKE_FIFO = 1L << 10;
   private static final long MAKE_SYMBOLIC_LINK = 1L << 12;
-  private static final long FIRST_VERSION_RIGHTS = (1L << 13) - 1;
   private static final long REFER = 1L << 13;
   private static final long TRUNCATE = 1L << 14;
   private static final long DEVICE_CONTROL = 1L << 15;
+
+  private static final long FIRST_VERSION_RIGHTS = REFER - 1;
   private static final long FILE_RIGHTS = EXECUTE | WRITE_FILE | READ_FILE | TRUNCATE | DEVICE_CONTROL;
   private static final long READ_RIGHTS = EXECUTE | READ_FILE | READ_DIRECTORY;
   private static final long WRITE_RIGHTS =
@@ -83,112 +87,84 @@ final class Landlock {
     TRUNCATE |
     DEVICE_CONTROL;
 
+  private static final int REFER_VERSION = 2;
+  private static final int TRUNCATE_VERSION = 3;
+  private static final int DEVICE_CONTROL_VERSION = 5;
+
   private Landlock() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
-  /**
-   * Asks the kernel which version of Landlock it has. Linux only.
-   *
-   * @return the version, 1 or more, or the negated error number of the kernel when it has none
-   */
   static int version() {
     try (final Arena arena = Arena.ofConfined()) {
       final MemorySegment state = arena.allocate(Calls.STATE);
-      final long result = invoke(Calls.SYSCALL, state, CREATE_RULESET, 0L, 0L, CREATE_RULESET_VERSION, 0L);
+      final long result = invoke(Calls.SYSCALL, state, CREATE_RULESET, NO_ARGUMENT, NO_ARGUMENT, CREATE_RULESET_VERSION, NO_ARGUMENT);
       return versionOf(result, Calls.errorOf(state));
     }
   }
 
-  /**
-   * Reads the answer of the kernel to the question of {@link #version()}.
-   *
-   * @param result the result of the system call
-   * @param error  the error number it left
-   * @return the version, or the negated error number
-   */
   @VisibleForTesting
   static int versionOf(final long result, final int error) {
     return result < 0 ? -error : (int) result;
   }
 
-  /**
-   * Says why a kernel has no Landlock.
-   *
-   * @param version what {@link #version()} gave, less than 1
-   * @return the reason
-   */
   static String describeMissing(final int version) {
     final int error = -version;
     return switch (error) {
       case NO_SUCH_SYSTEM_CALL -> "this kernel has no Landlock, which Linux has since 5.13";
       case NOT_SUPPORTED -> "Landlock is turned off in this kernel (its lsm= boot option)";
-      default -> "Landlock is not available here (error " + error + ")";
+      default -> "error %s from the kernel keeps Landlock off".formatted(error);
     };
   }
 
-  /**
-   * Gets the rights a ruleset of a version of Landlock handles: those it denies unless a rule grants them.
-   *
-   * @param version the version of the kernel
-   * @return the rights
-   */
+  // the rights a ruleset denies unless a rule grants them
   @VisibleForTesting
   static long handledRights(final int version) {
     long rights = FIRST_VERSION_RIGHTS;
-    if (version >= 2) {
+    if (version >= REFER_VERSION) {
       rights |= REFER;
     }
-    if (version >= 3) {
+
+    if (version >= TRUNCATE_VERSION) {
       rights |= TRUNCATE;
     }
-    if (version >= 5) {
+
+    if (version >= DEVICE_CONTROL_VERSION) {
       rights |= DEVICE_CONTROL;
     }
+
     return rights;
   }
 
-  /**
-   * Gets the rights of a rule: to read and run, and to change as well if it is writable; a file has no rights of a
-   * folder.
-   *
-   * @param rule        the rule
-   * @param isDirectory whether its path is a folder
-   * @param handled     the rights of the ruleset
-   * @return the rights
-   */
+  // a file has no rights of a folder
   @VisibleForTesting
-  static long rightsOf(final Rule rule, final boolean isDirectory, final long handled) {
-    long rights = rule.writable() ? READ_RIGHTS | WRITE_RIGHTS : READ_RIGHTS;
-    if (!isDirectory) {
+  static long rightsOf(final Rule rule, final PathKind kind, final long handled) {
+    long rights = switch (rule.access()) {
+      case READ_ONLY -> READ_RIGHTS;
+      case READ_WRITE -> READ_RIGHTS | WRITE_RIGHTS;
+    };
+    if (kind == PathKind.FILE) {
       rights &= FILE_RIGHTS;
     }
+
     return rights & handled;
   }
 
-  /**
-   * Restricts the calling thread, and every thread and process it starts afterwards, to the rules. A rule whose path
-   * cannot be opened, such as one deleted meanwhile, is left out.
-   *
-   * @param version the version of Landlock the kernel has, 1 or more
-   * @param rules   what the thread may reach
-   * @throws IOException if the kernel refuses the rules or the restriction
-   */
+  // a rule whose path cannot be opened, such as one deleted meanwhile, is left out
   static void restrictThread(final int version, final List<Rule> rules) throws IOException {
     final long handled = handledRights(version);
     try (final Arena arena = Arena.ofConfined()) {
       final MemorySegment state = arena.allocate(Calls.STATE);
       final MemorySegment attributes = arena.allocate(ValueLayout.JAVA_LONG);
       attributes.set(ValueLayout.JAVA_LONG, 0, handled);
-      final long created = invoke(Calls.SYSCALL, state, CREATE_RULESET, attributes.address(), (long) Long.BYTES, 0L, 0L);
+      final long created = invoke(Calls.SYSCALL, state, CREATE_RULESET, attributes.address(), (long) Long.BYTES, NO_ARGUMENT, NO_ARGUMENT);
       final long ruleset = check(created, Calls.errorOf(state), "create a ruleset");
       try {
-        for (final Rule rule : rules) {
-          addRule(arena, state, ruleset, rule, handled);
-        }
-        final long unprivileged = invoke(Calls.PRCTL, state, SET_NO_NEW_PRIVILEGES, 1L, 0L, 0L, 0L);
+        addRules(arena, state, ruleset, rules, handled);
+        final long unprivileged = invoke(Calls.PRCTL, state, SET_NO_NEW_PRIVILEGES, ENABLE, NO_ARGUMENT, NO_ARGUMENT, NO_ARGUMENT);
         check(unprivileged, Calls.errorOf(state), "keep the thread from gaining privileges");
-        final long restricted = invoke(Calls.SYSCALL, state, RESTRICT_SELF, ruleset, 0L, 0L, 0L);
+        final long restricted = invoke(Calls.SYSCALL, state, RESTRICT_SELF, ruleset, NO_ARGUMENT, NO_ARGUMENT, NO_ARGUMENT);
         check(restricted, Calls.errorOf(state), "restrict the thread");
       } finally {
         invoke(Calls.CLOSE, state, (int) ruleset);
@@ -196,83 +172,85 @@ final class Landlock {
     }
   }
 
+  private static void addRules(final Arena arena, final MemorySegment state, final long ruleset, final List<Rule> rules, final long handled)
+    throws IOException {
+    for (final Rule rule : rules) {
+      addRule(arena, state, ruleset, rule, handled);
+    }
+  }
+
   private static void addRule(final Arena arena, final MemorySegment state, final long ruleset, final Rule rule, final long handled)
     throws IOException {
     final Path path = rule.path();
     final boolean isDirectory = Files.isDirectory(path);
+    final PathKind kind = isDirectory ? PathKind.FOLDER : PathKind.FILE;
     final MemorySegment name = arena.allocateFrom(path.toString());
     final long descriptor = invoke(Calls.OPEN, state, name, OPEN_PATH | OPEN_CLOSE_ON_EXEC);
     if (descriptor < 0) {
       return;
     }
+
     try {
       // struct landlock_path_beneath_attr, packed: the rights, then the descriptor
       final MemorySegment beneath = arena.allocate(Long.BYTES + Integer.BYTES);
-      beneath.set(ValueLayout.JAVA_LONG_UNALIGNED, 0, rightsOf(rule, isDirectory, handled));
+      beneath.set(ValueLayout.JAVA_LONG_UNALIGNED, 0, rightsOf(rule, kind, handled));
       beneath.set(ValueLayout.JAVA_INT_UNALIGNED, Long.BYTES, (int) descriptor);
-      final long added = invoke(Calls.SYSCALL, state, ADD_RULE, ruleset, RULE_PATH_BENEATH, beneath.address(), 0L);
-      check(added, Calls.errorOf(state), "add the rule of " + path);
+      final long added = invoke(Calls.SYSCALL, state, ADD_RULE, ruleset, RULE_PATH_BENEATH, beneath.address(), NO_ARGUMENT);
+      check(added, Calls.errorOf(state), "add the rule of %s".formatted(path));
     } finally {
       invoke(Calls.CLOSE, state, (int) descriptor);
     }
   }
 
-  /**
-   * Checks the result of a call of the kernel.
-   *
-   * @param result the result
-   * @param error  the error number the call left
-   * @param action what the call did, for the message
-   * @return the result
-   * @throws IOException if the result says the call failed
-   */
   @VisibleForTesting
   static long check(final long result, final int error, final String action) throws IOException {
     if (result < 0) {
-      throw new IOException("Landlock could not " + action + " (error " + error + ")");
+      final String message = "Landlock could not %s because of error %s from the kernel!".formatted(action, error);
+      throw new IOException(message);
     }
+
     return result;
   }
 
-  /**
-   * Calls a function of the C library.
-   *
-   * @param function  the function
-   * @param arguments its arguments, after the segment its error number is captured in
-   * @return its result
-   * @throws IllegalStateException if the JVM could not make the call
-   */
   @VisibleForTesting
   static long invoke(final MethodHandle function, final Object... arguments) {
     try {
       final Object result = function.invokeWithArguments(arguments);
       return ((Number) result).longValue();
-    } catch (final Throwable failure) {
-      // Check VM errors here because ThrowableUtils is absent from the helper class path.
-      if (failure instanceof final VirtualMachineError fatal) {
-        throw fatal;
+    } catch (final Throwable exception) {
+      // ThrowableUtils is not on the class path of the helper
+      if (exception instanceof final VirtualMachineError virtualMachineError) {
+        throw virtualMachineError;
       }
-      throw new IllegalStateException("The C library could not be called", failure);
+
+      final String message = "The C library could not be called!";
+      throw new IllegalStateException(message, exception);
     }
   }
 
-  /**
-   * A file, or a folder and everything beneath it, that a restricted thread may read and run, and change as well if
-   * the rule is writable.
-   *
-   * @param path     the file or folder
-   * @param writable whether files may be written, created, renamed and deleted there
-   */
-  record Rule(Path path, boolean writable) {}
+  record Rule(Path path, Access access) {}
 
-  /**
-   * The functions of the C library, bound when Landlock is first used, which happens on Linux only.
-   */
+  enum Access {
+    READ_ONLY,
+    READ_WRITE,
+  }
+
+  enum PathKind {
+    FOLDER,
+    FILE,
+  }
+
+  // bound on first use, which happens on Linux only
   private static final class Calls {
+
+    private static final int NOT_VARIADIC = -1;
+
+    private static final String ERROR_NUMBER = "errno";
 
     private static final Linker LINKER = Linker.nativeLinker();
     private static final StructLayout STATE = Linker.Option.captureStateLayout();
-    private static final VarHandle ERROR = STATE.varHandle(MemoryLayout.PathElement.groupElement("errno"));
+    private static final VarHandle ERROR = STATE.varHandle(MemoryLayout.PathElement.groupElement(ERROR_NUMBER));
+
     private static final MethodHandle SYSCALL = bind(
       "syscall",
       FunctionDescriptor.of(
@@ -302,17 +280,22 @@ final class Landlock {
       FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.ADDRESS, ValueLayout.JAVA_INT),
       2
     );
-    private static final MethodHandle CLOSE = bind("close", FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.JAVA_INT), -1);
+    private static final MethodHandle CLOSE = bind(
+      "close",
+      FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.JAVA_INT),
+      NOT_VARIADIC
+    );
 
     // the C library is part of every process on Linux; prctl and syscall are variadic, open has an optional mode
     @SuppressWarnings("restricted")
     private static MethodHandle bind(final String name, final FunctionDescriptor descriptor, final int firstVariadic) {
       final SymbolLookup library = LINKER.defaultLookup();
       final MemorySegment function = library.findOrThrow(name);
-      final Linker.Option errorNumber = Linker.Option.captureCallState("errno");
-      if (firstVariadic < 0) {
+      final Linker.Option errorNumber = Linker.Option.captureCallState(ERROR_NUMBER);
+      if (firstVariadic == NOT_VARIADIC) {
         return LINKER.downcallHandle(function, descriptor, errorNumber);
       }
+
       return LINKER.downcallHandle(function, descriptor, Linker.Option.firstVariadicArg(firstVariadic), errorNumber);
     }
 

@@ -25,6 +25,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.function.Consumer;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,8 +33,6 @@ import org.slf4j.LoggerFactory;
 final class FrameRecorder implements Consumer<byte[]> {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(FrameRecorder.class);
-
-  private static final String CANNOT_RECORD = "Cannot record the MCV2 frames into {}, the recording stops.";
 
   private final Path file;
 
@@ -45,7 +44,7 @@ final class FrameRecorder implements Consumer<byte[]> {
     Preconditions.checkNotNull(file, "File must not be null!");
 
     final Path absolute = file.toAbsolutePath();
-    final Path parent = absolute.getParent();
+    final @Nullable Path parent = absolute.getParent();
     if (parent == null) {
       final String message = "Stream file %s must not be the root of the file system!".formatted(file);
       throw new IllegalArgumentException(message);
@@ -68,7 +67,7 @@ final class FrameRecorder implements Consumer<byte[]> {
       Files.write(this.file, record.array(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
     } catch (final IOException exception) {
       this.failed = true;
-      LOGGER.warn(CANNOT_RECORD, this.file, exception);
+      LOGGER.warn("Cannot record the MCV2 frames into {}, the recording stops.", this.file, exception);
     }
   }
 }

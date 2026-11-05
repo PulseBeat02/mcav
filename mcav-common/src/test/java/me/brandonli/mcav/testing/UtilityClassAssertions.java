@@ -31,7 +31,8 @@ import java.lang.reflect.Modifier;
 public final class UtilityClassAssertions {
 
   private UtilityClassAssertions() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   public static void assertNotInstantiable(final Class<?> utilityClass) throws ReflectiveOperationException {
@@ -42,7 +43,8 @@ public final class UtilityClassAssertions {
     assertTrue(finalClass, "utility classes must be final");
 
     final Constructor<?>[] constructors = utilityClass.getDeclaredConstructors();
-    assertEquals(1, constructors.length);
+    final int constructorCount = constructors.length;
+    assertEquals(1, constructorCount);
 
     final Constructor<?> constructor = constructors[0];
     final int constructorModifiers = constructor.getModifiers();

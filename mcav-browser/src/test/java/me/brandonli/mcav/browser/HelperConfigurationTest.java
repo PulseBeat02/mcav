@@ -20,6 +20,7 @@ package me.brandonli.mcav.browser;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -29,36 +30,68 @@ import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.List;
+import java.util.regex.Pattern;
+import me.brandonli.mcav.browser.testing.EqualityAssertions;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.function.Executable;
 
 class HelperConfigurationTest {
+
+  private static final String LONG_PATH_FIRST_COMPONENT = "p";
+
+  private static final String LONG_PATH_SECOND_COMPONENT = "q";
+
+  private static final String PAGE_URL = "https://example.com/";
+  private static final String LOCAL_FILE_URL = "file:///etc/passwd";
+
+  private static final String VALUE_SEPARATOR = ":";
+
+  private static final String EXTRA_VALUE = "x";
+
+  private static final String LINE_TOO_LONG_MESSAGE = "The configuration line is too long!";
+
+  private static final int PAGE_WIDTH = 640;
+  private static final int PAGE_HEIGHT = 480;
+
+  private static final int FRAME_RATE = 45;
+
+  private static final int KIBIBYTE_BYTES = 1024;
+
+  private static final int KEEP_TRAILING_EMPTY_PARTS = -1;
 
   private static final Path ROOT = Path.of("").toAbsolutePath().getRoot();
   private static final Path SOCKET = ROOT.resolve("tmp").resolve("s");
   private static final Path NATIVES = ROOT.resolve("natives");
   private static final Path PROFILE = ROOT.resolve("profile");
   private static final Path SERVER = ROOT.resolve("server");
+  private static final Path OTHER_PATH = ROOT.resolve("other");
 
-  private static byte[] token() {
+  private static final Path RELATIVE_PATH = Path.of("relative");
+  private static final Path RELATIVE_SERVER = Path.of("server");
+
+  private static final Pattern FIELD_SEPARATOR = Pattern.compile(":");
+
+  private byte[] token() {
     final byte[] token = new byte[HelperProtocol.TOKEN_BYTES];
     for (int index = 0; index < token.length; index++) {
       token[index] = (byte) (index * 7);
     }
+
     return token;
   }
 
-  private static HelperConfiguration configuration(final boolean allowsJit) {
+  private HelperConfiguration configuration() {
     return new HelperConfiguration(
-      token(),
+      this.token(),
       SOCKET,
       NATIVES,
       PROFILE,
       URI.create("https://example.com/page"),
-      640,
-      480,
+      PAGE_WIDTH,
+      PAGE_HEIGHT,
       2,
       30,
-      allowsJit,
+      false,
       false,
       false,
       false,
@@ -68,20 +101,20 @@ class HelperConfigurationTest {
   }
 
   @Test
-  void theLongestAddressInCharactersOfThreeBytesSurvivesTheLine() {
-    final String start = "https://example.com/";
-    final URI longest = URI.create(start + "\u20ac".repeat(BrowserSource.MAX_ADDRESS_LENGTH - start.length()));
-    final Path path = NATIVES.resolve("p".repeat(255)).resolve("q".repeat(255));
+  void shouldKeepTheLongestAddressInCharactersOfThreeBytesThroughTheLine() {
+    final String start = PAGE_URL;
+    final URI longest = URI.create(start + "\u20ac".repeat(BrowserSource.MAXIMUM_ADDRESS_LENGTH - start.length()));
+    final Path path = NATIVES.resolve(LONG_PATH_FIRST_COMPONENT.repeat(255)).resolve(LONG_PATH_SECOND_COMPONENT.repeat(255));
     final HelperConfiguration original = new HelperConfiguration(
-      token(),
+      this.token(),
       path,
       path,
       path,
       longest,
-      640,
-      480,
+      PAGE_WIDTH,
+      PAGE_HEIGHT,
       3,
-      45,
+      FRAME_RATE,
       true,
       true,
       false,
@@ -90,21 +123,22 @@ class HelperConfigurationTest {
       List.of()
     );
     final HelperConfiguration read = HelperConfiguration.fromLine(original.toLine());
-    assertEquals(longest, read.getUrl());
+    final URI url = read.getUrl();
+    assertEquals(longest, url);
   }
 
   @Test
-  void aConfigurationSurvivesTheLine() {
+  void shouldKeepAConfigurationThroughTheLine() {
     final HelperConfiguration original = new HelperConfiguration(
-      token(),
+      this.token(),
       SOCKET,
       NATIVES,
       PROFILE,
       URI.create("https://example.com/a?b=%20c"),
-      640,
-      480,
+      PAGE_WIDTH,
+      PAGE_HEIGHT,
       3,
-      45,
+      FRAME_RATE,
       true,
       true,
       true,
@@ -113,34 +147,77 @@ class HelperConfigurationTest {
       List.of("mc.example.com", "203.0.113.5", "2001:db8::1")
     );
     final String line = original.toLine();
-    assertFalse(line.contains("\n"));
+    final boolean breaksTheLine = line.contains("\n");
+    assertFalse(breaksTheLine);
+
     final HelperConfiguration read = HelperConfiguration.fromLine(line);
-    assertArrayEquals(token(), read.getToken());
-    assertEquals(SOCKET, read.getSocket());
-    assertEquals(NATIVES, read.getNatives());
-    assertEquals(PROFILE, read.getProfile());
-    assertEquals(URI.create("https://example.com/a?b=%20c"), read.getUrl());
-    assertEquals(640, read.getWidth());
-    assertEquals(480, read.getHeight());
-    assertEquals(3, read.getFrameInterval());
-    assertEquals(45, read.getFrameRate());
-    assertTrue(read.isJavaScriptJit());
-    assertTrue(read.isPrivateNetworks());
-    assertTrue(read.isAutoplay());
-    assertTrue(read.isConfined());
-    assertEquals(SERVER, read.getServerFolder());
-    assertEquals(List.of("mc.example.com", "203.0.113.5", "2001:db8::1"), read.getRefusedHosts());
-    final HelperConfiguration defaults = HelperConfiguration.fromLine(configuration(false).toLine());
-    assertFalse(defaults.isJavaScriptJit());
-    assertFalse(defaults.isPrivateNetworks());
-    assertFalse(defaults.isAutoplay());
-    assertFalse(defaults.isConfined());
-    assertEquals(List.of(), defaults.getRefusedHosts());
+    final byte[] keptToken = read.getToken();
+    final byte[] expectedToken = this.token();
+    assertArrayEquals(expectedToken, keptToken);
+
+    final Path socket = read.getSocket();
+    assertEquals(SOCKET, socket);
+
+    final Path natives = read.getNatives();
+    assertEquals(NATIVES, natives);
+
+    final Path profile = read.getProfile();
+    assertEquals(PROFILE, profile);
+
+    final URI url = read.getUrl();
+    final URI expectedUrl = URI.create("https://example.com/a?b=%20c");
+    assertEquals(expectedUrl, url);
+    final int width = read.getWidth();
+    assertEquals(PAGE_WIDTH, width);
+
+    final int height = read.getHeight();
+    assertEquals(PAGE_HEIGHT, height);
+
+    final int frameInterval = read.getFrameInterval();
+    assertEquals(3, frameInterval);
+
+    final int frameRate = read.getFrameRate();
+    assertEquals(FRAME_RATE, frameRate);
+
+    final boolean keptJavaScriptJit = read.isJavaScriptJit();
+    assertTrue(keptJavaScriptJit);
+
+    final boolean keptPrivateNetworks = read.isPrivateNetworks();
+    assertTrue(keptPrivateNetworks);
+
+    final boolean keptAutoplay = read.isAutoplay();
+    assertTrue(keptAutoplay);
+
+    final boolean keptConfined = read.isConfined();
+    assertTrue(keptConfined);
+
+    final Path serverFolder = read.getServerFolder();
+    assertEquals(SERVER, serverFolder);
+
+    final List<String> keptRefusedHosts = read.getRefusedHosts();
+    final List<String> expectedRefusedHosts = List.of("mc.example.com", "203.0.113.5", "2001:db8::1");
+    assertEquals(expectedRefusedHosts, keptRefusedHosts);
+
+    final HelperConfiguration defaults = HelperConfiguration.fromLine(this.configuration().toLine());
+    final boolean defaultJavaScriptJit = defaults.isJavaScriptJit();
+    assertFalse(defaultJavaScriptJit);
+
+    final boolean defaultPrivateNetworks = defaults.isPrivateNetworks();
+    assertFalse(defaultPrivateNetworks);
+
+    final boolean defaultAutoplay = defaults.isAutoplay();
+    assertFalse(defaultAutoplay);
+
+    final boolean defaultConfined = defaults.isConfined();
+    assertFalse(defaultConfined);
+
+    final List<String> defaultRefusedHosts = defaults.getRefusedHosts();
+    assertEquals(List.of(), defaultRefusedHosts);
   }
 
   @Test
-  void theTokenIsCopiedInAndOut() {
-    final byte[] token = token();
+  void shouldCopyTheTokenInAndOut() {
+    final byte[] token = this.token();
     final HelperConfiguration configuration = new HelperConfiguration(
       token,
       SOCKET,
@@ -159,169 +236,235 @@ class HelperConfigurationTest {
       List.of()
     );
     token[0] = 99;
-    assertEquals(0, configuration.getToken()[0]);
+    final byte firstTokenByte = configuration.getToken()[0];
+    assertEquals(0, firstTokenByte);
+
     configuration.getToken()[1] = 99;
-    assertEquals(7, configuration.getToken()[1]);
+    final byte secondTokenByte = configuration.getToken()[1];
+    assertEquals(7, secondTokenByte);
   }
 
   @Test
-  void everyValueIsChecked() {
-    final URI page = URI.create("https://example.com/");
-    assertThrows(IllegalArgumentException.class, () ->
-      new HelperConfiguration(new byte[1], SOCKET, NATIVES, PROFILE, page, 1, 1, 1, 1, false, false, false, false, SERVER, List.of())
-    );
-    assertThrows(IllegalArgumentException.class, () ->
-      new HelperConfiguration(
-        token(),
-        Path.of("relative"),
-        NATIVES,
-        PROFILE,
-        page,
-        1,
-        1,
-        1,
-        1,
-        false,
-        false,
-        false,
-        false,
-        SERVER,
-        List.of()
-      )
-    );
-    assertThrows(IllegalArgumentException.class, () ->
-      new HelperConfiguration(
-        token(),
-        SOCKET,
-        Path.of("relative"),
-        PROFILE,
-        page,
-        1,
-        1,
-        1,
-        1,
-        false,
-        false,
-        false,
-        false,
-        SERVER,
-        List.of()
-      )
-    );
-    assertThrows(IllegalArgumentException.class, () ->
-      new HelperConfiguration(
-        token(),
-        SOCKET,
-        NATIVES,
-        Path.of("relative"),
-        page,
-        1,
-        1,
-        1,
-        1,
-        false,
-        false,
-        false,
-        false,
-        SERVER,
-        List.of()
-      )
-    );
-    final URI file = URI.create("file:///etc/passwd");
-    assertThrows(IllegalArgumentException.class, () ->
-      new HelperConfiguration(token(), SOCKET, NATIVES, PROFILE, file, 1, 1, 1, 1, false, false, false, false, SERVER, List.of())
-    );
-    assertThrows(IllegalArgumentException.class, () ->
-      new HelperConfiguration(token(), SOCKET, NATIVES, PROFILE, page, 0, 1, 1, 1, false, false, false, false, SERVER, List.of())
-    );
-    assertThrows(IllegalArgumentException.class, () ->
-      new HelperConfiguration(token(), SOCKET, NATIVES, PROFILE, page, 4097, 1, 1, 1, false, false, false, false, SERVER, List.of())
-    );
-    assertThrows(IllegalArgumentException.class, () ->
-      new HelperConfiguration(token(), SOCKET, NATIVES, PROFILE, page, 1, 0, 1, 1, false, false, false, false, SERVER, List.of())
-    );
-    assertThrows(IllegalArgumentException.class, () ->
-      new HelperConfiguration(token(), SOCKET, NATIVES, PROFILE, page, 1, 4097, 1, 1, false, false, false, false, SERVER, List.of())
-    );
-    assertThrows(IllegalArgumentException.class, () ->
-      new HelperConfiguration(token(), SOCKET, NATIVES, PROFILE, page, 1, 1, 0, 1, false, false, false, false, SERVER, List.of())
-    );
-    assertThrows(IllegalArgumentException.class, () ->
-      new HelperConfiguration(token(), SOCKET, NATIVES, PROFILE, page, 1, 1, 1001, 1, false, false, false, false, SERVER, List.of())
-    );
-    assertThrows(IllegalArgumentException.class, () ->
-      new HelperConfiguration(token(), SOCKET, NATIVES, PROFILE, page, 1, 1, 1, 0, false, false, false, false, SERVER, List.of())
-    );
-    final IllegalArgumentException tooFast = assertThrows(IllegalArgumentException.class, () ->
-      new HelperConfiguration(token(), SOCKET, NATIVES, PROFILE, page, 1, 1, 1, 61, false, false, false, false, SERVER, List.of())
-    );
-    assertEquals("The frame rate must be between 1 and 60 but was 61", tooFast.getMessage());
-    final IllegalArgumentException relativeServer = assertThrows(IllegalArgumentException.class, () ->
-      new HelperConfiguration(token(), SOCKET, NATIVES, PROFILE, page, 1, 1, 1, 1, false, false, false, true, Path.of("server"), List.of())
-    );
-    assertEquals("The server folder path must be absolute: server", relativeServer.getMessage());
+  void shouldCheckEveryValue() {
+    final URI page = URI.create(PAGE_URL);
+    assertThrows(IllegalArgumentException.class, () -> this.configurationWithToken(new byte[1], page));
+    assertThrows(IllegalArgumentException.class, () -> this.configurationWithPaths(RELATIVE_PATH, NATIVES, PROFILE, page));
+    assertThrows(IllegalArgumentException.class, () -> this.configurationWithPaths(SOCKET, RELATIVE_PATH, PROFILE, page));
+    assertThrows(IllegalArgumentException.class, () -> this.configurationWithPaths(SOCKET, NATIVES, RELATIVE_PATH, page));
+
+    final URI file = URI.create(LOCAL_FILE_URL);
+    assertThrows(IllegalArgumentException.class, () -> this.configurationOf(file, 1, 1, 1, 1));
+    assertThrows(IllegalArgumentException.class, () -> this.configurationOf(page, 0, 1, 1, 1));
+    assertThrows(IllegalArgumentException.class, () -> this.configurationOf(page, 4097, 1, 1, 1));
+    assertThrows(IllegalArgumentException.class, () -> this.configurationOf(page, 1, 0, 1, 1));
+    assertThrows(IllegalArgumentException.class, () -> this.configurationOf(page, 1, 4097, 1, 1));
+    assertThrows(IllegalArgumentException.class, () -> this.configurationOf(page, 1, 1, 0, 1));
+    assertThrows(IllegalArgumentException.class, () -> this.configurationOf(page, 1, 1, 1001, 1));
+    assertThrows(IllegalArgumentException.class, () -> this.configurationOf(page, 1, 1, 1, 0));
+
+    final IllegalArgumentException tooFast = assertThrows(IllegalArgumentException.class, () -> this.configurationOf(page, 1, 1, 1, 61));
+    final String tooFastMessage = tooFast.getMessage();
+    assertEquals("The frame rate 61 must be between 1 and 60 inclusive!", tooFastMessage);
+
+    final Executable servedFromARelativeFolder = () -> this.confinedConfiguration(page, RELATIVE_SERVER, List.of());
+    final IllegalArgumentException relativeServer = assertThrows(IllegalArgumentException.class, servedFromARelativeFolder);
+    final String relativeServerMessage = relativeServer.getMessage();
+    assertEquals("The server folder path server must be absolute!", relativeServerMessage);
+
     for (final String host : List.of("", "two,hosts", "a host")) {
-      final IllegalArgumentException refused = assertThrows(IllegalArgumentException.class, () ->
-        new HelperConfiguration(token(), SOCKET, NATIVES, PROFILE, page, 1, 1, 1, 1, false, false, false, true, SERVER, List.of(host))
-      );
-      assertEquals("Not a host name or address: " + host, refused.getMessage());
+      final Executable refusingTheHost = () -> this.confinedConfiguration(page, SERVER, List.of(host));
+      final IllegalArgumentException refused = assertThrows(IllegalArgumentException.class, refusingTheHost);
+      final String refusedMessage = refused.getMessage();
+      final String expectedRefusedMessage = "Host %s is not a host name or address!".formatted(host);
+      assertEquals(expectedRefusedMessage, refusedMessage);
     }
-    new HelperConfiguration(token(), SOCKET, NATIVES, PROFILE, page, 4096, 4096, 1000, 60, false, false, false, false, SERVER, List.of());
+
+    new HelperConfiguration(
+      this.token(),
+      SOCKET,
+      NATIVES,
+      PROFILE,
+      page,
+      4096,
+      4096,
+      1000,
+      60,
+      false,
+      false,
+      false,
+      false,
+      SERVER,
+      List.of()
+    );
   }
 
-  private static String[] parts(final HelperConfiguration configuration) {
-    return configuration.toLine().split(":", -1);
+  private HelperConfiguration configurationWithToken(final byte[] token, final URI url) {
+    return new HelperConfiguration(token, SOCKET, NATIVES, PROFILE, url, 1, 1, 1, 1, false, false, false, false, SERVER, List.of());
   }
 
-  private static String encode(final String value) {
+  private HelperConfiguration configurationWithPaths(final Path socket, final Path natives, final Path profile, final URI url) {
+    return new HelperConfiguration(this.token(), socket, natives, profile, url, 1, 1, 1, 1, false, false, false, false, SERVER, List.of());
+  }
+
+  private HelperConfiguration configurationOf(
+    final URI url,
+    final int width,
+    final int height,
+    final int frameInterval,
+    final int frameRate
+  ) {
+    return new HelperConfiguration(
+      this.token(),
+      SOCKET,
+      NATIVES,
+      PROFILE,
+      url,
+      width,
+      height,
+      frameInterval,
+      frameRate,
+      false,
+      false,
+      false,
+      false,
+      SERVER,
+      List.of()
+    );
+  }
+
+  private HelperConfiguration confinedConfiguration(final URI url, final Path serverFolder, final List<String> refusedHosts) {
+    return new HelperConfiguration(
+      this.token(),
+      SOCKET,
+      NATIVES,
+      PROFILE,
+      url,
+      1,
+      1,
+      1,
+      1,
+      false,
+      false,
+      false,
+      true,
+      serverFolder,
+      refusedHosts
+    );
+  }
+
+  private String[] parts(final HelperConfiguration configuration) {
+    return FIELD_SEPARATOR.split(configuration.toLine(), KEEP_TRAILING_EMPTY_PARTS);
+  }
+
+  private String encode(final String value) {
     return Base64.getEncoder().encodeToString(value.getBytes(StandardCharsets.UTF_8));
   }
 
-  private static String withValue(final int index, final String value) {
-    final String[] parts = parts(configuration(false));
-    parts[index] = encode(value);
-    return String.join(":", parts);
+  private String withValue(final int index, final String value) {
+    final String[] parts = this.parts(this.configuration());
+    parts[index] = this.encode(value);
+
+    return String.join(VALUE_SEPARATOR, parts);
   }
 
   @Test
-  void aLineWithTooFewOrTooManyValuesIsRefused() {
-    final String[] parts = parts(configuration(false));
-    final String missing = String.join(":", Arrays.copyOf(parts, parts.length - 1));
+  void shouldRefuseALineWithTooFewOrTooManyValues() {
+    final String[] parts = this.parts(this.configuration());
+    final String missing = String.join(VALUE_SEPARATOR, Arrays.copyOf(parts, parts.length - 1));
     final IllegalArgumentException tooFew = assertThrows(IllegalArgumentException.class, () -> HelperConfiguration.fromLine(missing));
-    assertEquals("The configuration has 14 values instead of 15", tooFew.getMessage());
-    final String extra = configuration(false).toLine() + ":" + encode("x");
+    final String message = tooFew.getMessage();
+    assertEquals("The configuration has 14 values instead of 15 values!", message);
+
+    final String extra = this.configuration().toLine() + VALUE_SEPARATOR + this.encode(EXTRA_VALUE);
     assertThrows(IllegalArgumentException.class, () -> HelperConfiguration.fromLine(extra));
   }
 
   @Test
-  void aLineWithAnInvalidValueIsRefused() {
-    assertThrows(IllegalArgumentException.class, () -> HelperConfiguration.fromLine(withValue(9, "yes")));
-    assertThrows(IllegalArgumentException.class, () -> HelperConfiguration.fromLine(withValue(10, "TRUE")));
-    assertThrows(IllegalArgumentException.class, () -> HelperConfiguration.fromLine(withValue(12, "on")));
-    assertThrows(IllegalArgumentException.class, () -> HelperConfiguration.fromLine(withValue(13, "relative")));
-    assertThrows(IllegalArgumentException.class, () -> HelperConfiguration.fromLine(withValue(14, "mc.example.com,,10.0.0.1")));
-    assertThrows(NumberFormatException.class, () -> HelperConfiguration.fromLine(withValue(5, "wide")));
-    assertThrows(IllegalArgumentException.class, () -> HelperConfiguration.fromLine(withValue(0, "zz")));
-    assertThrows(IllegalArgumentException.class, () -> HelperConfiguration.fromLine(withValue(4, "file:///etc/passwd")));
-    final String[] invalidEncoding = parts(configuration(false));
+  void shouldRefuseALineWithAnInvalidValue() {
+    assertThrows(IllegalArgumentException.class, () -> HelperConfiguration.fromLine(this.withValue(9, "yes")));
+    assertThrows(IllegalArgumentException.class, () -> HelperConfiguration.fromLine(this.withValue(10, "TRUE")));
+    assertThrows(IllegalArgumentException.class, () -> HelperConfiguration.fromLine(this.withValue(12, "on")));
+    assertThrows(IllegalArgumentException.class, () -> HelperConfiguration.fromLine(this.withValue(13, "relative")));
+    assertThrows(IllegalArgumentException.class, () -> HelperConfiguration.fromLine(this.withValue(14, "mc.example.com,,10.0.0.1")));
+    assertThrows(NumberFormatException.class, () -> HelperConfiguration.fromLine(this.withValue(5, "wide")));
+    assertThrows(IllegalArgumentException.class, () -> HelperConfiguration.fromLine(this.withValue(0, "zz")));
+    assertThrows(IllegalArgumentException.class, () -> HelperConfiguration.fromLine(this.withValue(4, LOCAL_FILE_URL)));
+    final String[] invalidEncoding = this.parts(this.configuration());
+
     invalidEncoding[3] = "!" + invalidEncoding[3];
-    final IllegalArgumentException malformed = assertThrows(IllegalArgumentException.class, () ->
-      HelperConfiguration.fromLine(String.join(":", invalidEncoding))
-    );
-    assertEquals("Illegal base64 character 21", malformed.getMessage());
-    final String tooLong = "A".repeat(1024 * 1024 + 1);
+    final String line = String.join(VALUE_SEPARATOR, invalidEncoding);
+    final IllegalArgumentException malformed = assertThrows(IllegalArgumentException.class, () -> HelperConfiguration.fromLine(line));
+    final String malformedMessage = malformed.getMessage();
+    assertEquals("Illegal base64 character 21", malformedMessage);
+
+    final String tooLong = "A".repeat(KIBIBYTE_BYTES * KIBIBYTE_BYTES + 1);
     final IllegalArgumentException longLine = assertThrows(IllegalArgumentException.class, () -> HelperConfiguration.fromLine(tooLong));
-    assertEquals("The configuration line is too long", longLine.getMessage());
+    final String longLineMessage = longLine.getMessage();
+    assertEquals(LINE_TOO_LONG_MESSAGE, longLineMessage);
   }
 
   @Test
-  void aLineOfTheLongestLengthIsReadAndThenJudgedByItsValues() {
-    final String longest = "x".repeat(1024 * 1024);
+  void shouldReadALineOfTheLongestLengthAndThenJudgeItByItsValues() {
+    final String longest = EXTRA_VALUE.repeat(KIBIBYTE_BYTES * KIBIBYTE_BYTES);
     final IllegalArgumentException failure = assertThrows(IllegalArgumentException.class, () -> HelperConfiguration.fromLine(longest));
-    assertTrue(failure.getMessage().startsWith("The configuration has 1 values instead of "), failure.getMessage());
-    final IllegalArgumentException tooLong = assertThrows(IllegalArgumentException.class, () ->
-      HelperConfiguration.fromLine(longest + "x")
+    final boolean countsTheValues = failure.getMessage().startsWith("The configuration has 1 values instead of ");
+    assertTrue(countsTheValues, failure.getMessage());
+
+    final String longerLine = longest + EXTRA_VALUE;
+    final IllegalArgumentException tooLong = assertThrows(IllegalArgumentException.class, () -> HelperConfiguration.fromLine(longerLine));
+    final String message = tooLong.getMessage();
+    assertEquals(LINE_TOO_LONG_MESSAGE, message);
+  }
+
+  @Test
+  void shouldTreatConfigurationsWithTheSameValuesAsEqual() {
+    final String otherPath = OTHER_PATH.toString();
+    EqualityAssertions.assertEqualityContract(
+      this.configuration(),
+      this.configuration(),
+      this.configurationWithValue(0, "ff".repeat(HelperProtocol.TOKEN_BYTES)),
+      this.configurationWithValue(1, otherPath),
+      this.configurationWithValue(2, otherPath),
+      this.configurationWithValue(3, otherPath),
+      this.configurationWithValue(4, PAGE_URL),
+      this.configurationWithValue(5, "641"),
+      this.configurationWithValue(6, "481"),
+      this.configurationWithValue(7, "3"),
+      this.configurationWithValue(8, "31"),
+      this.configurationWithValue(9, "true"),
+      this.configurationWithValue(10, "true"),
+      this.configurationWithValue(11, "true"),
+      this.configurationWithValue(12, "true"),
+      this.configurationWithValue(13, otherPath),
+      this.configurationWithValue(14, "mc.example.com")
     );
-    assertEquals("The configuration line is too long", tooLong.getMessage());
+  }
+
+  @Test
+  void shouldHashConfigurationsOfAnotherTokenDifferently() {
+    final HelperConfiguration configuration = this.configuration();
+    final HelperConfiguration otherConfiguration = this.configurationWithValue(0, "ff".repeat(HelperProtocol.TOKEN_BYTES));
+    final int hashCode = configuration.hashCode();
+    final int otherHashCode = otherConfiguration.hashCode();
+    assertNotEquals(hashCode, otherHashCode);
+  }
+
+  @Test
+  void shouldDescribeAConfigurationWithoutItsToken() {
+    final HelperConfiguration configuration = this.configuration();
+    final String description = configuration.toString();
+    final String expected =
+      "HelperConfiguration{socket=%s, natives=%s, profile=%s, url=https://example.com/page, width=640, height=480, frameInterval=2, frameRate=30, javaScriptJit=false, privateNetworks=false, autoplay=false, confined=false, serverFolder=%s, refusedHosts=[]}".formatted(
+        SOCKET,
+        NATIVES,
+        PROFILE,
+        SERVER
+      );
+    assertEquals(expected, description);
+  }
+
+  private HelperConfiguration configurationWithValue(final int index, final String value) {
+    final String line = this.withValue(index, value);
+    return HelperConfiguration.fromLine(line);
   }
 }

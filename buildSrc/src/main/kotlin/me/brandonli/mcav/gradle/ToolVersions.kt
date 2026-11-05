@@ -29,6 +29,8 @@ object ToolVersions {
 
     private const val VERSION_ARGUMENT: String = "--version"
 
+    private const val WORD_START: String = "(?:^|\\s)"
+    private const val VERSION_WORD: String = "(\\S+)"
     private const val VERSION_GROUP: Int = 1
 
     /**
@@ -68,7 +70,7 @@ object ToolVersions {
 
     private fun findVersion(reported: String, prefix: String): String? {
         val escapedPrefix: String = Regex.escape(prefix)
-        val version: Regex = Regex("(?:^|\\s)$escapedPrefix(\\S+)")
+        val version: Regex = Regex("$WORD_START$escapedPrefix$VERSION_WORD")
         val match: MatchResult? = version.find(reported)
         return match?.groupValues?.get(VERSION_GROUP)
     }

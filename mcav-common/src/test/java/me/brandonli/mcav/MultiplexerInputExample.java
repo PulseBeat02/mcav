@@ -44,19 +44,25 @@ public final class MultiplexerInputExample {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(MultiplexerInputExample.class);
 
-  private static final String PLAYBACK_FAILED = "Playback failed in {}";
+  private static final int WIDTH = 1280;
+  private static final int HEIGHT = 720;
 
-  private MultiplexerInputExample() {}
+  private MultiplexerInputExample() {
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
+  }
 
   static void main() throws IOException, InterruptedException {
     try (final ExampleResources resources = new ExampleResources()) {
       final MCAVApi api = MCAV.api();
       resources.add(api::release);
       api.install();
+
       final CompletableFuture<Boolean> ready = api.whenCapabilityReady(Capability.YT_DLP);
       final boolean available = ready.join();
       if (!available) {
-        throw new IllegalStateException("yt-dlp is unavailable!");
+        final String message = "yt-dlp is unavailable!";
+        throw new IllegalStateException(message);
       }
 
       final URI uri = URI.create("https://www.youtube.com/watch?v=47dtFZ8CFo8");
@@ -69,8 +75,9 @@ public final class MultiplexerInputExample {
       final UriSource videoSource = videoFormat.toUriSource();
       final UriSource audioSource = audioFormat.toUriSource();
 
-      final SwingVideoWindow window = SwingVideoWindow.open("YouTube", 1280, 720);
+      final SwingVideoWindow window = SwingVideoWindow.open("YouTube", WIDTH, HEIGHT);
       resources.add(window::close);
+
       final DirectAudioOutput speakers = new DirectAudioOutput();
       resources.add(speakers::release);
       speakers.start();
@@ -81,18 +88,23 @@ public final class MultiplexerInputExample {
 
       final VideoPlayerMultiplexer player = VideoPlayer.ffmpeg();
       resources.add(player::release);
-      player.setExceptionHandler((context, throwable) -> LOGGER.error(PLAYBACK_FAILED, context, throwable));
+      player.setExceptionHandler((context, throwable) -> LOGGER.error("Playback in {} failed.", context, throwable));
+
       final VideoAttachableCallback videoCallback = player.getVideoAttachableCallback();
       videoCallback.attach(videoPipeline);
+
       final AudioAttachableCallback audioCallback = player.getAudioAttachableCallback();
       audioCallback.attach(audioPipeline);
+
       final DimensionAttachableCallback dimensionCallback = player.getDimensionAttachableCallback();
-      final Dimension dimension = new Dimension(1280, 720);
+      final Dimension dimension = new Dimension(WIDTH, HEIGHT);
       dimensionCallback.attach(dimension);
 
       final boolean started = player.start(videoSource, audioSource);
+
       if (!started) {
-        throw new IllegalStateException("Playback could not start!");
+        final String message = "Playback could not start!";
+        throw new IllegalStateException(message);
       }
 
       window.awaitClosed();

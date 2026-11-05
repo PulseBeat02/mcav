@@ -17,22 +17,25 @@
  */
 package me.brandonli.mcav.media.player.multimedia.vlc;
 
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Equivalence;
 import com.google.common.base.Preconditions;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.BiConsumer;
+import me.brandonli.mcav.MCAVApi;
 import me.brandonli.mcav.capability.Capability;
 import me.brandonli.mcav.capability.CapabilityGuard;
 import me.brandonli.mcav.media.player.attachable.AudioAttachableCallback;
 import me.brandonli.mcav.media.player.attachable.DimensionAttachableCallback;
 import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
 import me.brandonli.mcav.media.player.multimedia.ExceptionHandler;
+import me.brandonli.mcav.media.player.multimedia.VideoPlayer;
 import me.brandonli.mcav.media.player.multimedia.VideoPlayerMultiplexer;
 import me.brandonli.mcav.media.source.Source;
 import me.brandonli.mcav.utils.ThrowableUtils;
@@ -56,7 +59,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * the playback rate of the video, or seeking when they drift far apart. All VLC instances share one native
  * VLC engine, see {@link SharedMediaPlayerFactory}.
  *
- * <p>Requires VLC to be available, see {@link me.brandonli.mcav.capability.Capability#VLC}.
+ * <p>Requires VLC to be available, see {@link Capability#VLC}.
  *
  * <p>This class is thread-safe.
  *
@@ -65,7 +68,10 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 public final class VlcPlayer implements VideoPlayerMultiplexer {
 
   private static final long OPEN_TIMEOUT_MILLISECONDS = 5_000L;
+
   private static final Equivalence<Object> IDENTITY = Equivalence.identity();
+
+  private static final String PREPARED_CANDIDATE_MESSAGE = "A prepared transition owns a candidate!";
 
   private final SharedMediaPlayerFactory sharedFactory;
   private final long openTimeoutMilliseconds;
@@ -81,12 +87,11 @@ public final class VlcPlayer implements VideoPlayerMultiplexer {
   private @Nullable StartTransition pending;
 
   /**
-   * Constructs a new VLC player. Create instances with
-   * {@link me.brandonli.mcav.media.player.multimedia.VideoPlayer#vlc(String...)}.
+   * Creates a VLC player. Create instances with {@link VideoPlayer#vlc(String...)}.
    *
    * <p>The player is refused while the library still prepares VLC in the background, and when that preparation found
-   * that VLC is not available on this system; wait for
-   * {@link me.brandonli.mcav.MCAVApi#whenCapabilityReady(Capability)} with {@link Capability#VLC} first.
+   * that VLC is not available on this system; wait for {@link MCAVApi#whenCapabilityReady(Capability)} with
+   * {@link Capability#VLC} first.
    *
    * @param mediaOptions the non-null array of non-null VLC media options, copied for use with every source,
    *                     such as {@code :network-caching=1000}
@@ -98,6 +103,7 @@ public final class VlcPlayer implements VideoPlayerMultiplexer {
   public VlcPlayer(final String... mediaOptions) {
     final CapabilityGuard guard = CapabilityGuard.shared();
     guard.checkUsable(Capability.VLC);
+
     final SharedMediaPlayerFactory sharedFactory = SharedMediaPlayerFactory.getInstance();
     this(sharedFactory, OPEN_TIMEOUT_MILLISECONDS, mediaOptions);
   }
@@ -127,10 +133,11 @@ public final class VlcPlayer implements VideoPlayerMultiplexer {
   /**
    * Starts playing a source that contains both video and audio, replacing the current playback. Waits until VLC has reported an opening
    * event or the five-second event wait expires. The current playback keeps playing if VLC cannot even be set up for the new source.
+   * Source failures are reported to the exception handler.
    *
    * @param combined the source
-   * @return true if playback was accepted, including a slow open that outlives the event wait; false if the player is released, another start is in progress, or the source
-   * cannot be opened. Source failures are reported to the exception handler.
+   * @return true if playback was accepted, including a slow open that outlives the event wait; false if the player is released, another
+   * start is in progress, or the source cannot be opened
    * @throws NullPointerException if {@code combined} is null
    * @since 1.0.0
    */
@@ -145,11 +152,12 @@ public final class VlcPlayer implements VideoPlayerMultiplexer {
    * Starts playing video from one source and audio from another, replacing the current playback. Equal sources are
    * played as one combined source. Both sources open concurrently and share the opening-event timeout;
    * expiry alone is accepted even if VLC is still opening. The current playback keeps playing if VLC cannot even be set up.
+   * Source failures are reported to the exception handler.
    *
    * @param video the video source
    * @param audio the audio source
-   * @return true if playback was accepted, including a slow open that outlives the event wait; false if the player is released, another start is in progress, or a source
-   * cannot be opened. Source failures are reported to the exception handler.
+   * @return true if playback was accepted, including a slow open that outlives the event wait; false if the player is released, another
+   * start is in progress, or a source cannot be opened
    * @throws NullPointerException if {@code video} or {@code audio} is null
    * @since 1.0.0
    */
@@ -174,8 +182,8 @@ public final class VlcPlayer implements VideoPlayerMultiplexer {
       }
     } catch (final RuntimeException | Error exception) {
       ThrowableUtils.throwIfFatal(exception);
-      VlcPlayback.attemptAfterFailure(exception, () -> this.cleanFailedPreparation(transition));
-      return this.reportFailedStart(video, exception);
+      VlcPlayback.runAddingFailureTo(exception, () -> this.cleanFailedPreparation(transition));
+      return this.reportStartFailureOrRethrow(video, exception);
     }
 
     try {
@@ -187,7 +195,7 @@ public final class VlcPlayer implements VideoPlayerMultiplexer {
       ThrowableUtils.throwIfFatal(exception);
 
       if (this.claimCandidate(transition)) {
-        VlcPlayback.attemptAfterFailure(exception, () -> this.cleanCandidate(transition));
+        VlcPlayback.runAddingFailureTo(exception, () -> this.cleanCandidate(transition));
       }
 
       throw exception;
@@ -261,8 +269,8 @@ public final class VlcPlayer implements VideoPlayerMultiplexer {
       result = this.openCandidate(transition);
     } catch (final RuntimeException | Error exception) {
       ThrowableUtils.throwIfFatal(exception);
-      VlcPlayback.attemptAfterFailure(exception, () -> this.cleanCandidate(transition));
-      return this.reportFailedStart(video, exception);
+      VlcPlayback.runAddingFailureTo(exception, () -> this.cleanCandidate(transition));
+      return this.reportStartFailureOrRethrow(video, exception);
     }
 
     if (result == OpenResult.FAILED) {
@@ -285,7 +293,7 @@ public final class VlcPlayer implements VideoPlayerMultiplexer {
         return OpenResult.FAILED;
       }
 
-      final VlcPlayback created = Objects.requireNonNull(transition.created, "A prepared transition owns a candidate!");
+      final VlcPlayback created = requireNonNull(transition.created, PREPARED_CANDIDATE_MESSAGE);
       final boolean started = created.start();
       if (started && !this.released.get()) {
         this.playback = created;
@@ -302,7 +310,7 @@ public final class VlcPlayer implements VideoPlayerMultiplexer {
 
   private void cleanCandidate(final StartTransition transition) {
     try {
-      final VlcPlayback created = Objects.requireNonNull(transition.created, "A prepared transition owns a candidate!");
+      final VlcPlayback created = requireNonNull(transition.created, PREPARED_CANDIDATE_MESSAGE);
       created.stop();
     } finally {
       this.clearReservation();
@@ -318,11 +326,11 @@ public final class VlcPlayer implements VideoPlayerMultiplexer {
     }
   }
 
-  private boolean reportFailedStart(final Source video, final Throwable exception) {
+  private boolean reportStartFailureOrRethrow(final Source video, final Throwable exception) {
     final boolean reported = this.reportStartFailure(video, exception);
     if (!reported) {
-      if (exception instanceof final RuntimeException runtime) {
-        throw runtime;
+      if (exception instanceof final RuntimeException runtimeException) {
+        throw runtimeException;
       }
 
       throw (Error) exception;
@@ -332,12 +340,13 @@ public final class VlcPlayer implements VideoPlayerMultiplexer {
   }
 
   private boolean reportStartFailure(final Source video, final Throwable exception) {
-    return VlcPlayback.attemptAfterFailure(exception, () -> this.sendStartFailure(video, exception));
+    return VlcPlayback.runAddingFailureTo(exception, () -> this.sendStartFailure(video, exception));
   }
 
   private void sendStartFailure(final Source video, final Throwable exception) {
     final String resource = video.getResource();
-    this.exceptionHandler.accept("Failed to start VLC playback of " + resource, exception);
+    final String message = "VLC playback of %s could not be started.".formatted(resource);
+    this.exceptionHandler.accept(message, exception);
   }
 
   /**
@@ -392,7 +401,7 @@ public final class VlcPlayer implements VideoPlayerMultiplexer {
    */
   @Override
   public boolean seek(final long time) {
-    Preconditions.checkArgument(time >= 0, "Seek time must not be negative!");
+    Preconditions.checkArgument(time >= 0, "Seek time %s must not be negative!", time);
 
     this.lock.lock();
     try {
@@ -433,7 +442,7 @@ public final class VlcPlayer implements VideoPlayerMultiplexer {
       } else if (transition.claimed) {
         current = null;
       } else {
-        current = Objects.requireNonNull(transition.created, "An unclaimed transition owns a prepared candidate!");
+        current = requireNonNull(transition.created, "An unclaimed transition owns a prepared candidate!");
         this.pending = null;
       }
 
@@ -449,6 +458,17 @@ public final class VlcPlayer implements VideoPlayerMultiplexer {
     return true;
   }
 
+  String[] createMediaOptions(final @Nullable String extra) {
+    if (extra == null) {
+      return this.mediaOptions.clone();
+    }
+
+    final List<String> configured = List.of(this.mediaOptions);
+    final List<String> options = new ArrayList<>(configured);
+    options.add(extra);
+    return options.toArray(new String[0]);
+  }
+
   /**
    * Sets the handler that receives failures. It is called on VLC's threads and on the render threads, so it must be
    * thread safe and should return quickly.
@@ -462,17 +482,6 @@ public final class VlcPlayer implements VideoPlayerMultiplexer {
     Preconditions.checkNotNull(exceptionHandler, "Exception handler must not be null!");
 
     this.exceptionHandler = exceptionHandler;
-  }
-
-  String[] createMediaOptions(final @Nullable String extra) {
-    if (extra == null) {
-      return this.mediaOptions.clone();
-    }
-
-    final List<String> configured = List.of(this.mediaOptions);
-    final List<String> options = new ArrayList<>(configured);
-    options.add(extra);
-    return options.toArray(new String[0]);
   }
 
   /**

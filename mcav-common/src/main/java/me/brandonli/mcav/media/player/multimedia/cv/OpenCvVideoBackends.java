@@ -27,23 +27,22 @@ import org.bytedeco.opencv.global.opencv_core;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-// What the OpenCV build of this machine can read. OpenCV reads video files through a backend that has to be compiled
-// into it, and the builds differ: the Windows build brings FFmpeg and Media Foundation, the macOS build brings
-// AVFoundation, and the Linux build of the bundled JavaCPP presets brings none of them and only captures from V4L2
-// cameras. Without a backend VideoCapture refuses to open a file and reports nothing but false, which used to look
-// exactly like a video that plays without ever showing a frame. The players ask here instead and read the file with the
-// FFmpeg reader that JavaCV bundles, which every platform has.
+// Whether the OpenCV build of this machine has a video file backend; the Linux build of the bundled presets has none,
+// so players read files with JavaCV's FFmpeg reader.
 final class OpenCvVideoBackends {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(OpenCvVideoBackends.class);
+
   private static final String VIDEO_SECTION = "Video I/O:";
   private static final String SECTION_END = "\n\n";
   private static final String ENABLED = "YES";
   private static final List<String> FILE_BACKENDS = List.of("FFMPEG:", "Media Foundation:", "AVFoundation:", "GStreamer:");
+
   private static final Supplier<VideoFileReader> FILE_READER = Suppliers.memoize(OpenCvVideoBackends::detectFileReader);
 
   private OpenCvVideoBackends() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   // The reader that opens video files on this machine. The answer is worked out once, because it cannot change while the

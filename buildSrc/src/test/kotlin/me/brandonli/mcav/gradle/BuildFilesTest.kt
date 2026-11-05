@@ -86,7 +86,7 @@ class BuildFilesTest {
     @Test
     fun shouldIncludeEveryModuleInOrderAndSortEverySectionOfTheCatalog(): Unit {
         val directories: Array<File> =
-            this.root.listFiles { file -> file.name != BUILD_SOURCE_DIRECTORY && file.resolve(BUILD_SCRIPT).isFile }!!
+            this.root.listFiles { it.name != BUILD_SOURCE_DIRECTORY && it.resolve(BUILD_SCRIPT).isFile }!!
         val sortedModules: List<String> = directories.map { it.name }.sorted()
         assertEquals(sortedModules, this.modules)
 

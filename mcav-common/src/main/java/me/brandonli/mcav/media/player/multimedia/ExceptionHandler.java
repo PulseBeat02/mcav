@@ -24,9 +24,13 @@ import java.util.function.BiConsumer;
  * receives a short description of what failed and the exception; the default handler logs both.
  *
  * {@snippet :
- * final VideoPlayerMultiplexer player = VideoPlayer.ffmpeg();
- * final Logger logger = plugin.getLogger();
- * player.setExceptionHandler((message, error) -> logger.log(Level.SEVERE, message, error));
+ * VideoPlayerMultiplexer createPlayer(final Plugin plugin) {
+ *   final VideoPlayerMultiplexer player = VideoPlayer.ffmpeg();
+ *   final Logger logger = plugin.getLogger();
+ *   player.setExceptionHandler((message, error) -> logger.log(Level.SEVERE, message, error));
+ *
+ *   return player;
+ * }
  * }
  *
  * <p>Implementations in this library are thread-safe.
@@ -34,6 +38,17 @@ import java.util.function.BiConsumer;
  * @since 1.0.0
  */
 public interface ExceptionHandler {
+  /**
+   * Creates a standalone handler holder that logs failures with SLF4J until another handler is set. Players use
+   * it to implement this interface by delegation.
+   *
+   * @return a new handler holder
+   * @since 1.0.0
+   */
+  static ExceptionHandler createDefault() {
+    return new DefaultExceptionHandler();
+  }
+
   /**
    * Returns the handler that receives failures.
    *
@@ -51,15 +66,4 @@ public interface ExceptionHandler {
    * @since 1.0.0
    */
   void setExceptionHandler(final BiConsumer<String, Throwable> exceptionHandler);
-
-  /**
-   * Creates a standalone handler holder that logs failures with SLF4J until another handler is set. Players use
-   * it to implement this interface by delegation.
-   *
-   * @return a new handler holder
-   * @since 1.0.0
-   */
-  static ExceptionHandler createDefault() {
-    return new DefaultExceptionHandler();
-  }
 }

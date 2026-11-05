@@ -26,78 +26,106 @@ import me.brandonli.mcav.media.source.uri.UriSource;
  * between streamed frames. Only absolute {@code http} and {@code https} addresses with a host can be shown.
  * The factories create immutable sources and perform no network access. Address-policy checks, including
  * the default restriction on private networks, happen when the browser loads the page.
+ *
+ * {@snippet :
+ * final URI page = URI.create("https://example.com");
+ * final BrowserSource source = BrowserSource.uri(page);
+ * }
+ *
+ * <p>Sources are immutable and thread-safe.
+ *
+ * @since 1.0.0
  */
 public interface BrowserSource extends UriSource {
   /**
    * The frame width used by {@link #uri(URI)}.
+   *
+   * @since 1.0.0
    */
   int DEFAULT_WIDTH = 1280;
 
   /**
    * The frame height used by {@link #uri(URI)}.
+   *
+   * @since 1.0.0
    */
   int DEFAULT_HEIGHT = 720;
 
   /**
-   * The largest width or height of a page.
+   * The frame interval used by {@link #uri(URI)}: every painted frame is streamed.
+   *
+   * @since 1.0.0
    */
-  int MAX_SIDE = HelperProtocol.MAX_SIDE;
+  int DEFAULT_FRAME_INTERVAL = 1;
+
+  /**
+   * The largest width or height of a page.
+   *
+   * @since 1.0.0
+   */
+  int MAXIMUM_SIDE = HelperProtocol.MAXIMUM_SIDE;
 
   /**
    * The largest frame interval.
+   *
+   * @since 1.0.0
    */
-  int MAX_FRAME_INTERVAL = 1000;
+  int MAXIMUM_FRAME_INTERVAL = 1000;
 
   /**
    * The longest {@link URI#toString()} representation accepted by the factories, in UTF-16 code units.
+   *
+   * @since 1.0.0
    */
-  int MAX_ADDRESS_LENGTH = 65_536;
+  int MAXIMUM_ADDRESS_LENGTH = 65_536;
 
   /**
    * Creates a source with every setting.
    *
    * @param uri           the non-null absolute {@code http} or {@code https} address with a host;
-   *                      its string representation has at most {@value #MAX_ADDRESS_LENGTH} UTF-16 code units
-   * @param width         the width of the page and the frames in pixels, from 1 to {@value #MAX_SIDE}
-   * @param height        the height of the page and the frames in pixels, from 1 to {@value #MAX_SIDE}
-   * @param frameInterval stream every n-th painted frame, from 1 to {@value #MAX_FRAME_INTERVAL}; 1 streams every frame
+   *                      its string representation has at most {@value #MAXIMUM_ADDRESS_LENGTH} UTF-16 code units
+   * @param width         the width of the page and the frames in pixels, from 1 to {@value #MAXIMUM_SIDE}
+   * @param height        the height of the page and the frames in pixels, from 1 to {@value #MAXIMUM_SIDE}
+   * @param frameInterval stream every n-th painted frame, from 1 to {@value #MAXIMUM_FRAME_INTERVAL}; 1 streams every frame
    * @return the source
-   * @throws IllegalArgumentException if the address is not a web address, is longer than {@value #MAX_ADDRESS_LENGTH}
+   * @throws IllegalArgumentException if the address is not a web address, is longer than {@value #MAXIMUM_ADDRESS_LENGTH}
    *                                  characters, or a number is out of range
-   * @throws NullPointerException if {@code uri} is null
+   * @throws NullPointerException     if {@code uri} is null
+   * @since 1.0.0
    */
   static BrowserSource uri(final URI uri, final int width, final int height, final int frameInterval) {
-    Preconditions.checkNotNull(uri, "URI must not be null");
-    // java.net.URI reads no host from a name with an underscore, which the policy then cannot check; such an address
-    // was refused as one that is not http or https
+    Preconditions.checkNotNull(uri, "URI must not be null!");
+    // java.net.URI reads no host from a name with an underscore, which the policy then could not check
     Preconditions.checkArgument(
       uri.getHost() != null || uri.getRawAuthority() == null,
-      "The address has no host name the browser can check, such as a name with an underscore: %s",
+      "Address %s has no host name the browser can check, such as a name with an underscore!",
       uri
     );
-    Preconditions.checkArgument(NavigationPolicy.isWebAddress(uri), "The browser shows http and https addresses only but got %s", uri);
-    final int length = uri.toString().length();
+    Preconditions.checkArgument(NavigationPolicy.isWebAddress(uri), "Address %s must be an http or https address for the browser!", uri);
+    final String address = uri.toString();
+    final int length = address.length();
     Preconditions.checkArgument(
-      length <= MAX_ADDRESS_LENGTH,
-      "An address has at most %s characters but had %s",
-      MAX_ADDRESS_LENGTH,
-      length
+      length <= MAXIMUM_ADDRESS_LENGTH,
+      "Address length %s must be at most %s characters!",
+      length,
+      MAXIMUM_ADDRESS_LENGTH
     );
-    Preconditions.checkArgument(width > 0 && height > 0, "Frame size must be positive but was %sx%s", width, height);
+    Preconditions.checkArgument(width > 0 && height > 0, "Frame size %sx%s must be positive!", width, height);
     Preconditions.checkArgument(
-      width <= MAX_SIDE && height <= MAX_SIDE,
-      "Frame size must be at most %s per side but was %sx%s",
-      MAX_SIDE,
+      width <= MAXIMUM_SIDE && height <= MAXIMUM_SIDE,
+      "Frame size %sx%s must be at most %s per side!",
       width,
-      height
+      height,
+      MAXIMUM_SIDE
     );
     Preconditions.checkArgument(
-      frameInterval > 0 && frameInterval <= MAX_FRAME_INTERVAL,
-      "Frame interval must be between 1 and %s but was %s",
-      MAX_FRAME_INTERVAL,
-      frameInterval
+      frameInterval > 0 && frameInterval <= MAXIMUM_FRAME_INTERVAL,
+      "Frame interval %s must be between 1 and %s frames!",
+      frameInterval,
+      MAXIMUM_FRAME_INTERVAL
     );
-    return new BrowserSourceImpl(uri, width, height, frameInterval);
+
+    return new DefaultBrowserSource(uri, width, height, frameInterval);
   }
 
   /**
@@ -107,38 +135,43 @@ public interface BrowserSource extends UriSource {
    * @param uri the non-null absolute {@code http} or {@code https} address with a host
    * @return the source
    * @throws IllegalArgumentException if the address lacks a web scheme or host, or exceeds
-   *                                  {@value #MAX_ADDRESS_LENGTH} UTF-16 code units
-   * @throws NullPointerException if {@code uri} is null
+   *                                  {@value #MAXIMUM_ADDRESS_LENGTH} UTF-16 code units
+   * @throws NullPointerException     if {@code uri} is null
+   * @since 1.0.0
    */
   static BrowserSource uri(final URI uri) {
-    return uri(uri, DEFAULT_WIDTH, DEFAULT_HEIGHT, 1);
+    return uri(uri, DEFAULT_WIDTH, DEFAULT_HEIGHT, DEFAULT_FRAME_INTERVAL);
   }
 
   /**
-   * Gets the width of the page and of the frames.
+   * Returns the width of the page and of the frames.
    *
-   * @return the width in pixels, from 1 to {@value BrowserSource#MAX_SIDE}
+   * @return the width in pixels, from 1 to {@value BrowserSource#MAXIMUM_SIDE}
+   * @since 1.0.0
    */
   int getWidth();
 
   /**
-   * Gets the height of the page and of the frames.
+   * Returns the height of the page and of the frames.
    *
-   * @return the height in pixels, from 1 to {@value BrowserSource#MAX_SIDE}
+   * @return the height in pixels, from 1 to {@value BrowserSource#MAXIMUM_SIDE}
+   * @since 1.0.0
    */
   int getHeight();
 
   /**
-   * Gets how many painted frames make one streamed frame.
+   * Returns how many painted frames make one streamed frame.
    *
-   * @return the interval, from 1 to {@value BrowserSource#MAX_FRAME_INTERVAL}; 1 streams every painted frame
+   * @return the interval, from 1 to {@value BrowserSource#MAXIMUM_FRAME_INTERVAL}; 1 streams every painted frame
+   * @since 1.0.0
    */
   int getFrameInterval();
 
   /**
-   * Gets the name of the source type.
+   * Returns the name of the source type.
    *
    * @return {@code browser}
+   * @since 1.0.0
    */
   @Override
   default String getName() {
@@ -146,9 +179,10 @@ public interface BrowserSource extends UriSource {
   }
 
   /**
-   * Checks whether the address can be played directly. A web page is rendered by a browser, so it never can.
+   * Returns whether the address can be played directly. A web page is rendered by a browser, so it never can.
    *
    * @return false
+   * @since 1.0.0
    */
   @Override
   default boolean isDirect() {

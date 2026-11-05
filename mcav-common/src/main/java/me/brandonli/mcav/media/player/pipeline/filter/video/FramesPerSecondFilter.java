@@ -32,7 +32,7 @@ import org.bytedeco.opencv.opencv_core.Scalar;
  *
  * @since 1.0.0
  */
-public class FramesPerSecondFilter extends MatVideoFilter {
+public final class FramesPerSecondFilter extends MatVideoFilter {
 
   private static final Scalar WHITE = new Scalar(255, 255, 255, 0);
   private static final Scalar BLACK = new Scalar(0, 0, 0, 0);
@@ -40,6 +40,7 @@ public class FramesPerSecondFilter extends MatVideoFilter {
   private static final double FONT_SCALE = 0.6;
   private static final int OUTLINE_THICKNESS = 3;
   private static final int TEXT_THICKNESS = 1;
+  private static final boolean BOTTOM_LEFT_ORIGIN = false;
   private static final long WINDOW_NANOSECONDS = 1_000_000_000L;
 
   private final LongSupplier clock;
@@ -65,16 +66,16 @@ public class FramesPerSecondFilter extends MatVideoFilter {
   /**
    * Counts the frame and draws the smoothed frame rate onto it in place, as white text with a black outline.
    *
-   * @param mat the 8-bit BGR matrix of the frame
+   * @param matrix the 8-bit BGR matrix of the frame
    * @return true, because the text is drawn onto every frame
    * @since 1.0.0
    */
   @Override
-  protected boolean modifyMat(final Mat mat) {
+  protected boolean modifyMat(final Mat matrix) {
     this.countFrame();
-    final String text = this.displayedFrameRate + " fps";
-    drawText(mat, text, BLACK, OUTLINE_THICKNESS);
-    drawText(mat, text, WHITE, TEXT_THICKNESS);
+    final String text = "%s fps".formatted(this.displayedFrameRate);
+    drawText(matrix, text, BLACK, OUTLINE_THICKNESS);
+    drawText(matrix, text, WHITE, TEXT_THICKNESS);
 
     return true;
   }
@@ -93,9 +94,9 @@ public class FramesPerSecondFilter extends MatVideoFilter {
     this.windowStart = now;
   }
 
-  private static void drawText(final Mat mat, final String text, final Scalar color, final int thickness) {
+  private static void drawText(final Mat matrix, final String text, final Scalar color, final int thickness) {
     opencv_imgproc.putText(
-      mat,
+      matrix,
       text,
       POSITION,
       opencv_imgproc.FONT_HERSHEY_SIMPLEX,
@@ -103,7 +104,7 @@ public class FramesPerSecondFilter extends MatVideoFilter {
       color,
       thickness,
       opencv_imgproc.LINE_AA,
-      false
+      BOTTOM_LEFT_ORIGIN
     );
   }
 }

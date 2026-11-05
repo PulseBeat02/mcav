@@ -72,6 +72,8 @@ final class AudioExtractorTest {
   private static final String KEPT_FILE_NAME = "keep.ogg";
   private static final String OGG_EXTENSION = ".ogg";
 
+  private static final String USER_HOME_PROPERTY = "user.home";
+
   @TempDir
   private Path directory;
 
@@ -88,14 +90,14 @@ final class AudioExtractorTest {
 
   @BeforeEach
   void useTemporaryHome() {
-    this.previousHome = System.getProperty("user.home");
+    this.previousHome = System.getProperty(USER_HOME_PROPERTY);
     final String temporaryHome = this.directory.toString();
-    System.setProperty("user.home", temporaryHome);
+    System.setProperty(USER_HOME_PROPERTY, temporaryHome);
   }
 
   @AfterEach
   void restoreHome() {
-    System.setProperty("user.home", this.previousHome);
+    System.setProperty(USER_HOME_PROPERTY, this.previousHome);
   }
 
   private Path writeTone() throws IOException {
@@ -149,6 +151,10 @@ final class AudioExtractorTest {
     final Path missing = this.directory.resolve(MISSING_FILE_NAME);
     final FileSource source = FileSource.path(missing);
     assertThrows(ProcessException.class, () -> AudioExtractor.extractOggVorbis(source));
+  }
+
+  @Test
+  void shouldRejectANullSource() {
     assertThrows(NullPointerException.class, () -> AudioExtractor.extractOggVorbis(null));
   }
 
@@ -228,7 +234,8 @@ final class AudioExtractorTest {
   private void assertCacheHoldsOnly(final Path cache, final Path existing) throws IOException {
     try (final Stream<Path> cacheFiles = Files.list(cache)) {
       final List<Path> cachedFiles = cacheFiles.toList();
-      assertEquals(List.of(existing), cachedFiles);
+      final List<Path> expected = List.of(existing);
+      assertEquals(expected, cachedFiles);
     }
   }
 

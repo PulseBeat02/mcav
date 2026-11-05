@@ -80,6 +80,13 @@ final class DimensionTest {
   }
 
   @Test
+  void shouldHaveNeitherWidthNorHeightWhenNone() {
+    final Dimension none = Dimension.NONE;
+    final Dimension expected = Dimension.of(0, 0);
+    assertEquals(expected, none);
+  }
+
+  @Test
   void shouldRenderBothSides() {
     final Dimension dimension = Dimension.of(1920, 1080);
     final String text = dimension.toString();

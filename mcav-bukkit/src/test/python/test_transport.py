@@ -52,18 +52,10 @@ class TransportTest(unittest.TestCase):
             with self.assertRaises(ValueError):
                 from_symbols(values, mcv2_reference.SYMBOL_BITS, 1)
 
-        calls: list[
-            tuple[
-                int,
-                Callable[..., int]
-                | Callable[..., list[bytes]]
-                | Callable[..., mcv2_reference.Page]
-                | type[Assembler]
-                | Callable[..., bytes]
-                | Callable[[bytes, int, int], bytes],
-                tuple[int] | tuple[bytes, int, int] | tuple[bytes, int] | tuple[int, int],
-            ]
-        ] = [(width, function, arguments) for width in (0, 5, 7, 8) for function, arguments in symbol_width_calls(width)]
+    def test_should_reject_symbol_widths_other_than_six(self) -> None:
+        calls: list[tuple[int, Callable[..., object], tuple[object, ...]]] = [
+            (width, function, arguments) for width in (0, 5, 7, 8) for function, arguments in symbol_width_calls(width)
+        ]
         for width, function, arguments in calls:
             with self.subTest(function=function.__name__, width=width), self.assertRaises(ValueError):
                 function(*arguments)
@@ -91,8 +83,9 @@ class TransportTest(unittest.TestCase):
         payload: bytes = raw[mcv2_reference.PAGE_HEADER_BYTES:]
         self.assertEqual(frame, payload)
 
-        fields: tuple[Any, ...] = tuple(getattr(read_page(pages[0]), field) for field in
-                       ('stream_id', 'frame_id', 'number', 'count', 'reference_id', 'frame_bytes', 'flags', 'symbol_bits'))
+        page: mcv2_reference.Page = read_page(pages[0])
+        names: tuple[str, ...] = ('stream_id', 'frame_id', 'number', 'count', 'reference_id', 'frame_bytes', 'flags', 'symbol_bits')
+        fields: tuple[Any, ...] = tuple(getattr(page, name) for name in names)
         self.assertEqual((7, 9, 0, 1, 9, 48, 1, 6), fields)
 
         page_wire_bytes: int = wire_bytes(pages)
@@ -135,7 +128,8 @@ class TransportTest(unittest.TestCase):
         self.assertEqual({}, pending)
 
     def test_should_reject_bad_metadata_alphabet_and_padding(self) -> None:
-        raw: bytes = page_bytes(make_pages(large_frame())[0])
+        first_page: bytes = make_pages(large_frame())[0]
+        raw: bytes = page_bytes(first_page)
         mutations: list[tuple[int, int, str]] = [
             (PAGE_MAGIC_OFFSET, ord("X"), BYTE_CODE),
             (PAGE_VERSION_OFFSET, 2, BYTE_CODE),
@@ -150,19 +144,20 @@ class TransportTest(unittest.TestCase):
             with self.subTest(offset=offset), self.assertRaises(ValueError):
                 read_page(to_symbols(with_crc(changed(raw, offset, value, code))))
 
-        for symbols in (b'', bytes(42), bytes(mcv2_reference.PAGE_SYMBOLS + 1), make_pages(large_frame())[0][:-1]):
+        for symbols in (b'', bytes(42), bytes(mcv2_reference.PAGE_SYMBOLS + 1), first_page[:-1]):
             with self.assertRaises(ValueError):
                 read_page(symbols)
 
         # 80 bytes are 106 symbols and 4 bits: the last symbol has two padding bits.
-        symbols = bytearray(make_pages(pack_frame(1, 1, 0, 0, {0: Node(mcv2_reference.SOLID, record=bytes(3))}))[0])
-        symbols[-1] |= 32
+        small_frame: bytes = pack_frame(1, 1, 0, 0, {0: Node(mcv2_reference.SOLID, record=bytes(3))})
+        page: bytearray = bytearray(make_pages(small_frame)[0])
+        page[-1] |= 32
         with self.assertRaisesRegex(ValueError, 'padding'):
-            read_page(bytes(symbols))
+            read_page(bytes(page))
 
-        symbols[0] |= mcv2_reference.ALPHABET_SIZE
+        page[0] |= mcv2_reference.ALPHABET_SIZE
         with self.assertRaisesRegex(ValueError, 'alphabet'):
-            read_page(bytes(symbols))
+            read_page(bytes(page))
 
     def test_should_keep_the_pending_limit_and_reject_wrong_streams_and_conflicts(self) -> None:
         assembler: Assembler = Assembler()
@@ -179,19 +174,23 @@ class TransportTest(unittest.TestCase):
         pending = list(assembler.pending)
         self.assertEqual([1, 2, 3, 4], pending)
 
+        first: bytes
+        last: bytes
         first, last = make_pages(large_frame(4))
         conflicting: bytes = with_crc(changed(page_bytes(first), 40, 1))
         with self.assertRaisesRegex(ValueError, 'duplicate'):
             assembler.push(to_symbols(conflicting))
 
-        self.assertNotIn(4, assembler.pending)
+        pending = list(assembler.pending)
+        self.assertNotIn(4, pending)
 
         assembler.push(first)
         disagreement: bytes = with_crc(changed(page_bytes(last), REFERENCE_ID_OFFSET, 17, WORD_CODE))
         with self.assertRaisesRegex(ValueError, 'inconsistent'):
             assembler.push(to_symbols(disagreement))
 
-        self.assertNotIn(4, assembler.pending)
+        pending = list(assembler.pending)
+        self.assertNotIn(4, pending)
 
     def test_should_validate_complete_frames_and_their_identity(self) -> None:
         frame: bytes = pack_frame(1, 1, 0, 0, {})
@@ -206,25 +205,17 @@ class TransportTest(unittest.TestCase):
 
         # A page may hold 20 bytes even though those bytes cannot hold a complete v3 index.
         header: bytes = PAGE_HEADER.pack(mcv2_reference.PAGE_MAGIC, mcv2_reference.PAGE_VERSION, mcv2_reference.SYMBOL_BITS,
-                                  1, 1, 0, 0, 1, 0, 20, 0)
+                                         1, 1, 0, 0, 1, 0, 20, 0)
         symbols: bytes = to_symbols(with_crc(header + bytes(20)))
-        frame_bytes: int = read_page(symbols).frame_bytes
+        page: mcv2_reference.Page = read_page(symbols)
+        frame_bytes: int = page.frame_bytes
         self.assertEqual(20, frame_bytes)
 
         with self.assertRaises(ValueError):
             Assembler().push(symbols)
 
 
-def symbol_width_calls(
-    width: int,
-) -> tuple[
-    tuple[Callable[..., int], tuple[int]],
-    tuple[Callable[..., list[bytes]], tuple[bytes, int, int]],
-    tuple[Callable[..., mcv2_reference.Page], tuple[bytes, int]],
-    tuple[type[Assembler], tuple[int, int]],
-    tuple[Callable[..., bytes], tuple[bytes, int]],
-    tuple[Callable[[bytes, int, int], bytes], tuple[bytes, int, int]],
-]:
+def symbol_width_calls(width: int) -> tuple[tuple[Callable[..., object], tuple[object, ...]], ...]:
     return ((page_capacity, (width,)), (make_pages, (large_frame(), 1, width)), (read_page, (b'', width)),
             (Assembler, (1, width)), (to_symbols, (b'a', width)), (from_symbols, (b'', width, 0)))
 
@@ -235,7 +226,8 @@ def large_frame(frame_id: int = 0) -> bytes:
 
 
 def page_bytes(symbols: bytes) -> bytes:
-    return from_symbols(symbols, mcv2_reference.SYMBOL_BITS, len(symbols) * mcv2_reference.SYMBOL_BITS // mcv2_reference.BITS_PER_BYTE)
+    byte_count: int = len(symbols) * mcv2_reference.SYMBOL_BITS // mcv2_reference.BITS_PER_BYTE
+    return from_symbols(symbols, mcv2_reference.SYMBOL_BITS, byte_count)
 
 
 def with_crc(raw: bytes) -> bytes:

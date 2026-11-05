@@ -28,7 +28,8 @@ public final class DebianLibraryInstallers {
   private static final String NAME = "debian-test";
 
   private DebianLibraryInstallers() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   public static DebianLibraryInstaller create(

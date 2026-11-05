@@ -17,8 +17,11 @@
  */
 package me.brandonli.mcav.plugin.utils;
 
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
@@ -47,19 +50,18 @@ public final class SeekPosition {
   private static final Pattern FORMAT = Pattern.compile("([+-]?)(?:(?:(\\d{1,2}):)?(\\d{1,2}):)?(\\d{1,6})(?:\\.(\\d{1,3}))?");
 
   private static final long MILLISECONDS_PER_SECOND = 1_000L;
-
   private static final int SECONDS_PER_MINUTE = 60;
-
   private static final int MINUTES_PER_HOUR = 60;
 
   private static final int MILLISECONDS_DIGITS = 3;
 
+  private static final int SIGN_GROUP = 1;
   private static final int HOURS_GROUP = 2;
   private static final int MINUTES_GROUP = 3;
   private static final int SECONDS_GROUP = 4;
   private static final int FRACTION_GROUP = 5;
 
-  private static final String FRACTION_PADDING = "00";
+  private static final char FRACTION_PADDING_DIGIT = '0';
 
   private static final String BACKWARD_SIGN = "-";
 
@@ -88,7 +90,7 @@ public final class SeekPosition {
    *
    * @param text the position as the player typed it
    * @return the position, or empty if the text is not one
-   * @throws NullPointerException if an argument is null
+   * @throws NullPointerException if {@code text} is null
    * @since 1.0.0
    */
   public static Optional<SeekPosition> parse(final String text) {
@@ -99,29 +101,40 @@ public final class SeekPosition {
       return Optional.empty();
     }
 
-    final String sign = Objects.requireNonNull(matcher.group(1));
+    final String sign = requireNonNull(matcher.group(SIGN_GROUP)); // checker framework
     final String hours = matcher.group(HOURS_GROUP);
     final String minutes = matcher.group(MINUTES_GROUP);
-    final String seconds = Objects.requireNonNull(matcher.group(SECONDS_GROUP));
+    final String seconds = requireNonNull(matcher.group(SECONDS_GROUP)); // checker framework
     final String fraction = matcher.group(FRACTION_GROUP);
     final long secondCount = Long.parseLong(seconds);
     final long minuteCount = minutes == null ? 0 : Long.parseLong(minutes);
-    if ((minutes != null && secondCount >= SECONDS_PER_MINUTE) || (hours != null && minuteCount >= MINUTES_PER_HOUR)) {
+    final boolean secondsOverflow = minutes != null && secondCount >= SECONDS_PER_MINUTE;
+    final boolean minutesOverflow = hours != null && minuteCount >= MINUTES_PER_HOUR;
+    if (secondsOverflow || minutesOverflow) {
       return Optional.empty();
     }
 
     final long hourCount = hours == null ? 0 : Long.parseLong(hours);
     final long wholeSeconds = (hourCount * MINUTES_PER_HOUR + minuteCount) * SECONDS_PER_MINUTE + secondCount;
-    final long fractionMilliseconds =
-      fraction == null ? 0 : Long.parseLong((fraction + FRACTION_PADDING).substring(0, MILLISECONDS_DIGITS));
+    final long fractionMilliseconds = parseFractionMilliseconds(fraction);
     final long milliseconds = wholeSeconds * MILLISECONDS_PER_SECOND + fractionMilliseconds;
     if (milliseconds > MAXIMUM_MILLISECONDS) {
       return Optional.empty();
     }
 
     final boolean relative = !sign.isEmpty();
-    final SeekPosition position = new SeekPosition(relative, sign.equals(BACKWARD_SIGN) ? -milliseconds : milliseconds);
+    final long signedMilliseconds = sign.equals(BACKWARD_SIGN) ? -milliseconds : milliseconds;
+    final SeekPosition position = new SeekPosition(relative, signedMilliseconds);
     return Optional.of(position);
+  }
+
+  private static long parseFractionMilliseconds(final @Nullable String fraction) {
+    if (fraction == null) {
+      return 0;
+    }
+
+    final String padded = Strings.padEnd(fraction, MILLISECONDS_DIGITS, FRACTION_PADDING_DIGIT);
+    return Long.parseLong(padded);
   }
 
   /**
@@ -141,6 +154,7 @@ public final class SeekPosition {
    *
    * @param milliseconds the time in milliseconds, at least 0
    * @return the time, without its milliseconds
+   * @throws IllegalArgumentException if {@code milliseconds} is negative
    * @since 1.0.0
    */
   public static String format(final long milliseconds) {
@@ -151,9 +165,12 @@ public final class SeekPosition {
     final long totalMinutes = totalSeconds / SECONDS_PER_MINUTE;
     final long minutes = totalMinutes % MINUTES_PER_HOUR;
     final long hours = totalMinutes / MINUTES_PER_HOUR;
-    return hours > 0
-      ? String.format(Locale.getDefault(Locale.Category.FORMAT), "%d:%02d:%02d", hours, minutes, seconds)
-      : String.format(Locale.getDefault(Locale.Category.FORMAT), "%d:%02d", minutes, seconds);
+    final Locale locale = Locale.getDefault(Locale.Category.FORMAT);
+    if (hours > 0) {
+      return String.format(locale, "%d:%02d:%02d", hours, minutes, seconds);
+    }
+
+    return String.format(locale, "%d:%02d", minutes, seconds);
   }
 
   /**

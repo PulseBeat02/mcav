@@ -12,8 +12,11 @@ dependencies {
     api(libs.gson)
     api(libs.bundles.jna)
     api(libs.slf4j.api)
+
     implementation(libs.xz)
+
     compileOnly(libs.osgi.annotation)
+
     testImplementation(libs.slf4j.simple)
     testImplementation(libs.jimfs)
 }

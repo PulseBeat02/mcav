@@ -33,8 +33,6 @@ final class StripAnchor {
   private static final int STREAM_LOW = 13;
   private static final int STREAM_HIGH = 14;
 
-  private static final int SYMBOL_BITS = 6;
-
   private final int column;
   private final int row;
   private final int columns;
@@ -81,20 +79,17 @@ final class StripAnchor {
     return new StripAnchor(column, row, columns, rows, facing, stream, cornerX, cornerY, cornerZ);
   }
 
-  // colours of a map Mcv2Maps.isAnchor accepted
-  static StripAnchor of(final byte[] colours, final float cornerX, final float cornerY, final float cornerZ) {
-    final long stream = Mcv2Maps.symbol(colours, STREAM_LOW) | ((long) Mcv2Maps.symbol(colours, STREAM_HIGH) << SYMBOL_BITS);
-    return new StripAnchor(
-      Mcv2Maps.symbol(colours, COLUMN),
-      Mcv2Maps.symbol(colours, ROW),
-      Mcv2Maps.symbol(colours, COLUMNS),
-      Mcv2Maps.symbol(colours, ROWS),
-      Mcv2Maps.symbol(colours, FACING),
-      stream,
-      cornerX,
-      cornerY,
-      cornerZ
-    );
+  // colors of a map Mcv2Maps.isAnchor accepted
+  static StripAnchor from(final byte[] colors, final float cornerX, final float cornerY, final float cornerZ) {
+    final int column = Mcv2Maps.symbol(colors, COLUMN);
+    final int row = Mcv2Maps.symbol(colors, ROW);
+    final int columns = Mcv2Maps.symbol(colors, COLUMNS);
+    final int rows = Mcv2Maps.symbol(colors, ROWS);
+    final int facing = Mcv2Maps.symbol(colors, FACING);
+    final long streamLow = Mcv2Maps.symbol(colors, STREAM_LOW);
+    final long streamHigh = Mcv2Maps.symbol(colors, STREAM_HIGH);
+    final long stream = streamLow | (streamHigh << Mcv2Maps.SYMBOL_BITS);
+    return new StripAnchor(column, row, columns, rows, facing, stream, cornerX, cornerY, cornerZ);
   }
 
   int getColumn() {

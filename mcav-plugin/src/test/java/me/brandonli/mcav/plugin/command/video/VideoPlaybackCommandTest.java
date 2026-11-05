@@ -91,7 +91,8 @@ final class VideoPlaybackCommandTest {
 
   private void assertReceived(final Component... expected) {
     final List<Component> received = Components.received(this.sender);
-    assertEquals(List.of(expected), received);
+    final List<Component> expectedMessages = List.of(expected);
+    assertEquals(expectedMessages, received);
   }
 
   @Test

@@ -63,6 +63,7 @@ public interface Writable {
    * @return the stream, which the caller must close
    * @throws FileOperationException        if the file cannot be opened
    * @throws UnsupportedOperationException if an option is unsupported by the file-system provider
+   * @throws IllegalArgumentException      if the options are an invalid combination
    * @throws NullPointerException          if {@code options} is null
    * @since 1.0.0
    */
@@ -85,6 +86,7 @@ public interface Writable {
    * @return the stream, which the caller must close
    * @throws FileOperationException        if the file cannot be opened
    * @throws UnsupportedOperationException if an option is unsupported by the file-system provider
+   * @throws IllegalArgumentException      if the options are an invalid combination
    * @throws NullPointerException          if {@code options} is null
    * @since 1.0.0
    */

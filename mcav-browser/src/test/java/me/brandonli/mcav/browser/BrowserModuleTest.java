@@ -31,13 +31,16 @@ import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import me.brandonli.mcav.browser.testing.Await;
 import me.brandonli.mcav.media.image.ImageBuffer;
-import me.brandonli.mcav.media.player.PlayerException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 class BrowserModuleTest {
 
-  private static final Path NATIVES = Path.of(System.getProperty("java.io.tmpdir")).toAbsolutePath();
+  private static final String STALE_FOLDER_SUFFIX = "stale";
+
+  private static final String TEMPORARY_DIRECTORY_PROPERTY = "java.io.tmpdir";
+
+  private static final Path NATIVES = Path.of(System.getProperty(TEMPORARY_DIRECTORY_PROPERTY)).toAbsolutePath();
 
   private final List<String> ends = new CopyOnWriteArrayList<>();
 
@@ -63,47 +66,61 @@ class BrowserModuleTest {
   }
 
   @Test
-  void startingRemovesTheFolderOfASessionWhoseServerWasKilled(@TempDir final Path temporary) throws IOException {
-    final Path stale = Files.createDirectory(temporary.resolve(SessionFolders.PREFIX + "stale"));
+  void shouldRemoveTheFolderOfASessionWhoseServerWasKilledOnStart(@TempDir final Path temporary) throws IOException {
+    final Path stale = Files.createDirectory(temporary.resolve(SessionFolders.PREFIX + STALE_FOLDER_SUFFIX));
     Files.writeString(stale.resolve(SessionFolders.OWNER_FILE), Long.MAX_VALUE + "\n2026-10-05T00:00:00Z\n", StandardCharsets.US_ASCII);
     final Path live = HelperSession.createFolder(temporary);
-    assertTrue(Files.isRegularFile(live.resolve(SessionFolders.OWNER_FILE)), "a new folder names its server");
+    final boolean hasOwnerFile = Files.isRegularFile(live.resolve(SessionFolders.OWNER_FILE));
+    assertTrue(hasOwnerFile, "a new folder names its server");
+
     new BrowserModule().start(temporary);
-    assertFalse(Files.exists(stale), "a killed server left it behind");
-    assertTrue(Files.exists(live), "the folder of a session of this server stays until its browser is released");
+    final boolean staleExists = Files.exists(stale);
+    assertFalse(staleExists, "a killed server left it behind");
+
+    final boolean liveExists = Files.exists(live);
+    assertTrue(liveExists, "the folder of a session of this server stays until its browser is released");
   }
 
   @Test
-  void theModuleIsNamedBrowserAndStartsWithoutDownloadingAnything() {
+  void shouldNameTheModuleBrowserAndStartWithoutDownloadingAnything() {
     final BrowserModule module = new BrowserModule();
-    assertEquals("browser", module.getModuleName());
+    final String moduleName = module.getModuleName();
+    assertEquals("browser", moduleName);
+
     module.start();
     try {
       module.stop();
-      assertEquals(0, HelperProcesses.count());
+      final int helperCount = HelperProcesses.count();
+      assertEquals(0, helperCount);
     } finally {
       module.start();
     }
   }
 
   @Test
-  void stoppingTheModuleEndsEveryBrowserAndNoneStartsUntilItStartsAgain() {
+  void shouldEndEveryBrowserOnStopAndStartNoneUntilTheModuleStartsAgain() {
     final BrowserModule module = new BrowserModule();
     final HelperSession session = this.open();
     final Process process = session.getProcess();
     try {
       module.stop();
-      assertEquals(0, HelperProcesses.count());
-      assertEquals(List.of("The browser module was stopped"), this.ends, "the player hears of it");
+      final int helperCount = HelperProcesses.count();
+      assertEquals(0, helperCount);
+      final List<String> expectedEnds = List.of("The browser module was stopped!");
+      assertEquals(expectedEnds, this.ends, "the player hears of it");
+
       Await.until("the helper ended", () -> !process.isAlive());
-      final PlayerException refused = assertThrows(PlayerException.class, this::open);
-      assertEquals("The browser module is stopped", refused.getMessage());
+      final BrowserException refused = assertThrows(BrowserException.class, this::open);
+      final String message = refused.getMessage();
+      assertEquals("The browser module is stopped!", message);
     } finally {
       module.start();
     }
+
     final HelperSession again = this.open();
     try {
-      assertTrue(again.isAlive());
+      final boolean alive = again.isAlive();
+      assertTrue(alive);
     } finally {
       again.close();
     }

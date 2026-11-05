@@ -23,13 +23,13 @@
  * thread-safe; one successful launch consumes it even if waiting subsequently fails. A failed launch leaves it
  * retryable. Captured streams are decoded as UTF-8 and retained in memory, so output should be bounded by the program.
  *
- * <p>Timeouts cover process exit and both captured streams. Timeout or interruption requests forcible termination
- * of the process and observed descendants; interruption is restored before an I/O failure is reported. Termination
- * is a request, not a guarantee that all descendants have exited. A returned process handle is borrowed for
- * inspection or application-directed control and should not be used to race the task's output readers.
+ * <p>Timeouts cover process exit and both captured streams. Timeout or interruption requests forcible termination of
+ * the process and observed descendants; interruption is restored before a
+ * {@link me.brandonli.mcav.utils.runtime.ProcessException} reports the failure. Termination is a request, not a
+ * guarantee that all descendants have exited. A returned process handle is borrowed for inspection or
+ * application-directed control and should not be used to race the task's output readers.
  *
- * <p>Reference parameters and return values are non-null unless marked {@code @Nullable};
- * nullable values and their meanings are described on the corresponding members.
+ * <p>Reference parameters and return values are non-null unless marked {@code @Nullable}.
  *
  * @since 1.0.0
  */

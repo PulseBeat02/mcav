@@ -26,33 +26,31 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.stream.Stream;
 
-/**
- * Checks that an operation which fails closes what it opened, by counting the open files of the JVM before and after
- * it failed many times. Only Linux lists them ({@code /proc/self/fd}); elsewhere the check is skipped.
- */
 public final class OpenFiles {
 
   private static final int ATTEMPTS = 100;
+  private static final int MAXIMUM_LEFT_OPEN = ATTEMPTS / 2;
+
+  private static final Path DESCRIPTORS = Path.of("/proc/self/fd");
 
   private OpenFiles() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
-  /**
-   * Runs an attempt a hundred times and fails if the JVM has half as many more files open afterwards.
-   *
-   * @param description what is attempted, used in the failure message
-   * @param attempt     the attempt, which must close what it opens
-   */
-  public static void leaveNoneOpen(final String description, final Runnable attempt) {
-    final Path descriptors = Path.of("/proc/self/fd");
-    assumeTrue(Files.isDirectory(descriptors), "this system lists the open files of a process");
+  public static void assertLeavesNoneOpen(final String description, final Runnable attempt) {
+    final Path descriptors = DESCRIPTORS;
+    final boolean listsOpenFiles = Files.isDirectory(descriptors);
+    assumeTrue(listsOpenFiles, "This system does not list the open files of a process!");
+
     final long before = count(descriptors);
     for (int count = 0; count < ATTEMPTS; count++) {
       attempt.run();
     }
+
     final long left = count(descriptors) - before;
-    assertTrue(left < ATTEMPTS / 2, description + " left " + left + " files open in " + ATTEMPTS + " attempts");
+    final boolean fewLeftOpen = left < MAXIMUM_LEFT_OPEN;
+    assertTrue(fewLeftOpen, "%s left %s files open in %s attempts".formatted(description, left, ATTEMPTS));
   }
 
   private static long count(final Path descriptors) {

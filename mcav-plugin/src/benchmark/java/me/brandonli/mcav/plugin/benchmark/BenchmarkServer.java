@@ -36,30 +36,33 @@ import java.util.concurrent.TimeUnit;
 
 final class BenchmarkServer implements AutoCloseable {
 
-  private static final String FRAMES_PER_SECOND_PAGE = """
+  private static final String FRAME_RATE_PAGE = """
   <!doctype html><html><body style="margin:0;overflow:hidden">
-  <div id="d" style="position:fixed;left:0;top:0;right:0;bottom:0;background:#dc0000"></div>
+  <div id="page" style="position:fixed;left:0;top:0;right:0;bottom:0;background:#dc0000"></div>
   <script>
   const colors = ["#dc0000", "#7fb238", "#c7c7c7", "#f7e9a3", "#6d9930", "#b40000"];
   let frame = 0;
-  function step() { document.getElementById("d").style.background = colors[frame++ % colors.length]; requestAnimationFrame(step); }
+  const step = () => {
+    document.getElementById("page").style.background = colors[frame++ % colors.length];
+    requestAnimationFrame(step);
+  };
   requestAnimationFrame(step);
   </script></body></html>
   """;
   private static final String LATENCY_PAGE = """
   <!doctype html><html><body style="margin:0;overflow:hidden">
-  <div id="d" style="position:fixed;left:0;top:0;right:0;bottom:0;background:#f7e9a3"></div>
+  <div id="page" style="position:fixed;left:0;top:0;right:0;bottom:0;background:#f7e9a3"></div>
   <script>
   const events = new EventSource("/events");
-  events.onmessage = message => { document.getElementById("d").style.background = message.data; };
+  events.onmessage = message => {
+    document.getElementById("page").style.background = message.data;
+  };
   </script></body></html>
   """;
 
   private static final String LOOPBACK_ADDRESS = "127.0.0.1";
-  private static final String URL_PREFIX = "http://127.0.0.1:";
-  private static final String PATH_SEPARATOR = "/";
 
-  private static final String FRAME_RATE_PATH = "/fps";
+  private static final String FRAME_RATE_PATH = "/frame-rate";
   private static final String LATENCY_PATH = "/latency";
   private static final String EVENTS_PATH = "/events";
 
@@ -70,12 +73,19 @@ final class BenchmarkServer implements AutoCloseable {
   private static final String EVENT_STREAM_CONTENT_TYPE = "text/event-stream";
 
   private static final String OPEN_COMMENT = ": open\n\n";
-  private static final String DATA_PREFIX = "data: ";
-  private static final String EVENT_END = "\n\n";
+
+  private static final int EPHEMERAL_PORT = 0;
+
+  private static final int SYSTEM_DEFAULT_BACKLOG = 0;
+
+  private static final int STOP_DELAY_SECONDS = 0;
+
+  private static final long CHUNKED_RESPONSE_LENGTH = 0;
 
   private final HttpServer server;
   private final ExecutorService executor;
   private final List<OutputStream> listeners;
+
   private int subscriptions;
 
   private BenchmarkServer(final HttpServer server, final ExecutorService executor) {
@@ -86,11 +96,11 @@ final class BenchmarkServer implements AutoCloseable {
 
   static BenchmarkServer start() throws IOException {
     final InetAddress loopback = InetAddress.ofLiteral(LOOPBACK_ADDRESS);
-    final InetSocketAddress address = new InetSocketAddress(loopback, 0);
-    final HttpServer server = HttpServer.create(address, 0);
+    final InetSocketAddress address = new InetSocketAddress(loopback, EPHEMERAL_PORT);
+    final HttpServer server = HttpServer.create(address, SYSTEM_DEFAULT_BACKLOG);
     final ExecutorService executor = Executors.newCachedThreadPool();
     final BenchmarkServer created = new BenchmarkServer(server, executor);
-    server.createContext(FRAME_RATE_PATH, exchange -> respond(exchange, FRAMES_PER_SECOND_PAGE));
+    server.createContext(FRAME_RATE_PATH, exchange -> respond(exchange, FRAME_RATE_PAGE));
     server.createContext(LATENCY_PATH, exchange -> respond(exchange, LATENCY_PAGE));
     server.createContext(EVENTS_PATH, created::openEvents);
     server.setExecutor(executor);
@@ -101,14 +111,14 @@ final class BenchmarkServer implements AutoCloseable {
 
   @Override
   public void close() {
-    this.server.stop(0);
+    this.server.stop(STOP_DELAY_SECONDS);
     this.executor.shutdownNow();
   }
 
   URI page(final String name) {
     final InetSocketAddress address = this.server.getAddress();
     final int port = address.getPort();
-    return URI.create(URL_PREFIX + port + PATH_SEPARATOR + name);
+    return URI.create("http://%s:%s/%s".formatted(LOOPBACK_ADDRESS, port, name));
   }
 
   private static void respond(final HttpExchange exchange, final String page) throws IOException {
@@ -117,8 +127,8 @@ final class BenchmarkServer implements AutoCloseable {
     headers.set(CONTENT_TYPE_HEADER, HTML_CONTENT_TYPE);
     headers.set(CACHE_CONTROL_HEADER, NO_STORE);
     exchange.sendResponseHeaders(HttpURLConnection.HTTP_OK, body.length);
-    try (final OutputStream out = exchange.getResponseBody()) {
-      out.write(body);
+    try (final OutputStream output = exchange.getResponseBody()) {
+      output.write(body);
     }
   }
 
@@ -126,11 +136,11 @@ final class BenchmarkServer implements AutoCloseable {
     final Headers headers = exchange.getResponseHeaders();
     headers.set(CONTENT_TYPE_HEADER, EVENT_STREAM_CONTENT_TYPE);
     headers.set(CACHE_CONTROL_HEADER, NO_STORE);
-    exchange.sendResponseHeaders(HttpURLConnection.HTTP_OK, 0);
-    final OutputStream out = exchange.getResponseBody();
-    out.write(OPEN_COMMENT.getBytes(StandardCharsets.UTF_8));
-    out.flush();
-    this.listeners.add(out);
+    exchange.sendResponseHeaders(HttpURLConnection.HTTP_OK, CHUNKED_RESPONSE_LENGTH);
+    final OutputStream output = exchange.getResponseBody();
+    output.write(OPEN_COMMENT.getBytes(StandardCharsets.UTF_8));
+    output.flush();
+    this.listeners.add(output);
     synchronized (this) {
       this.subscriptions++;
       this.notifyAll();
@@ -142,14 +152,15 @@ final class BenchmarkServer implements AutoCloseable {
     while (this.subscriptions <= before) {
       final long remaining = TimeUnit.NANOSECONDS.toMillis(deadline - System.nanoTime());
       if (remaining <= 0) {
-        throw new IllegalStateException("The page never subscribed to the events!");
+        final String message = "The page never subscribed to the events!";
+        throw new IllegalStateException(message);
       }
       this.wait(remaining);
     }
   }
 
   void send(final String color) {
-    final byte[] event = (DATA_PREFIX + color + EVENT_END).getBytes(StandardCharsets.UTF_8);
+    final byte[] event = "data: %s\n\n".formatted(color).getBytes(StandardCharsets.UTF_8);
     final List<OutputStream> gone = new ArrayList<>();
     for (final OutputStream listener : this.listeners) {
       try {

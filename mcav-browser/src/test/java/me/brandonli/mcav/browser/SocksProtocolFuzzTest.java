@@ -26,25 +26,25 @@ import java.io.DataInputStream;
 import java.io.IOException;
 import org.junit.jupiter.api.Tag;
 
-/**
- * Fuzzes the SOCKS 5 reader of the network guard, which reads what Chromium sends on behalf of a page: the host name
- * comes from the page. Whatever the bytes, the reader either refuses them with an {@link IOException} or returns a
- * request whose host holds only host name characters or an address and whose port is valid; nothing else escapes.
- */
+// The host name comes from the page: the reader refuses with an IOException or returns a valid host and port.
 @Tag("fuzz")
 final class SocksProtocolFuzzTest {
 
   @FuzzTest(maxDuration = "30s")
-  void readsAGreetingAndARequestOrRefusesThem(final FuzzedDataProvider data) {
+  void shouldReadAGreetingAndARequestOrRefuseThem(final FuzzedDataProvider data) {
     final byte[] bytes = data.consumeRemainingAsBytes();
-    final DataInputStream in = new DataInputStream(new ByteArrayInputStream(bytes));
+    final DataInputStream input = new DataInputStream(new ByteArrayInputStream(bytes));
     try {
-      SocksProtocol.readGreeting(in);
-      final SocksProtocol.Request request = SocksProtocol.readRequest(in);
+      SocksProtocol.readOffersNoAuthentication(input);
+      final SocksProtocol.Request request = SocksProtocol.readRequest(input);
       final String host = request.getHost();
       final int port = request.getPort();
-      assertTrue(port >= 1 && port <= 65_535, () -> "port " + port);
-      assertTrue(!host.isEmpty() && host.length() <= 255, () -> "host of " + host.length() + " characters");
+      final boolean portInRange = port >= 1 && port <= 65_535;
+      assertTrue(portInRange, () -> "port " + port);
+
+      final boolean hostLengthInRange = !host.isEmpty() && host.length() <= 255;
+      assertTrue(hostLengthInRange, () -> "host of " + host.length() + " characters");
+
       for (int index = 0; index < host.length(); index++) {
         final char character = host.charAt(index);
         final boolean allowed =
@@ -57,7 +57,7 @@ final class SocksProtocolFuzzTest {
           character == ':';
         assertTrue(allowed, () -> "host " + host);
       }
-    } catch (final IOException refused) {
+    } catch (final IOException exception) {
       // malformed, cut short, or not served: the guard answers or drops the client
     }
   }

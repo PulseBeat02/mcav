@@ -19,52 +19,119 @@ package me.brandonli.mcav.browser;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
+import me.brandonli.mcav.browser.testing.EqualityAssertions;
 import org.junit.jupiter.api.Test;
 
 class BrowserOptionsTest {
 
+  private static final String REFUSED_HOST = "mc.example.com";
+
+  private static final int MAXIMUM_FRAME_RATE = 60;
+
   @Test
-  void theDefaultsSuitUntrustedPages() {
-    assertEquals(BrowserOptions.MAX_FRAME_RATE, BrowserOptions.DEFAULT.getFrameRate());
-    assertEquals(60, BrowserOptions.MAX_FRAME_RATE);
-    assertFalse(BrowserOptions.DEFAULT.isJavaScriptJit());
-    assertFalse(BrowserOptions.DEFAULT.isPrivateNetworks());
-    assertFalse(BrowserOptions.DEFAULT.isAutoplay());
-    assertTrue(BrowserOptions.DEFAULT.isConfined(), "Chromium is confined where the system can");
-    assertEquals(List.of(), BrowserOptions.DEFAULT.getRefusedHosts());
+  void shouldSuitUntrustedPagesByDefault() {
+    final int frameRate = BrowserOptions.DEFAULT.getFrameRate();
+    assertEquals(BrowserOptions.MAXIMUM_FRAME_RATE, frameRate);
+    assertEquals(MAXIMUM_FRAME_RATE, BrowserOptions.MAXIMUM_FRAME_RATE);
+
+    final boolean javaScriptJit = BrowserOptions.DEFAULT.isJavaScriptJit();
+    assertFalse(javaScriptJit);
+
+    final boolean privateNetworks = BrowserOptions.DEFAULT.isPrivateNetworks();
+    assertFalse(privateNetworks);
+
+    final boolean autoplay = BrowserOptions.DEFAULT.isAutoplay();
+    assertFalse(autoplay);
+
+    final boolean confined = BrowserOptions.DEFAULT.isConfined();
+    assertTrue(confined, "Chromium is confined where the system can");
+
+    final List<String> refusedHosts = BrowserOptions.DEFAULT.getRefusedHosts();
+    assertEquals(List.of(), refusedHosts);
   }
 
   @Test
-  void theBuilderSetsEveryOption() {
+  void shouldSetEveryOptionThroughTheBuilder() {
     final BrowserOptions options = BrowserOptions.builder()
       .frameRate(1)
       .javaScriptJit(true)
       .privateNetworks(true)
       .autoplay(true)
       .confinement(false)
-      .refusedHosts(List.of("mc.example.com", "203.0.113.5"))
+      .refusedHosts(List.of(REFUSED_HOST, "203.0.113.5"))
       .build();
-    assertEquals(1, options.getFrameRate());
-    assertTrue(options.isJavaScriptJit());
-    assertTrue(options.isPrivateNetworks());
-    assertTrue(options.isAutoplay());
-    assertFalse(options.isConfined());
-    assertEquals(List.of("mc.example.com", "203.0.113.5"), options.getRefusedHosts());
-    final BrowserOptions.Builder builder = BrowserOptions.builder();
-    final IllegalArgumentException refused = assertThrows(IllegalArgumentException.class, () -> builder.refusedHosts(List.of("a b")));
-    assertEquals("Not a host name or address: 'a b'", refused.getMessage());
-    assertEquals(60, BrowserOptions.builder().frameRate(60).build().getFrameRate());
+    final int minimumFrameRate = options.getFrameRate();
+    assertEquals(1, minimumFrameRate);
+
+    final boolean javaScriptJit = options.isJavaScriptJit();
+    assertTrue(javaScriptJit);
+
+    final boolean privateNetworks = options.isPrivateNetworks();
+    assertTrue(privateNetworks);
+
+    final boolean autoplay = options.isAutoplay();
+    assertTrue(autoplay);
+
+    final boolean confined = options.isConfined();
+    assertFalse(confined);
+
+    final List<String> refusedHosts = options.getRefusedHosts();
+    final List<String> expectedRefusedHosts = List.of(REFUSED_HOST, "203.0.113.5");
+    assertEquals(expectedRefusedHosts, refusedHosts);
+
+    final BrowserOptionsBuilder builder = BrowserOptions.builder().refusedHosts(List.of("a b"));
+    final IllegalArgumentException refused = assertThrows(IllegalArgumentException.class, builder::build);
+    final String message = refused.getMessage();
+    assertEquals("Host a b is not a host name or address!", message);
+
+    final int maximumFrameRate = BrowserOptions.builder().frameRate(MAXIMUM_FRAME_RATE).build().getFrameRate();
+    assertEquals(MAXIMUM_FRAME_RATE, maximumFrameRate);
   }
 
   @Test
-  void theFrameRateIsBetweenOneAndSixty() {
-    final BrowserOptions.Builder builder = BrowserOptions.builder();
-    assertThrows(IllegalArgumentException.class, () -> builder.frameRate(0));
-    final IllegalArgumentException tooFast = assertThrows(IllegalArgumentException.class, () -> builder.frameRate(61));
-    assertEquals("Frame rate must be between 1 and 60 but was 61", tooFast.getMessage());
+  void shouldKeepTheFrameRateBetweenOneAndSixty() {
+    final BrowserOptionsBuilder tooSlowBuilder = BrowserOptions.builder().frameRate(0);
+    assertThrows(IllegalArgumentException.class, tooSlowBuilder::build);
+
+    final BrowserOptionsBuilder tooFastBuilder = BrowserOptions.builder().frameRate(61);
+    final IllegalArgumentException tooFast = assertThrows(IllegalArgumentException.class, tooFastBuilder::build);
+    final String message = tooFast.getMessage();
+    assertEquals("Frame rate 61 must be between 1 and 60 frames per second!", message);
+  }
+
+  @Test
+  void shouldTreatOptionsWithTheSameValuesAsEqual() {
+    EqualityAssertions.assertEqualityContract(
+      BrowserOptions.builder().build(),
+      BrowserOptions.builder().build(),
+      BrowserOptions.builder().frameRate(1).build(),
+      BrowserOptions.builder().javaScriptJit(true).build(),
+      BrowserOptions.builder().privateNetworks(true).build(),
+      BrowserOptions.builder().autoplay(true).build(),
+      BrowserOptions.builder().confinement(false).build(),
+      BrowserOptions.builder().refusedHosts(List.of(REFUSED_HOST)).build()
+    );
+  }
+
+  @Test
+  void shouldHashOptionsThatDifferInAValueDifferently() {
+    final BrowserOptions slower = BrowserOptions.builder().frameRate(1).build();
+    final int slowerHashCode = slower.hashCode();
+    final int defaultHashCode = BrowserOptions.DEFAULT.hashCode();
+    assertNotEquals(defaultHashCode, slowerHashCode);
+  }
+
+  @Test
+  void shouldDescribeEveryOption() {
+    final String description = BrowserOptions.DEFAULT.toString();
+    assertEquals(
+      "BrowserOptions{frameRate=60, javaScriptJit=false, privateNetworks=false, autoplay=false, confined=true, refusedHosts=[]}",
+      description
+    );
   }
 }

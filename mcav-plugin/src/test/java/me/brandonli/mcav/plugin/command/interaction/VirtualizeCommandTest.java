@@ -109,6 +109,9 @@ final class VirtualizeCommandTest {
   private static final String MEMORY_SIZE = "2048M";
   private static final String FILE_PROPERTY_PREFIX = "file=";
 
+  private static final String ABSOLUTE_DRIVE_PATH = "/tmp";
+  private static final String NETWORK_DRIVE_PATH = "\\\\server";
+
   private static final String ALPINE_LINUX_FILE_NAME = "alpine linux.iso";
   private static final String ALPINE_FILE_NAME = "alpine.iso";
   private static final String PRESENT_FILE_NAME = "present.iso";
@@ -198,7 +201,7 @@ final class VirtualizeCommandTest {
     // the screen's output owns its maps: releasing it releases them
     verify(this.ditherFilter).release();
     assertNull(this.command.player);
-    assertNull(this.command.result);
+    assertNull(this.command.output);
   }
 
   private void createWithoutFlags() {
@@ -286,7 +289,8 @@ final class VirtualizeCommandTest {
 
     final VmConfiguration machine = configurations.getValue();
     final List<String> arguments = machine.getArguments();
-    assertEquals(List.of(CDROM_OPTION, image, "-nic", "user"), arguments);
+    final List<String> expectedArguments = List.of(CDROM_OPTION, image, "-nic", "user");
+    assertEquals(expectedArguments, arguments);
   }
 
   @Test
@@ -311,7 +315,8 @@ final class VirtualizeCommandTest {
     verify(this.machine).startAsync(any(VmSettings.class), eq(VmPlayer.Architecture.X86_64), configurations.capture(), any());
 
     final List<String> arguments = configurations.getValue().getArguments();
-    assertEquals(List.of(MEMORY_OPTION, MEMORY_SIZE), arguments);
+    final List<String> expectedArguments = List.of(MEMORY_OPTION, MEMORY_SIZE);
+    assertEquals(expectedArguments, arguments);
   }
 
   @Test
@@ -324,31 +329,31 @@ final class VirtualizeCommandTest {
   @Test
   void shouldSplitATrailingCodecOffTheOptions() {
     final VirtualizeCommand.CodecSplit expected = new VirtualizeCommand.CodecSplit("-m 2048M", MapCodec.MCV2);
-    final VirtualizeCommand.CodecSplit split = VirtualizeCommand.splitCodec("-m 2048M --codec mcv2");
+    final VirtualizeCommand.CodecSplit split = this.command.splitCodec("-m 2048M --codec mcv2");
     assertEquals(expected, split);
 
     final VirtualizeCommand.CodecSplit secondExpected = new VirtualizeCommand.CodecSplit("-m 2048M", MapCodec.DITHER);
-    final VirtualizeCommand.CodecSplit virtualizeCommandSplit = VirtualizeCommand.splitCodec("-m 2048M  --codec\tDiThEr  ");
+    final VirtualizeCommand.CodecSplit virtualizeCommandSplit = this.command.splitCodec("-m 2048M  --codec\tDiThEr  ");
     assertEquals(secondExpected, virtualizeCommandSplit);
 
     final VirtualizeCommand.CodecSplit thirdExpected = new VirtualizeCommand.CodecSplit("", MapCodec.MCV2);
-    final VirtualizeCommand.CodecSplit secondSplit = VirtualizeCommand.splitCodec("--codec mcv2");
+    final VirtualizeCommand.CodecSplit secondSplit = this.command.splitCodec("--codec mcv2");
     assertEquals(thirdExpected, secondSplit);
 
     final VirtualizeCommand.CodecSplit fourthExpected = new VirtualizeCommand.CodecSplit("-m 2048M", null);
-    final VirtualizeCommand.CodecSplit thirdSplit = VirtualizeCommand.splitCodec("-m 2048M");
+    final VirtualizeCommand.CodecSplit thirdSplit = this.command.splitCodec("-m 2048M");
     assertEquals(fourthExpected, thirdSplit);
     // a codec anywhere but at the end is an option for QEMU, which refuses it
 
     final VirtualizeCommand.CodecSplit fifthExpected = new VirtualizeCommand.CodecSplit("--codec mcv2 -m 2048M", null);
-    final VirtualizeCommand.CodecSplit fourthSplit = VirtualizeCommand.splitCodec("--codec mcv2 -m 2048M");
+    final VirtualizeCommand.CodecSplit fourthSplit = this.command.splitCodec("--codec mcv2 -m 2048M");
     assertEquals(fifthExpected, fourthSplit);
 
     final VirtualizeCommand.CodecSplit sixthExpected = new VirtualizeCommand.CodecSplit("-name x--codec mcv2", null);
-    final VirtualizeCommand.CodecSplit fifthSplit = VirtualizeCommand.splitCodec("-name x--codec mcv2");
+    final VirtualizeCommand.CodecSplit fifthSplit = this.command.splitCodec("-name x--codec mcv2");
     assertEquals(sixthExpected, fifthSplit);
 
-    final VirtualizeCommand.CodecSplit sixthSplit = VirtualizeCommand.splitCodec(VP9_FLAGS);
+    final VirtualizeCommand.CodecSplit sixthSplit = this.command.splitCodec(VP9_FLAGS);
     assertNull(sixthSplit);
   }
 
@@ -382,7 +387,7 @@ final class VirtualizeCommandTest {
   @Test
   void shouldNeedTheInteractPermissionForInput() {
     final String permission = this.command.getInteractionPermission();
-    assertEquals("mcav.vm.interact", permission, "clicks and chat are the input of the interact subcommand");
+    assertEquals("mcav.command.vm.interact", permission, "clicks and chat are the input of the interact subcommand");
   }
 
   @Test
@@ -538,7 +543,7 @@ final class VirtualizeCommandTest {
     this.assertArguments(
       "-drive file=a.img,media=disk -drive file=b.img",
       DRIVE_OPTION,
-      FILE_PROPERTY_PREFIX + first + ",media=disk",
+      "%s%s,media=disk".formatted(FILE_PROPERTY_PREFIX, first),
       DRIVE_OPTION,
       FILE_PROPERTY_PREFIX + second
     );
@@ -614,7 +619,7 @@ final class VirtualizeCommandTest {
 
       final String message = failure.getMessage();
       final boolean explained = message.contains(" is not supported, use one of ");
-      assertTrue(explained, options + " -> " + message);
+      assertTrue(explained, "%s -> %s".formatted(options, message));
     }
   }
 
@@ -744,7 +749,8 @@ final class VirtualizeCommandTest {
     assertEquals(expected, received);
 
     final List<String> receivedText = Components.receivedText(this.viewer);
-    assertEquals(List.of("Click on the URL to listen onto the website! http://mc.example.com:3000/"), receivedText);
+    final List<String> expectedText = List.of("Click on the URL to listen onto the website! http://mc.example.com:3000/");
+    assertEquals(expectedText, receivedText);
   }
 
   private void createWithTheWebPage(final CompletableFuture<Boolean> start) {
@@ -859,11 +865,11 @@ final class VirtualizeCommandTest {
 
   @Test
   void shouldRefuseADrivePropertyThatStartsWithAPathSeparator() {
-    for (final String part : new String[] { "/tmp", "\\\\server" }) {
-      final IllegalArgumentException failure = this.assertRefusedOptions("-drive " + part + ",file=disk.img");
+    for (final String part : new String[] { ABSOLUTE_DRIVE_PATH, NETWORK_DRIVE_PATH }) {
+      final IllegalArgumentException failure = this.assertRefusedOptions("-drive %s,file=disk.img".formatted(part));
 
       final String message = failure.getMessage();
-      assertEquals("QEMU option -drive must not name a file, but " + part + " does!", message);
+      assertEquals("QEMU option -drive must not name a file, but %s does!".formatted(part), message);
     }
   }
 
@@ -873,7 +879,7 @@ final class VirtualizeCommandTest {
     this.assertArguments(
       "-drive file=disk.img,format=raw,if=virtio,media=disk,cache=none,readonly=on,id=boot",
       DRIVE_OPTION,
-      FILE_PROPERTY_PREFIX + image + ",format=raw,if=virtio,media=disk,cache=none,readonly=on,id=boot"
+      "%s%s,format=raw,if=virtio,media=disk,cache=none,readonly=on,id=boot".formatted(FILE_PROPERTY_PREFIX, image)
     );
   }
 
@@ -881,10 +887,10 @@ final class VirtualizeCommandTest {
   @ValueSource(strings = { "driver=file", "node-name=disk", "backing=none", "file.locking=off", "throttling.iops-total=100" })
   void shouldRefuseADrivePropertyOutsideTheList(final String part) throws IOException {
     this.image(DISK_FILE_NAME);
-    final IllegalArgumentException failure = this.assertRefusedOptions("-drive file=disk.img," + part);
+    final IllegalArgumentException failure = this.assertRefusedOptions("-drive file=disk.img,%s".formatted(part));
 
     final String message = failure.getMessage();
-    assertEquals("Value file=disk.img," + part + " of the QEMU option -drive contains " + part + ", which is not allowed!", message);
+    assertEquals("Value file=disk.img,%s of the QEMU option -drive contains %s, which is not allowed!".formatted(part, part), message);
   }
 
   @Test
@@ -899,7 +905,8 @@ final class VirtualizeCommandTest {
     assertThrows(IllegalArgumentException.class, () -> VirtualizeCommand.parseOptions("-m size=5G,slots=2", this.imageFolder, limit));
 
     final Optional<String> found = VirtualizeCommand.parseOptions("-m 4G", this.imageFolder, limit).build().find("m");
-    assertEquals(Optional.of("4G"), found);
+    final Optional<String> expectedMemory = Optional.of("4G");
+    assertEquals(expectedMemory, found);
 
     final List<String> arguments = VirtualizeCommand.parseOptions("", this.imageFolder, limit).build().getArguments();
     assertEquals(List.of(), arguments, "QEMU's default of 128 MiB");
@@ -914,7 +921,7 @@ final class VirtualizeCommandTest {
     assertEquals(512L << 20, virtualizeCommandMaximumMemoryBytes);
 
     final long limit = VirtualizeCommand.maximumMemoryBytes();
-    assertTrue(limit >= 512L << 20, "at least 512 MiB: " + limit);
+    assertTrue(limit >= 512L << 20, "at least 512 MiB: %s".formatted(limit));
   }
 
   @Test
@@ -939,7 +946,7 @@ final class VirtualizeCommandTest {
     final IllegalArgumentException failure = this.assertRefusedOptions(options);
 
     final String message = failure.getMessage();
-    final String expected = "QEMU option " + options + " needs a value!";
+    final String expected = "QEMU option %s needs a value!".formatted(options);
     assertEquals(expected, message);
   }
 
@@ -954,11 +961,11 @@ final class VirtualizeCommandTest {
     final String accepted = String.join(", ", VirtualizeCommand.supportedOptions());
 
     final String text = Components.plain(messages.getFirst());
-    assertEquals("Invalid QEMU flags! QEMU option -plugin is not supported, use one of " + accepted + " instead!", text);
+    assertEquals("Invalid QEMU flags! QEMU option -plugin is not supported, use one of %s instead!".formatted(accepted), text);
 
     this.machines.verifyNoInteractions();
     assertNull(this.command.player);
-    assertNull(this.command.result);
+    assertNull(this.command.output);
   }
 
   @Test

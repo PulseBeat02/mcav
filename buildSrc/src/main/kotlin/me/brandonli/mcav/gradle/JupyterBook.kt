@@ -48,8 +48,8 @@ abstract class JupyterBook : PythonTask() {
 
         const val ENTRY_POINT: String = "from jupyter_book.cli.main import main\nmain()"
 
-        const val JUPYTER_CONFIG_VARIABLE: String = "JUPYTER_CONFIG_DIR"
-        const val JUPYTER_CONFIG_DIRECTORY: String = "jupyter"
+        const val JUPYTER_CONFIGURATION_VARIABLE: String = "JUPYTER_CONFIG_DIR"
+        const val JUPYTER_CONFIGURATION_DIRECTORY: String = "jupyter"
 
         private val CONFIGURE_COMMAND: List<String> = listOf("config", "sphinx", BOOK_DIRECTORY)
         private val BUILD_COMMAND: List<String> = listOf(
@@ -115,16 +115,16 @@ abstract class JupyterBook : PythonTask() {
 
     private fun runJupyterBook(staging: File, arguments: List<String>): Unit {
         val python: File = this.pythonExecutable.get().asFile
-        val matplotlibConfiguration: String = staging.resolve(MATPLOTLIB_CONFIG_DIRECTORY).absolutePath
-        val jupyterConfiguration: String = staging.resolve(JUPYTER_CONFIG_DIRECTORY).absolutePath
+        val matplotlibConfiguration: String = staging.resolve(MATPLOTLIB_CONFIGURATION_DIRECTORY).absolutePath
+        val jupyterConfiguration: String = staging.resolve(JUPYTER_CONFIGURATION_DIRECTORY).absolutePath
         this.processes.exec {
             this.workingDir(staging)
             this.commandLine(listOf(python, "-c", ENTRY_POINT) + arguments)
             this.environment(NO_USER_SITE_VARIABLE, ENABLED)
             this.environment(NO_BYTECODE_VARIABLE, ENABLED)
             this.environment(HASH_SEED_VARIABLE, FIXED_HASH_SEED)
-            this.environment(MATPLOTLIB_CONFIG_VARIABLE, matplotlibConfiguration)
-            this.environment(JUPYTER_CONFIG_VARIABLE, jupyterConfiguration)
+            this.environment(MATPLOTLIB_CONFIGURATION_VARIABLE, matplotlibConfiguration)
+            this.environment(JUPYTER_CONFIGURATION_VARIABLE, jupyterConfiguration)
         }
     }
 

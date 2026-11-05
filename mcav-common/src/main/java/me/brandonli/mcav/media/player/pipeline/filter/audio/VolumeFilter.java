@@ -95,7 +95,12 @@ public final class VolumeFilter implements AudioFilter {
    * @since 1.0.0
    */
   public void setVolume(final double volume) {
-    Preconditions.checkArgument(volume >= 0 && volume <= MAXIMUM_VOLUME, "Volume %s must be between 0 and %s!", volume, MAXIMUM_VOLUME);
+    Preconditions.checkArgument(
+      volume >= 0 && volume <= MAXIMUM_VOLUME,
+      "Volume %s must be between 0 and %s inclusive!",
+      volume,
+      MAXIMUM_VOLUME
+    );
 
     this.volume = volume;
   }

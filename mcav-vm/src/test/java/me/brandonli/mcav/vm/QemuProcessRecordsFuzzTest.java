@@ -38,8 +38,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Tag;
 
-// the records lie in the home folder of the user, where a crash, an older version or another program can leave any
-// text; the first line of an input names the record and the rest is its content
+// records lie in the user's home, open to any text; an input's first line names the record, the rest is its content
 @Tag("fuzz")
 final class QemuProcessRecordsFuzzTest {
 
@@ -72,7 +71,8 @@ final class QemuProcessRecordsFuzzTest {
 
     final String content = input.substring(nameEnd + 1);
     final Path folder = Files.createTempDirectory(TEMPORARY_DIRECTORY_PREFIX);
-    final Path record = folder.resolve(name + RECORD_SUFFIX);
+    final String recordName = "%s%s".formatted(name, RECORD_SUFFIX);
+    final Path record = folder.resolve(recordName);
     try {
       Files.writeString(record, content, StandardCharsets.US_ASCII);
       this.checkReap(folder, record, name);

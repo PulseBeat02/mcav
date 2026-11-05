@@ -37,9 +37,11 @@ import java.util.concurrent.atomic.AtomicInteger;
 final class LocalMavenRepositoryServer implements AutoCloseable {
 
   private static final InetAddress LOOPBACK_ADDRESS = InetAddress.ofLiteral("127.0.0.1");
+
   private static final int HTTP_OK = 200;
   private static final int HTTP_NOT_FOUND = 404;
   private static final int HTTP_METHOD_NOT_ALLOWED = 405;
+
   private static final long NO_BODY = -1;
 
   private static final String ROOT_PATH = "/";
@@ -58,7 +60,7 @@ final class LocalMavenRepositoryServer implements AutoCloseable {
     this.server = server;
     this.executor = Executors.newVirtualThreadPerTaskExecutor();
     this.servedFileCount = new AtomicInteger();
-    server.createContext(ROOT_PATH, this::handle);
+    server.createContext(ROOT_PATH, this::serveFile);
     server.setExecutor(this.executor);
   }
 
@@ -79,8 +81,8 @@ final class LocalMavenRepositoryServer implements AutoCloseable {
     this.executor.close();
   }
 
-  private void handle(final HttpExchange exchange) throws IOException {
-    try {
+  private void serveFile(final HttpExchange exchange) throws IOException {
+    try (exchange) {
       final String method = exchange.getRequestMethod();
       final boolean isHeadRequest = method.equals(HEAD_METHOD);
       final boolean isGetRequest = method.equals(GET_METHOD);
@@ -91,19 +93,22 @@ final class LocalMavenRepositoryServer implements AutoCloseable {
 
       final URI requestUri = exchange.getRequestURI();
       final Optional<Path> file = this.findFile(requestUri);
-      if (file.isEmpty()) {
+      final Path existingFile = file.orElse(null);
+      if (existingFile == null) {
         exchange.sendResponseHeaders(HTTP_NOT_FOUND, NO_BODY);
         return;
       }
 
-      final Path existingFile = file.get();
-      this.sendFile(exchange, existingFile, isHeadRequest);
-    } finally {
-      exchange.close();
+      if (isHeadRequest) {
+        this.sendHeaders(exchange, NO_BODY);
+        return;
+      }
+
+      this.sendFile(exchange, existingFile);
     }
   }
 
-  // paths leaving the repository folder count as missing
+  // invalid paths and paths leaving the repository directory count as missing
   private Optional<Path> findFile(final URI requestUri) {
     final String requestPath = requestUri.getPath();
     if (requestPath == null) {
@@ -117,6 +122,7 @@ final class LocalMavenRepositoryServer implements AutoCloseable {
     } catch (final InvalidPathException exception) {
       return Optional.empty();
     }
+
     final Path file = candidate.normalize();
     final boolean inside = file.startsWith(this.root);
     if (!inside || !Files.isRegularFile(file)) {
@@ -126,23 +132,22 @@ final class LocalMavenRepositoryServer implements AutoCloseable {
     return Optional.of(file);
   }
 
-  private void sendFile(final HttpExchange exchange, final Path file, final boolean isHeadRequest) throws IOException {
-    final Headers responseHeaders = exchange.getResponseHeaders();
-    responseHeaders.set("Content-Type", "application/octet-stream");
-
-    if (isHeadRequest) {
-      exchange.sendResponseHeaders(HTTP_OK, NO_BODY);
-      return;
-    }
-
+  private void sendFile(final HttpExchange exchange, final Path file) throws IOException {
     final long size = Files.size(file);
     // a length of 0 would make the server send a chunked body, so an empty file is sent without one
     final long responseLength = size == 0 ? NO_BODY : size;
-    exchange.sendResponseHeaders(HTTP_OK, responseLength);
+    this.sendHeaders(exchange, responseLength);
     try (final OutputStream body = exchange.getResponseBody()) {
       Files.copy(file, body);
     }
+
     this.servedFileCount.incrementAndGet();
+  }
+
+  private void sendHeaders(final HttpExchange exchange, final long responseLength) throws IOException {
+    final Headers responseHeaders = exchange.getResponseHeaders();
+    responseHeaders.set("Content-Type", "application/octet-stream");
+    exchange.sendResponseHeaders(HTTP_OK, responseLength);
   }
 
   int getServedFileCount() {

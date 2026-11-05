@@ -30,7 +30,8 @@ import com.google.common.base.Preconditions;
 public final class ThrowableUtils {
 
   private ThrowableUtils() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   /**
@@ -48,8 +49,8 @@ public final class ThrowableUtils {
   public static void throwIfFatal(final Throwable failure) {
     Preconditions.checkNotNull(failure, "Failure must not be null!");
 
-    if (failure instanceof final VirtualMachineError fatal) {
-      throw fatal;
+    if (failure instanceof final VirtualMachineError virtualMachineError) {
+      throw virtualMachineError;
     }
   }
 }

@@ -17,6 +17,8 @@
  */
 package me.brandonli.mcav.browser;
 
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.annotations.VisibleForTesting;
 import java.nio.file.Path;
 import me.brandonli.mcav.module.MCAVModule;
@@ -30,29 +32,42 @@ import me.brandonli.mcav.module.MCAVModule;
  * browser that is still running, so disabling a plugin leaves no browser process behind, and a later start of the
  * module can start browsers again. Starting it also removes the folders of browser sessions that a killed server
  * left in the temporary folder.
+ *
+ * <p>This class is thread-safe: {@link #start()} and {@link #stop()} may be called from any thread.
+ *
+ * {@snippet :
+ * final MCAVApi api = MCAV.api();
+ * api.install(BrowserModule.class);
+ * }
+ *
+ * @since 1.0.0
  */
 public final class BrowserModule implements MCAVModule {
 
+  private static final String TEMPORARY_DIRECTORY_PROPERTY = "java.io.tmpdir";
+
+  private static final String MODULE_NAME = "browser";
+
   /**
-   * Constructs the module. The module loader creates it for you.
+   * Creates the module. The module loader creates it for you.
+   *
+   * @since 1.0.0
    */
   public BrowserModule() {}
 
   /**
    * Lets browsers start again after {@link #stop()}, and removes the folders of browser sessions whose server ended
    * without releasing them; the browser itself is installed by the first browser that starts.
+   *
+   * @since 1.0.0
    */
   @Override
   public void start() {
-    final Path temporary = Path.of(System.getProperty("java.io.tmpdir"));
+    final Path temporary = Path.of(requireNonNull(System.getProperty(TEMPORARY_DIRECTORY_PROPERTY))); // checker framework
     this.start(temporary);
   }
 
-  /**
-   * Starts the module as {@link #start()} does, with the folders of sessions in another temporary folder.
-   *
-   * @param temporary the temporary folder
-   */
+  // Starts the module as start() does, with the folders of sessions in another temporary folder.
   @VisibleForTesting
   void start(final Path temporary) {
     HelperProcesses.open();
@@ -62,6 +77,8 @@ public final class BrowserModule implements MCAVModule {
   /**
    * Ends the helper process of every browser that is still running, and of every browser that is still starting, and
    * lets no browser start until the module starts again.
+   *
+   * @since 1.0.0
    */
   @Override
   public void stop() {
@@ -69,22 +86,24 @@ public final class BrowserModule implements MCAVModule {
   }
 
   /**
-   * Checks whether the browser can run on the operating system and processor of this machine, see
+   * Returns whether the browser can run on the operating system and processor of this machine, see
    * {@link BrowserPlayer#isSupported()}.
    *
    * @return true if there is a CEF build for this machine
+   * @since 1.0.0
    */
   public boolean isSupported() {
     return BrowserPlayer.isSupported();
   }
 
   /**
-   * Gets the name of the module.
+   * Returns the name of the module.
    *
    * @return {@code browser}
+   * @since 1.0.0
    */
   @Override
   public String getModuleName() {
-    return "browser";
+    return MODULE_NAME;
   }
 }

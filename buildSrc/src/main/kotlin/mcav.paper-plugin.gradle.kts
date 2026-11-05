@@ -52,14 +52,18 @@ val sparkBuildAlias: String = "spark-build"
 
 val snapshotSuffix: String = "-SNAPSHOT"
 val minecraftVersionPrefix: String = "-v"
+
 val noChangingModuleCache: Int = 0
 val changingModuleCacheUnit: String = "seconds"
+
 val classpathSuffix: String = "Classpath"
 val projectPathPrefix: String = ":"
 
 val nativeResourcesConfiguration: String = "mcv2NativeResources"
 val bukkitProjectPath: String = ":mcav-bukkit"
+
 val requiredClassesPath: String = "generated/resources/required-classes"
+
 val dependencyManifestSource: String = "dependencies.txt"
 val dependencyManifestTarget: String = "mcav/plugin/dependencies.txt"
 
@@ -74,7 +78,7 @@ val voiceChatPlugin: String = "voicechat"
 val serverHeapSize: String = "8192m"
 
 val endToEndProperty: String = "mcav.e2e"
-val endToEndPortProperty: String = "mcav.e2e.repositoryPort"
+val endToEndPortProperty: String = "mcav.e2e.repository_port"
 val acceptEulaProperty: String = "mcav.acceptMinecraftEula"
 val disabledValue: String = "false"
 val anyFreePort: Int = 0
@@ -89,19 +93,21 @@ val endToEndImplementation: String = "e2eTestImplementation"
 val endToEndRuntimeOnly: String = "e2eTestRuntimeOnly"
 val endToEndCachePath: String = "e2e-cache"
 
-val paperFileNameProperty: String = "mcav.e2e.paperFileName"
-val voiceChatFileNameProperty: String = "mcav.e2e.voiceChatFileName"
-val cacheDirectoryProperty: String = "mcav.e2e.cacheDirectory"
-val acceptEulaTestProperty: String = "mcav.e2e.acceptEula"
-val repositoryDirectoryProperty: String = "mcav.e2e.repositoryDirectory"
-val pluginJarProperty: String = "mcav.e2e.pluginJar"
+val paperFileNameProperty: String = "mcav.e2e.paper_file_name"
+val voiceChatFileNameProperty: String = "mcav.e2e.voice_chat_file_name"
+val cacheDirectoryProperty: String = "mcav.e2e.cache_directory"
+val acceptEulaTestProperty: String = "mcav.e2e.accept_eula"
+val repositoryDirectoryProperty: String = "mcav.e2e.repository_directory"
+val pluginJarProperty: String = "mcav.e2e.plugin_jar"
 val javaProperty: String = "mcav.e2e.java"
 
 val legacyFormattingWarningProperty: String = "net.kyori.adventure.text.warnWhenLegacyFormattingDetected"
 val voiceChatModrinthProject: String = "simple-voice-chat"
 val sparkJobUrl: String = "https://ci.lucko.me/job/spark"
+val sparkArtifactPath: String = "artifact/spark-bukkit/build/libs"
 
 val minecraftVersion: String = CatalogUtils.versionOf(libs, minecraftAlias)
+val voiceChatVersion: String = CatalogUtils.versionOf(libs, voiceChatAlias)
 private val paperVersion: PaperVersion = PaperVersion.parse(CatalogUtils.versionOf(libs, paperAlias))
 version = "${rootProject.version.toString().removeSuffix(snapshotSuffix)}$minecraftVersionPrefix$minecraftVersion"
 
@@ -131,9 +137,11 @@ val nativeResources: NamedDomainObjectProvider<Configuration> = configurations.r
     isCanBeConsumed = false
     isCanBeResolved = true
 }
+
 dependencies {
     add(nativeResources.name, project(path = bukkitProjectPath, configuration = nativeResourcesConfiguration))
 }
+
 tasks.shadowJar {
     this.from(nativeResources)
 }
@@ -143,7 +151,7 @@ tasks.assemble {
 }
 
 val downloadedModules: Provider<List<String>> =
-    configurations.runtimeDownload.map { configuration -> ModuleCoordinates.modulePathsOf(configuration, rootProject) }
+    configurations.runtimeDownload.map { ModuleCoordinates.modulePathsOf(it, rootProject) }
 val requiredModuleClasses: TaskProvider<RequiredModuleClassesTask> = tasks.register<RequiredModuleClassesTask>("requiredModuleClasses") {
     this.group = "build"
     this.description = "Lists the classes of the downloaded modules that the plugin uses, for its loader to check them"
@@ -168,8 +176,8 @@ val pluginPermissions: Map<String, String> = mapOf(
     "mcav.command.help" to "Shows the commands of MCAV and what they do",
     "mcav.command.dump" to "Uploads a report of the server and its logs, with addresses and other commands masked, for a bug report",
     "mcav.command.screen" to "Builds a wall of item frames with maps that images, videos, browsers and virtual machines show on",
-    "mcav.command.hologram.set" to "Shows a video or an image as a hologram",
-    "mcav.command.hologram.disable" to "Removes the hologram",
+    "mcav.command.hologram.set" to "Makes videos started from now on show their title, uploader and progress on a hologram at a location",
+    "mcav.command.hologram.disable" to "Makes videos started from now on show no hologram",
     "mcav.command.image.chat" to "Shows an image in chat",
     "mcav.command.image.block" to "Shows an image with blocks",
     "mcav.command.image.entity" to "Shows an image with the names of entities",
@@ -193,14 +201,14 @@ val pluginPermissions: Map<String, String> = mapOf(
     "mcav.command.mcv2.play" to "Plays, streams and stops pre-encoded MCV2 streams from the plugin's mcv2 folder",
     "mcav.command.mcv2.encode" to "Pre-encodes a video file into an MCV2 stream in the plugin's mcv2 folder, and cancels that encode",
     "mcav.command.browser.create" to "Opens a web page on a wall of maps, with its sound in an audio output",
-    "mcav.browser.release" to "Closes the browser",
-    "mcav.browser.interact" to "Clicks and types into the browser: clicks on its screen, and chat with /mcav browser interact",
+    "mcav.command.browser.release" to "Closes the browser",
+    "mcav.command.browser.interact" to "Clicks and types into the browser: clicks on its screen, and chat with /mcav browser interact",
     "mcav.command.vm.create" to "Boots a QEMU virtual machine on a wall of maps, with its sound in an audio output",
-    "mcav.vm.release" to "Powers off the virtual machine",
-    "mcav.vm.interact" to "Clicks and types into the virtual machine: clicks on its screen, and chat with /mcav vm interact",
+    "mcav.command.vm.release" to "Powers off the virtual machine",
+    "mcav.command.vm.interact" to "Clicks and types into the virtual machine: clicks on its screen, and chat with /mcav vm interact",
     "mcav.command.vnc.create" to "Shows the desktop of a VNC server listed in vnc.allowed-hosts on a wall of maps",
-    "mcav.vnc.release" to "Disconnects from the VNC desktop",
-    "mcav.vnc.interact" to "Clicks and types on the VNC desktop: clicks on its screen, and chat with /mcav vnc interact",
+    "mcav.command.vnc.release" to "Disconnects from the VNC desktop",
+    "mcav.command.vnc.interact" to "Clicks and types on the VNC desktop: clicks on its screen, and chat with /mcav vnc interact",
 )
 
 paperPluginYaml {
@@ -212,7 +220,7 @@ paperPluginYaml {
     prefix = pluginLogPrefix
     loader = pluginLoaderClass
     main = pluginMainClass
-    dependencies.server(voiceChatPlugin, PaperPluginYaml.Load.BEFORE, false)
+    dependencies.server(voiceChatPlugin, PaperPluginYaml.Load.BEFORE, required = false)
     defaultPermission = Permission.Default.OP
     permissions {
         pluginPermissions.forEach { (name, text) -> register(name) { description = text } }
@@ -222,6 +230,14 @@ paperPluginYaml {
 tasks.runServer {
     this.minecraftVersion(minecraftVersion)
     this.build(paperVersion.build)
+    this.systemProperty(legacyFormattingWarningProperty, false)
+    this.downloadPlugins {
+        this.modrinth(voiceChatModrinthProject, voiceChatVersion)
+
+        val sparkVersion: String = CatalogUtils.versionOf(libs, sparkAlias)
+        val sparkBuild: String = CatalogUtils.versionOf(libs, sparkBuildAlias)
+        this.url("$sparkJobUrl/$sparkBuild/$sparkArtifactPath/spark-$sparkVersion-bukkit.jar")
+    }
 }
 
 tasks.withType<AbstractRun>().configureEach {
@@ -249,6 +265,7 @@ if (endToEnd) {
     }
     repositories.remove(repository)
     repositories.addFirst(repository)
+
     tasks.named<WriteDependencySet>("writeDependencies") {
         this.dependsOn(downloadedModules.map { modules -> modules.map { "$it:$endToEndPublishTaskSuffix" } })
 
@@ -265,6 +282,7 @@ dependencies {
     add(endToEndImplementation, platform(CatalogUtils.libraryOf(libs, junitBomAlias)))
     add(endToEndImplementation, CatalogUtils.libraryOf(libs, junitJupiterAlias))
     add(endToEndImplementation, CatalogUtils.libraryOf(libs, gsonAlias))
+
     add(endToEndRuntimeOnly, CatalogUtils.libraryOf(libs, junitLauncherAlias))
 }
 
@@ -278,7 +296,7 @@ tasks.register<Test>(endToEndTestName) {
     this.inputs.file(pluginJar)
     this.outputs.upToDateWhen { false }
     this.systemProperty(paperFileNameProperty, paperVersion.fileName)
-    this.systemProperty(voiceChatFileNameProperty, "$voiceChatPlugin-${CatalogUtils.versionOf(libs, voiceChatAlias)}.jar")
+    this.systemProperty(voiceChatFileNameProperty, "$voiceChatPlugin-$voiceChatVersion.jar")
     this.systemProperty(cacheDirectoryProperty, layout.buildDirectory.dir(endToEndCachePath).get().asFile.absolutePath)
     this.systemProperty(acceptEulaTestProperty, providers.gradleProperty(acceptEulaProperty).getOrElse(disabledValue))
     this.systemProperty(repositoryDirectoryProperty, endToEndRepository.absolutePath)
@@ -294,15 +312,5 @@ tasks.register<Test>(endToEndTestName) {
 
         this@register.systemProperty(pluginJarProperty, pluginJar.get().asFile.absolutePath)
         this@register.systemProperty(javaProperty, launcher.get().executablePath.asFile.absolutePath)
-    }
-}
-
-tasks.runServer {
-    this.systemProperty(legacyFormattingWarningProperty, false)
-    this.downloadPlugins {
-        this.modrinth(voiceChatModrinthProject, CatalogUtils.versionOf(libs, voiceChatAlias))
-
-        val spark: String = CatalogUtils.versionOf(libs, sparkAlias)
-        this.url("$sparkJobUrl/${CatalogUtils.versionOf(libs, sparkBuildAlias)}/artifact/spark-bukkit/build/libs/spark-$spark-bukkit.jar")
     }
 }

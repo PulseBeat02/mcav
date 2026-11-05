@@ -24,10 +24,9 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 import org.junit.jupiter.api.Test;
 
-/**
- * Tests {@link LogBudget} with a clock the test moves.
- */
 final class LogBudgetTest {
+
+  private static final String LINE_PREFIX = "line ";
 
   private final AtomicLong now = new AtomicLong(1_000L);
   private final List<String> log = new ArrayList<>();
@@ -39,42 +38,53 @@ final class LogBudgetTest {
 
   private void lines(final int count) {
     for (int index = 0; index < count; index++) {
-      this.line("line " + index);
+      this.line(LINE_PREFIX + index);
     }
   }
 
   @Test
-  void aBurstPassesAtOnceAndTheRestDoesNot() {
+  void shouldPassABurstAtOnceAndNotTheRest() {
     this.lines(LogBudget.BURST + 10);
-    assertEquals(LogBudget.BURST, this.log.size());
-    assertEquals("line " + (LogBudget.BURST - 1), this.log.getLast());
+    final int lineCount = this.log.size();
+    assertEquals(LogBudget.BURST, lineCount);
+
+    final String lastLine = this.log.getLast();
+    final String expectedLastLine = LINE_PREFIX + (LogBudget.BURST - 1);
+    assertEquals(expectedLastLine, lastLine);
   }
 
   @Test
-  void oneMoreLinePassesPerSecondAfterTheCountOfTheLinesThatDidNot() {
+  void shouldPassOneMoreLinePerSecondAfterTheCountOfTheLinesThatDidNot() {
     this.lines(LogBudget.BURST + 10);
-    this.now.addAndGet(LogBudget.REFILL_NANOS - 1);
+    this.now.addAndGet(LogBudget.REFILL_NANOSECONDS - 1);
     this.line("too early");
-    assertEquals(LogBudget.BURST, this.log.size());
+    final int lineCount = this.log.size();
+    assertEquals(LogBudget.BURST, lineCount);
+
     this.now.addAndGet(1);
     this.line("a second later");
     this.line("too early again");
-    assertEquals(List.of("skipped 11", "a second later"), this.log.subList(LogBudget.BURST, this.log.size()));
+    final List<String> laterLines = this.log.subList(LogBudget.BURST, this.log.size());
+    final List<String> expectedLaterLines = List.of("skipped 11", "a second later");
+    assertEquals(expectedLaterLines, laterLines);
   }
 
   @Test
-  void aLongQuietTimeRefillsTheBurstAndNoMore() {
+  void shouldRefillTheBurstAndNoMoreAfterALongQuietTime() {
     this.lines(LogBudget.BURST);
-    this.now.addAndGet(LogBudget.REFILL_NANOS * 1_000);
+    this.now.addAndGet(LogBudget.REFILL_NANOSECONDS * 1_000);
     this.lines(LogBudget.BURST + 1);
-    assertEquals(2 * LogBudget.BURST, this.log.size());
+    final int lineCount = this.log.size();
+    final int expectedLineCount = 2 * LogBudget.BURST;
+    assertEquals(expectedLineCount, lineCount);
   }
 
   @Test
-  void aClockThatGoesBackRefillsNothing() {
+  void shouldRefillNothingWhenTheClockGoesBack() {
     this.lines(LogBudget.BURST);
-    this.now.addAndGet(-5 * LogBudget.REFILL_NANOS);
+    this.now.addAndGet(-5 * LogBudget.REFILL_NANOSECONDS);
     this.line("never");
-    assertEquals(LogBudget.BURST, this.log.size());
+    final int lineCount = this.log.size();
+    assertEquals(LogBudget.BURST, lineCount);
   }
 }

@@ -1,6 +1,6 @@
 # Library Prerequisites
 
-MCAV is a Java library that can be used in any project. To get started, add the MCAV core dependency to your project
+MCAV is a Java library that you can use in any project. To get started, add the MCAV core dependency to your project
 with a build system that supports Maven repositories, such as Gradle or Maven.
 
 ```{note}
@@ -21,7 +21,7 @@ dependencies {
 
 ## Supported platforms
 
-MCAV targets the following platforms. Everything MCAV downloads is stored in the cache folder of the current user;
+MCAV targets the following platforms. MCAV stores everything it downloads in the cache folder of the current user;
 optional native features can also need system libraries, a display, or an audio device.
 
 | Platform       | VLC                                                               | yt-dlp        | FFmpeg and OpenCV |
@@ -37,8 +37,9 @@ optional native features can also need system libraries, a display, or an audio 
 MCAV builds, tests and runs as an ordinary user on every platform in the table: it needs no administrator rights. It
 never runs `sudo`, `pkexec` or `doas`, a system package manager such as `apt` or `brew`, or an installer that asks for
 elevation, and it writes only to the cache folder of the current user, the JavaCPP cache and the temporary directory.
-Every tool it fetches is unpacked into the cache and loaded from there: the macOS disk image is attached with `hdiutil`,
-which needs no administrator rights, and copied into the cache, never into `/Applications`. The package manager
+Every tool it fetches is unpacked into the cache and loaded from there: MCAV attaches the macOS disk image with
+`hdiutil`,
+which needs no administrator rights, and copies it into the cache, never into `/Applications`. The package manager
 commands below are an option you can run yourself, never a step MCAV takes.
 
 FFmpeg and OpenCV come from the JavaCPP builds MCAV depends on, which have none for Windows on ARM64 or for FreeBSD on
@@ -52,18 +53,19 @@ listed, because Java 25, which MCAV needs, has no port for it.
 On Windows and macOS the download is VLC 3.0.24 from VideoLAN, checked against the SHA-256 hash MCAV ships. VideoLAN
 publishes no Linux build, so on x86-64 and ARM64 Linux MCAV installs the Debian 12 (bookworm) packages of VLC 3.0.23:
 `libvlc5`, `libvlccore9` and `vlc-plugin-base` with every library they depend on, apart from the C and C++ runtimes of
-the system. Each package comes from the bookworm archive or its security updates on `snapshot.debian.org`, whichever has
-the newer version, and is checked against the SHA-256 hash MCAV ships. MCAV unpacks the packages itself into the cache
-folder, without `dpkg`, a package manager or administrator rights, and loads their libraries in dependency order before
-VLC. The libraries need glibc 2.36 or newer; on an older system, install VLC from your distribution instead
-(`apt install vlc`, `dnf install vlc`): MCAV then uses that VLC and downloads nothing. How to regenerate the pinned
-packages is described in [compiling MCAV](compile.md).
+the system. Each package comes from the bookworm archive or its security updates, whichever has the newer version. MCAV
+downloads it from `deb.debian.org`, or from `snapshot.debian.org` when that download fails, for example because Debian
+no longer carries that version or your machine cannot reach `deb.debian.org`. Either way, MCAV checks it against the
+SHA-256 hash MCAV ships. MCAV unpacks the packages itself into the cache folder, without `dpkg`, a package manager or
+administrator rights, and loads their libraries in dependency order before VLC. The libraries need glibc 2.36 or newer;
+on an older system, install VLC from your distribution instead (`apt install vlc`, `dnf install vlc`): MCAV then uses
+that VLC and downloads nothing. [Compiling MCAV](compile.md) describes how to regenerate the pinned packages.
 
-FFmpeg and OpenCV are bundled with the library for every platform marked so above. The OpenCV build differs per
+The library bundles FFmpeg and OpenCV for every platform marked so above. The OpenCV build differs per
 platform: the Windows and macOS builds read video files themselves, the Linux build has no file backend and only
 captures from cameras. `VideoPlayer.opencv()` therefore reads files with the bundled FFmpeg where OpenCV cannot, so a
 file plays on every platform where they are bundled. OpenCV capture still depends on a working capture backend and
-device. VLC and yt-dlp are optional: when one of them cannot be installed, only the features that need it are
+device. VLC and yt-dlp are optional: when MCAV cannot install one of them, only the features that need it are
 unavailable, which you can check with [capabilities](instance.md#capabilities).
 
 The FFmpeg libraries link the sound, display and device libraries of a Linux desktop: ALSA, PulseAudio, XCB and udev.

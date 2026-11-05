@@ -32,7 +32,7 @@ final class Mcv2PayloadFuzzTest {
   void shouldDecodeAndEncodeEveryReportAsItIs(final byte[] data) {
     final ByteBuf received = Unpooled.wrappedBuffer(data);
     final Mcv2Payload payload = Mcv2Payload.CODEC.decode(received);
-    final byte[] report = payload.report();
+    final byte[] report = payload.getReport();
     assertArrayEquals(data, report);
 
     final ByteBuf sent = Unpooled.buffer();

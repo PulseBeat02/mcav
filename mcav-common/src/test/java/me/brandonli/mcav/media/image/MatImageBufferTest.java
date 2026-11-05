@@ -81,10 +81,18 @@ final class MatImageBufferTest {
   private static final String SIXTEEN_BIT_FILE_NAME = "sixteen.png";
   private static final String HEADER_ONLY_FILE_NAME = "header-only.ppm";
   private static final String TOO_TALL_FILE_NAME = "too-tall.pbm";
+  private static final String MISSING_FILE_NAME = "missing.png";
 
   private static final String ENCODED_FORMAT = "png";
 
+  private static final String USER_HOME_PROPERTY = "user.home";
+
+  private static final String UNSUPPORTED_FILE_MESSAGE = "File %s is not a supported image!";
+
+  private static final String TYPE_MESSAGE = "type %s";
+
   private static final int SMALL_IMAGE_SIZE = 2;
+  private static final int SMALL_IMAGE_SAMPLE_COUNT = 12;
 
   private static final int BLACK = 0xFF000000;
   private static final int WHITE = 0xFFFFFFFF;
@@ -96,8 +104,13 @@ final class MatImageBufferTest {
   private static final int SECOND_COLOR = 0xFFABCDEF;
   private static final int THIRD_COLOR = 0xFF789ABC;
   private static final int FOURTH_COLOR = 0xFF654321;
+  private static final int FIRST_COLOR_RGB = 0x123456;
 
   private static final double CHANNEL_MAXIMUM = 255.0;
+
+  private static final int RED_MASK = 0xFF0000;
+  private static final int GREEN_MASK = 0xFF00;
+  private static final int BLUE_MASK = 0xFF;
 
   @TempDir
   private Path directory;
@@ -130,8 +143,9 @@ final class MatImageBufferTest {
       assertEquals(0x22, green);
 
       final int red = data.get(2) & 0xFF;
+      final double[] expected = new double[] { 0x66, 0x55, 0x44 };
       assertEquals(0x11, red);
-      assertArrayEquals(new double[] { 0x66, 0x55, 0x44 }, pixel);
+      assertArrayEquals(expected, pixel);
     }
   }
 
@@ -211,15 +225,15 @@ final class MatImageBufferTest {
     try (final ImageBuffer fromFile = ImageBuffer.path(file)) {
       final int width = fromFile.getWidth();
       final int white = argbAt(fromFile, 0, 0);
-      assertEquals(16, width);
+      assertEquals(TestMedia.IMAGE_WIDTH, width);
       assertEquals(WHITE, white);
     }
 
     final int downloadedHeight = this.downloadHeight(png);
-    assertEquals(8, downloadedHeight);
+    assertEquals(TestMedia.IMAGE_HEIGHT, downloadedHeight);
     assertThrowsWhileOpening(IllegalArgumentException.class, () -> ImageBuffer.path(invalid));
 
-    final Path missing = this.directory.resolve("missing.png");
+    final Path missing = this.directory.resolve(MISSING_FILE_NAME);
     final FileSource missingSource = FileSource.path(missing);
     final String expected = "File %s is not a supported image!".formatted(missing);
     final String previous = System.getProperty(DeclaredImageSize.MAXIMUM_PIXELS_PROPERTY);
@@ -255,7 +269,7 @@ final class MatImageBufferTest {
     final Path file = this.directory.resolve(SIXTEEN_BIT_FILE_NAME);
     Files.write(file, png);
     final FileSource path = FileSource.path(file);
-    final String expected = "Image size 16x16 exceeds the limit of 255 pixels that the system property mcav.image.maxPixels sets!";
+    final String expected = "Image size 16x16 exceeds the limit of 255 pixels that the system property mcav.image.maximum_pixels sets!";
     final String previous = System.getProperty(DeclaredImageSize.MAXIMUM_PIXELS_PROPERTY);
     System.setProperty(DeclaredImageSize.MAXIMUM_PIXELS_PROPERTY, "255");
     try {
@@ -318,7 +332,7 @@ final class MatImageBufferTest {
       final IllegalArgumentException refused = assertThrowsWhileOpening(IllegalArgumentException.class, () -> ImageBuffer.bytes(header));
       final String message = refused.getMessage();
       assertEquals(
-        "Image size 65535x65535 exceeds the limit of 67108864 pixels that the system property mcav.image.maxPixels sets!",
+        "Image size 65535x65535 exceeds the limit of 67108864 pixels that the system property mcav.image.maximum_pixels sets!",
         message
       );
     } finally {
@@ -340,7 +354,8 @@ final class MatImageBufferTest {
     final FileSource path = FileSource.path(file);
     final IllegalArgumentException fromFile = assertThrowsWhileOpening(IllegalArgumentException.class, () -> ImageBuffer.path(path));
     final String fileMessage = fromFile.getMessage();
-    assertEquals("File " + file + " is not a supported image!", fileMessage);
+    final String expected = UNSUPPORTED_FILE_MESSAGE.formatted(file);
+    assertEquals(expected, fileMessage);
   }
 
   @Test
@@ -355,7 +370,8 @@ final class MatImageBufferTest {
     final FileSource path = FileSource.path(file);
     final IllegalArgumentException fromFile = assertThrowsWhileOpening(IllegalArgumentException.class, () -> ImageBuffer.path(path));
     final String fileMessage = fromFile.getMessage();
-    assertEquals("File " + file + " is not a supported image!", fileMessage);
+    final String expected = UNSUPPORTED_FILE_MESSAGE.formatted(file);
+    assertEquals(expected, fileMessage);
   }
 
   private static void restoreMaximumPixels(final @Nullable String previous) {
@@ -369,9 +385,9 @@ final class MatImageBufferTest {
   // Serves an image from a local HTTP server and loads it through its URI, with the download cache in the temporary
   // directory instead of the real home directory.
   private int downloadHeight(final Path png) throws IOException {
-    final String previousHome = System.getProperty("user.home");
+    final String previousHome = System.getProperty(USER_HOME_PROPERTY);
     final String temporaryHome = this.directory.toString();
-    System.setProperty("user.home", temporaryHome);
+    System.setProperty(USER_HOME_PROPERTY, temporaryHome);
     try (final LocalHttpServer server = LocalHttpServer.start()) {
       final byte[] content = Files.readAllBytes(png);
       server.respond("/image.png", 200, content);
@@ -381,21 +397,21 @@ final class MatImageBufferTest {
         return fromUri.getHeight();
       }
     } finally {
-      System.setProperty("user.home", previousHome);
+      System.setProperty(USER_HOME_PROPERTY, previousHome);
     }
   }
 
   private void assertDownloadFailure() {
-    final String previousHome = System.getProperty("user.home");
+    final String previousHome = System.getProperty(USER_HOME_PROPERTY);
     final String temporaryHome = this.directory.toString();
-    System.setProperty("user.home", temporaryHome);
+    System.setProperty(USER_HOME_PROPERTY, temporaryHome);
     try (final LocalHttpServer server = LocalHttpServer.start()) {
       server.respond("/missing.png", 404, new byte[0]);
       final URI uri = server.uri("/missing.png");
       final UriSource source = UriSource.uri(uri);
       assertThrowsWhileOpening(DownloadException.class, () -> ImageBuffer.uri(source));
     } finally {
-      System.setProperty("user.home", previousHome);
+      System.setProperty(USER_HOME_PROPERTY, previousHome);
     }
   }
 
@@ -406,10 +422,10 @@ final class MatImageBufferTest {
     final Rect region = new Rect(1, 1, 2, 2);
     final Mat nonContinuous = new Mat(wide, region);
     try (final ImageBuffer kept = ImageBuffer.mat(bgr); final ImageBuffer fromRegion = ImageBuffer.mat(nonContinuous)) {
-      final Mat keptMat = ((MatImageBuffer) kept).getMat();
+      final Mat keptMatrix = ((MatImageBuffer) kept).getMat();
       final int regionPixel = argbAt(fromRegion, 1, 1);
       final int regionWidth = fromRegion.getWidth();
-      assertSame(bgr, keptMat);
+      assertSame(bgr, keptMatrix);
       assertEquals(0xFF070809, regionPixel);
       assertEquals(2, regionWidth);
     }
@@ -454,8 +470,9 @@ final class MatImageBufferTest {
       final int pixel = argbAt(fromSixteenBitGray, 1, 1);
       final ByteBuffer data = fromSixteenBitGray.getData();
       final int bytes = data.remaining();
+      final int expected = 2 * 2 * 3;
       assertEquals(0xFF646464, pixel, "25700 of 65535 is 100 of 255, in every channel");
-      assertEquals(2 * 2 * 3, bytes, "the image holds three channels per pixel");
+      assertEquals(expected, bytes, "the image holds three channels per pixel");
     }
   }
 
@@ -471,8 +488,8 @@ final class MatImageBufferTest {
 
   private static int convertedPixel(final int type, final double value) {
     final Scalar scalar = new Scalar(value, value, value, 0.0);
-    final Mat mat = new Mat(1, 1, type, scalar);
-    try (final ImageBuffer image = ImageBuffer.mat(mat)) {
+    final Mat matrix = new Mat(1, 1, type, scalar);
+    try (final ImageBuffer image = ImageBuffer.mat(matrix)) {
       return argbAt(image, 0, 0);
     }
   }
@@ -549,14 +566,14 @@ final class MatImageBufferTest {
   void shouldReuseItsConversionArray() {
     try (final ImageBuffer image = Images.solid(SMALL_IMAGE_SIZE, SMALL_IMAGE_SIZE, BLACK)) {
       final MatImageBuffer buffer = (MatImageBuffer) image;
-      final byte[] first = buffer.getScratch(12);
-      final byte[] smaller = buffer.getScratch(6);
+      final byte[] first = buffer.ensureScratch(12);
+      final byte[] smaller = buffer.ensureScratch(6);
       image.invalidateCache();
       image.getPixels();
       final int[] pixels = { 1, 2, 3, 4 };
       image.updateArgb(pixels, 2, 2);
-      final byte[] afterUse = buffer.getScratch(12);
-      final byte[] larger = buffer.getScratch(24);
+      final byte[] afterUse = buffer.ensureScratch(12);
+      final byte[] larger = buffer.ensureScratch(24);
       assertSame(first, smaller, "a large enough array is reused");
       assertSame(first, afterUse, "reading and writing pixels reuse the array instead of allocating one per frame");
       assertEquals(24, larger.length, "the array grows when it is too small");
@@ -622,8 +639,8 @@ final class MatImageBufferTest {
       try (final ImageBuffer image = ImageBuffer.image(source)) {
         final int white = argbAt(image, 2, 1);
         final int black = argbAt(image, 0, 0);
-        assertEquals(WHITE, white, "type " + type);
-        assertEquals(BLACK, black, "type " + type);
+        assertEquals(WHITE, white, TYPE_MESSAGE.formatted(type));
+        assertEquals(BLACK, black, TYPE_MESSAGE.formatted(type));
       }
     }
 
@@ -658,7 +675,7 @@ final class MatImageBufferTest {
   @Test
   void shouldConvertThePixelsOfALinearIntegerImageToSrgb() {
     final ColorSpace linear = ColorSpace.getInstance(ColorSpace.CS_LINEAR_RGB);
-    final DirectColorModel colorModel = new DirectColorModel(linear, 24, 0xFF0000, 0xFF00, 0xFF, 0, false, DataBuffer.TYPE_INT);
+    final DirectColorModel colorModel = new DirectColorModel(linear, 24, RED_MASK, GREEN_MASK, BLUE_MASK, 0, false, DataBuffer.TYPE_INT);
     final WritableRaster raster = colorModel.createCompatibleWritableRaster(1, 1);
     raster.setPixel(0, 0, new int[] { 8, 8, 8 });
     final BufferedImage source = new BufferedImage(colorModel, raster, false, null);
@@ -675,7 +692,7 @@ final class MatImageBufferTest {
     final BufferedImage prototype = new BufferedImage(SMALL_IMAGE_SIZE, SMALL_IMAGE_SIZE, type);
     final SampleModel model = prototype.getSampleModel();
     final ColorModel colors = prototype.getColorModel();
-    final int elements = type == BufferedImage.TYPE_INT_RGB ? 4 : 12;
+    final int elements = type == BufferedImage.TYPE_INT_RGB ? 4 : SMALL_IMAGE_SAMPLE_COUNT;
     final int length = elements + offset + 2;
     final DataBuffer data;
     if (type == BufferedImage.TYPE_INT_RGB) {
@@ -726,9 +743,9 @@ final class MatImageBufferTest {
   void shouldCopyIntegerRowsUsingTheirScanlineStride() {
     final BufferedImage prototype = new BufferedImage(SMALL_IMAGE_SIZE, SMALL_IMAGE_SIZE, BufferedImage.TYPE_INT_RGB);
     final ColorModel colors = prototype.getColorModel();
-    final int[] masks = { 0xFF0000, 0xFF00, 0xFF };
+    final int[] masks = { RED_MASK, GREEN_MASK, BLUE_MASK };
     final SampleModel model = new SinglePixelPackedSampleModel(DataBuffer.TYPE_INT, 2, 2, 1, masks);
-    final int[] pixels = { 0x123456, 0xABCDEF, 0x789ABC, 0x654321 };
+    final int[] pixels = { FIRST_COLOR_RGB, 0xABCDEF, 0x789ABC, 0x654321 };
     final DataBuffer data = new DataBufferInt(pixels, pixels.length);
     final Point origin = new Point();
     final WritableRaster raster = Raster.createWritableRaster(model, data, origin);
@@ -770,7 +787,8 @@ final class MatImageBufferTest {
     for (final int type : transferTypes) {
       final ColorModel colors = new ComponentColorModel(space, new int[] { 8, 8, 8 }, false, false, Transparency.OPAQUE, type);
       final SampleModel model = new ComponentSampleModel(type, 2, 2, 1, 2, new int[] { 0, 4, 8 });
-      final DataBuffer data = type == DataBuffer.TYPE_BYTE ? new DataBufferByte(12) : new DataBufferInt(12);
+      final DataBuffer data =
+        type == DataBuffer.TYPE_BYTE ? new DataBufferByte(SMALL_IMAGE_SAMPLE_COUNT) : new DataBufferInt(SMALL_IMAGE_SAMPLE_COUNT);
       final WritableRaster raster = Raster.createWritableRaster(model, data, new Point());
       final BufferedImage source = new BufferedImage(colors, raster, false, null);
       source.setRGB(0, 0, FIRST_COLOR);
@@ -808,9 +826,9 @@ final class MatImageBufferTest {
         final int shiftedXPixel = argbAt(fromShiftedX, 0, 1);
         final int shiftedYPixel = argbAt(fromShiftedY, 1, 0);
         final int narrowerPixel = argbAt(fromNarrower, 1, 0);
-        assertEquals(RED, shiftedXPixel, "type " + type);
-        assertEquals(RED, shiftedYPixel, "type " + type);
-        assertEquals(BLUE, narrowerPixel, "type " + type);
+        assertEquals(RED, shiftedXPixel, TYPE_MESSAGE.formatted(type));
+        assertEquals(RED, shiftedYPixel, TYPE_MESSAGE.formatted(type));
+        assertEquals(BLUE, narrowerPixel, TYPE_MESSAGE.formatted(type));
       }
     }
   }
@@ -846,8 +864,8 @@ final class MatImageBufferTest {
       final IllegalArgumentException vertical = assertThrows(IllegalArgumentException.class, () -> image.getPixel(0, 4));
       final String horizontalMessage = horizontal.getMessage();
       final String verticalMessage = vertical.getMessage();
-      assertEquals("x 3 must be between 0 and 2!", horizontalMessage);
-      assertEquals("y 4 must be between 0 and 3!", verticalMessage);
+      assertEquals("Column 3 must be between 0 and 2 inclusive!", horizontalMessage);
+      assertEquals("Row 4 must be between 0 and 3 inclusive!", verticalMessage);
     }
   }
 
@@ -862,10 +880,13 @@ final class MatImageBufferTest {
       final double[] partial = image.getPixel(2, 2);
       final double[] firstColumn = image.getPixel(0, 0);
       final int packed = argbAt(image, 1, 1);
+      final double[] expectedClamped = new double[] { CHANNEL_MAXIMUM, 0.0, 128.0 };
+      final double[] expectedPartial = new double[] { 10.0, 0.0, 0.0 };
+      final double[] expectedFirstColumn = new double[] { 1.0, 2.0, 3.0 };
       assertEquals(BLACK, black);
-      assertArrayEquals(new double[] { CHANNEL_MAXIMUM, 0.0, 128.0 }, clamped);
-      assertArrayEquals(new double[] { 10.0, 0.0, 0.0 }, partial);
-      assertArrayEquals(new double[] { 1.0, 2.0, 3.0 }, firstColumn, "the first column and row belong to the image");
+      assertArrayEquals(expectedClamped, clamped);
+      assertArrayEquals(expectedPartial, partial);
+      assertArrayEquals(expectedFirstColumn, firstColumn, "the first column and row belong to the image");
       assertEquals(0xFF8000FF, packed, "setting a pixel invalidates the packed cache");
 
       final double[] blackPixel = { 0.0, 0.0, 0.0 };
@@ -915,8 +936,9 @@ final class MatImageBufferTest {
       final int[] taller = Images.indexedPixels(3, 4);
       image.updateArgb(taller, 3, 4);
       final int tallerHeight = image.getHeight();
+      final int[] expected = new int[] { 0xFF000001, 0xFF000002, 0xFF000003, 0xFF000004 };
       assertEquals(4, tallerHeight, "same width, different height");
-      assertArrayEquals(new int[] { 0xFF000001, 0xFF000002, 0xFF000003, 0xFF000004 }, afterSameSize, "the alpha channel is discarded");
+      assertArrayEquals(expected, afterSameSize, "the alpha channel is discarded");
       assertArrayEquals(larger, afterLarger);
       assertNotSame(larger, afterLarger, "the input is copied");
       assertEquals(3, height);
@@ -932,9 +954,9 @@ final class MatImageBufferTest {
       final MatImageBuffer buffer = (MatImageBuffer) image;
       final int[] cached = image.getPixels();
       final int[] cachedAgain = image.getPixels();
-      final Mat mat = buffer.getMat();
+      final Mat matrix = buffer.getMat();
       final Size size = new Size(2, 1);
-      opencv_imgproc.resize(mat, mat, size);
+      opencv_imgproc.resize(matrix, matrix, size);
       final int[] afterResize = image.getPixels();
       assertSame(cached, cachedAgain, "unchanged images reuse the cache");
       assertEquals(2, afterResize.length);
@@ -943,15 +965,15 @@ final class MatImageBufferTest {
     try (final ImageBuffer image = Images.indexed(4, 2)) {
       final MatImageBuffer buffer = (MatImageBuffer) image;
       image.getPixels();
-      final Mat mat = buffer.getMat();
-      final Mat reshaped = mat.reshape(3, 4);
-      mat.put(reshaped);
+      final Mat matrix = buffer.getMat();
+      final Mat reshaped = matrix.reshape(3, 4);
+      matrix.put(reshaped);
       final int[] afterReshape = image.getPixels();
       final int width = image.getWidth();
       assertEquals(2, width, "same memory, different shape");
       assertEquals(8, afterReshape.length);
 
-      mat.pop_back(1);
+      matrix.pop_back(1);
       final int[] afterPop = image.getPixels();
       assertEquals(6, afterPop.length, "same memory and width, fewer rows");
     }
@@ -962,8 +984,8 @@ final class MatImageBufferTest {
     try (final ImageBuffer image = Images.solid(1, 1, BLACK)) {
       final MatImageBuffer buffer = (MatImageBuffer) image;
       image.getPixels();
-      final Mat mat = buffer.getMat();
-      opencv_core.bitwise_not(mat, mat);
+      final Mat matrix = buffer.getMat();
+      opencv_core.bitwise_not(matrix, matrix);
       image.invalidateCache();
       final int inverted = argbAt(image, 0, 0);
       assertEquals(WHITE, inverted);
@@ -984,7 +1006,7 @@ final class MatImageBufferTest {
       final int width = image.getWidth();
       final int grayPixel = argbAt(image, 0, 0);
       final boolean previousReleased = own.empty();
-      assertEquals(WHITE, invertedInPlace, "setting the own mat invalidates the cache");
+      assertEquals(WHITE, invertedInPlace, "setting the own matrix invalidates the cache");
       assertEquals(3, width);
       assertEquals(0xFF0A0A0A, grayPixel);
       assertTrue(previousReleased, "the matrix that was replaced is released");
@@ -1022,8 +1044,8 @@ final class MatImageBufferTest {
     assertEquals("Image dimensions 0x1 must be positive!", message);
   }
 
-  private static long pixelAddress(final Mat mat) {
-    final BytePointer data = mat.data();
+  private static long pixelAddress(final Mat matrix) {
+    final BytePointer data = matrix.data();
     return data.address();
   }
 
@@ -1151,7 +1173,8 @@ final class MatImageBufferTest {
   }
 
   private static void failTransformation() {
-    throw new IllegalStateException("The transformation failed!");
+    final String message = "The transformation failed!";
+    throw new IllegalStateException(message);
   }
 
   private static void leaveTargetEmpty() {}
@@ -1209,8 +1232,8 @@ final class MatImageBufferTest {
     image.release();
     image.release();
     image.close();
-    final boolean matReleased = own.empty();
-    assertTrue(matReleased, "releasing the image releases its matrix");
+    final boolean matrixReleased = own.empty();
+    assertTrue(matrixReleased, "releasing the image releases its matrix");
     assertThrows(IllegalStateException.class, image::getWidth);
     assertThrows(IllegalStateException.class, image::getHeight);
     assertThrows(IllegalStateException.class, image::getPixelCount);
@@ -1291,7 +1314,7 @@ final class MatImageBufferTest {
         ImageBuffer.bytes(shortInput, 715827882, 1)
       );
       final String message = failure.getMessage();
-      assertEquals("Byte count 2 must be 2147483646!", message);
+      assertEquals("Byte count 2 differs from the expected 2147483646 bytes!", message);
 
       final List<Mat> constructed = allocations.constructed();
       final int count = constructed.size();
@@ -1300,7 +1323,8 @@ final class MatImageBufferTest {
   }
 
   private void failMatrixConstruction() {
-    throw new AssertionError("The length guard must reject before constructing a native matrix!");
+    final String message = "The length guard must reject before constructing a native matrix!";
+    throw new AssertionError(message);
   }
 
   @Test
@@ -1312,8 +1336,8 @@ final class MatImageBufferTest {
 
   @Test
   void shouldDiscardTheAlphaChannelOfPackedPixels() {
-    final int[] translucent = { 0x00123456, 0x80ABCDEF };
-    final int[] expected = { 0xFF123456, 0xFFABCDEF };
+    final int[] translucent = { FIRST_COLOR_RGB, 0x80ABCDEF };
+    final int[] expected = { FIRST_COLOR, SECOND_COLOR };
     try (final ImageBuffer image = ImageBuffer.buffer(translucent, 2, 1)) {
       final int[] cached = image.getPixels();
       final int[] cachedCopy = cached.clone();
@@ -1327,7 +1351,7 @@ final class MatImageBufferTest {
     }
 
     final int firstInput = translucent[0];
-    assertEquals(0x00123456, firstInput, "the input is not modified");
+    assertEquals(FIRST_COLOR_RGB, firstInput, "the input is not modified");
   }
 
   private static final class ReportedSizeImage extends BufferedImage {

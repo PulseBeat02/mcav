@@ -23,31 +23,24 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.LockSupport;
 import java.util.function.BooleanSupplier;
 
-/**
- * Polls a condition until it holds or a timeout passes.
- */
 public final class Await {
 
-  private static final long TIMEOUT_MILLIS = 10_000L;
-  private static final long POLL_NANOS = TimeUnit.MILLISECONDS.toNanos(5);
+  private static final long TIMEOUT_MILLISECONDS = 10_000L;
+  private static final long POLL_NANOSECONDS = TimeUnit.MILLISECONDS.toNanos(5);
 
   private Await() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
-  /**
-   * Waits until a condition holds, failing the test after ten seconds.
-   *
-   * @param description what is waited for, used in the failure message
-   * @param condition   the condition
-   */
   public static void until(final String description, final BooleanSupplier condition) {
-    final long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(TIMEOUT_MILLIS);
+    final long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(TIMEOUT_MILLISECONDS);
     while (!condition.getAsBoolean()) {
       if (System.nanoTime() - deadline > 0) {
-        fail("Timed out waiting until " + description);
+        final String message = "Waiting until %s timed out!".formatted(description);
+        fail(message);
       }
-      LockSupport.parkNanos(POLL_NANOS);
+      LockSupport.parkNanos(POLL_NANOSECONDS);
     }
   }
 }

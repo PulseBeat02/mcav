@@ -33,7 +33,7 @@ import org.bytedeco.opencv.opencv_core.Mat;
  *
  * @since 1.0.0
  */
-public class TransposeFilter extends MatVideoFilter {
+public final class TransposeFilter extends MatVideoFilter {
 
   /**
    * Constructs a new transpose filter.
@@ -61,13 +61,14 @@ public class TransposeFilter extends MatVideoFilter {
    * Always throws, because a transposition changes the size of the frame and cannot be done in place;
    * {@link #modifyImage(MatImageBuffer)} transposes instead.
    *
-   * @param mat the matrix of the frame
+   * @param matrix the matrix of the frame
    * @return never returns normally
    * @throws UnsupportedOperationException always
    * @since 1.0.0
    */
   @Override
-  protected boolean modifyMat(final Mat mat) {
-    throw new UnsupportedOperationException("Transposing cannot be done in place!");
+  protected boolean modifyMat(final Mat matrix) {
+    final String message = "Transposing cannot be done in place!";
+    throw new UnsupportedOperationException(message);
   }
 }

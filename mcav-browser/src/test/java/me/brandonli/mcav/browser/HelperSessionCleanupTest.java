@@ -38,33 +38,38 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
-import me.brandonli.mcav.media.player.PlayerException;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.MockedStatic;
+import org.mockito.invocation.InvocationOnMock;
 
 final class HelperSessionCleanupTest {
+
+  private static final String SESSION_FOLDER = "session";
+  private static final String SOCKET_FILE = "s";
 
   @TempDir
   private Path directory;
 
   @ParameterizedTest
-  @ValueSource(booleans = { false, true })
-  void closesTheAcceptedChannelWhenSocketUnlinkFails(final boolean unchecked) throws Exception {
-    final Path folder = Files.createDirectory(this.directory.resolve("session"));
-    final Path socket = folder.resolve("s");
+  @EnumSource(FailureKind.class)
+  void shouldCloseTheAcceptedChannelWhenTheSocketUnlinkFails(final FailureKind kind) throws Exception {
+    final Path folder = Files.createDirectory(this.directory.resolve(SESSION_FOLDER));
+    final Path socket = folder.resolve(SOCKET_FILE);
     final HelperLauncher launcher = mock(HelperLauncher.class);
     final BrowserSession.Listener listener = mock(BrowserSession.Listener.class);
     final Process process = mock(Process.class);
     final ProcessBuilder builder = mock(ProcessBuilder.class);
     final ServerSocketChannel server = mock(ServerSocketChannel.class);
-    final Throwable failure = unchecked ? new IllegalStateException("unlink failed") : new IOException("unlink failed");
+    final Throwable failure =
+      kind == FailureKind.UNCHECKED ? new IllegalStateException("The unlink failed!") : new IOException("The unlink failed!");
     when(process.getOutputStream()).thenReturn(new ByteArrayOutputStream());
     when(process.descendants()).thenAnswer(_ -> Stream.empty());
     when(process.waitFor(anyLong(), eq(TimeUnit.MILLISECONDS))).thenReturn(true);
     when(builder.start()).thenReturn(process);
-    when(launcher.getStartTimeoutMillis()).thenReturn(1000L);
+    when(launcher.getStartTimeoutMilliseconds()).thenReturn(1000L);
     try (
       final SocketChannel accepted = SocketChannel.open();
       final MockedStatic<HelperSession> helpers = mockStatic(HelperSession.class, CALLS_REAL_METHODS);
@@ -76,28 +81,37 @@ final class HelperSessionCleanupTest {
       helpers.when(() -> HelperSession.accept(eq(server), eq(process), anyLong())).thenReturn(accepted);
       files
         .when(() -> Files.deleteIfExists(any(Path.class)))
-        .thenAnswer(invocation -> {
-          final Path path = invocation.getArgument(0);
-          if (path.equals(socket)) {
-            throw failure;
-          }
-          return invocation.callRealMethod();
-        });
+        .thenAnswer(invocation -> this.failToDeleteTheSocket(invocation, socket, failure));
       final BrowserSource source = BrowserSource.uri(URI.create("https://example.com/page"), 4, 3, 1);
-      if (unchecked) {
-        assertSame(
-          failure,
-          assertThrows(IllegalStateException.class, () ->
-            HelperSession.open(launcher, this.directory, source, BrowserOptions.DEFAULT, listener, this.directory)
-          )
-        );
+      if (kind == FailureKind.UNCHECKED) {
+        final IllegalStateException thrown = assertThrows(IllegalStateException.class, () -> this.openSession(launcher, source, listener));
+        assertSame(failure, thrown);
       } else {
-        final PlayerException thrown = assertThrows(PlayerException.class, () ->
-          HelperSession.open(launcher, this.directory, source, BrowserOptions.DEFAULT, listener, this.directory)
-        );
-        assertSame(failure, thrown.getCause());
+        final BrowserException thrown = assertThrows(BrowserException.class, () -> this.openSession(launcher, source, listener));
+        final Throwable cause = thrown.getCause();
+        assertSame(failure, cause);
       }
-      assertFalse(accepted.isOpen(), "an accepted channel has an owner before session construction");
+      final boolean acceptedOpen = accepted.isOpen();
+      assertFalse(acceptedOpen, "an accepted channel has an owner before session construction");
     }
+  }
+
+  private HelperSession openSession(final HelperLauncher launcher, final BrowserSource source, final BrowserSession.Listener listener) {
+    return HelperSession.open(launcher, this.directory, source, BrowserOptions.DEFAULT, listener, this.directory);
+  }
+
+  private @Nullable Object failToDeleteTheSocket(final InvocationOnMock invocation, final Path socket, final Throwable failure)
+    throws Throwable {
+    final Path path = invocation.getArgument(0);
+    if (path.equals(socket)) {
+      throw failure;
+    }
+
+    return invocation.callRealMethod();
+  }
+
+  private enum FailureKind {
+    CHECKED,
+    UNCHECKED,
   }
 }

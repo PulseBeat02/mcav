@@ -80,6 +80,8 @@ final class ExecutableYtdlpParserTest {
   private static final String JAVA_NAME = "java";
   private static final String WINDOWS_JAVA_NAME = "java.exe";
 
+  private static final String INVALID_METADATA_MESSAGE = "URL %s got invalid metadata from yt-dlp!";
+
   private static UriSource source() {
     final URI uri = URI.create(URL);
     return UriSource.uri(uri);
@@ -124,7 +126,7 @@ final class ExecutableYtdlpParserTest {
   @Test
   void shouldParseTheFirstDocumentWithTheExpectedCommandLine() throws IOException {
     final String fixture = fixture();
-    final String output = fixture + "\n{\"id\": \"second\", \"title\": \"Second Video\"}\n";
+    final String output = "%s\n{\"id\": \"second\", \"title\": \"Second Video\"}\n".formatted(fixture);
     final CommandTask task = task(0, output, "");
     final AtomicReference<String[]> command = new AtomicReference<>();
     final ExecutableYtdlpParser parser = parser(task, command);
@@ -146,9 +148,13 @@ final class ExecutableYtdlpParserTest {
     };
     final String[] actual = command.get();
     final List<Format> formats = dump.getFormats();
+    final Optional<String> id = dump.getId();
+    final Optional<String> expectedId = Optional.of("dQw4w9WgXcQ");
+    final Optional<String> title = dump.getTitle();
+    final Optional<String> expectedTitle = Optional.of("Example Video");
     assertArrayEquals(expected, actual);
-    assertEquals(Optional.of("dQw4w9WgXcQ"), dump.getId());
-    assertEquals(Optional.of("Example Video"), dump.getTitle());
+    assertEquals(expectedId, id);
+    assertEquals(expectedTitle, title);
     assertNotNull(formats);
 
     final int formatsCount = formats.size();
@@ -180,13 +186,16 @@ final class ExecutableYtdlpParserTest {
     };
     final UrlParseDump dump = parser.parse(source, options);
     final String[] actual = command.get();
+    final Optional<String> id = dump.getId();
+    final Optional<String> expectedId = Optional.of("many");
     assertNotNull(actual);
-    assertEquals(Optional.of("many"), dump.getId());
+    assertEquals(expectedId, id);
     assertEquals(21, actual.length);
 
     for (int index = 0; index < options.length; index++) {
       final String option = actual[7 + index];
-      assertEquals(options[index], option);
+      final String expectedOption = options[index];
+      assertEquals(expectedOption, option);
     }
 
     final String separator = actual[19];
@@ -216,8 +225,10 @@ final class ExecutableYtdlpParserTest {
       URL,
     };
     final String[] actual = command.get();
+    final Optional<String> id = dump.getId();
+    final Optional<String> expectedId = Optional.of("plain");
     assertArrayEquals(expected, actual);
-    assertEquals(Optional.of("plain"), dump.getId());
+    assertEquals(expectedId, id);
   }
 
   @Test
@@ -230,9 +241,14 @@ final class ExecutableYtdlpParserTest {
     final UriSource source = source();
     final UrlParseDump first = parser.parse(source);
     final UrlParseDump second = parser.parse(source);
-    assertEquals(Optional.of("first"), first.getId());
-    assertEquals(Optional.of("second"), second.getId());
-    assertFalse(tasks.hasNext());
+    final Optional<String> firstId = first.getId();
+    final Optional<String> expectedFirstId = Optional.of("first");
+    final Optional<String> secondId = second.getId();
+    final Optional<String> expectedSecondId = Optional.of("second");
+    final boolean tasksLeft = tasks.hasNext();
+    assertEquals(expectedFirstId, firstId);
+    assertEquals(expectedSecondId, secondId);
+    assertFalse(tasksLeft);
   }
 
   @Test
@@ -245,8 +261,12 @@ final class ExecutableYtdlpParserTest {
     final UriSource source = source();
     final UrlParseDump windowsDump = windowsParser.parse(source);
     final UrlParseDump singleLineDump = singleLineParser.parse(source);
-    assertEquals(Optional.of("first"), windowsDump.getId());
-    assertEquals(Optional.of("only"), singleLineDump.getId());
+    final Optional<String> windowsDumpId = windowsDump.getId();
+    final Optional<String> expectedWindowsDumpId = Optional.of("first");
+    final Optional<String> singleLineDumpId = singleLineDump.getId();
+    final Optional<String> expectedSingleLineDumpId = Optional.of("only");
+    assertEquals(expectedWindowsDumpId, windowsDumpId);
+    assertEquals(expectedSingleLineDumpId, singleLineDumpId);
   }
 
   @Test
@@ -270,7 +290,7 @@ final class ExecutableYtdlpParserTest {
     final YtdlpParseException truncated = assertParseFails("{\"id\": \"abc\", \"title\": ");
     final YtdlpParseException array = assertParseFails("[1, 2, 3]");
     final YtdlpParseException wrongType = assertParseFails("{\"formats\": \"not a list\"}");
-    final String expected = "URL %s got invalid metadata from yt-dlp!".formatted(URL);
+    final String expected = INVALID_METADATA_MESSAGE.formatted(URL);
     final String truncatedMessage = truncated.getMessage();
     final String arrayMessage = array.getMessage();
     final String wrongTypeMessage = wrongType.getMessage();
@@ -289,7 +309,7 @@ final class ExecutableYtdlpParserTest {
   void shouldReportMetadataWhoseDecimalFieldHoldsText() throws IOException {
     final YtdlpParseException duration = assertParseFails("{\"id\": \"abc\", \"duration\": \"long\"}");
     final YtdlpParseException quality = assertParseFails("{\"id\": \"abc\", \"formats\": [{\"quality\": \"high\"}]}");
-    final String expected = "URL %s got invalid metadata from yt-dlp!".formatted(URL);
+    final String expected = INVALID_METADATA_MESSAGE.formatted(URL);
     final String durationMessage = duration.getMessage();
     final String qualityMessage = quality.getMessage();
     final Throwable durationCause = duration.getCause();
@@ -304,7 +324,7 @@ final class ExecutableYtdlpParserTest {
   void shouldRejectTextAfterTheDocumentInsteadOfIgnoringIt() throws IOException {
     final YtdlpParseException trailingText = assertParseFails("{\"id\": \"abc\"} unexpected trailing text");
     final YtdlpParseException secondDocument = assertParseFails("{\"id\": \"abc\"} {\"id\": \"def\"}");
-    final String expected = "URL %s got invalid metadata from yt-dlp!".formatted(URL);
+    final String expected = INVALID_METADATA_MESSAGE.formatted(URL);
     final String trailingTextMessage = trailingText.getMessage();
     final String secondDocumentMessage = secondDocument.getMessage();
     final Throwable trailingTextCause = trailingText.getCause();
@@ -425,7 +445,9 @@ final class ExecutableYtdlpParserTest {
     final UrlParseDump dump = parser.parse(source);
     final String[] actual = command.get();
     final String lastArgument = actual[actual.length - 1];
-    assertEquals(Optional.of("accepted"), dump.getId());
+    final Optional<String> id = dump.getId();
+    final Optional<String> expected = Optional.of("accepted");
+    assertEquals(expected, id);
     assertEquals(raw, lastArgument);
   }
 
@@ -451,7 +473,7 @@ final class ExecutableYtdlpParserTest {
       installers.when(YtdlpInstaller::shared).thenReturn(installer);
       final YtdlpParseException exception = assertThrows(YtdlpParseException.class, () -> parser.parse(source));
       final String message = exception.getMessage();
-      final boolean namesTheUrl = message.endsWith("\" while URL " + URL + " was being resolved!");
+      final boolean namesTheUrl = message.endsWith("\" while URL %s was being resolved!".formatted(URL));
       final boolean namesTheOption = message.contains(DUMP_JSON_OPTION);
       assertTrue(namesTheUrl, message);
       assertTrue(namesTheOption, message);

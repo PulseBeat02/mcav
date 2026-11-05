@@ -28,8 +28,7 @@
  * run off latency-sensitive threads. File replacements for equal normalized paths are serialized inside the JVM,
  * but callers still coordinate with external writers. Network probes return snapshots, not future reachability.
  *
- * <p>Reference parameters and return values are non-null unless marked {@code @Nullable};
- * nullable values and their meanings are described on the corresponding members.
+ * <p>Reference parameters and return values are non-null unless marked {@code @Nullable}.
  *
  * @since 1.0.0
  */

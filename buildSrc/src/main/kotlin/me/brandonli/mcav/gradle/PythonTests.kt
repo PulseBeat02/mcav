@@ -119,10 +119,10 @@ abstract class PythonTests : PythonTask() {
         val parallel: List<String> = this.pathsOf(this.parallelTests)
         val forks: String = minOf(this.processCount.get(), parallel.size).toString()
         val distribution: List<String> = listOf("-n", forks, "--dist", "loadfile")
-        this.pytest(reports.resolve(PARALLEL_REPORT), distribution + parallel)
+        this.runPytest(reports.resolve(PARALLEL_REPORT), distribution + parallel)
 
         val serial: List<String> = this.pathsOf(this.serialTests)
-        this.pytest(reports.resolve(SERIAL_REPORT), serial)
+        this.runPytest(reports.resolve(SERIAL_REPORT), serial)
     }
 
     private fun pathsOf(tests: ConfigurableFileCollection): List<String> {
@@ -130,10 +130,10 @@ abstract class PythonTests : PythonTask() {
         return files.map { it.path }
     }
 
-    private fun pytest(report: File, arguments: List<String>): Unit {
+    private fun runPytest(report: File, arguments: List<String>): Unit {
         val directory: File = this.testDirectory.get().asFile
         val python: String = this.pythonExecutable.get().asFile.path
-        val matplotlibConfiguration: String = this.temporaryDir.resolve(MATPLOTLIB_CONFIG_DIRECTORY).path
+        val matplotlibConfiguration: String = this.temporaryDir.resolve(MATPLOTLIB_CONFIGURATION_DIRECTORY).path
         val command: List<String> =
             listOf(python, "-m", "pytest", "-p", "no:cacheprovider", "-ra", "--rootdir", directory.path, "--junitxml", report.path)
         this.processes.exec {
@@ -144,7 +144,7 @@ abstract class PythonTests : PythonTask() {
             this.environment(HASH_SEED_VARIABLE, FIXED_HASH_SEED)
             this.environment(PYTEST_OPTIONS_VARIABLE, NO_OPTIONS)
             this.environment(MATPLOTLIB_BACKEND_VARIABLE, HEADLESS_BACKEND)
-            this.environment(MATPLOTLIB_CONFIG_VARIABLE, matplotlibConfiguration)
+            this.environment(MATPLOTLIB_CONFIGURATION_VARIABLE, matplotlibConfiguration)
         }
     }
 }

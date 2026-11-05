@@ -73,14 +73,14 @@ final class HelpNavigationTest {
     parser.parse(this.help);
     for (int index = 0; index < 9; index++) {
       final Command.Builder<CommandSender> root = this.manager.commandBuilder(ROOT_COMMAND);
-      final Command.Builder<CommandSender> topic = root.literal("topic" + index);
-      final Description description = Description.of("Description for topic" + index);
+      final Command.Builder<CommandSender> topic = root.literal("topic%s".formatted(index));
+      final Description description = Description.of("Description for topic%s".formatted(index));
       final Command.Builder<CommandSender> described = topic.commandDescription(description);
       this.manager.command(described);
 
       final Command.Builder<CommandSender> video = root.literal(VIDEO_COMMAND);
-      final Command.Builder<CommandSender> clip = video.literal("clip" + index);
-      final Description clipDescription = Description.of("Description for clip" + index);
+      final Command.Builder<CommandSender> clip = video.literal("clip%s".formatted(index));
+      final Description clipDescription = Description.of("Description for clip%s".formatted(index));
       final Command.Builder<CommandSender> describedClip = clip.commandDescription(clipDescription);
       this.manager.command(describedClip);
     }
@@ -179,7 +179,7 @@ final class HelpNavigationTest {
   private void followGeneratedClick(final String command) {
     final Set<String> available = this.clickCommands();
     final boolean generated = available.contains(command);
-    assertTrue(generated, "Expected a real generated click target among " + available);
+    assertTrue(generated, "Expected a real generated click target among %s".formatted(available));
 
     clearInvocations(this.sender);
     final CommandExecutor<CommandSender> executor = this.manager.commandExecutor();

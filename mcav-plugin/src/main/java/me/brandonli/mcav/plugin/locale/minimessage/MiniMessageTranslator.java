@@ -100,7 +100,9 @@ public abstract class MiniMessageTranslator implements Translator {
    * @param component the component to render
    * @param locale    the locale Adventure renders for, passed on to {@link #getMiniMessageString(String, Locale)}
    * @return the rendered component, or null when this translator has no message for the key
-   * @throws NullPointerException if the component or the locale is {@code null}
+   * @throws NullPointerException             if the component or the locale is {@code null}
+   * @throws java.util.NoSuchElementException if the message has the {@code $URL$} placeholder and the component has no
+   *                                          argument
    * @since 1.0.0
    */
   @Override
@@ -132,7 +134,7 @@ public abstract class MiniMessageTranslator implements Translator {
     final Component argumentComponent = argument.asComponent();
     final String plainText = PLAIN_TEXT_SERIALIZER.serialize(argumentComponent);
     final UrlPlaceholder placeholder = new UrlPlaceholder();
-    final String prepared = placeholder.prepare(message);
+    final String prepared = placeholder.replaceUrlTokens(message);
     final Component parsed = this.deserialize(prepared, arguments);
     return placeholder.render(parsed, plainText);
   }

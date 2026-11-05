@@ -422,14 +422,14 @@ public enum KeyCode {
 
   private static final KeyCode[] VALUES = values();
 
-  private final char keyChar;
+  private final char keyCharacter;
 
   KeyCode(final KeyCode alias) {
-    this(alias.keyChar);
+    this(alias.keyCharacter);
   }
 
-  KeyCode(final char keyChar) {
-    this.keyChar = keyChar;
+  KeyCode(final char keyCharacter) {
+    this.keyCharacter = keyCharacter;
   }
 
   /**
@@ -462,7 +462,7 @@ public enum KeyCode {
    * @since 1.0.0
    */
   public char getKeyChar() {
-    return this.keyChar;
+    return this.keyCharacter;
   }
 
   /**
@@ -472,7 +472,7 @@ public enum KeyCode {
    * @since 1.0.0
    */
   public int getCodePoint() {
-    return this.keyChar;
+    return this.keyCharacter;
   }
 
   /**
@@ -482,6 +482,6 @@ public enum KeyCode {
    * @since 1.0.0
    */
   public String asString() {
-    return String.valueOf(this.keyChar);
+    return String.valueOf(this.keyCharacter);
   }
 }

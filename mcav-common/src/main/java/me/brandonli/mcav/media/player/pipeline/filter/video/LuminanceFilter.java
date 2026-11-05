@@ -28,7 +28,7 @@ import org.bytedeco.opencv.opencv_core.Mat;
  *
  * @since 1.0.0
  */
-public class LuminanceFilter extends MatVideoFilter {
+public final class LuminanceFilter extends MatVideoFilter {
 
   private static final double MAXIMUM_BRIGHTNESS = 255.0;
 
@@ -47,7 +47,7 @@ public class LuminanceFilter extends MatVideoFilter {
     Preconditions.checkArgument(contrast >= 0, "Contrast must not be negative!");
     Preconditions.checkArgument(
       brightness >= -MAXIMUM_BRIGHTNESS && brightness <= MAXIMUM_BRIGHTNESS,
-      "Brightness %s must be between -255 and 255!",
+      "Brightness %s must be between -255 and 255 inclusive!",
       brightness
     );
     this.contrast = contrast;
@@ -57,13 +57,13 @@ public class LuminanceFilter extends MatVideoFilter {
   /**
    * Scales and shifts every channel of the frame in place, clamping the results to the range from 0 to 255.
    *
-   * @param mat the 8-bit BGR matrix of the frame
+   * @param matrix the 8-bit BGR matrix of the frame
    * @return true, because the frame may have changed
    * @since 1.0.0
    */
   @Override
-  protected boolean modifyMat(final Mat mat) {
-    mat.convertTo(mat, -1, this.contrast, this.brightness);
+  protected boolean modifyMat(final Mat matrix) {
+    matrix.convertTo(matrix, -1, this.contrast, this.brightness);
 
     return true;
   }

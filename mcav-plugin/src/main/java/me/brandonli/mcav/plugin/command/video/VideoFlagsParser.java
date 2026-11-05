@@ -104,8 +104,10 @@ public final class VideoFlagsParser {
 
   private static final String NAME_SEPARATOR = ", ";
 
+  private static final List<String> SUPPORTED_OPTIONS = createSupportedOptions();
+
   /**
-   * Constructs the parser, which keeps no state and can be shared.
+   * Creates the parser, which keeps no state and can be shared.
    *
    * @since 1.0.0
    */
@@ -116,11 +118,12 @@ public final class VideoFlagsParser {
    *
    * @param flags the flags argument of the command, may be empty or {@code null}
    * @return the arguments to pass to yt-dlp, empty if there are none
-   * @throws IllegalArgumentException if an option with a value has an empty name
+   * @throws IllegalArgumentException if an option is not supported, a switch is given a value, an option that needs a
+   *                                  value has none, an option name is empty, or a value starts with a dash
    * @since 1.0.0
    */
   public String[] parseYtdlpFlags(final @Nullable String flags) {
-    final String content = extractOptions(flags);
+    final @Nullable String content = this.extractOptions(flags);
     if (content == null) {
       return new String[0];
     }
@@ -130,12 +133,13 @@ public final class VideoFlagsParser {
     for (final String option : options) {
       this.appendOption(option, arguments);
     }
+
     return arguments.toArray(new String[0]);
   }
 
   // a backslash escapes the next character, so an escaped brace does not end the options
   @VisibleForTesting
-  static @Nullable String extractOptions(final @Nullable String flags) {
+  @Nullable String extractOptions(final @Nullable String flags) {
     if (flags == null || flags.isBlank()) {
       return null;
     }
@@ -143,18 +147,19 @@ public final class VideoFlagsParser {
     int opening = flags.indexOf(YT_DLP_OPENING);
     while (opening >= 0) {
       final int start = opening + YT_DLP_OPENING.length();
-      final int end = findClosingBrace(flags, start);
+      final int end = this.findClosingBrace(flags, start);
       if (end >= 0) {
         final String content = flags.substring(start, end);
         return content.isBlank() ? null : content;
       }
       opening = flags.indexOf(YT_DLP_OPENING, opening + 1);
     }
+
     return null;
   }
 
   // -1 also when a trailing backslash has nothing to escape
-  private static int findClosingBrace(final String text, final int from) {
+  private int findClosingBrace(final String text, final int from) {
     final int length = text.length();
     int index = from;
     while (index < length) {
@@ -167,16 +172,21 @@ public final class VideoFlagsParser {
         continue;
       }
       final int escaped = index + 1;
-      final boolean escapes = escaped < length && !isLineTerminator(text.charAt(escaped));
-      if (!escapes) {
+      if (escaped >= length) {
+        return -1;
+      }
+
+      final char next = text.charAt(escaped);
+      if (this.isLineTerminator(next)) {
         return -1;
       }
       index = escaped + 1;
     }
+
     return -1;
   }
 
-  private static boolean isLineTerminator(final char character) {
+  private boolean isLineTerminator(final char character) {
     return (
       character == LINE_FEED ||
       character == CARRIAGE_RETURN ||
@@ -194,24 +204,29 @@ public final class VideoFlagsParser {
       return;
     }
 
-    final int equals = trimmed.indexOf(VALUE_SEPARATOR);
-    if (equals < 0) {
+    final int separatorIndex = trimmed.indexOf(VALUE_SEPARATOR);
+    if (separatorIndex < 0) {
       this.requireFlagOption(trimmed);
-      arguments.add(LONG_OPTION_PREFIX + trimmed);
+      arguments.add(this.toLongOption(trimmed));
       return;
     }
 
-    final String name = trimmed.substring(0, equals);
-    final String value = trimmed.substring(equals + 1);
+    final String name = trimmed.substring(0, separatorIndex);
+    final String value = trimmed.substring(separatorIndex + 1);
     final String cleanName = name.trim();
     final String cleanValue = value.trim();
     if (cleanName.isEmpty()) {
-      throw new IllegalArgumentException("yt-dlp option name must not be empty!");
+      final String message = "yt-dlp option name must not be empty!";
+      throw new IllegalArgumentException(message);
     }
 
     this.requireValueOption(cleanName, cleanValue);
-    arguments.add(LONG_OPTION_PREFIX + cleanName);
+    arguments.add(this.toLongOption(cleanName));
     arguments.add(cleanValue);
+  }
+
+  private String toLongOption(final String name) {
+    return "%s%s".formatted(LONG_OPTION_PREFIX, name);
   }
 
   private void requireFlagOption(final String name) {
@@ -226,7 +241,7 @@ public final class VideoFlagsParser {
       throw new IllegalArgumentException(message);
     }
 
-    throw this.unsupported(name);
+    throw this.createUnsupportedOptionException(name);
   }
 
   private void requireValueOption(final String name, final String value) {
@@ -238,7 +253,7 @@ public final class VideoFlagsParser {
         throw new IllegalArgumentException(message);
       }
 
-      throw this.unsupported(name);
+      throw this.createUnsupportedOptionException(name);
     }
 
     // yt-dlp reads an argument that starts with a dash as an option of its own, whatever option it follows
@@ -249,8 +264,9 @@ public final class VideoFlagsParser {
     }
   }
 
-  private IllegalArgumentException unsupported(final String name) {
-    final String supported = String.join(NAME_SEPARATOR, supportedOptions());
+  private IllegalArgumentException createUnsupportedOptionException(final String name) {
+    final List<String> names = supportedOptions();
+    final String supported = String.join(NAME_SEPARATOR, names);
     final String message = "yt-dlp option %s is not supported, use one of %s instead!".formatted(name, supported);
     return new IllegalArgumentException(message);
   }
@@ -263,6 +279,10 @@ public final class VideoFlagsParser {
    * @since 1.0.0
    */
   public static List<String> supportedOptions() {
+    return SUPPORTED_OPTIONS;
+  }
+
+  private static List<String> createSupportedOptions() {
     final List<String> names = new ArrayList<>(FLAG_OPTIONS);
     names.addAll(VALUE_OPTIONS);
     Collections.sort(names);

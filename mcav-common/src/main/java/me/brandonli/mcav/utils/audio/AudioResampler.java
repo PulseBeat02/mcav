@@ -21,6 +21,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import java.nio.ByteBuffer;
 import java.util.List;
+import me.brandonli.mcav.MCAVException;
 import me.brandonli.mcav.media.player.pipeline.filter.audio.AudioFilter;
 import org.bytedeco.ffmpeg.avutil.AVChannelLayout;
 import org.bytedeco.ffmpeg.global.avutil;
@@ -32,26 +33,42 @@ import org.bytedeco.javacpp.PointerPointer;
 
 /**
  * Converts interleaved PCM audio between sample rates, channel counts and sample formats with FFmpeg's
- * libswresample. Every mcav player hands audio pipelines signed 16-bit stereo samples at 48 kHz (see
+ * libswresample. Every MCAV player hands audio pipelines signed 16-bit stereo samples at 48 kHz (see
  * {@link AudioFilter}); outputs that expect something else, such as a speech recognizer at 16 kHz mono, a telephony
  * bridge at 8 kHz or an engine that mixes floating point samples, use a resampler to convert them.
  *
  * {@snippet :
- * final int sampleRate = 16_000;
- * final int channels = 1;
- * this.resampler = AudioResampler.fromPipelineFormat(sampleRate, channels, SampleFormat.SIGNED_16_BIT);
- * final AudioPipelineStep pipeline = AudioPipelineStep.of(this::forwardSpeech);
+ * final class SpeechForwarder {
  *
- * // once playback has ended
- * final byte[] remaining = this.resampler.flush();
- * this.recognizer.accept(remaining);
- * this.resampler.close();
+ *   private static final int SAMPLE_RATE = 16_000;
+ *   private static final int CHANNELS = 1;
  *
- * private boolean forwardSpeech(final ByteBuffer samples, final OriginalAudioMetadata metadata) {
- *   final byte[] speech = this.resampler.resample(samples);
- *   this.recognizer.accept(speech);
- *   // the samples were only read, so the filter reports that it left them untouched
- *   return false;
+ *   private final AudioResampler resampler;
+ *   private final Consumer<byte[]> recognizer;
+ *
+ *   SpeechForwarder(final Consumer<byte[]> recognizer) {
+ *     this.resampler = AudioResampler.fromPipelineFormat(SAMPLE_RATE, CHANNELS, SampleFormat.SIGNED_16_BIT);
+ *     this.recognizer = recognizer;
+ *   }
+ *
+ *   AudioPipelineStep createPipeline() {
+ *     return AudioPipelineStep.of(this::forwardSpeech);
+ *   }
+ *
+ *   private boolean forwardSpeech(final ByteBuffer samples, final OriginalAudioMetadata metadata) {
+ *     final byte[] speech = this.resampler.resample(samples);
+ *     this.recognizer.accept(speech);
+ *
+ *     // the samples were only read, so the filter reports that it left them untouched
+ *     return false;
+ *   }
+ *
+ *   // call once playback has ended
+ *   void drainAndClose() {
+ *     final byte[] remaining = this.resampler.flush();
+ *     this.recognizer.accept(remaining);
+ *     this.resampler.close();
+ *   }
  * }
  * }
  *
@@ -80,6 +97,12 @@ public final class AudioResampler implements AutoCloseable {
 
   private static final int NO_LOG_LEVEL_OFFSET = 0;
 
+  private static final long INTERLEAVED_PLANES = 1L;
+
+  private static final int NO_INPUT_FRAMES = 0;
+
+  private static final long NO_LIMIT = 0L;
+
   private final int inputSampleRate;
   private final int inputChannels;
   private final SampleFormat inputFormat;
@@ -91,6 +114,7 @@ public final class AudioResampler implements AutoCloseable {
   private final AVChannelLayout inputLayout;
   private final AVChannelLayout outputLayout;
   private final SwrContext context;
+
   private boolean closed;
 
   // Package-private so a test can pass a sample rate that create refuses, see configure.
@@ -131,7 +155,7 @@ public final class AudioResampler implements AutoCloseable {
    * @param outputFormat     the encoding of the returned samples
    * @return a new resampler, which must be closed by the caller
    * @throws IllegalArgumentException if a sample rate is not positive or a channel count is out of range
-   * @throws IllegalStateException    if FFmpeg cannot set up the conversion
+   * @throws MCAVException            if FFmpeg cannot set up the conversion
    * @throws NullPointerException     if {@code inputFormat} or {@code outputFormat} is null
    * @since 1.0.0
    */
@@ -164,7 +188,7 @@ public final class AudioResampler implements AutoCloseable {
   }
 
   /**
-   * Creates a resampler whose input is the audio every mcav player hands to audio pipelines: signed 16-bit stereo
+   * Creates a resampler whose input is the audio every MCAV player hands to audio pipelines: signed 16-bit stereo
    * samples at {@value AudioFilter#SAMPLE_RATE} Hz.
    *
    * @param outputSampleRate the sample rate of the returned samples, in hertz
@@ -172,7 +196,7 @@ public final class AudioResampler implements AutoCloseable {
    * @param outputFormat     the encoding of the returned samples
    * @return a new resampler, which must be closed by the caller
    * @throws IllegalArgumentException if the sample rate is not positive or the channel count is out of range
-   * @throws IllegalStateException    if FFmpeg cannot set up the conversion
+   * @throws MCAVException            if FFmpeg cannot set up the conversion
    * @throws NullPointerException     if {@code outputFormat} is null
    * @since 1.0.0
    */
@@ -193,7 +217,7 @@ public final class AudioResampler implements AutoCloseable {
 
   private static void checkChannels(final int channels, final String side) {
     final boolean inRange = channels >= 1 && channels <= MAXIMUM_CHANNELS;
-    Preconditions.checkArgument(inRange, "%s channel count %s must be between 1 and %s!", side, channels, MAXIMUM_CHANNELS);
+    Preconditions.checkArgument(inRange, "%s channel count %s must be between 1 and %s inclusive!", side, channels, MAXIMUM_CHANNELS);
   }
 
   // Package-private so a test can make the allocation fail, which kills the mutant that skips its check.
@@ -230,7 +254,8 @@ public final class AudioResampler implements AutoCloseable {
    * @param input interleaved samples in the input format, in native byte order
    * @return a new caller-owned array of interleaved samples in the output format and native byte order,
    *         possibly empty; the byte-order property of the input buffer is not consulted
-   * @throws IllegalStateException if the resampler is closed or FFmpeg fails to convert the samples
+   * @throws IllegalStateException if the resampler is closed
+   * @throws MCAVException         if FFmpeg fails to convert the samples
    * @throws NullPointerException  if {@code input} is null
    * @since 1.0.0
    */
@@ -247,7 +272,10 @@ public final class AudioResampler implements AutoCloseable {
 
     final byte[] samples = new byte[frames * this.inputFrameSize];
     source.get(samples);
-    try (final BytePointer inputData = new BytePointer(samples); final PointerPointer<BytePointer> inputPlanes = new PointerPointer<>(1L)) {
+    try (
+      final BytePointer inputData = new BytePointer(samples);
+      final PointerPointer<BytePointer> inputPlanes = new PointerPointer<>(INTERLEAVED_PLANES)
+    ) {
       inputPlanes.put(0, inputData);
       return this.convert(inputPlanes, frames);
     }
@@ -258,15 +286,17 @@ public final class AudioResampler implements AutoCloseable {
    * resets the resampler, so it can be reused for a new stream that does not continue the previous one.
    *
    * @return the remaining converted interleaved samples, empty when nothing was held back
-   * @throws IllegalStateException if the resampler is closed or FFmpeg fails to drain or reset it
+   * @throws IllegalStateException if the resampler is closed
+   * @throws MCAVException         if FFmpeg fails to drain or reset it
    * @since 1.0.0
    */
   public byte[] flush() {
     this.ensureOpen();
+
     try (final PointerPointer<BytePointer> noInput = new PointerPointer<>()) {
-      final byte[] remaining = this.convert(noInput, 0);
+      final byte[] remaining = this.convert(noInput, NO_INPUT_FRAMES);
       final int reset = swresample.swr_init(this.context);
-      checkResult(reset, "reset the resampler");
+      this.checkResult(reset, "reset the resampler");
 
       return remaining;
     }
@@ -274,17 +304,17 @@ public final class AudioResampler implements AutoCloseable {
 
   private byte[] convert(final PointerPointer<BytePointer> inputPlanes, final int inputFrames) {
     final int upperBound = swresample.swr_get_out_samples(this.context, inputFrames);
-    final int boundFrames = checkResult(upperBound, "compute the output size");
+    final int boundFrames = this.checkResult(upperBound, "compute the output size");
     final int capacityFrames = Math.max(boundFrames, 1);
     final long capacityBytes = (long) capacityFrames * this.outputFrameSize;
 
     try (
       final BytePointer outputData = new BytePointer(capacityBytes);
-      final PointerPointer<BytePointer> outputPlanes = new PointerPointer<>(1L)
+      final PointerPointer<BytePointer> outputPlanes = new PointerPointer<>(INTERLEAVED_PLANES)
     ) {
       outputPlanes.put(0, outputData);
       final int converted = swresample.swr_convert(this.context, outputPlanes, capacityFrames, inputPlanes, inputFrames);
-      final int convertedFrames = checkResult(converted, "convert the samples");
+      final int convertedFrames = this.checkResult(converted, "convert the samples");
       final int convertedBytes = Math.multiplyExact(convertedFrames, this.outputFrameSize);
       final byte[] output = new byte[convertedBytes];
       outputData.get(output);
@@ -302,23 +332,23 @@ public final class AudioResampler implements AutoCloseable {
       this.close();
     }
 
-    checkResult(result, action);
+    this.checkResult(result, action);
   }
 
-  static int checkResult(final int result, final String action) {
+  int checkResult(final int result, final String action) {
     if (result < 0) {
-      final String message = describeError(result, action);
-      throw new IllegalStateException(message);
+      final String message = this.describeError(result, action);
+      throw new MCAVException(message);
     }
 
     return result;
   }
 
-  private static String describeError(final int code, final String action) {
+  private String describeError(final int code, final String action) {
     try (final BytePointer description = new BytePointer(avutil.AV_ERROR_MAX_STRING_SIZE)) {
       avutil.av_strerror(code, description, avutil.AV_ERROR_MAX_STRING_SIZE);
       // without a limit JavaCPP reads up to the terminating zero instead of the whole buffer
-      description.limit(0);
+      description.limit(NO_LIMIT);
       final String text = description.getString();
       return "FFmpeg error %s (%s) occurred while trying to %s!".formatted(code, text, action);
     }

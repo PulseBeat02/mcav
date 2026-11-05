@@ -70,6 +70,13 @@ final class VlcPlayerIntegrationTest {
 
   private static final String MISSING_FILE_NAME = "missing.mp4";
 
+  private static final String ERRORS_MESSAGE = "errors: %s %s";
+
+  private static final int CHANNEL_MASK = 0xFF;
+
+  private static final int RED_SHIFT = 16;
+  private static final int GREEN_SHIFT = 8;
+
   @TempDir
   private static Path directory;
 
@@ -159,7 +166,7 @@ final class VlcPlayerIntegrationTest {
   private void awaitFrames(final int count) throws InterruptedException {
     final boolean arrived = Polling.pollUntil(TIMEOUT, () -> this.frames.get() >= count);
     final int arrivedFrames = this.frames.get();
-    assertTrue(arrived, "timed out waiting for " + count + " frames, got " + arrivedFrames);
+    assertTrue(arrived, "timed out waiting for %s frames, got %s".formatted(count, arrivedFrames));
   }
 
   private void awaitHalfASecondOfAudio(final String description) throws InterruptedException {
@@ -199,7 +206,7 @@ final class VlcPlayerIntegrationTest {
     assertEquals(0, misaligned, "every chunk holds whole stereo frames");
 
     final boolean audible = loudest > 1_000;
-    assertTrue(audible, "the sine tone is audible, loudest sample " + loudest);
+    assertTrue(audible, "the sine tone is audible, loudest sample %s".formatted(loudest));
   }
 
   @Test
@@ -213,7 +220,7 @@ final class VlcPlayerIntegrationTest {
     this.assertAudioOfTheTestVideo();
     final boolean noErrors = this.errors.isEmpty();
     final boolean released = this.player.release();
-    assertTrue(noErrors, "errors: " + this.messages + " " + this.errors);
+    assertTrue(noErrors, ERRORS_MESSAGE.formatted(this.messages, this.errors));
     assertTrue(released);
   }
 
@@ -227,9 +234,9 @@ final class VlcPlayerIntegrationTest {
 
     final int[] pixels = this.lastFrame.get();
     final int center = pixels[30 * 100 + 50];
-    final int redChannel = (center >> 16) & 0xFF;
-    final int greenChannel = (center >> 8) & 0xFF;
-    final int blueChannel = center & 0xFF;
+    final int redChannel = (center >> RED_SHIFT) & CHANNEL_MASK;
+    final int greenChannel = (center >> GREEN_SHIFT) & CHANNEL_MASK;
+    final int blueChannel = center & CHANNEL_MASK;
     final String centerHexadecimal = Integer.toHexString(center);
     final int width = this.frameWidth.get();
     final int height = this.frameHeight.get();
@@ -237,7 +244,7 @@ final class VlcPlayerIntegrationTest {
     assertEquals(60, height, "the visible height, not the padded decoder height");
 
     final boolean centerRed = redChannel > 200 && greenChannel < 60 && blueChannel < 60;
-    assertTrue(centerRed, "expected red but got " + centerHexadecimal);
+    assertTrue(centerRed, "expected red but got %s".formatted(centerHexadecimal));
   }
 
   @Test
@@ -298,18 +305,18 @@ final class VlcPlayerIntegrationTest {
     final boolean pausedAfterTheEnd = this.player.pause();
     final boolean seekedAfterTheEnd = this.player.seek(0L);
     final boolean stoppedPromptly = playedMilliseconds < 2_500L;
-    assertTrue(stoppedPromptly, "played " + playedMilliseconds + " ms after seeking to 4 of 5 seconds");
+    assertTrue(stoppedPromptly, "played %s ms after seeking to 4 of 5 seconds".formatted(playedMilliseconds));
 
     final boolean deliveredAfterSeek = this.frames.get() > framesBeforeSeek;
     assertTrue(deliveredAfterSeek, "seeking still delivers a frame from the requested position");
 
     final int[] finalPixels = this.lastFrame.get();
     for (final int pixel : finalPixels) {
-      final int red = (pixel >>> 16) & 0xFF;
-      final int green = (pixel >>> 8) & 0xFF;
-      final int blue = pixel & 0xFF;
+      final int red = (pixel >>> RED_SHIFT) & CHANNEL_MASK;
+      final int green = (pixel >>> GREEN_SHIFT) & CHANNEL_MASK;
+      final int blue = pixel & CHANNEL_MASK;
       final boolean pixelBlue = red <= 5 && green <= 5 && blue >= 250;
-      assertTrue(pixelBlue, "the frame near four seconds is blue: " + Integer.toHexString(pixel));
+      assertTrue(pixelBlue, "the frame near four seconds is blue: %s".formatted(Integer.toHexString(pixel)));
     }
 
     assertFalse(pausedAfterTheEnd, "nothing plays after the end");
@@ -333,7 +340,7 @@ final class VlcPlayerIntegrationTest {
     final boolean noErrors = this.errors.isEmpty();
     assertTrue(paused);
     assertTrue(resumed);
-    assertTrue(noErrors, "errors: " + this.messages + " " + this.errors);
+    assertTrue(noErrors, ERRORS_MESSAGE.formatted(this.messages, this.errors));
   }
 
   @Test

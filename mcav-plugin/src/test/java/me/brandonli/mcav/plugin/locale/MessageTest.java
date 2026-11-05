@@ -55,7 +55,7 @@ final class MessageTest {
       assertFalse(blank, name);
 
       final boolean unrendered = text.contains("<") || text.contains("$URL$");
-      assertFalse(unrendered, name + " was not rendered: " + text);
+      assertFalse(unrendered, "%s was not rendered: %s".formatted(name, text));
     }
   }
 
@@ -115,6 +115,6 @@ final class MessageTest {
     final Component component = Message.SCOREBOARD_LINES.build();
     final String text = Components.plain(component);
     final String limit = String.valueOf(ScoreboardConfiguration.MAXIMUM_LINES);
-    assertEquals("A scoreboard shows at most " + limit + " lines! Use a height from 1 to " + limit + ", like 24x" + limit, text);
+    assertEquals("A scoreboard shows at most %s lines! Use a height from 1 to %s, like 24x%s".formatted(limit, limit, limit), text);
   }
 }

@@ -39,13 +39,15 @@ import org.slf4j.LoggerFactory;
  * Installs the shared libraries of pinned Debian packages into the cache folder of MCAV and loads them, so a Linux
  * machine without a library such as VLC can use it without a package manager.
  *
- * <p>The packages come from the Debian bookworm archive and its security updates on {@code snapshot.debian.org}, the
- * newer version of each package winning, in the lists {@code mcav/common/installers/debian-vlc.json},
- * {@code mcav/common/installers/debian-gtk2.json} and {@code mcav/common/installers/debian-ffmpeg.json}, which list
- * each package after the packages it depends on, with its SHA-256. Every package is downloaded, checked against its
- * hash, and its {@code usr/lib} and {@code lib} trees are extracted by MCAV itself, without {@code dpkg} and without
- * administrator rights, into one folder of the cache. The libraries need the glibc 2.36 and GCC 12 runtime of Debian
- * bookworm or newer, which the lists leave out.
+ * <p>The packages come from the Debian bookworm archive and its security updates, the newer version of each package
+ * winning, in the lists {@code mcav/common/installers/debian-vlc.json}, {@code mcav/common/installers/debian-gtk2.json}
+ * and {@code mcav/common/installers/debian-ffmpeg.json}, which list each package after the packages it depends on, with
+ * its SHA-256. Every package is downloaded from {@code deb.debian.org}, or from {@code snapshot.debian.org} when that
+ * download fails, for example because Debian no longer carries that version or the host cannot be reached; a host that
+ * fails is tried last for the packages that follow. Each package is checked against its hash, and its {@code usr/lib}
+ * and {@code lib} trees are extracted by MCAV itself, without {@code dpkg} and without administrator rights, into one
+ * folder of the cache.
+ * The libraries need the glibc 2.36 and GCC 12 runtime of Debian bookworm or newer, which the lists leave out.
  *
  * <p>{@link #loadLibraries()} loads every library of the installation into the JVM, from the library folders and
  * their direct subfolders such as {@code pulseaudio}, the libraries of each package after those of the packages before
@@ -63,6 +65,8 @@ import org.slf4j.LoggerFactory;
 public final class DebianLibraryInstaller implements Installer {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(DebianLibraryInstaller.class);
+
+  private static final String SKIPPED_MESSAGE = "Library {} of {} could not be loaded and is skipped.";
 
   private static final String VLC_RESOURCE = "mcav/common/installers/debian-vlc.json";
   private static final String VLC_NAME = "debian-vlc";
@@ -175,7 +179,7 @@ public final class DebianLibraryInstaller implements Installer {
     int remaining = -1;
     while (pending.size() != remaining) {
       remaining = pending.size();
-      pending = this.loadEach(pending);
+      pending = this.loadAndListFailed(pending);
     }
 
     for (final Path library : pending) {
@@ -183,8 +187,7 @@ public final class DebianLibraryInstaller implements Installer {
     }
   }
 
-  // Loads every library it can and returns the others.
-  private List<Path> loadEach(final List<Path> libraries) {
+  private List<Path> loadAndListFailed(final List<Path> libraries) {
     final List<Path> failed = new ArrayList<>();
     for (final Path library : libraries) {
       final boolean loaded = this.load(library);
@@ -200,6 +203,7 @@ public final class DebianLibraryInstaller implements Installer {
     try {
       final String path = library.toString();
       this.libraryLoader.accept(path);
+
       return true;
     } catch (final UnsatisfiedLinkError exception) {
       LOGGER.debug("Library {} could not be loaded yet.", library, exception);
@@ -211,11 +215,11 @@ public final class DebianLibraryInstaller implements Installer {
   private void logSkipped(final Path library) {
     final boolean inSubfolder = this.installation.isInSubfolder(library);
     if (inSubfolder) {
-      LOGGER.debug("Library {} of {} could not be loaded and is skipped.", library, this.name);
+      LOGGER.debug(SKIPPED_MESSAGE, library, this.name);
       return;
     }
 
-    LOGGER.warn("Library {} of {} could not be loaded and is skipped.", library, this.name);
+    LOGGER.warn(SKIPPED_MESSAGE, library, this.name);
   }
 
   /**

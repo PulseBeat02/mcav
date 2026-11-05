@@ -17,10 +17,9 @@
  */
 package me.brandonli.mcav.browser;
 
-/**
- * One mouse event for the browser helper: a move, a button going down or up, or a turn of the wheel, at a position
- * of the page in pixels.
- */
+import java.util.Objects;
+import org.checkerframework.checker.nullness.qual.Nullable;
+
 final class MouseInput {
 
   private final int action;
@@ -31,17 +30,7 @@ final class MouseInput {
   private final int deltaX;
   private final int deltaY;
 
-  /**
-   * Constructs an event. The values are not checked; {@link HelperProtocol} checks what it reads.
-   *
-   * @param action     one of the {@code MOUSE_*} actions of {@link HelperProtocol}
-   * @param pageX      the x coordinate on the page
-   * @param pageY      the y coordinate on the page
-   * @param button     one of the {@code BUTTON_*} buttons of {@link HelperProtocol}
-   * @param clickCount 1 for a single click, 2 for the second click of a double click
-   * @param deltaX     the horizontal scroll distance in pixels of a wheel event
-   * @param deltaY     the vertical scroll distance in pixels of a wheel event
-   */
+  // not checked; HelperProtocol checks what it reads
   MouseInput(
     final int action,
     final int pageX,
@@ -86,5 +75,45 @@ final class MouseInput {
 
   int getDeltaY() {
     return this.deltaY;
+  }
+
+  @Override
+  public boolean equals(final @Nullable Object other) {
+    if (this == other) {
+      return true;
+    }
+
+    if (!(other instanceof final MouseInput input)) {
+      return false;
+    }
+
+    return (
+      this.action == input.action &&
+      this.pageX == input.pageX &&
+      this.pageY == input.pageY &&
+      this.button == input.button &&
+      this.clickCount == input.clickCount &&
+      this.deltaX == input.deltaX &&
+      this.deltaY == input.deltaY
+    );
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(this.action, this.pageX, this.pageY, this.button, this.clickCount, this.deltaX, this.deltaY);
+  }
+
+  @Override
+  public String toString() {
+    // the helper process has no Guava on its class path
+    return "MouseInput{action=%s, x=%s, y=%s, button=%s, clickCount=%s, deltaX=%s, deltaY=%s}".formatted(
+      this.action,
+      this.pageX,
+      this.pageY,
+      this.button,
+      this.clickCount,
+      this.deltaX,
+      this.deltaY
+    );
   }
 }

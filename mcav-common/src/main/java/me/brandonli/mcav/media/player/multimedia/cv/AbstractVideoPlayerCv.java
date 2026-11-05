@@ -17,10 +17,11 @@
  */
 package me.brandonli.mcav.media.player.multimedia.cv;
 
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Equivalence;
 import com.google.common.base.Preconditions;
-import java.util.Objects;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.BiConsumer;
@@ -77,14 +78,25 @@ public abstract class AbstractVideoPlayerCv implements VideoPlayerMultiplexer {
    */
   public static final double MAXIMUM_SPEED = 2.0;
 
+  private static final String SOURCE_NULL_MESSAGE = "Source must not be null!";
+
   private static final Equivalence<Object> IDENTITY = Equivalence.identity();
+
   private static final long MICROSECONDS_PER_MILLISECOND = 1_000L;
+
+  private static final long MEDIA_START_MICROSECONDS = 0L;
+
   private static final String NETWORK_TIMEOUT_MICROSECONDS = "15000000";
   private static final String RECONNECT_DELAY_MAXIMUM_SECONDS = "5";
+
   private static final String DIRECT_PROBE_SIZE_BYTES = "32";
   private static final String DIRECT_ANALYZE_DURATION_MICROSECONDS = "0";
+
   private static final String OPTION_ENABLED = "1";
   private static final String OPTION_AUTOMATIC = "auto";
+
+  private static final String LOW_DELAY_FLAGS = "low_delay";
+  private static final String FORMAT_FLAGS = "discardcorrupt+genpts";
 
   private final VideoAttachableCallback videoCallback;
   private final AudioAttachableCallback audioCallback;
@@ -101,7 +113,7 @@ public abstract class AbstractVideoPlayerCv implements VideoPlayerMultiplexer {
   private boolean starting;
 
   /**
-   * Constructs a new player with detached pipelines and the default exception handler, which logs errors.
+   * Creates a player with detached pipelines and the default exception handler, which logs errors.
    *
    * @since 1.0.0
    */
@@ -130,16 +142,16 @@ public abstract class AbstractVideoPlayerCv implements VideoPlayerMultiplexer {
    * cannot be opened.
    *
    * @param combined the source
-   * @return true if playback started, false if the player is released, another start is in progress, or the source cannot be opened, which is
-   * reported to the exception handler
+   * @return true if playback started, false if the player is released, another start is in progress, or the source
+   * cannot be opened, which is reported to the exception handler
    * @throws NullPointerException if {@code combined} is null
    * @since 1.0.0
    */
   @Override
   public boolean start(final Source combined) {
-    Preconditions.checkNotNull(combined, "Source must not be null!");
+    Preconditions.checkNotNull(combined, SOURCE_NULL_MESSAGE);
 
-    return this.startSources(combined, null, 0L, StartState.PLAYING);
+    return this.startSources(combined, null, MEDIA_START_MICROSECONDS, StartState.PLAYING);
   }
 
   /**
@@ -148,8 +160,8 @@ public abstract class AbstractVideoPlayerCv implements VideoPlayerMultiplexer {
    *
    * @param video the video source
    * @param audio the audio source
-   * @return true if playback started, false if the player is released, another start is in progress, or the video source cannot be opened, which
-   * is reported to the exception handler
+   * @return true if playback started, false if the player is released, another start is in progress, or the video
+   * source cannot be opened, which is reported to the exception handler
    * @throws NullPointerException if {@code video} or {@code audio} is null
    * @since 1.0.0
    */
@@ -160,45 +172,12 @@ public abstract class AbstractVideoPlayerCv implements VideoPlayerMultiplexer {
 
     final boolean sameSource = video.equals(audio);
     if (sameSource) {
-      return this.startSources(video, null, 0L, StartState.PLAYING);
+      return this.startSources(video, null, MEDIA_START_MICROSECONDS, StartState.PLAYING);
     }
 
-    return this.startSources(video, audio, 0L, StartState.PLAYING);
+    return this.startSources(video, audio, MEDIA_START_MICROSECONDS, StartState.PLAYING);
   }
 
-  private PlaybackSession createSession(
-    final Source video,
-    final @Nullable Source audio,
-    final long positionMicroseconds,
-    final StartState startState
-  ) {
-    final PlaybackSession.GrabberFactory videoFactory = () -> this.createStartedGrabber(video);
-    final PlaybackSession.GrabberFactory audioFactory = audio == null ? null : () -> this.createStartedGrabber(audio);
-    return new PlaybackSession(
-      videoFactory,
-      audioFactory,
-      this.videoCallback,
-      this.audioCallback,
-      this.dimensionCallback,
-      this.exceptionHandler,
-      positionMicroseconds,
-      startState,
-      PlaybackSession.AUDIO_LEAD_NANOSECONDS,
-      this.maximumVideoLagNanoseconds,
-      System::nanoTime
-    );
-  }
-
-  // Makes the sessions started afterward show every frame however late it is, for tests whose frame counts must not
-  // depend on the load of the machine. Players drop frames more than PlaybackSession.MAXIMUM_VIDEO_LAG_NANOSECONDS late
-  // otherwise.
-  @VisibleForTesting
-  void neverDropLateFrames() {
-    this.maximumVideoLagNanoseconds = Long.MAX_VALUE;
-  }
-
-  // Opens the sources in a new session and only then replaces the current session with it, so a source that cannot be
-  // opened leaves the current playback alone.
   private boolean startSources(
     final Source video,
     final @Nullable Source audio,
@@ -208,6 +187,8 @@ public abstract class AbstractVideoPlayerCv implements VideoPlayerMultiplexer {
     return this.startSources(video, audio, positionMicroseconds, startState, null);
   }
 
+  // Opens the sources in a new session and only then replaces the current session with it, so a source that cannot be
+  // opened leaves the current playback alone.
   private boolean startSources(
     final Source video,
     final @Nullable Source audio,
@@ -249,6 +230,29 @@ public abstract class AbstractVideoPlayerCv implements VideoPlayerMultiplexer {
         this.discardStart(created);
       }
     }
+  }
+
+  private PlaybackSession createSession(
+    final Source video,
+    final @Nullable Source audio,
+    final long positionMicroseconds,
+    final StartState startState
+  ) {
+    final PlaybackSession.GrabberFactory videoFactory = () -> this.createStartedGrabber(video);
+    final PlaybackSession.GrabberFactory audioFactory = audio == null ? null : () -> this.createStartedGrabber(audio);
+    return new PlaybackSession(
+      videoFactory,
+      audioFactory,
+      this.videoCallback,
+      this.audioCallback,
+      this.dimensionCallback,
+      this.exceptionHandler,
+      positionMicroseconds,
+      startState,
+      PlaybackSession.AUDIO_LEAD_NANOSECONDS,
+      this.maximumVideoLagNanoseconds,
+      System::nanoTime
+    );
   }
 
   private void discardStart(final PlaybackSession created) {
@@ -314,7 +318,8 @@ public abstract class AbstractVideoPlayerCv implements VideoPlayerMultiplexer {
       return true;
     } catch (final FrameGrabber.Exception | RuntimeException | LinkageError exception) {
       final String resource = video.getResource();
-      this.exceptionHandler.accept("Failed to start playback of " + resource, exception);
+      final String message = "Playback of %s could not be started.".formatted(resource);
+      this.exceptionHandler.accept(message, exception);
 
       return false;
     }
@@ -329,12 +334,12 @@ public abstract class AbstractVideoPlayerCv implements VideoPlayerMultiplexer {
       return grabber;
     } catch (final FrameGrabber.Exception | RuntimeException | LinkageError exception) {
       // a grabber that failed to start may already hold native resources, such as an open file
-      closeQuietly(grabber);
+      this.closeQuietly(grabber);
       throw exception;
     }
   }
 
-  private static void closeQuietly(final FrameGrabber grabber) {
+  private void closeQuietly(final FrameGrabber grabber) {
     try {
       grabber.close();
     } catch (final FrameGrabber.Exception | RuntimeException exception) {
@@ -353,7 +358,7 @@ public abstract class AbstractVideoPlayerCv implements VideoPlayerMultiplexer {
    */
   protected void configureGrabber(final FrameGrabber grabber, final Source source) {
     Preconditions.checkNotNull(grabber, "Grabber must not be null!");
-    Preconditions.checkNotNull(source, "Source must not be null!");
+    Preconditions.checkNotNull(source, SOURCE_NULL_MESSAGE);
 
     grabber.setPixelFormat(avutil.AV_PIX_FMT_BGR24);
     grabber.setSampleMode(FrameGrabber.SampleMode.SHORT);
@@ -361,6 +366,7 @@ public abstract class AbstractVideoPlayerCv implements VideoPlayerMultiplexer {
     grabber.setSampleRate(AudioFilter.SAMPLE_RATE);
     grabber.setAudioChannels(AudioFilter.CHANNELS);
     grabber.setImageScalingFlags(swscale.SWS_AREA);
+
     // the size is read once: asking whether the callback is attached and then asking it for the size lets a detach
     // in between answer with the empty fallback, and a grabber told to scale to 0x0 cannot decode anything
     final Dimension dimension = this.dimensionCallback.retrieve();
@@ -373,18 +379,18 @@ public abstract class AbstractVideoPlayerCv implements VideoPlayerMultiplexer {
     }
 
     if (grabber instanceof final FFmpegFrameGrabber ffmpeg) {
-      configureFfmpeg(ffmpeg, source);
+      this.configureFfmpeg(ffmpeg, source);
     }
   }
 
-  private static void configureFfmpeg(final FFmpegFrameGrabber grabber, final Source source) {
+  private void configureFfmpeg(final FFmpegFrameGrabber grabber, final Source source) {
     grabber.setVideoOption("threads", OPTION_AUTOMATIC);
-    grabber.setVideoOption("flags", "low_delay");
+    grabber.setVideoOption("flags", LOW_DELAY_FLAGS);
     grabber.setOption("rw_timeout", NETWORK_TIMEOUT_MICROSECONDS);
     grabber.setOption("reconnect", OPTION_ENABLED);
     grabber.setOption("reconnect_streamed", OPTION_ENABLED);
     grabber.setOption("reconnect_delay_max", RECONNECT_DELAY_MAXIMUM_SECONDS);
-    grabber.setOption("fflags", "discardcorrupt+genpts");
+    grabber.setOption("fflags", FORMAT_FLAGS);
     grabber.setOption("hwaccel", OPTION_AUTOMATIC);
 
     if (source instanceof final FfmpegDirectSource direct) {
@@ -455,11 +461,11 @@ public abstract class AbstractVideoPlayerCv implements VideoPlayerMultiplexer {
    */
   @Override
   public boolean seek(final long time) {
-    Preconditions.checkArgument(time >= 0, "Seek time must not be negative!");
+    Preconditions.checkArgument(time >= 0, "Seek time %s must not be negative!", time);
 
     final PlaybackSession current;
     final Source video;
-    @Nullable Source audio;
+    final @Nullable Source audio;
     final StartState startState;
     this.lock.lock();
     try {
@@ -468,7 +474,7 @@ public abstract class AbstractVideoPlayerCv implements VideoPlayerMultiplexer {
         return false;
       }
 
-      video = Objects.requireNonNull(this.videoSource, "A session always has a video source!");
+      video = requireNonNull(this.videoSource, "A session always has a video source!");
       audio = this.audioSource;
       startState = current.isPaused() ? StartState.PAUSED : StartState.PLAYING;
     } finally {
@@ -492,11 +498,12 @@ public abstract class AbstractVideoPlayerCv implements VideoPlayerMultiplexer {
   public boolean setSpeed(final double speed) {
     Preconditions.checkArgument(
       speed >= MINIMUM_SPEED && speed <= MAXIMUM_SPEED,
-      "Speed %s must be between %s and %s!",
+      "Speed %s must be between %s and %s inclusive!",
       speed,
       MINIMUM_SPEED,
       MAXIMUM_SPEED
     );
+
     this.lock.lock();
     try {
       final PlaybackSession current = this.session;
@@ -511,33 +518,6 @@ public abstract class AbstractVideoPlayerCv implements VideoPlayerMultiplexer {
     } finally {
       this.lock.unlock();
     }
-  }
-
-  /**
-   * Returns the playback position, which is the timestamp of the last rendered frame.
-   *
-   * @return the position in milliseconds, or 0 if nothing has been played
-   * @since 1.0.0
-   */
-  public long getPositionMilliseconds() {
-    final PlaybackSession current = this.session;
-    if (current == null) {
-      return 0L;
-    }
-
-    final long microseconds = current.getPositionMicroseconds();
-    return microseconds / MICROSECONDS_PER_MILLISECOND;
-  }
-
-  /**
-   * Checks whether media is currently being played or paused, as opposed to stopped or finished.
-   *
-   * @return true if a playback session is active
-   * @since 1.0.0
-   */
-  public boolean isPlaying() {
-    final PlaybackSession current = this.session;
-    return current != null && current.isActive();
   }
 
   /**
@@ -573,6 +553,41 @@ public abstract class AbstractVideoPlayerCv implements VideoPlayerMultiplexer {
     }
 
     return true;
+  }
+
+  /**
+   * Returns the playback position, which is the timestamp of the last rendered frame.
+   *
+   * @return the position in milliseconds, or 0 if nothing has been played
+   * @since 1.0.0
+   */
+  public long getPositionMilliseconds() {
+    final PlaybackSession current = this.session;
+    if (current == null) {
+      return 0L;
+    }
+
+    final long microseconds = current.getPositionMicroseconds();
+    return microseconds / MICROSECONDS_PER_MILLISECOND;
+  }
+
+  /**
+   * Returns whether media is being played or paused, as opposed to stopped or finished.
+   *
+   * @return true if a playback session is active
+   * @since 1.0.0
+   */
+  public boolean isPlaying() {
+    final PlaybackSession current = this.session;
+    return current != null && current.isActive();
+  }
+
+  // Makes the sessions started afterward show every frame however late it is, for tests whose frame counts must not
+  // depend on the load of the machine. Players drop frames more than PlaybackSession.MAXIMUM_VIDEO_LAG_NANOSECONDS late
+  // otherwise.
+  @VisibleForTesting
+  void neverDropLateFrames() {
+    this.maximumVideoLagNanoseconds = Long.MAX_VALUE;
   }
 
   /**

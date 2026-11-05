@@ -28,22 +28,23 @@ says the browser cannot run here and the console names the reason.
 Linux servers need a full Java runtime and nothing else: no X server, no Xvfb, no packages. Chromium draws on its
 headless platform. The libraries it links that a server image often lacks (the X11 client libraries, NSS, ALSA and
 others) are downloaded on the first start from Debian 11, only those the server lacks, about 13 MB into
-`~/.mcav/cache/jcef-libraries`, each checked against a pinned hash, and given to the browser's own process only. This
-was proven in the images `eclipse-temurin:25-jre`, `ghcr.io/pterodactyl/yolks:java_25` and
-`itzg/minecraft-server:latest`, run as an unprivileged user. Java must be a full runtime: the headless Java packages of
+`~/.mcav/cache/jcef-libraries`, each checked against a pinned hash, and given to the browser's own process only. The
+browser
+runs this way, as an unprivileged user, in the images `eclipse-temurin:25-jre`, `ghcr.io/pterodactyl/yolks:java_25` and
+`itzg/minecraft-server:latest`. Java must be a full runtime: the headless Java packages of
 Debian and Ubuntu (`openjdk-25-jre-headless`) lack the `libjawt.so` that Chromium's Java binding links against, and the
 console then says to install the full package (`openjdk-25-jre`).
 
 ## Clicking and typing
 
-Players with the permission `mcav.browser.interact` click the page by clicking the wall: a left click clicks, a right
-click right-clicks. `/mcav browser interact` switches their chat to the browser: what they write is typed into the page
-instead of sent to chat, and a key name such as `Enter`, `Backspace` or `ArrowLeft` presses that key. Chromium ignores
-clicks and keys for a moment right after a page appears, as every Chromium does.
+Players with the permission `mcav.command.browser.interact` click the page by clicking the wall: a left click clicks, a
+right click right-clicks. `/mcav browser interact` switches their chat to the browser: what they write is typed into the
+page instead of sent to chat, and a key name such as `Enter`, `Backspace` or `ArrowLeft` presses that key. Chromium
+ignores clicks and keys for a moment right after a page appears, as every Chromium does.
 
 ```{important}
-`mcav.browser.interact` is what lets a player click the page by clicking its wall, not only the chat mode. The wall
-stands in the world where anyone can reach it; without the permission a click does nothing.
+`mcav.command.browser.interact` is what lets a player click the page by clicking its wall, not only the chat mode. The
+wall stands in the world where anyone can reach it; without the permission a click does nothing.
 ```
 
 ## Sound
@@ -66,7 +67,6 @@ A page is untrusted content, and the browser runs without Chromium's sandbox, wh
   needs Linux 5.13 or later (Landlock) or macOS (Seatbelt); on Windows and older Linux kernels the browser runs as
   before, and the server log says `Chromium runs without confinement` with the reason. `browser.confine-chromium:
   false` turns it off.
-
 - Only the public internet. Every connection goes through a guard that refuses loopback, private, link-local (such
   as a cloud server's metadata service) and every other special address, also when a public name resolves to one, and
   every address of the server's own network interfaces. So a page, or a player clicking on it, cannot read a service
@@ -92,7 +92,7 @@ The first browser takes long to start. It is downloading Chromium, once; see abo
 The browser is silent. Nobody clicked the wall yet, or the audio type is `NONE`, or the sound comes from an embedded
 frame of another site.
 
-A page of my own network does not load. That is the private-network guard; see above.
+A page of your own network does not load. That is the private-network guard; see above.
 
 The command says the browser cannot run here. The console says why: a failed download or check, a server without
 one of the basic libraries every server image has (zlib, expat, fontconfig, freetype), or a platform Chromium does not

@@ -57,6 +57,7 @@ import org.checkerframework.checker.initialization.qual.UnderInitialization;
 public final class TranslationManager {
 
   private static final java.util.Locale DEFAULT_LOCALE = java.util.Locale.getDefault(); // fqn: Locale is this package's language
+
   private static final Key ADVENTURE_KEY = key(Keys.NAMESPACE, "main");
 
   private static final String LOCALE_FILE_PREFIX = "locale/mcav_";
@@ -66,7 +67,7 @@ public final class TranslationManager {
   private final PluginTranslator translator;
 
   /**
-   * Loads the messages of the language configured in the plugin.
+   * Creates a manager that loads the messages of the language configured in the plugin.
    *
    * @throws PluginException if the messages cannot be copied to or read from the data folder
    * @since 1.0.0
@@ -90,13 +91,13 @@ public final class TranslationManager {
       if (missing) {
         this.copyBundledFile(propertiesPath, file);
       }
+
       final ResourceBundle bundled = this.readBundledFile(propertiesPath);
       try (final Reader reader = Files.newBufferedReader(file)) {
         return LayeredBundle.of(reader, bundled);
       }
     } catch (final IOException exception) {
-      final String reason = exception.getMessage();
-      final String message = "Messages could not be loaded from %s (%s)!".formatted(file, reason);
+      final String message = "Messages from %s could not be loaded!".formatted(file);
       throw new PluginException(message, exception);
     }
   }

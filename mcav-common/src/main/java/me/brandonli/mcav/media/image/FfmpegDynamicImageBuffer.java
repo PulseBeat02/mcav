@@ -38,6 +38,7 @@ import org.bytedeco.opencv.opencv_core.Mat;
 final class FfmpegDynamicImageBuffer implements DynamicImageBuffer {
 
   private static final float DEFAULT_FRAME_RATE = 10.0f;
+
   private static final double MICROSECONDS_PER_SECOND = 1_000_000.0;
 
   private final List<ImageBuffer> frames;
@@ -46,16 +47,16 @@ final class FfmpegDynamicImageBuffer implements DynamicImageBuffer {
   FfmpegDynamicImageBuffer(final FileSource source) {
     final Path path = source.getPath();
     final Animation animation = decode(path);
-    this.frames = animation.getFrames();
-    this.frameRate = animation.getFrameRate();
+    this.frames = animation.frames();
+    this.frameRate = animation.frameRate();
   }
 
   FfmpegDynamicImageBuffer(final UriSource source) {
     final FileSource downloaded = download(source);
     final Path path = downloaded.getPath();
     final Animation animation = decode(path);
-    this.frames = animation.getFrames();
-    this.frameRate = animation.getFrameRate();
+    this.frames = animation.frames();
+    this.frameRate = animation.frameRate();
   }
 
   private static Animation decode(final Path path) {
@@ -88,6 +89,7 @@ final class FfmpegDynamicImageBuffer implements DynamicImageBuffer {
     try (grabber) {
       grabber.start();
       final TimestampRange timestamps = decodeFrames(grabber, decoded);
+
       final double reportedFrameRate = grabber.getFrameRate();
       final int frameCount = decoded.size();
       final long first = timestamps.getFirst();
@@ -121,9 +123,10 @@ final class FfmpegDynamicImageBuffer implements DynamicImageBuffer {
   private static void copyFrame(final Frame frame, final List<ImageBuffer> decoded) {
     final int width = frame.imageWidth;
     final int height = frame.imageHeight;
-    final Mat mat = new Mat(height, width, opencv_core.CV_8UC3);
-    final ImageBuffer image = ImageBuffer.mat(mat);
+    final Mat matrix = new Mat(height, width, opencv_core.CV_8UC3);
+    final ImageBuffer image = ImageBuffer.mat(matrix);
     decoded.add(image);
+
     final ByteBuffer data = image.getData();
     FramePixels.copyBgr(frame, data);
   }
@@ -155,14 +158,6 @@ final class FfmpegDynamicImageBuffer implements DynamicImageBuffer {
   }
 
   @Override
-  public ImageBuffer getFrame(final int index) {
-    final int count = this.frames.size();
-    Preconditions.checkElementIndex(index, count, "Frame index");
-
-    return this.frames.get(index);
-  }
-
-  @Override
   public void close() {
     releaseAll(this.frames);
   }
@@ -178,28 +173,19 @@ final class FfmpegDynamicImageBuffer implements DynamicImageBuffer {
   }
 
   @Override
+  public ImageBuffer getFrame(final int index) {
+    final int count = this.frames.size();
+    Preconditions.checkElementIndex(index, count, "Frame index");
+
+    return this.frames.get(index);
+  }
+
+  @Override
   public int getFrameCount() {
     return this.frames.size();
   }
 
-  static final class Animation {
-
-    private final List<ImageBuffer> frames;
-    private final float frameRate;
-
-    Animation(final List<ImageBuffer> frames, final float frameRate) {
-      this.frames = frames;
-      this.frameRate = frameRate;
-    }
-
-    List<ImageBuffer> getFrames() {
-      return this.frames;
-    }
-
-    float getFrameRate() {
-      return this.frameRate;
-    }
-  }
+  record Animation(List<ImageBuffer> frames, float frameRate) {}
 
   private static final class TimestampRange {
 

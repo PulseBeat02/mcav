@@ -144,7 +144,7 @@ final class QemuInstallerTest {
     );
 
     final String message = exception.getMessage();
-    assertEquals("Program qemu-system-x86_64 is not installed or not on the PATH, and MCAV cannot install it on WINDOWS X86!", message);
+    assertEquals("Program qemu-system-x86_64 is not installed or not on the PATH, and on WINDOWS X86 MCAV cannot install it!", message);
   }
 
   @Test

@@ -26,6 +26,7 @@ import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.plugin.MCAVSandbox;
 import me.brandonli.mcav.plugin.command.SuggestionProvider;
 import me.brandonli.mcav.plugin.data.PluginDataConfigurationMapper;
+import me.brandonli.mcav.plugin.locale.LocaleTools.NullComponent;
 import me.brandonli.mcav.plugin.locale.Message;
 import me.brandonli.mcav.plugin.utils.CleanupUtils;
 import me.brandonli.mcav.plugin.utils.DitheringArgument;
@@ -64,12 +65,16 @@ import org.incendo.cloud.bukkit.data.MultiplePlayerSelector;
  */
 public final class VncCommand extends AbstractInteractiveCommand<VncPlayer> {
 
-  static final String INTERACT_PERMISSION = "mcav.vnc.interact";
+  private static final String DESKTOP_NULL_MESSAGE = "Desktop must not be null!";
+  private static final String SENDER_NULL_MESSAGE = "Sender must not be null!";
+
+  static final String INTERACT_PERMISSION = "mcav.command.vnc.interact";
 
   /**
-   * Constructs the command.
+   * Creates the command.
    *
    * @param plugin the plugin
+   * @throws NullPointerException if {@code plugin} is null
    * @since 1.0.0
    */
   public VncCommand(final MCAVSandbox plugin) {
@@ -82,11 +87,12 @@ public final class VncCommand extends AbstractInteractiveCommand<VncPlayer> {
    * @param current the connected desktop
    * @param screenX the x coordinate on the desktop, in pixels
    * @param screenY the y coordinate on the desktop, in pixels
+   * @throws NullPointerException if {@code current} is null
    * @since 1.0.0
    */
   @Override
   protected void forwardLeftClick(final VncPlayer current, final int screenX, final int screenY) {
-    Preconditions.checkNotNull(current, "Desktop must not be null!");
+    Preconditions.checkNotNull(current, DESKTOP_NULL_MESSAGE);
 
     current.sendMouseEvent(MouseClick.LEFT, screenX, screenY);
   }
@@ -97,11 +103,12 @@ public final class VncCommand extends AbstractInteractiveCommand<VncPlayer> {
    * @param current the connected desktop
    * @param screenX the x coordinate on the desktop, in pixels
    * @param screenY the y coordinate on the desktop, in pixels
+   * @throws NullPointerException if {@code current} is null
    * @since 1.0.0
    */
   @Override
   protected void forwardRightClick(final VncPlayer current, final int screenX, final int screenY) {
-    Preconditions.checkNotNull(current, "Desktop must not be null!");
+    Preconditions.checkNotNull(current, DESKTOP_NULL_MESSAGE);
 
     current.sendMouseEvent(MouseClick.RIGHT, screenX, screenY);
   }
@@ -111,11 +118,12 @@ public final class VncCommand extends AbstractInteractiveCommand<VncPlayer> {
    *
    * @param current the connected desktop
    * @param text    the text to type
+   * @throws NullPointerException if an argument is null
    * @since 1.0.0
    */
   @Override
   protected void forwardTextInput(final VncPlayer current, final String text) {
-    Preconditions.checkNotNull(current, "Desktop must not be null!");
+    Preconditions.checkNotNull(current, DESKTOP_NULL_MESSAGE);
     Preconditions.checkNotNull(text, "Text must not be null!");
 
     current.sendKeyEvent(text);
@@ -124,15 +132,17 @@ public final class VncCommand extends AbstractInteractiveCommand<VncPlayer> {
   /**
    * Disconnects from a desktop.
    *
-   * @param current the desktop to disconnect from, which is no longer the running one
+   * @param player the desktop to disconnect from, which is no longer the running one
+   * @throws NullPointerException if {@code player} is null
    * @since 1.0.0
    */
   @Override
-  protected void releasePlayer(final VncPlayer current) {
-    Preconditions.checkNotNull(current, "Desktop must not be null!");
+  protected void releasePlayer(final VncPlayer player) {
+    Preconditions.checkNotNull(player, DESKTOP_NULL_MESSAGE);
 
     // closing the connection waits for the client's threads, which a stalled server can hold up
-    CleanupUtils.runAll(() -> current.getVideoAttachableCallback().detach(), () -> this.releaseInTheBackground(current::release));
+    final VideoAttachableCallback video = player.getVideoAttachableCallback();
+    CleanupUtils.runAll(video::detach, () -> this.releaseInTheBackground(player::release));
   }
 
   /**
@@ -141,16 +151,17 @@ public final class VncCommand extends AbstractInteractiveCommand<VncPlayer> {
    * <p>While it is on, the chat messages of the player are not sent to chat but typed on the desktop. Clicking the
    * screen does not need this mode: left and right clicks reach the desktop for every player with this permission.
    *
-   * <p>Requires the permission {@code mcav.vnc.interact}. Only players can run it.
+   * <p>Requires the permission {@code mcav.command.vnc.interact}. Only players can run it.
    *
    * @param sender the player who switches their chat input
+   * @throws NullPointerException if {@code sender} is null
    * @since 1.0.0
    */
   @Command("mcav vnc interact")
   @Permission(INTERACT_PERMISSION)
   @CommandDescription("mcav.command.vnc.interact.info")
   public void toggleInteraction(final Player sender) {
-    Preconditions.checkNotNull(sender, "Sender must not be null!");
+    Preconditions.checkNotNull(sender, SENDER_NULL_MESSAGE);
 
     final Component enabled = Message.INTERACT_ENABLE.build();
     final Component disabled = Message.INTERACT_DISABLE.build();
@@ -161,16 +172,17 @@ public final class VncCommand extends AbstractInteractiveCommand<VncPlayer> {
    * Handles {@code /mcav vnc release}: disconnects from the desktop, stops streaming to its maps, and clears the maps
    * for every viewer. The wall stays in place.
    *
-   * <p>Requires the permission {@code mcav.vnc.release}; players and the console can run it.
+   * <p>Requires the permission {@code mcav.command.vnc.release}; players and the console can run it.
    *
    * @param sender who ran the command
+   * @throws NullPointerException if {@code sender} is null
    * @since 1.0.0
    */
   @Command("mcav vnc release")
-  @Permission("mcav.vnc.release")
+  @Permission("mcav.command.vnc.release")
   @CommandDescription("mcav.command.vnc.release.info")
   public void releaseVnc(final CommandSender sender) {
-    Preconditions.checkNotNull(sender, "Sender must not be null!");
+    Preconditions.checkNotNull(sender, SENDER_NULL_MESSAGE);
 
     final Component released = Message.VNC_RELEASE.build();
     this.releaseResource(sender, released);
@@ -204,6 +216,7 @@ public final class VncCommand extends AbstractInteractiveCommand<VncPlayer> {
    *                              argument would refuse the colon unquoted
    * @param codec                 how the picture reaches the players, see {@link MapCodec}; the configured default when
    *                              absent
+   * @throws NullPointerException if an argument other than {@code codec} is null
    * @since 1.0.0
    */
   @Command(
@@ -222,28 +235,35 @@ public final class VncCommand extends AbstractInteractiveCommand<VncPlayer> {
     @Greedy @FlagYielding final String server,
     @Flag("codec") final @Nullable MapCodec codec
   ) {
+    Preconditions.checkNotNull(sender, SENDER_NULL_MESSAGE);
     Preconditions.checkNotNull(playerSelector, "Player selector must not be null!");
+    Preconditions.checkNotNull(vncResolution, "VNC resolution must not be null!");
+    Preconditions.checkNotNull(blockDimensions, "Block dimensions must not be null!");
     Preconditions.checkNotNull(ditheringAlgorithm, "Dithering algorithm must not be null!");
     Preconditions.checkNotNull(server, "Server must not be null!");
 
     final PluginDataConfigurationMapper configuration = this.plugin.getConfiguration();
     final VncAllowList allowList = configuration.getVncAllowList();
-    final VncAllowList.Entry entry = allowList.find(server);
+    final VncAllowList.@Nullable Entry entry = allowList.find(server);
     if (entry == null) {
-      sender.sendMessage(Message.VNC_NOT_ALLOWED.build(server));
+      final Component message = Message.VNC_NOT_ALLOWED.build(server);
+      sender.sendMessage(message);
       return;
     }
 
     final Optional<Pair<Integer, Integer>> parsedResolution = parseDimensions(sender, vncResolution);
     final @Nullable Pair<Integer, Integer> resolution = parsedResolution.orElse(null);
-    final Optional<Pair<Integer, Integer>> parsedBlocks =
-      resolution == null ? Optional.empty() : parseScreenDimensions(sender, blockDimensions);
-    final @Nullable Pair<Integer, Integer> blocks = parsedBlocks.orElse(null);
-    if (resolution == null || blocks == null) {
+    if (resolution == null) {
       return;
     }
 
-    final VncSource source = createSource(entry, resolution, targetFramesPerSecond);
+    final Optional<Pair<Integer, Integer>> parsedBlocks = parseScreenDimensions(sender, blockDimensions);
+    final @Nullable Pair<Integer, Integer> blocks = parsedBlocks.orElse(null);
+    if (blocks == null) {
+      return;
+    }
+
+    final VncSource source = this.createSource(entry, resolution, targetFramesPerSecond);
     final MapCodec chosen = this.chooseCodec(codec);
     final ScreenSettings settings = new ScreenSettings(sender, playerSelector, blocks, resolution, mapId, ditheringAlgorithm, chosen);
     final Screen screen = this.createScreen(settings);
@@ -251,14 +271,18 @@ public final class VncCommand extends AbstractInteractiveCommand<VncPlayer> {
   }
 
   // only the source keeps the entry's password
-  static VncSource createSource(final VncAllowList.Entry entry, final Pair<Integer, Integer> resolution, final int targetFramesPerSecond) {
+  VncSource createSource(final VncAllowList.Entry entry, final Pair<Integer, Integer> resolution, final int targetFramesPerSecond) {
     final VncSourceBuilder builder = VncSource.builder();
-    builder.host(entry.getHost());
-    builder.port(entry.getPort());
+    final String host = entry.getHost();
+    builder.host(host);
+    final int port = entry.getPort();
+    builder.port(port);
     final Optional<String> password = entry.getPassword();
     password.ifPresent(builder::password);
-    builder.screenWidth(resolution.getFirst());
-    builder.screenHeight(resolution.getSecond());
+    final int width = resolution.getFirst();
+    builder.screenWidth(width);
+    final int height = resolution.getSecond();
+    builder.screenHeight(height);
     builder.targetFrameRate(targetFramesPerSecond);
     return builder.build();
   }
@@ -266,15 +290,21 @@ public final class VncCommand extends AbstractInteractiveCommand<VncPlayer> {
   private void connect(final CommandSender sender, final Screen screen, final VncSource source, final VncAllowList.Entry entry) {
     final VncPlayer desktop = VncPlayer.create();
     this.ownCreatedPlayer(desktop);
+
     final VideoAttachableCallback callback = desktop.getVideoAttachableCallback();
     final VideoPipelineStep pipeline = screen.getPipeline();
     callback.attach(pipeline);
 
-    sender.sendMessage(Message.VNC_LOADING.build());
+    final Component loading = Message.VNC_LOADING.build();
+    sender.sendMessage(loading);
+
     final ExecutorService executor = this.startExecutor(desktop, screen);
     final CompletableFuture<Boolean> start = desktop.startAsync(source, executor);
-    final String server = VncAllowList.format(entry.getHost(), entry.getPort());
-    this.reportStartWhenDone(sender, desktop, screen, start, "the VNC desktop of " + server);
+    final String host = entry.getHost();
+    final int port = entry.getPort();
+    final String server = VncAllowList.format(host, port);
+    final String description = "the VNC desktop of %s".formatted(server);
+    this.reportStartWhenDone(sender, desktop, screen, start, description);
   }
 
   /**
@@ -284,17 +314,21 @@ public final class VncCommand extends AbstractInteractiveCommand<VncPlayer> {
    * @param outcome whether the desktop streams
    * @param error   why it could not connect, if known
    * @return the message
+   * @throws NullPointerException if {@code outcome} is null
    * @since 1.0.0
    */
   @Override
   protected Component createStartMessage(final StartOutcome outcome, final @Nullable Throwable error) {
-    return outcome == StartOutcome.STARTED ? Message.VNC_CREATE.build() : Message.VNC_ERROR.build();
+    Preconditions.checkNotNull(outcome, "Outcome must not be null!");
+
+    final NullComponent message = outcome == StartOutcome.STARTED ? Message.VNC_CREATE : Message.VNC_ERROR;
+    return message.build();
   }
 
   /**
    * Returns the permission a player needs to send input to the desktop.
    *
-   * @return {@value #INTERACT_PERMISSION}
+   * @return {@code mcav.command.vnc.interact}
    * @since 1.0.0
    */
   @Override

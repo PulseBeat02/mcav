@@ -69,7 +69,7 @@ class LockPythonRequirementsTest {
         val lock: File = this.directory.resolve(LOCK_FILE).toFile()
         val requirementsInput: File = task.temporaryDir.resolve(REQUIREMENTS_INPUT_FILE)
         val processes: RecordedProcesses =
-            RecordedProcesses("uv 0.12.23\n") { command -> this.compileLock(command, requirementsInput, lock) }
+            RecordedProcesses("uv 0.12.23\n") { this.compileLock(it, requirementsInput, lock) }
         task.recordedProcesses = processes.operations
         task.lock()
 

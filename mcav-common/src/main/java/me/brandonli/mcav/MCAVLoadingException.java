@@ -25,7 +25,7 @@ import java.io.Serial;
  *
  * @since 1.0.0
  */
-public class MCAVLoadingException extends MCAVException {
+public final class MCAVLoadingException extends MCAVException {
 
   @Serial
   private static final long serialVersionUID = 5512824472714665790L;

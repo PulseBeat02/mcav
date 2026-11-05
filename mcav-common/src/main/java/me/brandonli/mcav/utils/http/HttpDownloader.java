@@ -120,9 +120,11 @@ public final class HttpDownloader {
   private static final Striped<Lock> TARGET_LOCKS = Striped.lock(TARGET_LOCK_STRIPES);
 
   private static final String SIZE_LIMIT_MESSAGE = "Size limit %s must be positive!";
+  private static final String URI_NULL_MESSAGE = "URI must not be null!";
 
   private HttpDownloader() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   /**
@@ -144,7 +146,7 @@ public final class HttpDownloader {
   }
 
   /**
-   * Creates a GET request with a 30-minute request timeout and mcav's user-agent header.
+   * Creates a GET request with a 30-minute request timeout and MCAV's user-agent header.
    *
    * @param uri the URI to request
    * @return the request
@@ -153,7 +155,7 @@ public final class HttpDownloader {
    * @since 1.0.0
    */
   public static HttpRequest createRequest(final URI uri) {
-    Preconditions.checkNotNull(uri, "URI must not be null!");
+    Preconditions.checkNotNull(uri, URI_NULL_MESSAGE);
 
     final HttpRequest.Builder builder = HttpRequest.newBuilder(uri);
     builder.timeout(REQUEST_TIMEOUT);
@@ -177,7 +179,7 @@ public final class HttpDownloader {
    * @since 1.0.0
    */
   public static InputStream openStream(final URI uri) {
-    Preconditions.checkNotNull(uri, "URI must not be null!");
+    Preconditions.checkNotNull(uri, URI_NULL_MESSAGE);
 
     try {
       return openUnpinnedStream(uri);
@@ -258,9 +260,10 @@ public final class HttpDownloader {
     try {
       return client.send(request, bodyHandler);
     } catch (final InterruptedException exception) {
-      final Thread currentThread = Thread.currentThread();
-      currentThread.interrupt();
+      final Thread current = Thread.currentThread();
+      current.interrupt();
       client.close();
+
       final String message = "Download of %s was interrupted!".formatted(uri);
       throw new DownloadException(message, exception);
     } catch (final IOException exception) {
@@ -335,7 +338,7 @@ public final class HttpDownloader {
    *                                   moved into place
    * @throws NullPointerException      if {@code uri}, {@code destination} is null
    * @throws IllegalArgumentException  if the URI is not an absolute HTTP or HTTPS URI with a valid host,
-   *                                   the destination has no file name, or {@code maximumBytes} is nonpositive
+   *                                   the destination has no file name, or {@code maximumBytes} is not positive
    * @since 1.0.0
    */
   public static void download(final URI uri, final Path destination, final long maximumBytes) {
@@ -361,7 +364,7 @@ public final class HttpDownloader {
    *                                   moved into place
    * @throws NullPointerException      if {@code uri}, {@code destination}, {@code expectedSha256} is null
    * @throws IllegalArgumentException  if the URI is not an absolute HTTP or HTTPS URI with a valid host,
-   *                                   the destination has no file name, or {@code maximumBytes} is nonpositive
+   *                                   the destination has no file name, or {@code maximumBytes} is not positive
    * @since 1.0.0
    */
   public static void download(final URI uri, final Path destination, final String expectedSha256, final long maximumBytes) {
@@ -398,7 +401,7 @@ public final class HttpDownloader {
     final long maximumBytes,
     final @Nullable Duration pinnedDeadline
   ) {
-    Preconditions.checkNotNull(uri, "URI must not be null!");
+    Preconditions.checkNotNull(uri, URI_NULL_MESSAGE);
     Preconditions.checkNotNull(destination, "Destination must not be null!");
 
     final Path target = destination.toAbsolutePath();
@@ -472,12 +475,12 @@ public final class HttpDownloader {
 
   private static void logFailedAttempt(final URI uri, final Exception failure, final int attempt) {
     final String reason = failure.getMessage();
-    LOGGER.warn("Download of {} failed with \"{}\" on attempt {} of {}.", uri, reason, attempt, MAXIMUM_ATTEMPTS);
+    LOGGER.warn("Because of \"{}\", attempt {} of {} to download {} failed.", reason, attempt, MAXIMUM_ATTEMPTS, uri);
   }
 
   private static void rethrowUnlessRetryable(final Exception failure) {
-    if (failure instanceof final DownloadException downloadFailure && !isRetryable(downloadFailure)) {
-      throw downloadFailure;
+    if (failure instanceof final DownloadException downloadException && !isRetryable(downloadException)) {
+      throw downloadException;
     }
   }
 
@@ -503,11 +506,11 @@ public final class HttpDownloader {
       return false;
     }
 
-    if (!(exception instanceof final HttpStatusException statusException)) {
+    if (!(exception instanceof final HttpStatusException httpStatusException)) {
       return true;
     }
 
-    final int status = statusException.getStatusCode();
+    final int status = httpStatusException.getStatusCode();
     return status >= HTTP_SERVER_ERROR || status == HTTP_REQUEST_TIMEOUT || status == HTTP_TOO_MANY_REQUESTS;
   }
 
@@ -602,9 +605,11 @@ public final class HttpDownloader {
       final Duration delay = retryDelay.multipliedBy(attempt);
       Thread.sleep(delay);
     } catch (final InterruptedException exception) {
-      final Thread currentThread = Thread.currentThread();
-      currentThread.interrupt();
-      throw new DownloadException("Interrupted while waiting to retry a download!", exception);
+      final Thread current = Thread.currentThread();
+      current.interrupt();
+
+      final String message = "Interrupted while waiting to retry a download!";
+      throw new DownloadException(message, exception);
     }
   }
 
@@ -620,7 +625,7 @@ public final class HttpDownloader {
    * @since 1.0.0
    */
   public static Optional<String> fetchText(final URI uri) {
-    Preconditions.checkNotNull(uri, "URI must not be null!");
+    Preconditions.checkNotNull(uri, URI_NULL_MESSAGE);
 
     final HttpRequest request = createRequest(uri);
     final HttpResponse.BodyHandler<String> bodyHandler = HttpResponse.BodyHandlers.ofString();
@@ -628,8 +633,9 @@ public final class HttpDownloader {
       final HttpResponse<String> response = client.send(request, bodyHandler);
       return readSuccessfulBody(response, uri);
     } catch (final InterruptedException exception) {
-      final Thread currentThread = Thread.currentThread();
-      currentThread.interrupt();
+      final Thread current = Thread.currentThread();
+      current.interrupt();
+
       final String message = "Fetch of %s was interrupted!".formatted(uri);
       throw new DownloadException(message, exception);
     } catch (final IOException exception) {

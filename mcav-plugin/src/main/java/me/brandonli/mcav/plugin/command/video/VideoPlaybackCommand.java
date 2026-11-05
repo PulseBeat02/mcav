@@ -51,9 +51,9 @@ import org.slf4j.LoggerFactory;
  */
 public final class VideoPlaybackCommand implements AnnotationCommandFeature {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(VideoPlaybackCommand.class);
+  private static final String SENDER_NULL_MESSAGE = "Sender must not be null!";
 
-  private static final String SEEK_ERROR = "Failed to seek the video.";
+  private static final Logger LOGGER = LoggerFactory.getLogger(VideoPlaybackCommand.class);
 
   private static final double PERCENT = 100.0;
 
@@ -62,9 +62,10 @@ public final class VideoPlaybackCommand implements AnnotationCommandFeature {
   private final VideoPlayerManager manager;
 
   /**
-   * Constructs the command.
+   * Creates the command.
    *
    * @param plugin the plugin, whose video player manager must be available
+   * @throws NullPointerException if {@code plugin} is null
    * @since 1.0.0
    */
   public VideoPlaybackCommand(final MCAVSandbox plugin) {
@@ -85,13 +86,14 @@ public final class VideoPlaybackCommand implements AnnotationCommandFeature {
    *
    * @param sender   who ran the command
    * @param position the time
+   * @throws NullPointerException if an argument is null
    * @since 1.0.0
    */
   @Command("mcav video seek <position>")
   @Permission("mcav.command.video.seek")
   @CommandDescription("mcav.command.video.seek.info")
   public void seekVideo(final CommandSender sender, @Argument(suggestions = "positions") @Greedy final String position) {
-    Preconditions.checkNotNull(sender, "Sender must not be null!");
+    Preconditions.checkNotNull(sender, SENDER_NULL_MESSAGE);
     Preconditions.checkNotNull(position, "Position must not be null!");
 
     final Optional<SeekPosition> parsedPosition = SeekPosition.parse(position);
@@ -122,8 +124,9 @@ public final class VideoPlaybackCommand implements AnnotationCommandFeature {
 
   private void reportSeek(final CommandSender sender, final long target, final @Nullable Boolean seeked, final @Nullable Throwable error) {
     if (error != null) {
-      LOGGER.error(SEEK_ERROR, error);
+      LOGGER.error("Failed to seek the video.", error);
     }
+
     final Component message = Boolean.TRUE.equals(seeked)
       ? Message.SEEK_PLAYER.build(SeekPosition.format(target))
       : Message.SEEK_FAILED.build();
@@ -138,13 +141,14 @@ public final class VideoPlaybackCommand implements AnnotationCommandFeature {
    *
    * @param sender  who ran the command
    * @param percent the volume, from 0 to 200
+   * @throws NullPointerException if {@code sender} is null
    * @since 1.0.0
    */
   @Command("mcav video volume <percent>")
   @Permission("mcav.command.video.volume")
   @CommandDescription("mcav.command.video.volume.info")
   public void setVolume(final CommandSender sender, @Argument(suggestions = "volumes") @Range(min = "0", max = "200") final int percent) {
-    Preconditions.checkNotNull(sender, "Sender must not be null!");
+    Preconditions.checkNotNull(sender, SENDER_NULL_MESSAGE);
 
     final VolumeFilter volume = this.manager.getVolume();
     volume.setVolume(percent / PERCENT);
@@ -159,20 +163,21 @@ public final class VideoPlaybackCommand implements AnnotationCommandFeature {
    *
    * @param sender who ran the command
    * @param factor the factor of the normal speed, from 0.5 to 2
+   * @throws NullPointerException if {@code sender} is null
    * @since 1.0.0
    */
   @Command("mcav video speed <factor>")
   @Permission("mcav.command.video.speed")
   @CommandDescription("mcav.command.video.speed.info")
   public void setSpeed(final CommandSender sender, @Argument(suggestions = "speeds") @Range(min = "0.5", max = "2") final double factor) {
-    Preconditions.checkNotNull(sender, "Sender must not be null!");
+    Preconditions.checkNotNull(sender, SENDER_NULL_MESSAGE);
 
     final Optional<VideoPlayerMultiplexer> foundPlayer = this.manager.getPlayer();
     final @Nullable VideoPlayerMultiplexer player = foundPlayer.orElse(null);
     final Component message;
     if (player != null && !(player instanceof AbstractVideoPlayerCv)) {
       message = Message.VLC_UNSUPPORTED.build();
-    } else if (player instanceof final AbstractVideoPlayerCv decoded && decoded.setSpeed(factor)) {
+    } else if (player instanceof final AbstractVideoPlayerCv cvPlayer && cvPlayer.setSpeed(factor)) {
       message = Message.SPEED_SET.build(Double.toString(factor));
     } else {
       message = Message.SPEED_FAILED.build();
@@ -189,16 +194,18 @@ public final class VideoPlaybackCommand implements AnnotationCommandFeature {
    *
    * @param sender  who ran the command
    * @param enabled true to loop
+   * @throws NullPointerException if {@code sender} is null
    * @since 1.0.0
    */
   @Command("mcav video loop <enabled>")
   @Permission("mcav.command.video.loop")
   @CommandDescription("mcav.command.video.loop.info")
   public void setLoop(final CommandSender sender, final boolean enabled) {
-    Preconditions.checkNotNull(sender, "Sender must not be null!");
+    Preconditions.checkNotNull(sender, SENDER_NULL_MESSAGE);
 
     this.manager.setLooping(enabled);
     sender.sendMessage(enabled ? Message.LOOP_ON.build() : Message.LOOP_OFF.build());
+
     final Optional<VideoPlayerMultiplexer> foundPlayer = this.manager.getPlayer();
     final @Nullable VideoPlayerMultiplexer player = foundPlayer.orElse(null);
     if (enabled && player != null && !(player instanceof AbstractVideoPlayerCv)) {

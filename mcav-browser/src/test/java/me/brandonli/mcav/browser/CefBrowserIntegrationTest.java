@@ -40,7 +40,6 @@ import me.brandonli.mcav.browser.testing.Frames;
 import me.brandonli.mcav.browser.testing.HelperCoverage;
 import me.brandonli.mcav.browser.testing.StandardError;
 import me.brandonli.mcav.browser.testing.TestPages;
-import me.brandonli.mcav.media.player.PlayerException;
 import me.brandonli.mcav.utils.interaction.MouseClick;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Tag;
@@ -48,62 +47,74 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledOnOs;
 import org.junit.jupiter.api.condition.OS;
 
-/**
- * Runs the real browser: helper processes with CEF, pages from a local HTTP server, input through the player, and the
- * frames that come back. The first run on a machine downloads the CEF natives.
- */
+// The first run on a machine downloads the CEF natives.
 @Tag("cef")
 class CefBrowserIntegrationTest {
 
+  private static final int LEFT_CLICK_COORDINATE = 50;
+
+  private static final String SIZE_EVENT = "size";
+  private static final String CLICK_EVENT = "click";
+  private static final String MOUSE_UP_EVENT = "mouseup";
+
+  private static final String RED_FRAME_MESSAGE = "a red frame";
+  private static final String MAIN_PAGE_KEPT_MESSAGE = "still the page, not the popup";
+
+  private static final int CLICK_PAUSE_MILLISECONDS = 300;
+
   private static final int WIDTH = 320;
   private static final int HEIGHT = 240;
+
   private static final BrowserOptions LOCAL = BrowserOptions.builder().privateNetworks(true).build();
+
+  private static final long REFUSAL_WAIT_MILLISECONDS = 1_500L;
 
   private final TestPages pages = TestPages.start();
   private final List<BrowserPlayer> players = new ArrayList<>();
   private final List<String> failures = new CopyOnWriteArrayList<>();
 
-  private static CefBrowserPlayer.DefaultSessionFactory sessions() {
-    return new CefBrowserPlayer.DefaultSessionFactory(new JcefNatives(), HelperCoverage.jvmOptions());
+  private CefBrowserPlayer.HelperSessionFactory sessions() {
+    return new CefBrowserPlayer.HelperSessionFactory(new JcefNatives(), HelperCoverage.jvmOptions());
   }
 
   private BrowserPlayer player(final BrowserOptions options) {
-    return this.player(options, sessions());
+    return this.player(options, this.sessions());
   }
 
-  private BrowserPlayer player(final BrowserOptions options, final CefBrowserPlayer.DefaultSessionFactory sessions) {
+  private BrowserPlayer player(final BrowserOptions options, final CefBrowserPlayer.HelperSessionFactory sessions) {
     final CefBrowserPlayer player = new CefBrowserPlayer(options, sessions);
-    player.setExceptionHandler((message, error) -> this.failures.add(message + ": " + error.getMessage()));
+    player.setExceptionHandler((message, error) -> this.failures.add(message + " " + error.getMessage()));
     this.players.add(player);
+
     return player;
   }
 
   private Frames start(final BrowserPlayer player, final String path) {
     final Frames frames = Frames.attach(player.getVideoAttachableCallback());
     final URI page = this.pages.uri(path);
-    assertTrue(player.start(BrowserSource.uri(page, WIDTH, HEIGHT, 1)));
+    final boolean started = player.start(BrowserSource.uri(page, WIDTH, HEIGHT, 1));
+    assertTrue(started);
+
     return frames;
   }
 
-  /**
-   * Waits until the page takes clicks. Chromium ignores presses, clicks and keys for a moment after a page appears,
-   * while it already passes mouse moves on, so a probe click is sent until the page reports one; the probe's events
-   * are forgotten afterwards.
-   *
-   * @param player the player showing a page of {@link #pages}
-   */
+  // Chromium ignores clicks and keys for a moment after a page appears, but not mouse moves: probe with clicks until the
+  // page reports one, then forget the probe's events.
   private void awaitInput(final BrowserPlayer player) {
-    Await.until("the page reported its size", () -> this.pages.count("size") > 0);
+    Await.until("the page reported its size", () -> this.pages.count(SIZE_EVENT) > 0);
     final long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
-    while (this.pages.count("click") == 0) {
-      assertTrue(System.nanoTime() < deadline, "the page never took a click");
+    while (this.pages.count(CLICK_EVENT) == 0) {
+      final boolean beforeDeadline = System.nanoTime() < deadline;
+      assertTrue(beforeDeadline, "the page never took a click");
+
       player.sendMouseEvent(MouseClick.LEFT, 1, 1);
       final long probeEnd = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(250);
-      while (this.pages.count("click") == 0 && System.nanoTime() < probeEnd) {
+      while (this.pages.count(CLICK_EVENT) == 0 && System.nanoTime() < probeEnd) {
         Thread.onSpinWait();
       }
     }
-    Await.until("the probe released", () -> this.pages.count("mouseup") >= this.pages.count("mousedown"));
+
+    Await.until("the probe released", () -> this.pages.count(MOUSE_UP_EVENT) >= this.pages.count("mousedown"));
     this.pages.clearEvents();
   }
 
@@ -112,151 +123,172 @@ class CefBrowserIntegrationTest {
     for (final BrowserPlayer player : this.players) {
       player.release();
     }
+
     this.pages.close();
-    assertEquals(0, HelperProcesses.count());
+    final int processCount = HelperProcesses.count();
+    assertEquals(0, processCount);
+
     Await.until("every browser process of this test has ended", () -> countBrowserProcesses() == 0);
   }
 
-  /**
-   * Counts the processes below this JVM that belong to a browser: the helper JVMs, their CEF processes, and Xvfb.
-   *
-   * @return the number of such processes
-   */
   static long countBrowserProcesses() {
     final ProcessHandle self = ProcessHandle.current();
-    // Windows does not tell the command line of another process, only its program, which for a helper is the Java of
-    // this JVM and for a CEF process lies in the jcef folder
+    // Windows shows only the program of another process: this Java for a helper, a file in the jcef folder for CEF
     final String java = self.info().command().orElse("");
     try (final Stream<ProcessHandle> descendants = self.descendants()) {
       return descendants
         .filter(ProcessHandle::isAlive)
-        .filter(handle -> {
-          final ProcessHandle.Info info = handle.info();
-          final String command = info.commandLine().orElse(info.command().orElse(""));
-          final boolean helper = command.contains(HelperLauncher.MAIN_CLASS) || (!java.isEmpty() && command.equals(java));
-          return helper || command.contains("jcef") || command.contains("Xvfb");
-        })
+        .filter(handle -> isBrowserProcess(java, handle))
         .count();
     }
   }
 
+  private static boolean isBrowserProcess(final String java, final ProcessHandle handle) {
+    final ProcessHandle.Info information = handle.info();
+    final String command = information.commandLine().orElse(information.command().orElse(""));
+    final boolean helper = command.contains(HelperLauncher.MAIN_CLASS) || (!java.isEmpty() && command.equals(java));
+    return helper || command.contains("jcef") || command.contains("Xvfb");
+  }
+
   @Test
-  void aPageIsStreamedWithItsColors() {
+  void shouldStreamAPageWithItsColors() {
     final BrowserPlayer player = this.player(LOCAL);
-    final Frames frames = this.start(player, "/main");
-    assertTrue(player.isPlaying());
-    Await.until("a red frame", () -> frames.lastShows(TestPages.MAIN_COLOR));
+    final Frames frames = this.start(player, TestPages.MAIN_PATH);
+    final boolean playing = player.isPlaying();
+    assertTrue(playing);
+
+    Await.until(RED_FRAME_MESSAGE, () -> frames.lastShows(TestPages.MAIN_COLOR));
     final Frames.Frame last = frames.requireLast();
-    assertEquals(WIDTH, last.getWidth());
-    assertEquals(HEIGHT, last.getHeight());
-    assertTrue(countBrowserProcesses() > 0);
+    final int width = last.getWidth();
+    assertEquals(WIDTH, width);
+
+    final int height = last.getHeight();
+    assertEquals(HEIGHT, height);
+
+    final boolean browserRunning = countBrowserProcesses() > 0;
+    assertTrue(browserRunning);
     assertEquals(List.of(), this.failures);
   }
 
   @Test
-  void clicksKeysAndTheWheelReachThePageWhereTheyLand() {
+  void shouldPassClicksKeysAndTheWheelToThePageWhereTheyLand() {
     final BrowserPlayer player = this.player(LOCAL);
-    this.start(player, "/main");
+    this.start(player, TestPages.MAIN_PATH);
     this.awaitInput(player);
-    player.sendMouseEvent(MouseClick.LEFT, 100, 50);
-    Await.until("a click", () ->
-      this.pages
-        .getEvents("click")
-        .stream()
-        .anyMatch(event -> event.getX() == 100)
-    );
+    player.sendMouseEvent(MouseClick.LEFT, 100, LEFT_CLICK_COORDINATE);
+    Await.until("a click", () -> this.hasEventAtX(CLICK_EVENT, 100));
     final TestPages.PageEvent click = this.pages
-      .getEvents("click")
+      .getEvents(CLICK_EVENT)
       .stream()
       .filter(event -> event.getX() == 100)
       .findFirst()
       .orElseThrow();
-    assertEquals(50, click.getY());
-    assertEquals(0, click.getButton());
+    final int clickY = click.getY();
+    assertEquals(LEFT_CLICK_COORDINATE, clickY);
+
+    final int clickButton = click.getButton();
+    assertEquals(0, clickButton);
+
     player.sendMouseEvent(MouseClick.RIGHT, 10, 20);
     Await.until("a context menu", () -> this.pages.count("contextmenu") > 0);
-    assertEquals(2, this.pages.getEvents("contextmenu").getFirst().getButton());
+    final int contextMenuButton = this.pages.getEvents("contextmenu").getFirst().getButton();
+    assertEquals(2, contextMenuButton);
+
     player.sendMouseEvent(MouseClick.DOUBLE, 30, 40);
     Await.until("a double click", () -> this.pages.count("dblclick") > 0);
     player.sendMouseEvent(MouseClick.HOLD, 5, 5);
     player.sendMouseEvent(MouseClick.RELEASE, 6, 6);
-    Await.until("the held button released", () ->
-      this.pages
-        .getEvents("mouseup")
-        .stream()
-        .anyMatch(event -> event.getX() == 6)
-    );
+    Await.until("the held button released", () -> this.hasEventAtX(MOUSE_UP_EVENT, 6));
     final TestPages.PageEvent drag = this.pages
       .getEvents("mousemove")
       .stream()
       .filter(event -> event.getX() == 6 && event.getY() == 6)
       .findFirst()
       .orElseThrow();
-    assertEquals(1, drag.getButtons(), drag::toString);
+    final int buttons = drag.getButtons();
+    assertEquals(1, buttons, drag::toString);
+
     player.sendKeyEvent("hi");
     player.sendKeyEvent("Enter");
     player.sendKeyEvent("PageDown");
     Await.until("the keys", () -> this.pages.count("keydown") >= 4);
     final List<String> keys = this.pages.getEvents("keydown").stream().map(TestPages.PageEvent::getKey).toList();
-    assertEquals(List.of("h", "i", "Enter", "PageDown"), keys.subList(0, 4));
+    final List<String> typedKeys = keys.subList(0, 4);
+    final List<String> expectedTypedKeys = List.of("h", "i", "Enter", "PageDown");
+    assertEquals(expectedTypedKeys, typedKeys);
+
     player.scroll(50, 60, 0, 120);
     Await.until("a turn of the wheel", () -> this.pages.count("wheel") > 0);
     final TestPages.PageEvent wheel = this.pages.getEvents("wheel").getFirst();
-    assertEquals("1", wheel.getKey());
+    final String wheelKey = wheel.getKey();
+    assertEquals("1", wheelKey);
     assertEquals(List.of(), this.failures);
   }
 
+  private boolean hasEventAtX(final String type, final int pageX) {
+    return this.pages
+      .getEvents(type)
+      .stream()
+      .anyMatch(event -> event.getX() == pageX);
+  }
+
   @Test
-  void aPopupOpenedByThePlayerOpensInPlace() {
+  void shouldOpenAPopupOpenedByThePlayerInPlace() {
     final BrowserPlayer player = this.player(LOCAL);
-    final Frames frames = this.start(player, "/main");
+    final Frames frames = this.start(player, TestPages.MAIN_PATH);
     this.awaitInput(player);
     player.sendKeyEvent("o");
     final long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
     while (!frames.lastShows(TestPages.POPUP_COLOR)) {
-      assertTrue(
-        System.nanoTime() < deadline,
-        () ->
-          "the popup is shown in place: " +
-          frames.describeLast() +
-          "; the pages reported " +
-          this.pages.getEvents().stream().map(TestPages.PageEvent::getType).toList()
-      );
+      final boolean beforeDeadline = System.nanoTime() < deadline;
+      assertTrue(beforeDeadline, () -> this.describePopupWait(frames));
+
       Thread.onSpinWait();
     }
-    assertTrue(player.isPlaying());
+
+    final boolean playing = player.isPlaying();
+    assertTrue(playing);
+  }
+
+  private String describePopupWait(final Frames frames) {
+    return (
+      "the popup is shown in place: " +
+      frames.describeLast() +
+      "; the pages reported " +
+      this.pages.getEvents().stream().map(TestPages.PageEvent::getType).toList()
+    );
   }
 
   @Test
-  void aLinkToANewWindowOpensInPlace() {
+  void shouldOpenALinkToANewWindowInPlace() {
     final BrowserPlayer player = this.player(LOCAL);
-    final Frames frames = this.start(player, "/to-popup-link");
+    final Frames frames = this.start(player, TestPages.TO_POPUP_LINK_PATH);
     final long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
     // clicks are ignored for a moment after the page appears, so the link is clicked until it opens
     while (!frames.lastShows(TestPages.POPUP_COLOR)) {
-      assertTrue(System.nanoTime() < deadline, "the link never opened");
-      player.sendMouseEvent(MouseClick.LEFT, 50, 50);
-      final long pause = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(300);
+      final boolean beforeDeadline = System.nanoTime() < deadline;
+      assertTrue(beforeDeadline, "the link never opened");
+
+      player.sendMouseEvent(MouseClick.LEFT, LEFT_CLICK_COORDINATE, LEFT_CLICK_COORDINATE);
+      final long pause = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(CLICK_PAUSE_MILLISECONDS);
       while (System.nanoTime() < pause && !frames.lastShows(TestPages.POPUP_COLOR)) {
         Thread.onSpinWait();
       }
     }
-    assertTrue(player.isPlaying());
+
+    final boolean playing = player.isPlaying();
+    assertTrue(playing);
   }
 
-  /**
-   * Clicks a point of the page until a condition holds, since clicks are ignored for a moment after a page appears.
-   *
-   * @param player      the player
-   * @param description what the click achieves, for the failure message
-   * @param condition   whether it has been achieved
-   */
-  private static void clickUntil(final BrowserPlayer player, final String description, final BooleanSupplier condition) {
+  // clicks are ignored for a moment after a page appears
+  private void clickUntil(final BrowserPlayer player, final String description, final BooleanSupplier condition) {
     final long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
     while (!condition.getAsBoolean()) {
-      assertTrue(System.nanoTime() < deadline, description + " never happened");
+      final boolean beforeDeadline = System.nanoTime() < deadline;
+      assertTrue(beforeDeadline, description + " never happened");
+
       player.sendMouseEvent(MouseClick.LEFT, 20, 20);
-      final long pause = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(300);
+      final long pause = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(CLICK_PAUSE_MILLISECONDS);
       while (System.nanoTime() < pause && !condition.getAsBoolean()) {
         Thread.onSpinWait();
       }
@@ -264,149 +296,192 @@ class CefBrowserIntegrationTest {
   }
 
   @Test
-  void aLinkIntoAFrameOfThePageOpensInThatFrame() throws InterruptedException {
+  void shouldOpenALinkIntoAFrameOfThePageInThatFrame() throws InterruptedException {
     final BrowserPlayer player = this.player(LOCAL);
-    final Frames frames = this.start(player, "/named-frame");
-    clickUntil(player, "the second page in the frame", () ->
-      this.pages
-        .getEvents("size")
-        .stream()
-        .anyMatch(event -> event.getPage().equals("second"))
-    );
+    final Frames frames = this.start(player, TestPages.NAMED_FRAME_PATH);
+    this.clickUntil(player, "the second page in the frame", () -> this.hasEventOnPage(SIZE_EVENT, "second"));
     final TestPages.PageEvent size = this.pages
-      .getEvents("size")
+      .getEvents(SIZE_EVENT)
       .stream()
       .filter(event -> event.getPage().equals("second"))
       .findFirst()
       .orElseThrow();
-    assertEquals(TestPages.FRAME_WIDTH, size.getX(), "the second page fills the frame, not the page");
+    final int secondPageWidth = size.getX();
+    assertEquals(TestPages.FRAME_WIDTH, secondPageWidth, "the second page fills the frame, not the page");
+
     Thread.sleep(500L);
-    assertTrue(frames.lastShows(TestPages.MAIN_COLOR), "the page itself stays");
+    final boolean showsMainPage = frames.lastShows(TestPages.MAIN_COLOR);
+    assertTrue(showsMainPage, "the page itself stays");
+  }
+
+  private boolean hasEventOnPage(final String type, final String page) {
+    return this.pages
+      .getEvents(type)
+      .stream()
+      .anyMatch(event -> event.getPage().equals(page));
   }
 
   @Test
-  void aFormSentByAButtonThatTargetsANewWindowIsSentInPlace() {
+  void shouldSendAFormInPlaceWhenItsButtonTargetsANewWindow() {
     final BrowserPlayer player = this.player(LOCAL);
-    final Frames frames = this.start(player, "/form-target");
-    clickUntil(player, "the form sent", () -> frames.lastShows(TestPages.SECOND_COLOR));
-    assertTrue(player.isPlaying());
+    final Frames frames = this.start(player, TestPages.FORM_TARGET_PATH);
+    this.clickUntil(player, "the form sent", () -> frames.lastShows(TestPages.SECOND_COLOR));
+    final boolean playing = player.isPlaying();
+    assertTrue(playing);
   }
 
   @Test
-  void aLinkToANewWindowThatAScriptClicksIsBlocked() throws InterruptedException {
+  void shouldBlockALinkToANewWindowThatAScriptClicks() throws InterruptedException {
     final BrowserPlayer player = this.player(LOCAL);
-    final Frames frames = this.start(player, "/to-popup-synthetic");
-    Thread.sleep(1_500L);
-    assertTrue(frames.lastShows(TestPages.MAIN_COLOR), "still the page, not the popup");
+    final Frames frames = this.start(player, TestPages.TO_POPUP_SYNTHETIC_PATH);
+    Thread.sleep(REFUSAL_WAIT_MILLISECONDS);
+    final boolean showsMainPage = frames.lastShows(TestPages.MAIN_COLOR);
+    assertTrue(showsMainPage, MAIN_PAGE_KEPT_MESSAGE);
   }
 
   @Test
-  void aPopupThePageOpensByItselfIsBlocked() throws InterruptedException {
+  void shouldBlockAPopupThePageOpensByItself() throws InterruptedException {
     final BrowserPlayer player = this.player(LOCAL);
-    final Frames frames = this.start(player, "/to-popup");
-    Thread.sleep(1_500L);
-    assertTrue(frames.lastShows(TestPages.MAIN_COLOR), "still the page, not the popup");
+    final Frames frames = this.start(player, TestPages.TO_POPUP_PATH);
+    Thread.sleep(REFUSAL_WAIT_MILLISECONDS);
+    final boolean showsMainPage = frames.lastShows(TestPages.MAIN_COLOR);
+    assertTrue(showsMainPage, MAIN_PAGE_KEPT_MESSAGE);
   }
 
   @Test
-  void javaScriptDialogsAreDismissedAndThePageGoesOn() {
+  void shouldDismissJavaScriptDialogsAndLetThePageGoOn() {
     final BrowserPlayer player = this.player(BrowserOptions.builder().privateNetworks(true).javaScriptJit(true).frameRate(30).build());
-    final Frames frames = this.start(player, "/dialog");
+    final Frames frames = this.start(player, TestPages.DIALOG_PATH);
     Await.until("the page past its dialogs", () -> frames.lastShows(TestPages.SECOND_COLOR));
   }
 
   @Test
-  void aPageCannotNavigateToAFileOrDownloadOne() throws InterruptedException {
+  void shouldNotLetAPageNavigateToAFileOrDownloadOne() throws InterruptedException {
     try (final StandardError reports = new StandardError()) {
       final BrowserPlayer toFile = this.player(LOCAL);
-      final Frames fileFrames = this.start(toFile, "/to-file");
+      final Frames fileFrames = this.start(toFile, TestPages.TO_FILE_PATH);
       final BrowserPlayer toDownload = this.player(LOCAL);
-      final Frames downloadFrames = this.start(toDownload, "/to-download");
-      Thread.sleep(1_500L);
-      assertTrue(fileFrames.lastShows(TestPages.MAIN_COLOR), () -> "still the page, not the file: " + fileFrames.describeLast());
-      assertTrue(downloadFrames.lastShows(TestPages.MAIN_COLOR), () -> "still the page, not a download: " + downloadFrames.describeLast());
-      assertTrue(toFile.isPlaying());
-      assertTrue(toDownload.isPlaying());
-      final String refusal = "Browser: Refused a download of evil.exe";
+      final Frames downloadFrames = this.start(toDownload, TestPages.TO_DOWNLOAD_PATH);
+      Thread.sleep(REFUSAL_WAIT_MILLISECONDS);
+      final boolean fileShowsMainPage = fileFrames.lastShows(TestPages.MAIN_COLOR);
+      assertTrue(fileShowsMainPage, () -> "still the page, not the file: " + fileFrames.describeLast());
+
+      final boolean downloadShowsMainPage = downloadFrames.lastShows(TestPages.MAIN_COLOR);
+      assertTrue(downloadShowsMainPage, () -> "still the page, not a download: " + downloadFrames.describeLast());
+
+      final boolean filePlaying = toFile.isPlaying();
+      assertTrue(filePlaying);
+
+      final boolean downloadPlaying = toDownload.isPlaying();
+      assertTrue(downloadPlaying);
+
+      final String refusal = "The browser sent the notice \"The download of evil.exe was refused.\" about the page.";
       Await.until("the real download reaches the refusal handler", () -> reports.text().contains(refusal));
       final List<String> downloadReports = reports
         .text()
         .lines()
-        .filter(line -> line.contains("Browser: Refused a download of "))
-        .map(line -> line.substring(line.indexOf("Browser: Refused a download of ")))
+        .filter(line -> line.contains("the notice \"The download of "))
+        .map(line -> line.substring(line.indexOf("The browser sent the notice \"The download of ")))
         .toList();
-      assertEquals(List.of(refusal), downloadReports);
+      final List<String> expectedDownloadReports = List.of(refusal);
+      assertEquals(expectedDownloadReports, downloadReports);
     }
   }
 
   @Test
-  void aPageThatCannotBeLoadedFailsTheStart() {
+  void shouldFailTheStartWhenThePageCannotBeLoaded() {
     final BrowserPlayer player = this.player(LOCAL);
     final BrowserSource unreachable = BrowserSource.uri(URI.create("http://mcav-browser-test.invalid/"), WIDTH, HEIGHT, 1);
-    final PlayerException failure = assertThrows(PlayerException.class, () -> player.start(unreachable));
-    assertTrue(failure.getMessage().contains("NAME_NOT_RESOLVED") || failure.getMessage().contains("-105"), failure.getMessage());
-    assertFalse(player.isPlaying());
-  }
-
-  @Test
-  void aPageOnThisMachineIsRefusedUnlessPrivateNetworksAreAllowed() {
-    final BrowserPlayer player = this.player(BrowserOptions.DEFAULT);
-    final BrowserSource local = BrowserSource.uri(this.pages.uri("/main"), WIDTH, HEIGHT, 1);
-    final PlayerException failure = assertThrows(PlayerException.class, () -> player.start(local));
+    final BrowserException failure = assertThrows(BrowserException.class, () -> player.start(unreachable));
     final String message = failure.getMessage();
-    assertTrue(message.contains("SOCKS") || message.contains("PROXY") || message.contains("TUNNEL"), message);
-    assertEquals(0, this.pages.getEvents().size(), "the page was never requested");
-    assertFalse(player.isPlaying());
+    final boolean nameNotResolved = message.contains("NAME_NOT_RESOLVED") || message.contains("-105");
+    final boolean offline = message.contains("INTERNET_DISCONNECTED") || message.contains("-106");
+    final boolean namesTheLoadError = nameNotResolved || offline;
+    assertTrue(namesTheLoadError, message);
+
+    final boolean playing = player.isPlaying();
+    assertFalse(playing);
   }
 
   @Test
-  void aPublicPageLoadsThroughTheGuard() {
-    assumeTrue(Boolean.getBoolean("mcav.networkTests"), "needs the internet: -Pmcav.networkTests=true");
+  void shouldRefuseAPageOnThisMachineUnlessPrivateNetworksAreAllowed() {
+    final BrowserPlayer player = this.player(BrowserOptions.DEFAULT);
+    final BrowserSource local = BrowserSource.uri(this.pages.uri(TestPages.MAIN_PATH), WIDTH, HEIGHT, 1);
+    final BrowserException failure = assertThrows(BrowserException.class, () -> player.start(local));
+    final String message = failure.getMessage();
+    final boolean namesTheProxyRefusal = message.contains("SOCKS") || message.contains("PROXY") || message.contains("TUNNEL");
+    assertTrue(namesTheProxyRefusal, message);
+
+    final int requestCount = this.pages.getEvents().size();
+    assertEquals(0, requestCount, "the page was never requested");
+
+    final boolean playing = player.isPlaying();
+    assertFalse(playing);
+  }
+
+  @Test
+  void shouldLoadAPublicPageThroughTheGuard() {
+    final boolean networkTestsEnabled = Boolean.getBoolean("mcav.networkTests");
+    assumeTrue(networkTestsEnabled, "This test needs the internet; run it with -Pmcav.networkTests=true!");
     final BrowserPlayer player = this.player(BrowserOptions.DEFAULT);
     final Frames frames = Frames.attach(player.getVideoAttachableCallback());
-    assertTrue(player.start(BrowserSource.uri(URI.create("https://example.com/"), WIDTH, HEIGHT, 1)));
+    final boolean started = player.start(BrowserSource.uri(URI.create("https://example.com/"), WIDTH, HEIGHT, 1));
+    assertTrue(started);
+
     Await.until("a frame of the page", () -> frames.count() > 0);
     assertEquals(List.of(), this.failures);
   }
 
   @Test
-  void aReleasedBrowserLeavesNoProcessAndANewOneStartsFresh() {
-    final CefBrowserPlayer.DefaultSessionFactory shared = sessions();
+  void shouldLeaveNoProcessAfterAReleaseAndStartANewBrowserFresh() {
+    final CefBrowserPlayer.HelperSessionFactory shared = this.sessions();
     final BrowserPlayer first = this.player(LOCAL, shared);
-    this.start(first, "/main");
-    assertTrue(countBrowserProcesses() > 0);
+    this.start(first, TestPages.MAIN_PATH);
+    final boolean browserRunning = countBrowserProcesses() > 0;
+    assertTrue(browserRunning);
+
     first.release();
     Await.until("the processes of the first browser ended", () -> countBrowserProcesses() == 0);
     final BrowserPlayer second = this.player(LOCAL, shared);
-    final Frames frames = this.start(second, "/second");
+    final Frames frames = this.start(second, TestPages.SECOND_PATH);
     Await.until("the second browser shows its page", () -> frames.lastShows(TestPages.SECOND_COLOR));
   }
 
   @Test
-  void stoppingTheModuleEndsEveryBrowser() {
+  void shouldEndEveryBrowserWhenTheModuleStops() {
     final BrowserPlayer player = this.player(LOCAL);
-    this.start(player, "/main");
-    assertEquals(1, HelperProcesses.count());
+    this.start(player, TestPages.MAIN_PATH);
+    final int processCountWhilePlaying = HelperProcesses.count();
+    assertEquals(1, processCountWhilePlaying);
+
     final BrowserModule module = new BrowserModule();
     try {
       module.stop();
-      assertEquals(0, HelperProcesses.count());
-      assertFalse(player.isPlaying(), "the player knows its browser ended");
-      assertEquals(List.of("The browser module was stopped: The browser module was stopped"), this.failures);
+      final int processCountAfterStop = HelperProcesses.count();
+      assertEquals(0, processCountAfterStop);
+
+      final boolean playing = player.isPlaying();
+      assertFalse(playing, "the player knows its browser ended");
+      final List<String> expectedFailures = List.of(
+        "Because of \"The browser module was stopped!\", the browser session ended. The browser module was stopped!"
+      );
+      assertEquals(expectedFailures, this.failures);
+
       Await.until("the browser processes ended", () -> countBrowserProcesses() == 0);
     } finally {
       module.start();
     }
-    final Frames frames = this.start(player, "/second");
+
+    final Frames frames = this.start(player, TestPages.SECOND_PATH);
     Await.until("the browser shows its page again", () -> frames.lastShows(TestPages.SECOND_COLOR));
   }
 
   @Test
   @EnabledOnOs(OS.MAC)
-  void onMacOsEveryProcessOfChromiumRunsInASandbox() throws Throwable {
+  void shouldRunEveryProcessOfChromiumInASandboxOnMacOs() throws Throwable {
     final BrowserPlayer player = this.player(LOCAL);
-    final Frames frames = this.start(player, "/main");
-    Await.until("a red frame", () -> frames.lastShows(TestPages.MAIN_COLOR));
+    final Frames frames = this.start(player, TestPages.MAIN_PATH);
+    Await.until(RED_FRAME_MESSAGE, () -> frames.lastShows(TestPages.MAIN_COLOR));
     final List<ProcessHandle> chromium;
     try (final Stream<ProcessHandle> descendants = ProcessHandle.current().descendants()) {
       chromium = descendants
@@ -414,20 +489,25 @@ class CefBrowserIntegrationTest {
         .filter(handle -> handle.info().command().orElse("").contains("jcef Helper"))
         .toList();
     }
-    assertFalse(chromium.isEmpty(), "Chromium's processes run");
+
+    final boolean empty = chromium.isEmpty();
+    assertFalse(empty, "Chromium's processes run");
+
     for (final ProcessHandle process : chromium) {
       final String command = process.info().command().orElse("?");
-      assertTrue(isSandboxed(process.pid()), () -> "a process of Chromium runs outside a sandbox: " + command);
+      final boolean sandboxed = this.isSandboxed(process.pid());
+      assertTrue(sandboxed, () -> "a process of Chromium runs outside a sandbox: " + command);
     }
   }
 
+  // sandbox_check is called through the restricted native linker; the tests run with native access enabled
   @SuppressWarnings("restricted")
-  private static boolean isSandboxed(final long pid) throws Throwable {
+  private boolean isSandboxed(final long processId) throws Throwable {
     final Linker linker = Linker.nativeLinker();
     final MethodHandle check = linker.downcallHandle(
       linker.defaultLookup().findOrThrow("sandbox_check"),
       FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.JAVA_INT, ValueLayout.ADDRESS, ValueLayout.JAVA_INT)
     );
-    return (int) check.invokeExact((int) pid, MemorySegment.NULL, 0) != 0;
+    return (int) check.invokeExact((int) processId, MemorySegment.NULL, 0) != 0;
   }
 }

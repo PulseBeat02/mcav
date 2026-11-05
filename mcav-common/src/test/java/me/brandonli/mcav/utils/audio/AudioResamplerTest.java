@@ -30,6 +30,7 @@ import java.nio.ShortBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import me.brandonli.mcav.MCAVException;
 import me.brandonli.mcav.media.player.pipeline.filter.audio.AudioFilter;
 import org.bytedeco.javacpp.Pointer;
 import org.junit.jupiter.api.Test;
@@ -48,6 +49,9 @@ final class AudioResamplerTest {
   private static final int STEREO_CHANNELS = 2;
 
   private static final int SHORT_TONE_FRAMES = 4_800;
+
+  private static final short HALF_SCALE_SAMPLE = 16_384;
+  private static final short QUARTER_SCALE_SAMPLE = 8_192;
 
   private static final String CONVERT_OPERATION = "convert the samples";
   private static final String INITIALIZE_OPERATION = "initialize the resampler";
@@ -300,7 +304,8 @@ final class AudioResamplerTest {
         final byte[] converted = resampler.resample(stereo);
         final short[] samples = toShorts(converted);
         final int loudest = peak(samples, 0, samples.length);
-        assertEquals(2 * channels, samples.length, "channels: " + channels);
+        final int expected = 2 * channels;
+        assertEquals(expected, samples.length, "channels: " + channels);
 
         final boolean quiet = loudest <= 8_000;
         assertTrue(quiet, "channels: " + channels + ", peak: " + loudest);
@@ -310,7 +315,14 @@ final class AudioResamplerTest {
 
   @Test
   void shouldConvertSigned16BitSamplesToFloatingPoint() {
-    final ByteBuffer input = samples16((short) 16_384, (short) -16_384, (short) 0, (short) 8_192, Short.MIN_VALUE, Short.MAX_VALUE);
+    final ByteBuffer input = samples16(
+      HALF_SCALE_SAMPLE,
+      (short) -HALF_SCALE_SAMPLE,
+      (short) 0,
+      QUARTER_SCALE_SAMPLE,
+      Short.MIN_VALUE,
+      Short.MAX_VALUE
+    );
     try (final AudioResampler resampler = AudioResampler.fromPipelineFormat(PIPELINE_RATE, STEREO_CHANNELS, SampleFormat.FLOAT_32_BIT)) {
       final byte[] converted = resampler.resample(input);
       final float[] samples = toFloats(converted);
@@ -342,7 +354,7 @@ final class AudioResamplerTest {
     ) {
       final byte[] converted = resampler.resample(input);
       final short[] samples = toShorts(converted);
-      final short[] expected = { 16_384, -8_192, Short.MIN_VALUE, Short.MAX_VALUE };
+      final short[] expected = { HALF_SCALE_SAMPLE, -QUARTER_SCALE_SAMPLE, Short.MIN_VALUE, Short.MAX_VALUE };
       assertArrayEquals(expected, samples);
     }
   }
@@ -368,7 +380,8 @@ final class AudioResamplerTest {
         final byte[] restored = back.resample(convertedBuffer);
         final int bytesPerSample = format.getBytesPerSample();
         final String formatName = format.name();
-        assertEquals(6 * bytesPerSample, converted.length, formatName);
+        final int expected = 6 * bytesPerSample;
+        assertEquals(expected, converted.length, formatName);
         assertArrayEquals(original, restored, formatName);
       }
     }
@@ -529,13 +542,14 @@ final class AudioResamplerTest {
     resampler.close();
     final List<String> afterClose = allocated(objects);
 
-    assertEquals(List.of("SwrContext", "AVChannelLayout", "AVChannelLayout"), beforeClose);
+    final List<String> expected = List.of("SwrContext", "AVChannelLayout", "AVChannelLayout");
+    assertEquals(expected, beforeClose);
     assertEquals(List.of(), afterClose, "closing frees them rather than leaving them to the garbage collector");
   }
 
   @Test
   void shouldReportAConversionFfmpegCannotSetUp() {
-    final IllegalStateException exception = assertThrows(IllegalStateException.class, () ->
+    final MCAVException exception = assertThrows(MCAVException.class, () ->
       AudioResampler.create(48_000_000, 1, SampleFormat.SIGNED_16_BIT, 1, 1, SampleFormat.SIGNED_16_BIT)
     );
     final String message = exception.getMessage();
@@ -595,19 +609,26 @@ final class AudioResamplerTest {
 
   @Test
   void shouldPassSuccessfulResultsThroughCheckResult() {
-    final int zero = AudioResampler.checkResult(0, "do nothing");
-    final int positive = AudioResampler.checkResult(1_234, CONVERT_OPERATION);
-    assertEquals(0, zero);
-    assertEquals(1_234, positive);
+    try (final AudioResampler resampler = this.createSpeechResampler()) {
+      final int zero = resampler.checkResult(0, "do nothing");
+      final int positive = resampler.checkResult(1_234, CONVERT_OPERATION);
+      assertEquals(0, zero);
+      assertEquals(1_234, positive);
+    }
   }
 
   @Test
   void shouldDescribeFfmpegErrorsInCheckResult() {
-    final IllegalStateException exception = assertThrows(IllegalStateException.class, () ->
-      AudioResampler.checkResult(EINVAL, CONVERT_OPERATION)
-    );
-    final String message = exception.getMessage();
-    assertEquals("FFmpeg error -22 (Invalid argument) occurred while trying to convert the samples!", message);
+    try (final AudioResampler resampler = this.createSpeechResampler()) {
+      final MCAVException exception = assertThrows(MCAVException.class, () -> resampler.checkResult(EINVAL, CONVERT_OPERATION));
+      final String message = exception.getMessage();
+      assertEquals("FFmpeg error -22 (Invalid argument) occurred while trying to convert the samples!", message);
+    }
+  }
+
+  private AudioResampler createSpeechResampler() {
+    final SampleFormat format = SampleFormat.SIGNED_16_BIT;
+    return AudioResampler.create(SPEECH_RATE, 1, format, SPEECH_RATE, 1, format);
   }
 
   @Test
@@ -622,9 +643,7 @@ final class AudioResamplerTest {
   @Test
   void shouldReleaseTheResamplerAndReportTheErrorWithCloseOnFailure() {
     final AudioResampler resampler = AudioResampler.fromPipelineFormat(SPEECH_RATE, 1, SampleFormat.SIGNED_16_BIT);
-    final IllegalStateException exception = assertThrows(IllegalStateException.class, () ->
-      resampler.closeOnFailure(EINVAL, INITIALIZE_OPERATION)
-    );
+    final MCAVException exception = assertThrows(MCAVException.class, () -> resampler.closeOnFailure(EINVAL, INITIALIZE_OPERATION));
     final String message = exception.getMessage();
     final boolean closed = resampler.isClosed();
     assertTrue(closed);
@@ -636,7 +655,7 @@ final class AudioResamplerTest {
     final SampleFormat format = SampleFormat.SIGNED_16_BIT;
     final int negativeRate = -1;
     final AudioResampler resampler = new AudioResampler(SPEECH_RATE, 1, format, negativeRate, 1, format);
-    final IllegalStateException exception = assertThrows(IllegalStateException.class, resampler::configure);
+    final MCAVException exception = assertThrows(MCAVException.class, resampler::configure);
     final String message = exception.getMessage();
     final boolean closed = resampler.isClosed();
     final boolean reported = message.endsWith("occurred while trying to allocate the resampler!");

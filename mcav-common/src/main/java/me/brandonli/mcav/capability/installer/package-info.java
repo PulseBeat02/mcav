@@ -16,7 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 /**
- * Finds, downloads and prepares external programs used by optional mcav capabilities.
+ * Finds, downloads and prepares external programs used by optional MCAV capabilities.
  *
  * <p>{@link me.brandonli.mcav.capability.installer.Installer} separates discovery of an existing installation
  * from downloading. {@link me.brandonli.mcav.capability.installer.Download} describes a platform-specific URL

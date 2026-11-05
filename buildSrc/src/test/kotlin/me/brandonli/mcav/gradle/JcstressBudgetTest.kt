@@ -22,7 +22,6 @@ import java.io.File
 import java.nio.file.Path
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
-import org.gradle.api.GradleException
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertThrows
@@ -34,6 +33,8 @@ class JcstressBudgetTest {
     private companion object {
 
         const val QUICK_PRESET: String = "quick"
+
+        const val BUDGET_MINUTES: Int = 10
 
         const val SECOND_TEST_SELECTION: String = """^a\.b\.Second$"""
 
@@ -49,7 +50,7 @@ class JcstressBudgetTest {
 
     @Test
     fun shouldSplitHalfOfTheBudgetOverTheIterationsOfEveryRun(): Unit {
-        val iterationMilliseconds: Long = JcstressBudget.iterationMilliseconds(QUICK_PRESET, 10, 9, 4)
+        val iterationMilliseconds: Long = JcstressBudget.iterationMilliseconds(QUICK_PRESET, BUDGET_MINUTES, 9, 4)
         assertEquals(76L, iterationMilliseconds)
     }
 
@@ -64,13 +65,13 @@ class JcstressBudgetTest {
 
     @Test
     fun shouldRunOneRunAtATimeOnASingleCpu(): Unit {
-        val iterationMilliseconds: Long = JcstressBudget.iterationMilliseconds("default", 10, 1, 1)
+        val iterationMilliseconds: Long = JcstressBudget.iterationMilliseconds("default", BUDGET_MINUTES, 1, 1)
         assertEquals(314L, iterationMilliseconds)
     }
 
     @Test
     fun shouldRefuseAnUnknownMode(): Unit {
-        assertThrows(GradleException::class.java) { JcstressBudget.iterationMilliseconds("forever", 10, 1, 4) }
+        assertThrows(IllegalArgumentException::class.java) { JcstressBudget.iterationMilliseconds("forever", BUDGET_MINUTES, 1, 4) }
     }
 
     @Test
@@ -111,7 +112,7 @@ class JcstressBudgetTest {
     }
 
     private fun writeJar(jar: File, entry: String, content: String): Unit {
-        ZipOutputStream(jar.outputStream()).use { zip -> this.writeEntry(zip, entry, content) }
+        ZipOutputStream(jar.outputStream()).use { this.writeEntry(it, entry, content) }
     }
 
     private fun writeEntry(zip: ZipOutputStream, entry: String, content: String): Unit {

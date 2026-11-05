@@ -48,6 +48,7 @@ final class AudioRenderer extends AudioCallbackAdapter {
 
   private static final int QUEUE_CAPACITY = 64;
   private static final long QUEUE_POLL_MILLISECONDS = 50L;
+
   private static final String PCM_CODEC = "pcm_s16le";
   private static final int PCM_BITRATE = AudioFilter.SAMPLE_RATE * AudioFilter.FRAME_SIZE * Byte.SIZE;
   private static final OriginalAudioMetadata METADATA = OriginalAudioMetadata.of(
@@ -66,7 +67,7 @@ final class AudioRenderer extends AudioCallbackAdapter {
   AudioRenderer(final VideoPlayerMultiplexer owner) {
     this.owner = owner;
     this.queue = new ArrayBlockingQueue<>(QUEUE_CAPACITY);
-    this.thread = new RenderThread(THREAD_NAME, failure -> reportFailure(owner, "Audio rendering failed", failure));
+    this.thread = new RenderThread(THREAD_NAME, failure -> reportFailure(owner, "Audio rendering failed.", failure));
   }
 
   private static void reportFailure(final VideoPlayerMultiplexer owner, final String message, final Throwable failure) {
@@ -84,7 +85,7 @@ final class AudioRenderer extends AudioCallbackAdapter {
   }
 
   @Override
-  public void play(final MediaPlayer mediaPlayer, final Pointer samples, final int sampleCount, final long pts) {
+  public void play(final MediaPlayer mediaPlayer, final Pointer samples, final int sampleCount, final long presentationTimestamp) {
     if (!this.thread.isRunning()) {
       return;
     }
@@ -99,7 +100,7 @@ final class AudioRenderer extends AudioCallbackAdapter {
     final int length = sampleCount * AudioFilter.FRAME_SIZE;
     final ByteBuffer nativeBuffer = samples.getByteBuffer(0, length);
     final ByteOrder nativeOrder = ByteOrder.nativeOrder();
-    final ByteBuffer copy = copySamples(nativeBuffer, nativeOrder);
+    final ByteBuffer copy = this.copySamples(nativeBuffer, nativeOrder);
     while (!this.queue.offer(copy)) {
       this.queue.poll();
     }
@@ -107,18 +108,18 @@ final class AudioRenderer extends AudioCallbackAdapter {
 
   // Drops the queued samples, because VLC paused the playback and they would otherwise keep playing.
   @Override
-  public void pause(final MediaPlayer mediaPlayer, final long pts) {
+  public void pause(final MediaPlayer mediaPlayer, final long presentationTimestamp) {
     this.queue.clear();
   }
 
   // Drops the queued samples, because VLC discards its buffered audio, for example when seeking.
   @Override
-  public void flush(final MediaPlayer mediaPlayer, final long pts) {
+  public void flush(final MediaPlayer mediaPlayer, final long presentationTimestamp) {
     this.queue.clear();
   }
 
   @VisibleForTesting
-  static ByteBuffer copySamples(final ByteBuffer nativeSamples, final ByteOrder order) {
+  ByteBuffer copySamples(final ByteBuffer nativeSamples, final ByteOrder order) {
     final ByteBuffer source = nativeSamples.duplicate();
     source.order(order);
     final ShortBuffer sourceSamples = source.asShortBuffer();
@@ -146,7 +147,7 @@ final class AudioRenderer extends AudioCallbackAdapter {
       // filters are user code, and native filters can throw a LinkageError, so any failure is reported and the render
       // thread keeps playing; only a virtual machine error ends the thread, because reporting it would hide it
       ThrowableUtils.throwIfFatal(exception);
-      reportFailure(this.owner, "Audio filter failed", exception);
+      reportFailure(this.owner, "Audio filter failed.", exception);
     }
   }
 }

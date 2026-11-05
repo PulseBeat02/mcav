@@ -38,6 +38,7 @@ import java.util.Optional;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BooleanSupplier;
+import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.attachable.AudioAttachableCallback;
 import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
 import me.brandonli.mcav.media.player.metadata.OriginalAudioMetadata;
@@ -49,8 +50,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.opentest4j.AssertionFailedError;
 
-// The guests are boot sectors in /guests/ beside their sources: beep.asm plays 1000 Hz on the PC speaker, and toggle.asm
-// switches that tone and a red screen on and off together at irregular times.
+// the guests are boot sectors in /guests/: beep.asm plays the tone, toggle.asm switches it and a red screen together
 final class VmSoundTest {
 
   private static final int TONE_HERTZ = 1000;
@@ -78,6 +78,8 @@ final class VmSoundTest {
 
   private static final double IN_SYNC_SHARE = 0.9;
 
+  private static final long POLL_PAUSE_MILLISECONDS = 20L;
+
   @TempDir
   private Path directory;
 
@@ -85,13 +87,15 @@ final class VmSoundTest {
     final ExecutableFinder finder = new ExecutableFinder();
     final String command = VmPlayer.Architecture.X86_64.getCommand();
     final Optional<Path> qemu = finder.find(command);
-    assumeTrue(qemu.isPresent(), "QEMU for x86-64 is not installed!");
+    final boolean qemuIsPresent = qemu.isPresent();
+    assumeTrue(qemuIsPresent, "QEMU for x86-64 is not installed!");
   }
 
   private Path bootSector(final String name) throws IOException {
     final Path image = this.directory.resolve(name);
     final String message = "Guest image %s is missing from the test resources!".formatted(name);
-    try (final InputStream resource = Objects.requireNonNull(VmSoundTest.class.getResourceAsStream(GUESTS_FOLDER + name), message)) {
+    final String resourceName = "%s%s".formatted(GUESTS_FOLDER, name);
+    try (final InputStream resource = Objects.requireNonNull(VmSoundTest.class.getResourceAsStream(resourceName), message)) {
       Files.copy(resource, image);
     }
 
@@ -109,7 +113,7 @@ final class VmSoundTest {
       final boolean beforeTheDeadline = System.nanoTime() < deadline;
       assertTrue(beforeTheDeadline, "timed out waiting for %s".formatted(description));
       try {
-        Thread.sleep(20L);
+        Thread.sleep(POLL_PAUSE_MILLISECONDS);
       } catch (final InterruptedException exception) {
         final Thread current = Thread.currentThread();
         current.interrupt();
@@ -223,43 +227,18 @@ final class VmSoundTest {
 
   @Test
   void shouldKeepTheSoundOfTheGuestWithItsPicture() throws IOException {
-    assumeTrue(
-      Boolean.getBoolean("mcav.syncMeasurement"),
-      "Test times real events, so run it with -Pmcav.syncMeasurement=true on a quiet machine!"
-    );
+    final boolean syncMeasurement = Boolean.getBoolean("mcav.sync_measurement");
+    assumeTrue(syncMeasurement, "Test times real events, so run it with -Pmcav.sync_measurement=true on a quiet machine!");
+
     this.assumeQemuInstalled();
 
     final List<long[]> sound = new CopyOnWriteArrayList<>();
     final List<long[]> picture = new CopyOnWriteArrayList<>();
     final VmPlayer player = VmPlayer.create();
     final AudioAttachableCallback audio = player.getAudioAttachableCallback();
-    audio.attach(
-      AudioPipelineStep.of((samples, metadata) -> {
-        final long arrival = System.nanoTime();
-        final byte[] copy = new byte[samples.remaining()];
-        samples.get(copy);
-        final short[] left = this.leftChannel(copy);
-        final int windows = left.length / WINDOW_FRAMES;
-        for (int window = 0; window < windows; window++) {
-          final boolean hasTone = this.toneShare(left, window * WINDOW_FRAMES, WINDOW_FRAMES) > TONE_SHARE;
-          final long end = (long) (window + 1) * WINDOW_FRAMES;
-          final long before = TimeUnit.SECONDS.toNanos(left.length - end) / AudioFilter.SAMPLE_RATE;
-          sound.add(new long[] { arrival - before, hasTone ? 1 : 0 });
-        }
-        return true;
-      })
-    );
+    audio.attach(AudioPipelineStep.of((samples, _) -> this.recordToneWindows(samples, sound)));
     final VideoAttachableCallback video = player.getVideoAttachableCallback();
-    video.attach(
-      VideoPipelineStep.of((image, metadata) -> {
-        final ByteBuffer pixels = image.getData();
-        final int center = pixels.position() + ((image.getHeight() / 2) * image.getWidth() + image.getWidth() / 2) * 3;
-        final int blue = pixels.get(center) & 0xFF;
-        final int red = pixels.get(center + 2) & 0xFF;
-        picture.add(new long[] { System.nanoTime(), red > 128 && blue < 64 ? 1 : 0 });
-        return false;
-      })
-    );
+    video.attach(VideoPipelineStep.of((image, _) -> this.recordPictureColor(image, picture)));
     try {
       final int port = FreePorts.find();
       final VmSettings settings = VmSettings.of(port, WIDTH, HEIGHT, 60);
@@ -319,6 +298,31 @@ final class VmSoundTest {
     final double drift = this.median(offsets.subList(half, offsets.size())) - this.median(offsets.subList(0, half));
     final boolean steady = Math.abs(drift) < 25;
     assertTrue(steady, "the sound does not drift from the picture");
+  }
+
+  private boolean recordToneWindows(final ByteBuffer samples, final List<long[]> sound) {
+    final long arrival = System.nanoTime();
+    final byte[] copy = new byte[samples.remaining()];
+    samples.get(copy);
+    final short[] left = this.leftChannel(copy);
+    final int windows = left.length / WINDOW_FRAMES;
+    for (int window = 0; window < windows; window++) {
+      final boolean hasTone = this.toneShare(left, window * WINDOW_FRAMES, WINDOW_FRAMES) > TONE_SHARE;
+      final long end = (long) (window + 1) * WINDOW_FRAMES;
+      final long before = TimeUnit.SECONDS.toNanos(left.length - end) / AudioFilter.SAMPLE_RATE;
+      sound.add(new long[] { arrival - before, hasTone ? 1 : 0 });
+    }
+
+    return true;
+  }
+
+  private boolean recordPictureColor(final ImageBuffer image, final List<long[]> picture) {
+    final ByteBuffer pixels = image.getData();
+    final int center = pixels.position() + ((image.getHeight() / 2) * image.getWidth() + image.getWidth() / 2) * 3;
+    final int blue = pixels.get(center) & 0xFF;
+    final int red = pixels.get(center + 2) & 0xFF;
+    picture.add(new long[] { System.nanoTime(), red > 128 && blue < 64 ? 1 : 0 });
+    return false;
   }
 
   @Test
@@ -387,8 +391,7 @@ final class VmSoundTest {
     return onsets;
   }
 
-  // a change of the picture without sound counts against every rate: leaving those out let a stream out of sync for
-  // most of its changes pass on the few that matched
+  // a picture change without sound counts against every rate, so a stream out of sync cannot pass on a few matches
   record SyncJudgement(int changes, List<Double> offsets) {
     static SyncJudgement of(final List<Long> pictureOnsets, final List<Long> soundOnsets, final long windowNanoseconds) {
       final List<Double> offsets = new ArrayList<>();

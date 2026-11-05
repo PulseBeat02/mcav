@@ -17,15 +17,17 @@
  */
 package me.brandonli.mcav.browser;
 
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.annotations.VisibleForTesting;
 import java.awt.EventQueue;
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
+import java.net.URI;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 import java.util.Objects;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
@@ -42,35 +44,75 @@ import org.cef.CefClient;
 import org.cef.CefSettings;
 import org.cef.browser.CefBrowser;
 import org.cef.browser.CefDevToolsClient;
-import org.cef.browser.McavOffscreenBrowser;
+import org.cef.browser.MCAVOffscreenBrowser;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-/**
- * The CEF browser of the helper process, started through jcefmaven's {@link CefAppBuilder} from the installation the
- * server prepared (the helper never downloads anything itself).
- *
- * <p>CEF runs with windowless rendering on its external message pump, which JCEF drives from the AWT event thread;
- * that thread exists in a headless JVM too, and no window is ever opened. Chromium is started with the headless
- * platform on Linux, without GPU, without sound, without extensions, background networking or component updates,
- * denying every permission prompt, with a mock keychain on macOS and a basic password store on Linux, and with V8's
- * JIT compiler off unless the configuration allows it. The profile lives in the folder the server gave, and the
- * remote debugging port stays closed. Unless the configuration allows private networks, every connection goes
- * through a {@link NetworkGuard} that lets pages reach public addresses only. Chromium starts on a thread of its own,
- * which {@link ChromiumConfinement} confines first where the configuration asks for it.
- */
+// CEF in the helper, off-screen on its external message pump, which JCEF drives from the AWT event thread (a headless
+// JVM has one too). The helper never downloads: it runs the natives the server installed and verified.
 final class CefEngine implements HelperEngine {
 
-  private static final long STOP_TIMEOUT_MILLIS = 10_000L;
-  private static final long SCRIPT_TIMEOUT_MILLIS = 5_000L;
-  // A DevTools client can lose every answer; a replacement client can receive them.
-  private static final int PLACING_ATTEMPTS = 2;
-  private static final String NOT_CONFIRMED = "not confirmed";
-  private static final String CHROMIUM_THREAD = "mcav-browser-chromium";
-  private static final String DEVTOOLS_CALL_FAILED = "A DevTools call failed: ";
-  private static final String SHUTDOWN_FAILED = "Failed to shut CEF down: ";
+  private static final String OS_NAME_PROPERTY = "os.name";
 
-  // the features CEF disables itself: CEF passes them in a --disable-features switch before the switches of the helper,
-  // and Chromium keeps only the last of several, so the helper's switch repeats them
+  private static final int NO_REMOTE_DEBUGGING_PORT = 0;
+
+  private static final int NO_GUARD_PORT = 0;
+
+  private static final long STOP_TIMEOUT_MILLISECONDS = 10_000L;
+  private static final long SCRIPT_TIMEOUT_MILLISECONDS = 5_000L;
+
+  // a DevTools client can lose every answer; a replacement can receive them
+  private static final int FIRST_ATTEMPT = 1;
+  private static final int PLACING_ATTEMPTS = 2;
+
+  private static final String NOT_CONFIRMED = "not confirmed";
+
+  private static final String CHROMIUM_THREAD_NAME = "mcav-browser-chromium";
+
+  private static final String DISABLE_GPU_SWITCH = "--disable-gpu";
+  private static final String DISABLE_GPU_COMPOSITING_SWITCH = "--disable-gpu-compositing";
+
+  private static final String MUTE_AUDIO_SWITCH = "--mute-audio";
+  private static final String DISABLE_AUDIO_OUTPUT_SWITCH = "--disable-audio-output";
+  private static final String AUTOPLAY_POLICY_SWITCH = "--autoplay-policy=";
+  private static final String AUTOPLAY_WITHOUT_GESTURE = "no-user-gesture-required";
+  private static final String AUTOPLAY_AFTER_ACTIVATION = "document-user-activation-required";
+
+  private static final String HIDE_SCROLLBARS_SWITCH = "--hide-scrollbars";
+  private static final String DISABLE_EXTENSIONS_SWITCH = "--disable-extensions";
+  private static final String DISABLE_COMPONENT_UPDATE_SWITCH = "--disable-component-update";
+  private static final String DISABLE_BACKGROUND_NETWORKING_SWITCH = "--disable-background-networking";
+  private static final String DISABLE_SYNC_SWITCH = "--disable-sync";
+  private static final String DISABLE_DEFAULT_APPS_SWITCH = "--disable-default-apps";
+  private static final String DISABLE_NOTIFICATIONS_SWITCH = "--disable-notifications";
+  private static final String DENY_PERMISSION_PROMPTS_SWITCH = "--deny-permission-prompts";
+  private static final String NO_FIRST_RUN_SWITCH = "--no-first-run";
+  private static final String SITE_PER_PROCESS_SWITCH = "--site-per-process";
+  private static final String DISABLE_WEBGPU_SWITCH = "--disable-webgpu";
+
+  private static final String GAIA_URL_SWITCH = "--gaia-url=https://accounts.invalid";
+  private static final String GOOGLE_BASE_URL_SWITCH = "--google-base-url=https://www.invalid";
+  private static final String NETWORK_TIME_FEATURE = "NetworkTimeServiceQuerying";
+  private static final String PRECONNECT_TO_SEARCH_FEATURE = "PreconnectToSearch";
+  private static final String DISABLE_FEATURES_SWITCH = "--disable-features=";
+  private static final String FEATURE_SEPARATOR = ",";
+
+  private static final String JITLESS_SWITCH = "--js-flags=--jitless";
+
+  private static final String PROXY_SERVER_SWITCH = "--proxy-server=socks5://127.0.0.1:";
+  private static final String PROXY_BYPASS_LIST_SWITCH = "--proxy-bypass-list=<-loopback>";
+  private static final String WEBRTC_POLICY_SWITCH = "--force-webrtc-ip-handling-policy=disable_non_proxied_udp";
+  private static final String DISABLE_QUIC_SWITCH = "--disable-quic";
+
+  private static final String HEADLESS_OZONE_SWITCH = "--ozone-platform=headless";
+  private static final String BASIC_PASSWORD_STORE_SWITCH = "--password-store=basic";
+  private static final String DISABLE_SHARED_MEMORY_SWITCH = "--disable-dev-shm-usage";
+  private static final String DISPLAY_SWITCH = "--display=";
+
+  private static final String MOCK_KEYCHAIN_SWITCH = "--use-mock-keychain";
+
+  private static final String UNKNOWN_VERSION = "unknown";
+
+  // CEF passes these in its own --disable-features before the helper's, and Chromium keeps only the last such switch
   @VisibleForTesting
   static final List<String> CEF_DISABLED_FEATURES = List.of(
     "AutofillActorMode",
@@ -80,158 +122,165 @@ final class CefEngine implements HelperEngine {
   );
 
   private final CountDownLatch terminated;
+
   private volatile @Nullable NetworkGuard guard;
   private volatile @Nullable NullDisplay display;
-  private volatile @Nullable CefApp app;
+  private volatile @Nullable CefApp application;
   private volatile @Nullable CefClient client;
-  private volatile @Nullable McavOffscreenBrowser browser;
+  private volatile @Nullable MCAVOffscreenBrowser browser;
 
-  /**
-   * Constructs an engine that has not started yet.
-   */
   CefEngine() {
     this.terminated = new CountDownLatch(1);
   }
 
-  /**
-   * Builds the command-line switches of Chromium.
-   *
-   * @param configuration the configuration of the helper
-   * @param isLinux       whether the helper runs on Linux
-   * @param isMac         whether the helper runs on macOS
-   * @param guardPort     the port of the network guard on the loopback interface, or 0 if pages may reach any address
-   * @param display       the name of the helper's null display on Linux, or null elsewhere
-   * @return the switches
-   */
-  static List<String> createSwitches(
+  List<String> createSwitches(
     final HelperConfiguration configuration,
-    final boolean isLinux,
-    final boolean isMac,
+    final OperatingSystem system,
     final int guardPort,
     final @Nullable String display
   ) {
     final List<String> switches = new ArrayList<>();
-    switches.add("--disable-gpu");
-    switches.add("--disable-gpu-compositing");
-    // the page's sound reaches the server through PageAudio, never the speakers of the server, and it plays on
-    // Chromium's own clock instead of a sound device of the server, which may run slow or stall (as a virtual machine's
-    // does) and so starve the capture; as in a desktop browser, a page may play sound only once a player clicked the
-    // screen, which reaches it as a real click, unless the options let it play right away (CEF's own default)
-    switches.add("--mute-audio");
-    switches.add("--disable-audio-output");
-    final boolean allowsAutoplay = configuration.isAutoplay();
-    switches.add("--autoplay-policy=" + (allowsAutoplay ? "no-user-gesture-required" : "document-user-activation-required"));
-    switches.add("--hide-scrollbars");
-    switches.add("--disable-extensions");
-    switches.add("--disable-component-update");
-    switches.add("--disable-background-networking");
-    switches.add("--disable-sync");
-    switches.add("--disable-default-apps");
-    switches.add("--disable-notifications");
-    switches.add("--deny-permission-prompts");
-    switches.add("--no-first-run");
-    switches.add("--site-per-process");
-    switches.add("--disable-webgpu");
-    // Chromium's own services contact Google when it starts, which tells Google that a browser runs on this server: the
-    // sign-in and search services are sent to names that cannot exist (RFC 6761), and the network time service and the
-    // preconnect to the search engine are turned off
-    switches.add("--gaia-url=https://accounts.invalid");
-    switches.add("--google-base-url=https://www.invalid");
-    final List<String> disabledFeatures = new ArrayList<>(CEF_DISABLED_FEATURES);
-    disabledFeatures.add("NetworkTimeServiceQuerying");
-    disabledFeatures.add("PreconnectToSearch");
-    switches.add("--disable-features=" + String.join(",", disabledFeatures));
-    if (!configuration.isJavaScriptJit()) {
-      switches.add("--js-flags=--jitless");
-    }
-    if (guardPort > 0) {
-      // every connection goes through the guard, loopback included, which Chromium would otherwise reach directly;
-      // WebRTC may only use proxied connections, and QUIC, which a SOCKS proxy cannot carry, is off
-      switches.add("--proxy-server=socks5://127.0.0.1:" + guardPort);
-      switches.add("--proxy-bypass-list=<-loopback>");
-      switches.add("--force-webrtc-ip-handling-policy=disable_non_proxied_udp");
-      switches.add("--disable-quic");
-    }
-    if (isLinux) {
-      // Chromium draws without any display server; only JCEF's window of one pixel needs an X display, and gets the
-      // helper's null display. The shared memory of a container is often small, so Chromium uses temporary files.
-      switches.add("--ozone-platform=headless");
-      switches.add("--password-store=basic");
-      switches.add("--disable-dev-shm-usage");
-      if (display != null) {
-        switches.add("--display=" + display);
-      }
-    }
-    if (isMac) {
-      switches.add("--use-mock-keychain");
-    }
+    switches.add(DISABLE_GPU_SWITCH);
+    switches.add(DISABLE_GPU_COMPOSITING_SWITCH);
+    this.addSoundSwitches(switches, configuration);
+    this.addLockdownSwitches(switches);
+    this.addGoogleSwitches(switches);
+    this.addJitSwitch(switches, configuration);
+    this.addGuardSwitches(switches, guardPort);
+    this.addPlatformSwitches(switches, system, display);
+
     return switches;
   }
 
-  /**
-   * Configures the settings of CEF: windowless rendering, the profile folder, no persistent cookies, no remote
-   * debugging port, and warnings and errors only in the log.
-   *
-   * @param settings      the settings to change
-   * @param configuration the configuration of the helper
-   */
-  static void configureSettings(final CefSettings settings, final HelperConfiguration configuration) {
+  private void addSoundSwitches(final List<String> switches, final HelperConfiguration configuration) {
+    // the sound reaches the server through PageAudio on Chromium's own clock, not a server sound device, which may stall;
+    // a page may play sound only after a click unless the options allow it (CEF's default)
+    switches.add(MUTE_AUDIO_SWITCH);
+    switches.add(DISABLE_AUDIO_OUTPUT_SWITCH);
+    final boolean allowsAutoplay = configuration.isAutoplay();
+    switches.add(AUTOPLAY_POLICY_SWITCH + (allowsAutoplay ? AUTOPLAY_WITHOUT_GESTURE : AUTOPLAY_AFTER_ACTIVATION));
+  }
+
+  private void addLockdownSwitches(final List<String> switches) {
+    switches.add(HIDE_SCROLLBARS_SWITCH);
+    switches.add(DISABLE_EXTENSIONS_SWITCH);
+    switches.add(DISABLE_COMPONENT_UPDATE_SWITCH);
+    switches.add(DISABLE_BACKGROUND_NETWORKING_SWITCH);
+    switches.add(DISABLE_SYNC_SWITCH);
+    switches.add(DISABLE_DEFAULT_APPS_SWITCH);
+    switches.add(DISABLE_NOTIFICATIONS_SWITCH);
+    switches.add(DENY_PERMISSION_PROMPTS_SWITCH);
+    switches.add(NO_FIRST_RUN_SWITCH);
+    switches.add(SITE_PER_PROCESS_SWITCH);
+    switches.add(DISABLE_WEBGPU_SWITCH);
+  }
+
+  private void addGoogleSwitches(final List<String> switches) {
+    // keeps Chromium from telling Google a browser runs here: sign-in and search go to names that cannot exist (RFC 6761),
+    // and network time and the search preconnect are off
+    switches.add(GAIA_URL_SWITCH);
+    switches.add(GOOGLE_BASE_URL_SWITCH);
+    final List<String> disabledFeatures = new ArrayList<>(CEF_DISABLED_FEATURES);
+    disabledFeatures.add(NETWORK_TIME_FEATURE);
+    disabledFeatures.add(PRECONNECT_TO_SEARCH_FEATURE);
+    switches.add(DISABLE_FEATURES_SWITCH + String.join(FEATURE_SEPARATOR, disabledFeatures));
+  }
+
+  private void addJitSwitch(final List<String> switches, final HelperConfiguration configuration) {
+    if (!configuration.isJavaScriptJit()) {
+      switches.add(JITLESS_SWITCH);
+    }
+  }
+
+  private void addGuardSwitches(final List<String> switches, final int guardPort) {
+    if (guardPort > 0) {
+      // the guard carries loopback too; WebRTC uses proxied connections only, and QUIC, which SOCKS cannot carry, is off
+      switches.add(PROXY_SERVER_SWITCH + guardPort);
+      switches.add(PROXY_BYPASS_LIST_SWITCH);
+      switches.add(WEBRTC_POLICY_SWITCH);
+      switches.add(DISABLE_QUIC_SWITCH);
+    }
+  }
+
+  private void addPlatformSwitches(final List<String> switches, final OperatingSystem system, final @Nullable String display) {
+    if (system == OperatingSystem.LINUX) {
+      // no display server; a container's shared memory is often small, so Chromium uses temporary files
+      switches.add(HEADLESS_OZONE_SWITCH);
+      switches.add(BASIC_PASSWORD_STORE_SWITCH);
+      switches.add(DISABLE_SHARED_MEMORY_SWITCH);
+      if (display != null) {
+        switches.add(DISPLAY_SWITCH + display);
+      }
+    }
+
+    if (system == OperatingSystem.MAC) {
+      switches.add(MOCK_KEYCHAIN_SWITCH);
+    }
+  }
+
+  void configureSettings(final CefSettings settings, final HelperConfiguration configuration) {
     final Path profile = configuration.getProfile();
     final String profilePath = profile.toString();
     settings.windowless_rendering_enabled = true;
     settings.root_cache_path = profilePath;
     settings.cache_path = profilePath;
     settings.persist_session_cookies = false;
-    settings.remote_debugging_port = 0;
+    settings.remote_debugging_port = NO_REMOTE_DEBUGGING_PORT;
     settings.log_severity = CefSettings.LogSeverity.LOGSEVERITY_WARNING;
   }
 
   @Override
-  public void start(final HelperConfiguration configuration, final McavOffscreenBrowser.PaintListener painter, final HelperEvents events)
+  public void start(final HelperConfiguration configuration, final MCAVOffscreenBrowser.PaintListener painter, final HelperEvents events)
     throws Exception {
-    final String osName = System.getProperty("os.name");
-    final String os = osName.toLowerCase(Locale.ROOT);
-    final boolean isLinux = os.contains("linux");
-    final boolean isMac = os.contains("mac");
+    final String osName = requireNonNull(System.getProperty(OS_NAME_PROPERTY)); // checker framework
+    final OperatingSystem system = OperatingSystem.fromName(osName);
     final CefAppBuilder builder = new CefAppBuilder();
     final Path natives = configuration.getNatives();
     final File installation = natives.toFile();
     builder.setInstallDir(installation);
-    // the server installed and verified the natives; jcefmaven's own downloader must never run
+    // the server installed and verified the natives; jcefmaven's downloader must never run
     builder.setSkipInstallation(true);
     builder.setProgressHandler((state, percent) -> {});
+
     final int guardPort = this.startGuard(configuration, events);
-    final Path authority = configuration.getSocket().resolveSibling(NullDisplay.AUTHORITY_FILE);
-    final NullDisplay startedDisplay = startDisplay(isLinux, authority);
+
+    final Path socket = configuration.getSocket();
+    final Path authority = socket.resolveSibling(NullDisplay.AUTHORITY_FILE);
+    final NullDisplay startedDisplay = this.startDisplay(system, authority);
     this.display = startedDisplay;
-    final List<String> switches = createSwitches(configuration, isLinux, isMac, guardPort, NullDisplay.nameOf(startedDisplay));
+
+    final List<String> switches = this.createSwitches(configuration, system, guardPort, NullDisplay.nameOf(startedDisplay));
     builder.addJcefArgs(switches.toArray(String[]::new));
+
     final CefSettings settings = builder.getCefSettings();
-    configureSettings(settings, configuration);
+    this.configureSettings(settings, configuration);
     builder.setAppHandler(new StateListener(this.terminated, events));
-    // on Linux a confinement holds for the thread that starts Chromium and everything it starts, the AWT event thread,
-    // CEF's threads and Chromium's processes among them, while the helper's own threads stay free: the guard and the
-    // display connect anywhere, and the main thread ends the JVM; on macOS it holds for the whole helper
-    runOnOwnThread(CHROMIUM_THREAD, () -> {
-      events.onNotice(ChromiumConfinement.confine(configuration, isLinux, isMac));
-      this.startChromium(builder, configuration, painter, events);
-      return null;
-    });
+
+    // on Linux the confinement holds for this thread and what it starts (the AWT event thread, CEF, Chromium), leaving the
+    // guard, the display and the main thread free; on macOS it holds for the whole helper
+    this.runOnOwnThread(CHROMIUM_THREAD_NAME, () -> this.confineAndStartChromium(builder, configuration, system, painter, events));
   }
 
-  /**
-   * Runs a task on a new thread and waits for it, so that a restriction the task puts on its thread holds for that
-   * thread and what it starts only.
-   *
-   * @param name the name of the thread
-   * @param task the task
-   * @throws Exception what the task threw
-   */
+  private @Nullable Void confineAndStartChromium(
+    final CefAppBuilder builder,
+    final HelperConfiguration configuration,
+    final OperatingSystem system,
+    final MCAVOffscreenBrowser.PaintListener painter,
+    final HelperEvents events
+  ) throws Exception {
+    events.onNotice(ChromiumConfinement.confine(configuration, system));
+    this.startChromium(builder, configuration, painter, events);
+
+    return null;
+  }
+
+  // a restriction the task puts on its thread holds for that thread and what it starts only
   @VisibleForTesting
-  static void runOnOwnThread(final String name, final Callable<?> task) throws Exception {
+  void runOnOwnThread(final String name, final Callable<?> task) throws Exception {
     final FutureTask<?> future = new FutureTask<>(task);
     final Thread thread = new Thread(future, name);
     thread.start();
+
     try {
       future.get();
     } catch (final ExecutionException exception) {
@@ -239,6 +288,7 @@ final class CefEngine implements HelperEngine {
       if (cause instanceof final Error error) {
         throw error;
       }
+
       throw (Exception) cause;
     }
   }
@@ -246,25 +296,28 @@ final class CefEngine implements HelperEngine {
   private void startChromium(
     final CefAppBuilder builder,
     final HelperConfiguration configuration,
-    final McavOffscreenBrowser.PaintListener painter,
+    final MCAVOffscreenBrowser.PaintListener painter,
     final HelperEvents events
   ) throws Exception {
     final CefApp created = builder.build();
-    this.app = created;
-    final String versionText = describe(created.getVersion());
+    this.application = created;
+
+    final CefApp.@Nullable CefVersion version = created.getVersion();
+    final String versionText = this.describe(version);
     final CefClient createdClient = created.createClient();
     this.client = createdClient;
-    final String url = configuration.getUrl().toString();
+
+    final URI address = configuration.getUrl();
+    final String url = address.toString();
     final PageAudio audio = new PageAudio(events::onAudio, System::nanoTime);
-    final ContentPolicy policy = new ContentPolicy(events, versionText, prepared ->
-      openPage(prepared, url, SCRIPT_TIMEOUT_MILLIS, audio, events::onNotice)
-    );
-    addHandlers(createdClient, policy);
+    final ContentPolicy policy = new ContentPolicy(events, versionText, prepared -> this.openPreparedPage(prepared, url, audio, events));
+    this.addHandlers(createdClient, policy);
+
     final CefBrowserSettings browserSettings = new CefBrowserSettings();
     browserSettings.windowless_frame_rate = configuration.getFrameRate();
     final int width = configuration.getWidth();
     final int height = configuration.getHeight();
-    final McavOffscreenBrowser createdBrowser = new McavOffscreenBrowser(
+    final MCAVOffscreenBrowser createdBrowser = new MCAVOffscreenBrowser(
       createdClient,
       NavigationPolicy.BLANK,
       width,
@@ -273,22 +326,32 @@ final class CefEngine implements HelperEngine {
       browserSettings
     );
     this.browser = createdBrowser;
-    EventQueue.invokeAndWait(() -> {
-      createdBrowser.createImmediately();
-      createdBrowser.setFocus(true);
-    });
+
+    EventQueue.invokeAndWait(() -> this.createAndFocus(createdBrowser));
+  }
+
+  private void openPreparedPage(final CefBrowser prepared, final String url, final PageAudio audio, final HelperEvents events) {
+    this.openPage(prepared, url, SCRIPT_TIMEOUT_MILLISECONDS, audio, events::onNotice);
+  }
+
+  private void createAndFocus(final MCAVOffscreenBrowser createdBrowser) {
+    createdBrowser.createImmediately();
+    createdBrowser.setFocus(true);
   }
 
   private int startGuard(final HelperConfiguration configuration, final HelperEvents events) throws IOException {
     if (configuration.isPrivateNetworks()) {
-      return 0;
+      return NO_GUARD_PORT;
     }
-    final NetworkGuard startedGuard = NetworkGuard.start(events::onNotice, configuration.getRefusedHosts());
+
+    final List<String> refusedHosts = configuration.getRefusedHosts();
+    final NetworkGuard startedGuard = NetworkGuard.start(events::onNotice, refusedHosts);
     this.guard = startedGuard;
+
     return startedGuard.getPort();
   }
 
-  private static void addHandlers(final CefClient client, final ContentPolicy policy) {
+  private void addHandlers(final CefClient client, final ContentPolicy policy) {
     client.addLifeSpanHandler(policy);
     client.addRequestHandler(policy);
     client.addJSDialogHandler(policy);
@@ -298,50 +361,31 @@ final class CefEngine implements HelperEngine {
     client.addLoadHandler(policy);
   }
 
-  /**
-   * Starts the null display the helper needs on Linux, where JCEF asks for an X display once.
-   *
-   * @param isLinux   whether the helper runs on Linux
-   * @param authority the authority file of the display
-   * @return the running display, or null elsewhere
-   * @throws IOException if the display cannot listen
-   */
-  static @Nullable NullDisplay startDisplay(final boolean isLinux, final Path authority) throws IOException {
-    return isLinux ? NullDisplay.start(authority) : null;
+  @Nullable NullDisplay startDisplay(final OperatingSystem system, final Path authority) throws IOException {
+    if (system != OperatingSystem.LINUX) {
+      return null;
+    }
+
+    return NullDisplay.start(authority);
   }
 
-  /**
-   * Prepares a browser that was just created on the empty document, on CEF's thread, and then loads its page: the
-   * script that opens new windows in place and the one that hands over the sound of the page are added to every
-   * document it will show, and the listener of the sound hears the DevTools events. The browser of the helper is
-   * off-screen, so JCEF cancels every popup before the policy hears of it. The calls reach the page asynchronously, so
-   * the page is only loaded once the answer to the last of them says the scripts are in place: a page loaded before
-   * would miss them. A DevTools client of JCEF can lose its answers, and with them the events of the page, so without
-   * an answer in time the client is closed and a new one places the scripts again, which run once in a document
-   * however often they are placed. After the last attempt, or on a failure, the page is loaded anyway and a notice says
-   * so; the page then may lack its sound and open new windows nowhere, until the answer of the last attempt arrives
-   * after all, as it does late on a busy machine: then the page loads again, and its new document runs the scripts.
-   *
-   * @param created       the browser
-   * @param url           the address of the page
-   * @param timeoutMillis how long to wait for the answer of one attempt at most
-   * @param audio         hears the sound of the page
-   * @param notices       hears that the page was loaded without the confirmation
-   */
-  static void openPage(
+  // Places the window and sound scripts before the page loads, which would miss them otherwise. A JCEF DevTools client can
+  // lose its answers, so an unanswered attempt is retried with a new client; after the last one the page loads anyway,
+  // and loads again if the answer arrives late.
+  void openPage(
     final CefBrowser created,
     final String url,
-    final long timeoutMillis,
+    final long timeoutMilliseconds,
     final PageAudio audio,
     final Consumer<String> notices
   ) {
-    placeScripts(created, url, timeoutMillis, audio, notices, 1);
+    this.placeScripts(created, url, timeoutMilliseconds, audio, notices, FIRST_ATTEMPT);
   }
 
-  private static void placeScripts(
+  private void placeScripts(
     final CefBrowser created,
     final String url,
-    final long timeoutMillis,
+    final long timeoutMilliseconds,
     final PageAudio audio,
     final Consumer<String> notices,
     final int attempt
@@ -351,161 +395,151 @@ final class CefEngine implements HelperEngine {
       created.loadURL(url);
       return;
     }
+
     devTools.addEventListener(audio);
+
     final List<DevToolsInput.DevToolsCall> calls = new ArrayList<>(DevToolsInput.openWindowsInPlace());
     calls.addAll(PageAudio.install());
     CompletableFuture<String> last = CompletableFuture.completedFuture("");
     for (final DevToolsInput.DevToolsCall call : calls) {
-      last = devTools.executeDevToolsMethod(call.getMethod(), call.getParameters());
-      last.exceptionally(CefEngine::logFailedCall);
+      final String method = call.getMethod();
+      final String parameters = call.getParameters();
+      last = devTools.executeDevToolsMethod(method, parameters);
+      last.exceptionally(this::logFailedCall);
     }
+
     // a copy times out, so the answer itself can still arrive late
     final CompletableFuture<String> answered = last;
-    final CompletableFuture<String> placed = answered.copy().completeOnTimeout(NOT_CONFIRMED, timeoutMillis, TimeUnit.MILLISECONDS);
-    final CompletableFuture<String> loading = placed.whenComplete((answer, failure) -> {
-      final boolean confirmed = failure == null && !NOT_CONFIRMED.equals(answer);
-      if (!confirmed && attempt < PLACING_ATTEMPTS) {
-        devTools.close();
-        EventQueue.invokeLater(() -> placeScripts(created, url, timeoutMillis, audio, notices, attempt + 1));
-        return;
-      }
-      if (!confirmed) {
-        notices.accept("The scripts of the page were not confirmed in " + attempt + " attempts; it loads anyway");
-        final CompletableFuture<String> late = answered.thenApply(lateAnswer -> {
-          notices.accept("The scripts of the page were confirmed late; it loads again");
-          EventQueue.invokeLater(created::reload);
-          return lateAnswer;
-        });
-        late.exceptionally(CefEngine::logFailedCall);
-      }
-      EventQueue.invokeLater(() -> created.loadURL(url));
-    });
-    loading.exceptionally(CefEngine::logFailedCall);
+    final CompletableFuture<String> placed = answered.copy().completeOnTimeout(NOT_CONFIRMED, timeoutMilliseconds, TimeUnit.MILLISECONDS);
+    final CompletableFuture<String> loading = placed.whenComplete((answer, failure) ->
+      this.retryPlacingOrLoad(created, url, timeoutMilliseconds, audio, notices, attempt, devTools, answered, answer, failure)
+    );
+    loading.exceptionally(this::logFailedCall);
   }
 
-  /**
-   * Sends the calls to the DevTools client of the browser on the event thread, which is CEF's thread for them. The
-   * results are not awaited: JCEF can lose the result of the very first call, and input needs no answer.
-   *
-   * @param calls the DevTools calls of the input
-   */
+  private void retryPlacingOrLoad(
+    final CefBrowser created,
+    final String url,
+    final long timeoutMilliseconds,
+    final PageAudio audio,
+    final Consumer<String> notices,
+    final int attempt,
+    final CefDevToolsClient devTools,
+    final CompletableFuture<String> answered,
+    final @Nullable String answer,
+    final @Nullable Throwable failure
+  ) {
+    final boolean confirmed = failure == null && !NOT_CONFIRMED.equals(answer);
+    if (!confirmed && attempt < PLACING_ATTEMPTS) {
+      devTools.close();
+      EventQueue.invokeLater(() -> this.placeScripts(created, url, timeoutMilliseconds, audio, notices, attempt + 1));
+      return;
+    }
+
+    if (!confirmed) {
+      notices.accept("The scripts of the page were not confirmed in %s attempts; it loads anyway.".formatted(attempt));
+      final CompletableFuture<String> late = answered.thenApply(lateAnswer -> this.reloadOnLateAnswer(created, notices, lateAnswer));
+      late.exceptionally(this::logFailedCall);
+    }
+
+    EventQueue.invokeLater(() -> created.loadURL(url));
+  }
+
+  private String reloadOnLateAnswer(final CefBrowser created, final Consumer<String> notices, final String lateAnswer) {
+    notices.accept("The scripts of the page were confirmed late; it loads again.");
+    EventQueue.invokeLater(created::reload);
+
+    return lateAnswer;
+  }
+
+  // not awaited: JCEF can lose the result of the very first call, and input needs no answer
   @Override
   public void dispatch(final List<DevToolsInput.DevToolsCall> calls) {
-    final McavOffscreenBrowser current = this.browser;
+    final MCAVOffscreenBrowser current = this.browser;
     if (current == null) {
       return;
     }
-    EventQueue.invokeLater(() -> execute(current.getDevToolsClient(), calls));
+
+    EventQueue.invokeLater(() -> this.execute(current.getDevToolsClient(), calls));
   }
 
-  /**
-   * Describes the version of CEF and Chromium.
-   *
-   * @param version the version JCEF reports, or null if it reports none
-   * @return the description, such as {@code 152.0.6 (Chromium 152.0.7977.83)}
-   */
-  static String describe(final CefApp.@Nullable CefVersion version) {
+  String describe(final CefApp.@Nullable CefVersion version) {
     if (version == null) {
-      return "unknown";
+      return UNKNOWN_VERSION;
     }
-    return version.getCefVersion() + " (Chromium " + version.getChromeVersion() + ")";
+
+    final String cefVersion = version.getCefVersion();
+    final String chromeVersion = version.getChromeVersion();
+    return "%s (Chromium %s)".formatted(cefVersion, chromeVersion);
   }
 
-  /**
-   * Sends DevTools calls without waiting for their answers.
-   *
-   * @param devTools the DevTools client of the browser, or null once the browser is closing
-   * @param calls    the calls
-   */
-  static void execute(final @Nullable CefDevToolsClient devTools, final List<DevToolsInput.DevToolsCall> calls) {
+  void execute(final @Nullable CefDevToolsClient devTools, final List<DevToolsInput.DevToolsCall> calls) {
     if (devTools == null) {
       return;
     }
+
     for (final DevToolsInput.DevToolsCall call : calls) {
       final String method = call.getMethod();
       final String parameters = call.getParameters();
       final CompletableFuture<String> result = devTools.executeDevToolsMethod(method, parameters);
-      result.exceptionally(CefEngine::logFailedCall);
+      result.exceptionally(this::logFailedCall);
     }
   }
 
-  /**
-   * Writes a failed DevTools call to the log of the helper.
-   *
-   * @param failure why the call failed
-   * @return nothing, as nobody reads the result of an input call
-   */
   @VisibleForTesting
-  static String logFailedCall(final Throwable failure) {
-    System.err.println(DEVTOOLS_CALL_FAILED + failure);
+  String logFailedCall(final Throwable failure) {
+    System.err.println("Because of \"%s\", a DevTools call failed.".formatted(failure));
+
     return "";
   }
 
-  /**
-   * Closes the network guard and the browser, disposes of the client and shuts CEF down, waiting up to ten seconds for
-   * CEF to terminate, and then closes the null display.
-   */
   @Override
   public void stop() {
     final NetworkGuard currentGuard = this.guard;
     if (currentGuard != null) {
       currentGuard.close();
     }
-    final McavOffscreenBrowser current = this.browser;
+
+    final MCAVOffscreenBrowser current = this.browser;
     final CefClient currentClient = this.client;
-    final CefApp currentApp = this.app;
-    if (currentApp != null) {
-      shutDown(() -> close(current, currentClient, currentApp), this.terminated, STOP_TIMEOUT_MILLIS);
+    final CefApp currentApplication = this.application;
+    if (currentApplication != null) {
+      this.shutDown(() -> this.close(current, currentClient, currentApplication), this.terminated, STOP_TIMEOUT_MILLISECONDS);
     }
-    // the display outlives CEF: the X library ends a process whose display goes away under it
+
+    // the X library ends a process whose display goes away, so the display outlives CEF
     final NullDisplay currentDisplay = this.display;
     if (currentDisplay != null) {
       currentDisplay.close();
     }
   }
 
-  /**
-   * Closes the browser and disposes of the client and of CEF, as far as they were created.
-   *
-   * @param browser the browser, or null if it was never created
-   * @param client  the client, or null if it was never created
-   * @param app     CEF
-   */
-  static void close(final @Nullable McavOffscreenBrowser browser, final @Nullable CefClient client, final CefApp app) {
+  void close(final @Nullable MCAVOffscreenBrowser browser, final @Nullable CefClient client, final CefApp application) {
     if (browser != null) {
       browser.setCloseAllowed();
       browser.close(true);
     }
+
     if (client != null) {
       client.dispose();
     }
-    app.dispose();
+
+    application.dispose();
   }
 
-  /**
-   * Runs the shutdown on the event thread, CEF's thread, and waits for CEF to terminate. A failed shutdown is written
-   * to the log of the helper, and an interrupt ends the waiting and is kept.
-   *
-   * @param shutdown      the shutdown
-   * @param terminated    counts down when CEF has terminated
-   * @param timeoutMillis how long to wait for CEF at most
-   */
-  static void shutDown(final Runnable shutdown, final CountDownLatch terminated, final long timeoutMillis) {
+  void shutDown(final Runnable shutdown, final CountDownLatch terminated, final long timeoutMilliseconds) {
     try {
       EventQueue.invokeAndWait(shutdown);
-      terminated.await(timeoutMillis, TimeUnit.MILLISECONDS);
+      terminated.await(timeoutMilliseconds, TimeUnit.MILLISECONDS);
     } catch (final InterruptedException exception) {
-      final Thread thread = Thread.currentThread();
-      thread.interrupt();
+      final Thread current = Thread.currentThread();
+      current.interrupt();
     } catch (final InvocationTargetException exception) {
       final Throwable cause = exception.getCause();
-      System.err.println(SHUTDOWN_FAILED + cause);
+      System.err.println("Because of \"%s\", CEF could not be shut down.".formatted(cause));
     }
   }
 
-  /**
-   * Counts down when CEF has terminated, and reports a CEF that failed to initialize, which leaves nothing to show.
-   */
   static final class StateListener extends MavenCefAppHandlerAdapter {
 
     private final CountDownLatch terminated;

@@ -42,7 +42,7 @@ class RecordedProcesses(private val versionOutput: String, private val onCommand
     val operations: ExecOperations = mock(ExecOperations::class.java)
 
     init {
-        doAnswer { invocation -> this.exec(invocation) }.`when`(this.operations).exec(any())
+        doAnswer { this.exec(it) }.`when`(this.operations).exec(any())
     }
 
     private fun exec(invocation: InvocationOnMock): ExecResult {
@@ -78,7 +78,7 @@ class RecordedProcesses(private val versionOutput: String, private val onCommand
     private fun environmentOf(calls: Collection<Invocation>): Map<String, Any?> {
         val environment: MutableMap<String, Any?> = mutableMapOf<String, Any?>()
         val environmentCalls: List<Invocation> = calls.filter { it.method.name == "environment" }
-        environmentCalls.forEach { call -> this.addEnvironment(environment, call.rawArguments) }
+        environmentCalls.forEach { this.addEnvironment(environment, it.rawArguments) }
 
         return environment
     }

@@ -126,13 +126,13 @@ final class MapScreenRebuildPropertyTest {
     rebuild.placeObstacles(world, cells, keep, doomed);
 
     final Player player = rebuild.createPlayer();
-    final Location location = world.location(0.5, SCREEN_Y, 0.5);
+    final Location location = world.createLocation(0.5, SCREEN_Y, 0.5);
     List<ItemFrame> lastBuild = List.of();
     for (int build = 0; build < rebuild.builds; build++) {
-      final List<ItemFrame> spawned = world.spawnedFrames();
+      final List<ItemFrame> spawned = world.getSpawnedFrames();
       final int before = spawned.size();
       MapUtils.buildMapScreen(player, location, Material.STONE, rebuild.width, rebuild.height, 0);
-      final List<ItemFrame> after = world.spawnedFrames();
+      final List<ItemFrame> after = world.getSpawnedFrames();
       final int total = after.size();
       final List<ItemFrame> newFrames = after.subList(before, total);
       final List<ItemFrame> built = new ArrayList<>(newFrames);
@@ -152,24 +152,24 @@ final class MapScreenRebuildPropertyTest {
     for (final ItemFrame frame : lastBuild) {
       final List<Integer> block = blockOf(frame);
       final boolean alone = occupied.add(block);
-      assertTrue(alone, () -> "two frames of the wall hang in the block " + block);
+      assertTrue(alone, () -> "two frames of the wall hang in the block %s".formatted(block));
 
       final boolean removed = this.wasRemoved(frame);
-      assertFalse(removed, () -> "the frame of the last build in " + block + " was removed");
+      assertFalse(removed, () -> "the frame of the last build in %s was removed".formatted(block));
     }
     for (final ItemFrame frame : doomed) {
       final List<Integer> block = blockOf(frame);
 
       final boolean secondRemoved = this.wasRemoved(frame);
-      assertTrue(secondRemoved, () -> "an old frame still hangs in the block " + block + " of the wall");
+      assertTrue(secondRemoved, () -> "an old frame still hangs in the block %s of the wall".formatted(block));
     }
     for (final Entity entity : keep) {
       final boolean thirdRemoved = this.wasRemoved(entity);
-      assertFalse(thirdRemoved, () -> "an entity that is not a frame of the wall was removed: " + entity);
+      assertFalse(thirdRemoved, () -> "an entity that is not a frame of the wall was removed: %s".formatted(entity));
     }
   }
 
-  // spawned frames sit on the block corner, where the neighbour block's search would find them too
+  // spawned frames sit on the block corner, where the neighbor block's search would find them too
   private void hangInsideItsBlock(final ItemFrame frame) {
     final Location corner = frame.getLocation();
     final Location inside = corner.clone();
@@ -198,7 +198,7 @@ final class MapScreenRebuildPropertyTest {
   enum ObstacleKind {
     OLD_FRAME,
     OTHER_ENTITY,
-    NEIGHBOUR_FRAME,
+    NEIGHBOR_FRAME,
   }
 
   private static final class Obstacle {
@@ -215,7 +215,7 @@ final class MapScreenRebuildPropertyTest {
 
     @Override
     public String toString() {
-      return this.kind + " at cell " + this.cell + " facing " + this.facing;
+      return "%s at cell %s facing %s".formatted(this.kind, this.cell, this.facing);
     }
   }
 
@@ -238,10 +238,10 @@ final class MapScreenRebuildPropertyTest {
     private List<List<Integer>> findCells() {
       final FakeWorld empty = new FakeWorld();
       final Player player = this.createPlayer();
-      final Location location = empty.location(0.5, SCREEN_Y, 0.5);
+      final Location location = empty.createLocation(0.5, SCREEN_Y, 0.5);
       MapUtils.buildMapScreen(player, location, Material.STONE, this.width, this.height, 0);
       final List<List<Integer>> cells = new ArrayList<>();
-      for (final ItemFrame frame : empty.spawnedFrames()) {
+      for (final ItemFrame frame : empty.getSpawnedFrames()) {
         cells.add(blockOf(frame));
       }
       return cells;
@@ -267,19 +267,19 @@ final class MapScreenRebuildPropertyTest {
         final int blockZ = cell.get(2);
         switch (obstacle.kind) {
           case OLD_FRAME -> {
-            final Location inside = world.location(blockX + HALF_BLOCK, blockY + HALF_BLOCK, blockZ + HALF_BLOCK);
+            final Location inside = world.createLocation(blockX + HALF_BLOCK, blockY + HALF_BLOCK, blockZ + HALF_BLOCK);
             final ItemFrame frame = world.addFrame(inside, obstacle.facing);
             doomed.add(frame);
           }
           case OTHER_ENTITY -> {
-            final Location inside = world.location(blockX + HALF_BLOCK, blockY + HALF_BLOCK, blockZ + HALF_BLOCK);
+            final Location inside = world.createLocation(blockX + HALF_BLOCK, blockY + HALF_BLOCK, blockZ + HALF_BLOCK);
             final Entity entity = mock(Entity.class);
             when(entity.getLocation()).thenAnswer(_ -> inside.clone());
             world.addEntity(entity);
             keep.add(entity);
           }
-          case NEIGHBOUR_FRAME -> {
-            final Location above = world.location(blockX + HALF_BLOCK, SCREEN_Y + this.height + HALF_BLOCK, blockZ + HALF_BLOCK);
+          case NEIGHBOR_FRAME -> {
+            final Location above = world.createLocation(blockX + HALF_BLOCK, SCREEN_Y + this.height + HALF_BLOCK, blockZ + HALF_BLOCK);
             final ItemFrame frame = world.addFrame(above, obstacle.facing);
             keep.add(frame);
           }
@@ -289,7 +289,7 @@ final class MapScreenRebuildPropertyTest {
 
     @Override
     public String toString() {
-      return this.width + "x" + this.height + " facing " + this.facing + ", built " + this.builds + " times, over " + this.obstacles;
+      return "%sx%s facing %s, built %s times, over %s".formatted(this.width, this.height, this.facing, this.builds, this.obstacles);
     }
   }
 }

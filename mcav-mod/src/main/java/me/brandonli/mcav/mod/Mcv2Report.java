@@ -44,7 +44,7 @@ final class Mcv2Report {
 
   byte[] toBytes() {
     final byte iris = this.flag(this.irisPresent);
-    final byte code = this.shaderPack.code();
+    final byte code = this.shaderPack.getCode();
     final byte decodes = this.flag(this.decodesUnderShaders);
     return new byte[] { VERSION, iris, code, decodes };
   }

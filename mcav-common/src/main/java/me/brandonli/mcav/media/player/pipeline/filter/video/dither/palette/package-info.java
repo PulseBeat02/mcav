@@ -18,8 +18,9 @@
 /**
  * Provides Minecraft and custom palettes with precomputed 7-bit-per-channel lookup tables.
  *
- * <p>A palette contains 1 through 256 entries, with optional leading transparent indices. Construction computes
- * 2,097,152 lookup entries for both palette bytes and full colors and can be costly; reuse palette instances.
+ * <p>A {@link DitherPalette}, such as the Minecraft {@link MapPalette} or a custom {@link ColorPalette}, contains 1
+ * through 256 entries, with optional leading transparent indices. Construction computes 2,097,152 lookup entries for
+ * both palette bytes and full colors and can be costly; reuse palette instances.
  * Custom factories copy supplied colors and force matchable colors opaque. Default palette arrays and tables
  * are shared for fast lookup and must never be modified; clone them when mutable copies are needed.
  *

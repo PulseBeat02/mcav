@@ -59,24 +59,15 @@ import org.slf4j.LoggerFactory;
  * server does not wait for them. An output can be used once it is ready, see {@link #isDiscordBotReady()} and
  * {@link #isHttpReady()}; one that fails to start is logged and stays unavailable.
  *
+ * <p>This class is thread-safe.
+ *
  * @since 1.0.0
  */
 public final class AudioProvider {
 
+  private static final String SOURCE_NULL_MESSAGE = "Source must not be null!";
+
   private static final Logger LOGGER = LoggerFactory.getLogger(AudioProvider.class);
-
-  private static final String WEB_PAGE_FAILED = "The audio web page could not be started, so its audio is not available.";
-
-  private static final String WEB_PAGE_AVAILABLE = "The audio web page is available at {}.";
-
-  private static final String DISCORD_FAILED = "The Discord bot could not connect, so its audio is not available.";
-
-  private static final String HAND_BACK_FAILED = "The audio outputs could not go back to the source that played before.";
-
-  private static final String STARTUP_NOT_STOPPED =
-    "Audio startup did not stop within {} seconds; restart the server before enabling MCAV again.";
-
-  private static final String STARTUP_WAIT_INTERRUPTED = "Interrupted while waiting for audio startup to stop.";
 
   private static final long STARTUP_STOP_TIMEOUT_SECONDS = 10L;
 
@@ -92,41 +83,48 @@ public final class AudioProvider {
   private static final String PATH_SEPARATOR = "/";
 
   private final PluginDataConfigurationMapper configuration;
-  private final MCAVSandbox sandbox;
+  private final MCAVSandbox plugin;
   private final ExecutorService startup;
   private final Object lock;
+  private final Object outputLock;
+  private final Deque<Claim> claims;
 
   private volatile @Nullable JDA jda;
   private volatile @Nullable DiscordConnection discord;
   private volatile @Nullable HttpResult httpServer;
   private volatile @Nullable SvcFilter voiceChatFilter;
   private boolean stopped;
-  private final Object outputLock;
-  private final Deque<Claim> claims;
   private volatile @Nullable Claim owner;
 
   /**
-   * Constructs the provider.
+   * Creates the provider.
    *
-   * @param sandbox the plugin, whose configuration must be loaded
+   * @param plugin the plugin, whose configuration must be loaded
+   * @throws NullPointerException if {@code plugin} is null
    * @since 1.0.0
    */
-  public AudioProvider(final MCAVSandbox sandbox) {
-    this(sandbox, Executors.newVirtualThreadPerTaskExecutor());
+  public AudioProvider(final MCAVSandbox plugin) {
+    this(plugin, Executors.newVirtualThreadPerTaskExecutor());
   }
 
-  // the sandbox's configuration must already be loaded
+  // the plugin's configuration must already be loaded
   @VisibleForTesting
-  AudioProvider(final MCAVSandbox sandbox, final ExecutorService startup) {
-    Preconditions.checkNotNull(sandbox, "Plugin must not be null!");
+  AudioProvider(final MCAVSandbox plugin, final ExecutorService startup) {
+    Preconditions.checkNotNull(plugin, "Plugin must not be null!");
     Preconditions.checkNotNull(startup, "Startup executor must not be null!");
 
-    this.configuration = sandbox.getConfiguration();
-    this.sandbox = sandbox;
+    this.configuration = plugin.getConfiguration();
+    this.plugin = plugin;
     this.startup = startup;
     this.lock = new Object();
     this.outputLock = new Object();
     this.claims = new ArrayDeque<>();
+    this.jda = null;
+    this.discord = null;
+    this.httpServer = null;
+    this.voiceChatFilter = null;
+    this.stopped = false;
+    this.owner = null;
   }
 
   /**
@@ -141,11 +139,13 @@ public final class AudioProvider {
     synchronized (this.lock) {
       this.stopped = true;
     }
+
     synchronized (this.outputLock) {
       this.owner = null;
       this.claims.clear();
       this.releaseOutputs();
     }
+
     final HttpResult server;
     final JDA bot;
     synchronized (this.lock) {
@@ -155,12 +155,15 @@ public final class AudioProvider {
       this.jda = null;
       this.discord = null;
     }
+
     if (server != null) {
       server.stop();
     }
+
     if (bot != null) {
       bot.shutdown();
     }
+
     this.stopStartup();
   }
 
@@ -168,7 +171,8 @@ public final class AudioProvider {
    * Starts the outputs enabled in the configuration. The Discord bot and the web server start on another thread,
    * so this returns at once; Simple Voice Chat is registered before it returns.
    *
-   * @throws MissingVoiceChatException if Simple Voice Chat audio is enabled but the voicechat plugin is not installed
+   * @throws MissingVoiceChatException if Simple Voice Chat audio is enabled but the Simple Voice Chat plugin is not
+   *                                   installed
    * @since 1.0.0
    */
   public void initialize() {
@@ -176,10 +180,12 @@ public final class AudioProvider {
     if (discordEnabled) {
       this.startDiscord();
     }
+
     final boolean httpEnabled = this.configuration.isHttpEnabled();
     if (httpEnabled) {
       this.startHttp();
     }
+
     final boolean voiceChatEnabled = this.configuration.isSimpleVoiceChatEnabled();
     if (voiceChatEnabled) {
       this.registerVoiceChat();
@@ -192,11 +198,12 @@ public final class AudioProvider {
     final PluginManager pluginManager = server.getPluginManager();
     final boolean installed = pluginManager.isPluginEnabled(VOICE_CHAT_PLUGIN);
     if (!installed) {
-      throw new MissingVoiceChatException("Simple Voice Chat audio is enabled, but the voicechat plugin is not installed!");
+      final String message = "Simple Voice Chat audio is enabled, but the Simple Voice Chat plugin is not installed!";
+      throw new MissingVoiceChatException(message);
     }
 
-    final ServerLoadListener listener = new ServerLoadListener(this.sandbox);
-    pluginManager.registerEvents(listener, this.sandbox);
+    final ServerLoadListener listener = new ServerLoadListener(this.plugin);
+    pluginManager.registerEvents(listener, this.plugin);
   }
 
   private void startHttp() {
@@ -209,7 +216,7 @@ public final class AudioProvider {
 
   private void onHttpStarted(final HttpResult server, final @Nullable Throwable error) {
     if (error != null) {
-      LOGGER.error(WEB_PAGE_FAILED, error);
+      LOGGER.error("The audio web page could not be started, so its audio is not available.", error);
       return;
     }
 
@@ -220,13 +227,14 @@ public final class AudioProvider {
         this.httpServer = server;
       }
     }
+
     if (!accepted) {
       server.stop();
       return;
     }
 
     final String address = server.getFullUrl();
-    LOGGER.info(WEB_PAGE_AVAILABLE, address);
+    LOGGER.info("Audio web page {} is available.", address);
   }
 
   private void startDiscord() {
@@ -237,6 +245,7 @@ public final class AudioProvider {
     synchronized (this.lock) {
       this.jda = bot;
     }
+
     final CompletableFuture<DiscordConnection> login = CompletableFuture.supplyAsync(
       () -> this.connectDiscord(bot, guildId, channelId),
       this.startup
@@ -256,8 +265,11 @@ public final class AudioProvider {
     } catch (final InterruptedException exception) {
       final Thread current = Thread.currentThread();
       current.interrupt();
-      throw new PluginException("Interrupted while logging the Discord bot in!", exception);
+
+      final String message = "Interrupted while logging the Discord bot in!";
+      throw new PluginException(message, exception);
     }
+
     final Guild guild = bot.getGuildById(guildId);
     if (guild == null) {
       final String message = "Guild %s has not added the Discord bot!".formatted(guildId);
@@ -289,7 +301,8 @@ public final class AudioProvider {
   }
 
   private void onDiscordFailed(final JDA bot, final Throwable error) {
-    LOGGER.error(DISCORD_FAILED, error);
+    LOGGER.error("The Discord bot could not connect, so its audio is not available.", error);
+
     final boolean current;
     synchronized (this.lock) {
       // JDA does not override equals, so this asks whether the failed bot is still the very instance in use
@@ -298,6 +311,7 @@ public final class AudioProvider {
         this.jda = null;
       }
     }
+
     if (current) {
       bot.shutdownNow();
     }
@@ -339,6 +353,7 @@ public final class AudioProvider {
    * @param dump     information about the media, shown by outputs that display a title
    * @param players  the players Simple Voice Chat plays from
    * @return the filter to attach to the audio pipeline
+   * @throws NullPointerException  if an argument is null
    * @throws IllegalStateException if the Discord bot or the web page is chosen but not ready
    * @since 1.0.0
    */
@@ -357,6 +372,7 @@ public final class AudioProvider {
    * @param players  the players Simple Voice Chat plays from
    * @param source   what plays, such as a virtual machine
    * @return the filter to attach to the audio pipeline
+   * @throws NullPointerException  if an argument is null
    * @throws IllegalStateException if the Discord bot or the web page is chosen but not ready
    * @since 1.0.0
    */
@@ -364,7 +380,7 @@ public final class AudioProvider {
     Preconditions.checkNotNull(argument, "Audio argument must not be null!");
     Preconditions.checkNotNull(dump, "Dump must not be null!");
     Preconditions.checkNotNull(players, "Players must not be null!");
-    Preconditions.checkNotNull(source, "Source must not be null!");
+    Preconditions.checkNotNull(source, SOURCE_NULL_MESSAGE);
 
     if (argument == AudioArgument.NONE) {
       return AudioFilter.NO_OP;
@@ -379,9 +395,11 @@ public final class AudioProvider {
       this.claims.removeIf(held -> IDENTITY.equivalent(held.source, source));
       this.claims.push(claim);
       this.owner = claim;
+
       if (previousSpeakers != null) {
         this.retireSpeakers(previousSpeakers);
       }
+
       return (samples, metadata) -> this.owner == claim && claim.output.applyFilter(samples, metadata);
     }
   }
@@ -391,6 +409,7 @@ public final class AudioProvider {
     if (this.voiceChatFilter == speakers) {
       this.voiceChatFilter = null;
     }
+
     speakers.release();
   }
 
@@ -417,17 +436,20 @@ public final class AudioProvider {
   private AudioFilter constructHttpFilter(final UrlParseDump dump) {
     final HttpResult server = this.httpServer;
     if (server == null) {
-      throw new IllegalStateException("The audio web page is not ready!");
+      final String message = "The audio web page is not ready!";
+      throw new IllegalStateException(message);
     }
 
     server.setCurrentMedia(dump);
+
     return server;
   }
 
   private AudioFilter constructDiscordFilter(final UrlParseDump dump) {
     final DiscordConnection connection = this.discord;
     if (connection == null) {
-      throw new IllegalStateException("The Discord bot is not ready!");
+      final String message = "The Discord bot is not ready!";
+      throw new IllegalStateException(message);
     }
 
     final VoiceChannel voiceChannel = connection.getChannel();
@@ -437,6 +459,7 @@ public final class AudioProvider {
     manager.setSendingHandler(player);
     manager.openAudioConnection(voiceChannel);
     player.setCurrentMedia(dump);
+
     return player;
   }
 
@@ -455,13 +478,15 @@ public final class AudioProvider {
    * source it took them from, if that one still plays.
    *
    * @param source the source that is done, such as a virtual machine
+   * @throws NullPointerException if {@code source} is null
    * @since 1.0.0
    */
   public void releaseAudioFilter(final Object source) {
-    Preconditions.checkNotNull(source, "Source must not be null!");
+    Preconditions.checkNotNull(source, SOURCE_NULL_MESSAGE);
 
     synchronized (this.outputLock) {
       this.claims.removeIf(held -> IDENTITY.equivalent(held.source, source));
+
       final Claim current = this.owner;
       if (current != null && !IDENTITY.equivalent(current.source, source)) {
         return;
@@ -469,6 +494,7 @@ public final class AudioProvider {
 
       this.owner = null;
       this.releaseOutputs();
+
       final Claim previous = this.claims.peek();
       if (previous == null) {
         return;
@@ -479,7 +505,7 @@ public final class AudioProvider {
         this.owner = previous;
       } catch (final RuntimeException exception) {
         this.claims.remove(previous);
-        LOGGER.warn(HAND_BACK_FAILED, exception);
+        LOGGER.warn("The audio outputs could not go back to the source that played before.", exception);
       }
     }
   }
@@ -493,10 +519,12 @@ public final class AudioProvider {
       final DiscordPlayer player = connection.getPlayer();
       player.flush();
     }
+
     final HttpResult server = this.httpServer;
     if (server != null) {
       server.setCurrentMedia(MediaInformation.EMPTY);
     }
+
     this.releaseSpeakers();
   }
 
@@ -514,12 +542,15 @@ public final class AudioProvider {
     try {
       final boolean terminated = this.startup.awaitTermination(STARTUP_STOP_TIMEOUT_SECONDS, TimeUnit.SECONDS);
       if (!terminated) {
-        LOGGER.warn(STARTUP_NOT_STOPPED, STARTUP_STOP_TIMEOUT_SECONDS);
+        LOGGER.warn(
+          "Audio startup did not stop within {} seconds; restart the server before enabling MCAV again.",
+          STARTUP_STOP_TIMEOUT_SECONDS
+        );
       }
     } catch (final InterruptedException exception) {
       final Thread current = Thread.currentThread();
       current.interrupt();
-      LOGGER.warn(STARTUP_WAIT_INTERRUPTED);
+      LOGGER.warn("Interrupted while waiting for audio startup to stop.");
     }
   }
 
@@ -569,6 +600,7 @@ public final class AudioProvider {
     private final AudioArgument argument;
     private final UrlParseDump dump;
     private final Object[] players;
+
     private volatile AudioFilter output;
 
     private Claim(final Object source, final AudioArgument argument, final UrlParseDump dump, final Object[] players) {

@@ -52,7 +52,9 @@ class FuzzTarget(val className: String, val methodName: String) {
      */
     fun taskName(): String {
         val simpleName: String = this.className.substringAfterLast(PACKAGE_SEPARATOR)
-        val capitalizedMethod: String = this.methodName.take(1).uppercase(Locale.ROOT) + this.methodName.drop(1)
+        val firstLetter: String = this.methodName.take(1).uppercase(Locale.ROOT)
+        val otherLetters: String = this.methodName.drop(1)
+        val capitalizedMethod: String = "$firstLetter$otherLetters"
         return "$TASK_PREFIX$simpleName$capitalizedMethod"
     }
 

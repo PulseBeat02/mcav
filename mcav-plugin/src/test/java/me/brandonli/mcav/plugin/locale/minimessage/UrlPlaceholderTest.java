@@ -118,7 +118,7 @@ final class UrlPlaceholderTest {
     assertNotNull(actual);
 
     final String plain = Components.plain(actual);
-    assertEquals(INJECTION + " literal $URL$ hover suffix $URL$", plain);
+    assertEquals("%s literal $URL$ hover suffix $URL$".formatted(INJECTION), plain);
 
     final Component red = Component.text(INJECTION, NamedTextColor.RED);
     final Component space = Component.text(" ");
@@ -145,7 +145,7 @@ final class UrlPlaceholderTest {
     final Component actual = translator.translate(input, Locale.ENGLISH);
     assertNotNull(actual);
 
-    final String target = "https://redirect.test/?to=" + url + "&again=" + url;
+    final String target = "https://redirect.test/?to=%s&again=%s".formatted(url, url);
     final ClickEvent<?> click = ClickEvent.openUrl(target);
     final Component label = Component.text("go");
     final Component expected = label.clickEvent(click);
@@ -164,7 +164,7 @@ final class UrlPlaceholderTest {
     final Component actual = translator.translate(input, Locale.ENGLISH);
     assertNotNull(actual);
 
-    final Component expected = Component.text("<click:open_url:'" + INJECTION + "'>" + INJECTION + "</click>", NamedTextColor.RED);
+    final Component expected = Component.text("<click:open_url:'%s'>%s</click>".formatted(INJECTION, INJECTION), NamedTextColor.RED);
     assertEquals(expected, actual);
     this.assertNoRunCommands(actual);
   }
@@ -190,7 +190,7 @@ final class UrlPlaceholderTest {
   void shouldRestoreUrlsInsideHoverEntityNamesAndTranslationArguments() {
     final String url = QUOTED_URL;
     final UrlPlaceholder placeholder = new UrlPlaceholder();
-    final String marker = placeholder.prepare(URL_PLACEHOLDER);
+    final String marker = placeholder.replaceUrlTokens(URL_PLACEHOLDER);
     final Component text = Component.text(marker);
     final ClickEvent<?> click = ClickEvent.openUrl(marker);
     final Component linked = text.clickEvent(click);

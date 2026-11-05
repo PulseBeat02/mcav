@@ -22,35 +22,34 @@ import java.lang.management.RuntimeMXBean;
 import java.nio.file.Path;
 import java.util.List;
 
-/**
- * Carries the JaCoCo agent of the test JVM into the browser helpers the tests start, so the code that only runs
- * inside a helper process, such as CEF's start, counts for the coverage of the module. The helpers append to
- * {@code build/jacoco/helper.exec}, which the coverage report of the module reads besides the one of the tests.
- */
+// Helpers append to build/jacoco/helper.exec, which the coverage report reads besides the file of the tests.
 public final class HelperCoverage {
 
+  private static final String JAVA_AGENT_PREFIX = "-javaagent:";
+  private static final String JACOCO_AGENT_NAME = "jacocoagent";
+  private static final char AGENT_OPTIONS_SEPARATOR = '=';
+
+  private static final String COVERED_CLASSES = "me.brandonli.mcav.*:org.cef.browser.MCAVOffscreenBrowser*";
+
+  private static final Path DESTINATION = Path.of("build", "jacoco", "helper.exec");
+
   private HelperCoverage() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
-  /**
-   * Gets the JVM options that give a helper the coverage agent of this JVM.
-   *
-   * @return the agent option, or no option when the tests run without JaCoCo, as under PIT
-   */
   public static List<String> jvmOptions() {
     final RuntimeMXBean runtime = ManagementFactory.getRuntimeMXBean();
     final List<String> arguments = runtime.getInputArguments();
-    final Path destination = Path.of("build", "jacoco", "helper.exec").toAbsolutePath();
+    final Path destination = DESTINATION.toAbsolutePath();
     for (final String argument : arguments) {
-      if (argument.startsWith("-javaagent:") && argument.contains("jacocoagent")) {
-        final int options = argument.indexOf('=');
-        final String agent = options < 0 ? argument : argument.substring(0, options);
-        return List.of(
-          agent + "=destfile=" + destination + ",append=true,includes=me.brandonli.mcav.*:org.cef.browser.McavOffscreenBrowser*"
-        );
+      if (argument.startsWith(JAVA_AGENT_PREFIX) && argument.contains(JACOCO_AGENT_NAME)) {
+        final int separatorIndex = argument.indexOf(AGENT_OPTIONS_SEPARATOR);
+        final String agent = separatorIndex < 0 ? argument : argument.substring(0, separatorIndex);
+        return List.of("%s=destfile=%s,append=true,includes=%s".formatted(agent, destination, COVERED_CLASSES));
       }
     }
+
     return List.of();
   }
 }

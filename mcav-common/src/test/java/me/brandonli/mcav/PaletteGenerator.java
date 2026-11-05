@@ -25,22 +25,30 @@ import me.brandonli.mcav.media.player.pipeline.filter.video.dither.palette.MapPa
 
 public final class PaletteGenerator {
 
-  private static final String OUTPUT = "palette.png";
+  private static final String OUTPUT_FILE_NAME = "palette.png";
 
-  private PaletteGenerator() {}
+  private static final String IMAGE_FORMAT = "png";
+
+  private static final int GRID_SIDE = 16;
+  private static final int COLOR_LIMIT = GRID_SIDE * GRID_SIDE;
+
+  private PaletteGenerator() {
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
+  }
 
   static void main() throws IOException {
     final int[] colors = MapPaletteLoader.getColors();
-    final int count = Math.min(colors.length, 256);
-    final BufferedImage image = new BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB);
+    final int count = Math.min(colors.length, COLOR_LIMIT);
+    final BufferedImage image = new BufferedImage(GRID_SIDE, GRID_SIDE, BufferedImage.TYPE_INT_ARGB);
     for (int index = 0; index < count; index++) {
-      final int column = index & 15;
-      final int row = index >> 4;
+      final int column = index % GRID_SIDE;
+      final int row = index / GRID_SIDE;
       final int color = colors[index];
       image.setRGB(column, row, color);
     }
 
-    final File file = new File(OUTPUT);
-    ImageIO.write(image, "png", file);
+    final File file = new File(OUTPUT_FILE_NAME);
+    ImageIO.write(image, IMAGE_FORMAT, file);
   }
 }

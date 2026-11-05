@@ -17,8 +17,12 @@
  */
 package me.brandonli.mcav.plugin.command.interaction;
 
+import com.google.common.base.MoreObjects;
+import java.util.Arrays;
+import java.util.Objects;
 import me.brandonli.mcav.plugin.utils.AudioArgument;
 import org.bukkit.entity.Player;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 final class ScreenSound {
 
@@ -36,5 +40,29 @@ final class ScreenSound {
 
   Player[] getViewers() {
     return this.viewers.clone();
+  }
+
+  @Override
+  public boolean equals(final @Nullable Object other) {
+    if (this == other) {
+      return true;
+    }
+
+    if (!(other instanceof final ScreenSound sound)) {
+      return false;
+    }
+
+    return this.type == sound.type && Arrays.equals(this.viewers, sound.viewers);
+  }
+
+  @Override
+  public int hashCode() {
+    final int viewersHash = Arrays.hashCode(this.viewers);
+    return Objects.hash(this.type, viewersHash);
+  }
+
+  @Override
+  public String toString() {
+    return MoreObjects.toStringHelper(this).add("type", this.type).add("viewers", this.viewers).toString();
   }
 }

@@ -38,12 +38,14 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public final class CapabilityGuard {
 
+  private static final String CAPABILITY_NULL_MESSAGE = "Capability must not be null!";
+
   private static final CapabilityGuard SHARED = new CapabilityGuard();
 
   private final Map<Capability, State> states;
 
   /**
-   * Constructs a guard that knows nothing about any capability and is independent of {@link #shared()}. The library
+   * Creates a guard that knows nothing about any capability and is independent of {@link #shared()}. The library
    * itself always uses the shared guard; separate guards are for tests and custom bootstraps.
    *
    * @since 1.0.0
@@ -71,7 +73,7 @@ public final class CapabilityGuard {
    * @since 1.0.0
    */
   public void markPreparing(final Capability capability) {
-    Preconditions.checkNotNull(capability, "Capability must not be null!");
+    Preconditions.checkNotNull(capability, CAPABILITY_NULL_MESSAGE);
 
     this.states.put(capability, State.PREPARING);
   }
@@ -87,7 +89,7 @@ public final class CapabilityGuard {
    * @since 1.0.0
    */
   public void markPrepared(final Capability capability, final Availability availability) {
-    Preconditions.checkNotNull(capability, "Capability must not be null!");
+    Preconditions.checkNotNull(capability, CAPABILITY_NULL_MESSAGE);
     Preconditions.checkNotNull(availability, "Availability must not be null!");
 
     if (availability == Availability.AVAILABLE) {
@@ -106,13 +108,13 @@ public final class CapabilityGuard {
    * @since 1.0.0
    */
   public void forget(final Capability capability) {
-    Preconditions.checkNotNull(capability, "Capability must not be null!");
+    Preconditions.checkNotNull(capability, CAPABILITY_NULL_MESSAGE);
 
     this.states.remove(capability);
   }
 
   /**
-   * Checks whether a capability is still being prepared in the background.
+   * Returns whether a capability is still being prepared in the background.
    *
    * @param capability the capability
    * @return true if its preparation has not finished yet
@@ -120,7 +122,7 @@ public final class CapabilityGuard {
    * @since 1.0.0
    */
   public boolean isPreparing(final Capability capability) {
-    Preconditions.checkNotNull(capability, "Capability must not be null!");
+    Preconditions.checkNotNull(capability, CAPABILITY_NULL_MESSAGE);
 
     final State state = this.states.get(capability);
     return state == State.PREPARING;
@@ -136,11 +138,11 @@ public final class CapabilityGuard {
    * @since 1.0.0
    */
   public void checkNotPreparing(final Capability capability) {
-    Preconditions.checkNotNull(capability, "Capability must not be null!");
+    Preconditions.checkNotNull(capability, CAPABILITY_NULL_MESSAGE);
 
     final boolean preparing = this.isPreparing(capability);
     if (preparing) {
-      final String message = describePreparing(capability);
+      final String message = this.describePreparing(capability);
       throw new IllegalStateException(message);
     }
   }
@@ -155,11 +157,12 @@ public final class CapabilityGuard {
    * @since 1.0.0
    */
   public void checkUsable(final Capability capability) {
-    Preconditions.checkNotNull(capability, "Capability must not be null!");
+    Preconditions.checkNotNull(capability, CAPABILITY_NULL_MESSAGE);
 
     final State state = this.states.get(capability);
     if (state == State.PREPARING) {
-      throw new IllegalStateException(describePreparing(capability));
+      final String message = this.describePreparing(capability);
+      throw new IllegalStateException(message);
     }
 
     if (state == State.UNAVAILABLE) {
@@ -169,7 +172,7 @@ public final class CapabilityGuard {
     }
   }
 
-  private static String describePreparing(final Capability capability) {
+  private String describePreparing(final Capability capability) {
     final String name = capability.getDisplayName();
     final String constant = capability.name();
     return "%s is still being prepared in the background; wait for MCAVApi.whenCapabilityReady(Capability.%s) or try again shortly!".formatted(

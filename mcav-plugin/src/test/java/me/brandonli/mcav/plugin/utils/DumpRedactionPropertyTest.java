@@ -68,7 +68,8 @@ final class DumpRedactionPropertyTest {
       final InetAddress address = scoped ? Inet6Address.getByAddress(null, bytes, scope) : InetAddress.getByAddress(bytes);
       return new InetSocketAddress(address, port);
     } catch (final UnknownHostException exception) {
-      throw new IllegalStateException("4 and 16 bytes are always an address!", exception);
+      final String message = "4 and 16 bytes are always an address!";
+      throw new IllegalStateException(message, exception);
     }
   }
 
@@ -101,18 +102,18 @@ final class DumpRedactionPropertyTest {
     @ForAll("secrets") final String query,
     @ForAll("secrets") final String fragment
   ) {
-    final String address = "https://" + user + "@" + host + "/page?" + query + "#" + fragment;
+    final String address = "https://%s@%s/page?%s#%s".formatted(user, host, query, fragment);
     final List<String> lines = List.of(
-      "[12:34:56 INFO]: Steve issued server command: /mcav browser create @a 640x360 1 5x3 0 NEAREST_COLOR NONE " + address,
-      "[12:34:56 INFO]: [HelperSession] Browser: Refused a navigation to " + address,
-      "[12:34:56 WARN]: The browser could not load " + address + ": refused (-102)"
+      "[12:34:56 INFO]: Steve issued server command: /mcav browser create @a 640x360 1 5x3 0 NEAREST_COLOR NONE %s".formatted(address),
+      "[12:34:56 INFO]: [HelperSession] Browser: Refused a navigation to %s".formatted(address),
+      "[12:34:56 WARN]: The browser could not load %s: refused (-102)".formatted(address)
     );
 
     for (final String line : lines) {
       final String redacted = DumpUtils.redactLogLine(line);
       for (final String secret : List.of(user, query, fragment)) {
         final boolean contained = redacted.contains(secret);
-        assertFalse(contained, () -> "the secret " + secret + " survives in: " + redacted);
+        assertFalse(contained, () -> "the secret %s survives in: %s".formatted(secret, redacted));
       }
     }
   }
@@ -126,15 +127,15 @@ final class DumpRedactionPropertyTest {
     final InetAddress address = connection.getAddress();
     final String host = address.getHostAddress();
     final List<String> lines = List.of(
-      "[12:34:56 INFO]: " + name + "[" + socket + "] logged in with entity id 42 at ([world]1.5, 64.0, -3.5)",
-      "[12:34:56 INFO]: Disconnecting " + name + " (" + socket + "): You are not whitelisted on this server!",
-      "[12:34:56 INFO]: " + socket + " lost connection: Disconnected"
+      "[12:34:56 INFO]: %s[%s] logged in with entity id 42 at ([world]1.5, 64.0, -3.5)".formatted(name, socket),
+      "[12:34:56 INFO]: Disconnecting %s (%s): You are not whitelisted on this server!".formatted(name, socket),
+      "[12:34:56 INFO]: %s lost connection: Disconnected".formatted(socket)
     );
 
     for (final String line : lines) {
       final String redacted = DumpUtils.redactLogLine(line);
       final boolean keepsHost = redacted.contains(host);
-      assertFalse(keepsHost, () -> "the address " + host + " survives in: " + redacted);
+      assertFalse(keepsHost, () -> "the address %s survives in: %s".formatted(host, redacted));
     }
   }
 }

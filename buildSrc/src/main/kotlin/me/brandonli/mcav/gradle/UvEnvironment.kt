@@ -26,12 +26,13 @@ import java.io.File
 object UvEnvironment {
 
     internal const val TOOL: String = "uv"
+
     internal const val PACKAGE_INDEX: String = "https://pypi.org/simple"
 
     private const val PYTHON_DIRECTORY: String = "python"
     private const val BINARY_DIRECTORY: String = "bin"
 
-    private const val NO_CONFIG_VARIABLE: String = "UV_NO_CONFIG"
+    private const val NO_CONFIGURATION_VARIABLE: String = "UV_NO_CONFIG"
     private const val CACHE_VARIABLE: String = "UV_CACHE_DIR"
     private const val PYTHON_CACHE_VARIABLE: String = "UV_PYTHON_CACHE_DIR"
     private const val PYTHON_INSTALL_VARIABLE: String = "UV_PYTHON_INSTALL_DIR"
@@ -55,7 +56,7 @@ object UvEnvironment {
      */
     fun variables(installationDirectory: File, cacheDirectory: File): Map<String, String> {
         return mapOf(
-            NO_CONFIG_VARIABLE to ENABLED,
+            NO_CONFIGURATION_VARIABLE to ENABLED,
             CACHE_VARIABLE to cacheDirectory.absolutePath,
             PYTHON_CACHE_VARIABLE to cacheDirectory.resolve(PYTHON_DIRECTORY).absolutePath,
             PYTHON_INSTALL_VARIABLE to installationDirectory.resolve(PYTHON_DIRECTORY).absolutePath,

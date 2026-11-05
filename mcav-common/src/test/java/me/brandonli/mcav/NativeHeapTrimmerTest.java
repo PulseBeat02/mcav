@@ -83,6 +83,8 @@ final class NativeHeapTrimmerTest {
 
   private static final String PROCESS_STATUS_PATH = "/proc/self/status";
 
+  private static final String UNTRIMMED_TEST_JVM_MESSAGE = "the JVM of the tests does not trim itself";
+
   private static Optional<Thread> trimmingThread() {
     return Thread.getAllStackTraces()
       .keySet()
@@ -92,7 +94,7 @@ final class NativeHeapTrimmerTest {
   }
 
   @Test
-  void shouldTrimAtEveryIntervalOnADaemonUntilClosed() throws InterruptedException {
+  void shouldTrimAtEveryIntervalOnADaemonUntilStopped() throws InterruptedException {
     final CountDownLatch trims = new CountDownLatch(3);
     final NativeHeapTrimmer trimmer = new NativeHeapTrimmer(SHORT, trims::countDown, () -> {});
     trimmer.start();
@@ -100,14 +102,14 @@ final class NativeHeapTrimmerTest {
     final boolean trimming = trimmer.isTrimming();
     final Thread thread = trimmingThread().orElseThrow();
     final boolean daemon = thread.isDaemon();
-    trimmer.close();
+    trimmer.stop();
 
     assertTrue(trimmed);
     assertTrue(trimming);
     assertTrue(daemon, "the trims never keep the JVM alive");
 
-    final boolean trimmingAfterClose = trimmer.isTrimming();
-    assertFalse(trimmingAfterClose);
+    final boolean trimmingAfterStop = trimmer.isTrimming();
+    assertFalse(trimmingAfterStop);
 
     final boolean alive = thread.isAlive();
     assertFalse(alive, "closing waits for the thread to end");
@@ -125,7 +127,7 @@ final class NativeHeapTrimmerTest {
     try {
       trimmer.start();
       trimmed = trims.await(TIMEOUT_SECONDS, TimeUnit.SECONDS);
-      trimmer.close();
+      trimmer.stop();
     } finally {
       System.setErr(standardError);
     }
@@ -143,7 +145,8 @@ final class NativeHeapTrimmerTest {
 
   private void failTheFirstTrim(final AtomicInteger attempts, final CountDownLatch trims) {
     if (attempts.incrementAndGet() == 1) {
-      throw new IllegalStateException("the first trim fails on purpose!");
+      final String message = "the first trim fails on purpose!";
+      throw new IllegalStateException(message);
     }
 
     trims.countDown();
@@ -152,20 +155,20 @@ final class NativeHeapTrimmerTest {
   @Test
   void shouldTrimOnlyOnLinuxInAJvmThatDoesNotTrimItselfAtAPositiveInterval() {
     final Runnable nothing = () -> {};
-    final NativeHeapTrimmer trimming = NativeHeapTrimmer.create(Os.LINUX, 0L, TRIM_INTERVAL_SECONDS, nothing, nothing);
+    final NativeHeapTrimmer trimming = NativeHeapTrimmer.of(Os.LINUX, 0L, TRIM_INTERVAL_SECONDS, nothing, nothing);
     trimming.start();
     final boolean trims = trimming.isTrimming();
-    trimming.close();
+    trimming.stop();
 
     assertTrue(trims);
-    assertNeverTrims(NativeHeapTrimmer.create(Os.WINDOWS, 0L, TRIM_INTERVAL_SECONDS, nothing, nothing), "off Linux");
-    assertNeverTrims(NativeHeapTrimmer.create(Os.LINUX, 1L, TRIM_INTERVAL_SECONDS, nothing, nothing), "in a JVM that trims itself");
+    assertNeverTrims(NativeHeapTrimmer.of(Os.WINDOWS, 0L, TRIM_INTERVAL_SECONDS, nothing, nothing), "off Linux");
+    assertNeverTrims(NativeHeapTrimmer.of(Os.LINUX, 1L, TRIM_INTERVAL_SECONDS, nothing, nothing), "in a JVM that trims itself");
     assertNeverTrims(
-      NativeHeapTrimmer.create(Os.LINUX, NativeHeapTrimmer.NO_JVM_INTERVAL, TRIM_INTERVAL_SECONDS, nothing, nothing),
+      NativeHeapTrimmer.of(Os.LINUX, NativeHeapTrimmer.NO_JVM_INTERVAL, TRIM_INTERVAL_SECONDS, nothing, nothing),
       "in a JVM other than HotSpot"
     );
-    assertNeverTrims(NativeHeapTrimmer.create(Os.LINUX, 0L, 0L, nothing, nothing), "turned off");
-    assertNeverTrims(NativeHeapTrimmer.create(Os.LINUX, 0L, -1L, nothing, nothing), "turned off by a negative interval");
+    assertNeverTrims(NativeHeapTrimmer.of(Os.LINUX, 0L, 0L, nothing, nothing), "turned off");
+    assertNeverTrims(NativeHeapTrimmer.of(Os.LINUX, 0L, -1L, nothing, nothing), "turned off by a negative interval");
   }
 
   @Test
@@ -173,20 +176,20 @@ final class NativeHeapTrimmerTest {
     final Runnable nothing = () -> {};
     final AtomicInteger fixes = new AtomicInteger();
     final Runnable fix = fixes::incrementAndGet;
-    final NativeHeapTrimmer trimming = NativeHeapTrimmer.create(Os.LINUX, 0L, TRIM_INTERVAL_SECONDS, nothing, fix);
+    final NativeHeapTrimmer trimming = NativeHeapTrimmer.of(Os.LINUX, 0L, TRIM_INTERVAL_SECONDS, nothing, fix);
     final int created = fixes.get();
     trimming.start();
     final int started = fixes.get();
-    trimming.close();
+    trimming.stop();
     for (final NativeHeapTrimmer never : List.of(
-      NativeHeapTrimmer.create(Os.WINDOWS, 0L, TRIM_INTERVAL_SECONDS, nothing, fix),
-      NativeHeapTrimmer.create(Os.LINUX, 1L, TRIM_INTERVAL_SECONDS, nothing, fix),
-      NativeHeapTrimmer.create(Os.LINUX, NativeHeapTrimmer.NO_JVM_INTERVAL, TRIM_INTERVAL_SECONDS, nothing, fix),
-      NativeHeapTrimmer.create(Os.LINUX, 0L, 0L, nothing, fix),
-      NativeHeapTrimmer.create(Os.LINUX, 0L, -1L, nothing, fix)
+      NativeHeapTrimmer.of(Os.WINDOWS, 0L, TRIM_INTERVAL_SECONDS, nothing, fix),
+      NativeHeapTrimmer.of(Os.LINUX, 1L, TRIM_INTERVAL_SECONDS, nothing, fix),
+      NativeHeapTrimmer.of(Os.LINUX, NativeHeapTrimmer.NO_JVM_INTERVAL, TRIM_INTERVAL_SECONDS, nothing, fix),
+      NativeHeapTrimmer.of(Os.LINUX, 0L, 0L, nothing, fix),
+      NativeHeapTrimmer.of(Os.LINUX, 0L, -1L, nothing, fix)
     )) {
       never.start();
-      never.close();
+      never.stop();
     }
 
     assertEquals(0, created, "creating the trimmer leaves the threshold alone");
@@ -206,7 +209,7 @@ final class NativeHeapTrimmerTest {
     try {
       trimmer.start();
       trimming = trimmer.isTrimming();
-      trimmer.close();
+      trimmer.stop();
     } finally {
       System.setErr(standardError);
     }
@@ -223,7 +226,8 @@ final class NativeHeapTrimmerTest {
   }
 
   private void failTheThreshold() {
-    throw new IllegalStateException("the threshold fails on purpose!");
+    final String message = "the threshold fails on purpose!";
+    throw new IllegalStateException(message);
   }
 
   @Test
@@ -235,7 +239,7 @@ final class NativeHeapTrimmerTest {
   }
 
   @Test
-  void shouldKeepTheThresholdOfACLibraryOtherThanGlibc() {
+  void shouldKeepTheThresholdOfAnyCLibraryOtherThanGlibc() {
     final SymbolLookup musl = name -> name.equals(MALLOPT_SYMBOL) ? Optional.of(MemorySegment.NULL) : Optional.empty();
     final boolean fixedForMusl = NativeHeapTrimmer.fixGlibcTrimThreshold(musl);
     assertFalse(fixedForMusl, "musl has a mallopt that ignores every parameter");
@@ -262,10 +266,11 @@ final class NativeHeapTrimmerTest {
     }
 
     final List<Integer> threshold = List.of(-1, NativeHeapTrimmer.TRIM_THRESHOLD_BYTES);
+    final List<List<Integer>> expected = List.of(threshold, threshold);
 
     assertTrue(taken);
     assertFalse(refused, "a threshold that glibc refuses is reported");
-    assertEquals(List.of(threshold, threshold), calls, "mallopt takes M_TRIM_THRESHOLD and the threshold");
+    assertEquals(expected, calls, "mallopt takes M_TRIM_THRESHOLD and the threshold");
   }
 
   @Test
@@ -288,7 +293,8 @@ final class NativeHeapTrimmerTest {
 
     final SymbolLookup askedLibrary = asked.getFirst();
     final Optional<MemorySegment> askedMalloc = askedLibrary.find(MALLOC_SYMBOL);
-    assertEquals(ownLibrary.find(MALLOC_SYMBOL), askedMalloc, "the C library of this JVM is asked");
+    final Optional<MemorySegment> expected = ownLibrary.find(MALLOC_SYMBOL);
+    assertEquals(expected, askedMalloc, "the C library of this JVM is asked");
   }
 
   private boolean recordTheAskedLibrary(final List<SymbolLookup> asked, final InvocationOnMock invocation) {
@@ -332,7 +338,8 @@ final class NativeHeapTrimmerTest {
   void shouldPropagateAVirtualMachineErrorOfMalloptAsItIs() {
     final OutOfMemoryError exhausted = new OutOfMemoryError("no memory for the call!");
     final MethodHandle mallopt = malloptThatThrows(exhausted);
-    assertSame(exhausted, assertThrows(OutOfMemoryError.class, () -> NativeHeapTrimmer.setTrimThreshold(mallopt)));
+    final OutOfMemoryError failure = assertThrows(OutOfMemoryError.class, () -> NativeHeapTrimmer.setTrimThreshold(mallopt));
+    assertSame(exhausted, failure);
   }
 
   private static MethodHandle malloptThatThrows(final Throwable failure) {
@@ -343,36 +350,36 @@ final class NativeHeapTrimmerTest {
   private static void assertNeverTrims(final NativeHeapTrimmer trimmer, final String reason) {
     trimmer.start();
     final boolean trimming = trimmer.isTrimming();
-    trimmer.close();
+    trimmer.stop();
     assertFalse(trimming, reason);
   }
 
   @Test
-  void shouldCloseWithoutTrimmingHarmlessly() {
+  void shouldStopWithoutTrimmingHarmlessly() {
     final NativeHeapTrimmer trimmer = new NativeHeapTrimmer(SHORT, () -> {}, () -> {});
-    trimmer.close();
+    trimmer.stop();
     final boolean trimming = trimmer.isTrimming();
     assertFalse(trimming);
   }
 
   @Test
-  void shouldKeepTheInterruptOfTheCallerOfAnInterruptedClose() throws InterruptedException {
+  void shouldKeepTheInterruptOfTheCallerOfAnInterruptedStop() throws InterruptedException {
     final CountDownLatch trimStarted = new CountDownLatch(1);
     final Semaphore trimRelease = new Semaphore(0);
     final NativeHeapTrimmer trimmer = new NativeHeapTrimmer(SHORT, () -> this.signalAndAwaitRelease(trimStarted, trimRelease), () -> {});
     final boolean started;
     final Thread thread;
     final boolean interrupted;
-    final boolean aliveAfterClose;
+    final boolean aliveAfterStop;
     try {
       trimmer.start();
       started = trimStarted.await(TIMEOUT_SECONDS, TimeUnit.SECONDS);
       thread = trimmingThread().orElseThrow();
-      final Thread currentThread = Thread.currentThread();
-      currentThread.interrupt();
-      trimmer.close();
+      final Thread current = Thread.currentThread();
+      current.interrupt();
+      trimmer.stop();
       interrupted = Thread.interrupted();
-      aliveAfterClose = thread.isAlive();
+      aliveAfterStop = thread.isAlive();
     } finally {
       trimRelease.release();
     }
@@ -381,7 +388,7 @@ final class NativeHeapTrimmerTest {
 
     assertTrue(started);
     assertTrue(interrupted);
-    assertTrue(aliveAfterClose, "an interrupted close stops waiting for the trimming thread");
+    assertTrue(aliveAfterStop, "an interrupted stop no longer waits for the trimming thread");
 
     final boolean alive = thread.isAlive();
     assertFalse(alive, "the trimming thread ends on its interrupt");
@@ -398,14 +405,14 @@ final class NativeHeapTrimmerTest {
     final String previous = System.getProperty(NativeHeapTrimmer.INTERVAL_PROPERTY);
     try {
       System.setProperty(NativeHeapTrimmer.INTERVAL_PROPERTY, "0");
-      assertNeverTrims(NativeHeapTrimmer.forThisJvm(), "the property turns trimming off");
+      assertNeverTrims(NativeHeapTrimmer.create(), "the property turns trimming off");
 
       System.clearProperty(NativeHeapTrimmer.INTERVAL_PROPERTY);
-      final NativeHeapTrimmer trimmer = NativeHeapTrimmer.forThisJvm();
+      final NativeHeapTrimmer trimmer = NativeHeapTrimmer.create();
       trimmer.start();
       final boolean trimming = trimmer.isTrimming();
-      trimmer.close();
-      assertEquals(linux, trimming, "the JVM of the tests does not trim itself");
+      trimmer.stop();
+      assertEquals(linux, trimming, UNTRIMMED_TEST_JVM_MESSAGE);
     } finally {
       if (previous == null) {
         System.clearProperty(NativeHeapTrimmer.INTERVAL_PROPERTY);
@@ -427,12 +434,12 @@ final class NativeHeapTrimmerTest {
       FunctionDescriptor.of(ValueLayout.ADDRESS, ValueLayout.JAVA_LONG)
     );
     final MethodHandle free = linker.downcallHandle(library.find("free").orElseThrow(), FunctionDescriptor.ofVoid(ValueLayout.ADDRESS));
-    final NativeHeapTrimmer trimmer = NativeHeapTrimmer.forThisJvm();
+    final NativeHeapTrimmer trimmer = NativeHeapTrimmer.create();
     final long before;
     final long after;
     trimmer.start();
     try {
-      before = residentKib();
+      before = residentKibibytes();
       final List<Thread> threads = new ArrayList<>();
       for (int index = 0; index < ARENA_THREADS; index++) {
         threads.add(Thread.ofPlatform().start(() -> freeFramesIntoTheArenaTop(malloc, free)));
@@ -443,9 +450,9 @@ final class NativeHeapTrimmerTest {
       }
 
       NativeHeapTrimmer.trimThisJvm();
-      after = residentKib();
+      after = residentKibibytes();
     } finally {
-      trimmer.close();
+      trimmer.stop();
     }
 
     final long freed = (ARENA_THREADS * FRAME_BYTES) / 1024;
@@ -470,20 +477,21 @@ final class NativeHeapTrimmerTest {
     }
   }
 
-  private static long residentKib() throws IOException {
+  private static long residentKibibytes() throws IOException {
     for (final String line : Files.readAllLines(Path.of(PROCESS_STATUS_PATH))) {
       if (line.startsWith(RESIDENT_PREFIX)) {
         return Long.parseLong(line.substring(RESIDENT_PREFIX.length()).replace("kB", "").strip());
       }
     }
 
-    throw new IllegalStateException("no resident size in /proc/self/status!");
+    final String message = "no resident size in /proc/self/status!";
+    throw new IllegalStateException(message);
   }
 
   @Test
   void shouldReadTheIntervalOfTheJvmsOwnTrims() {
     final long intervalMilliseconds = NativeHeapTrimmer.readJvmIntervalMilliseconds();
-    assertEquals(0L, intervalMilliseconds, "the JVM of the tests does not trim itself");
+    assertEquals(0L, intervalMilliseconds, UNTRIMMED_TEST_JVM_MESSAGE);
   }
 
   @Test
@@ -496,7 +504,7 @@ final class NativeHeapTrimmerTest {
     try (final MockedStatic<ManagementFactory> factory = mockStatic(ManagementFactory.class, CALLS_REAL_METHODS)) {
       factory.when(() -> ManagementFactory.getPlatformMXBean(HotSpotDiagnosticMXBean.class)).thenReturn(trimmingItself);
       interval = NativeHeapTrimmer.readJvmIntervalMilliseconds();
-      trimmer = NativeHeapTrimmer.forThisJvm();
+      trimmer = NativeHeapTrimmer.create();
     }
 
     assertEquals(5000L, interval);
@@ -511,13 +519,13 @@ final class NativeHeapTrimmerTest {
     final IllegalArgumentException noBean = new IllegalArgumentException("not a platform management interface!");
     try (final MockedStatic<ManagementFactory> factory = mockStatic(ManagementFactory.class, CALLS_REAL_METHODS)) {
       factory.when(() -> ManagementFactory.getPlatformMXBean(HotSpotDiagnosticMXBean.class)).thenReturn(null);
-      assertNeverTrims(NativeHeapTrimmer.forThisJvm(), "a JVM without HotSpot's diagnostic bean");
+      assertNeverTrims(NativeHeapTrimmer.create(), "a JVM without HotSpot's diagnostic bean");
 
       factory.when(() -> ManagementFactory.getPlatformMXBean(HotSpotDiagnosticMXBean.class)).thenReturn(withoutTheOption);
-      assertNeverTrims(NativeHeapTrimmer.forThisJvm(), "a JVM without the option of HotSpot's own trims");
+      assertNeverTrims(NativeHeapTrimmer.create(), "a JVM without the option of HotSpot's own trims");
 
       factory.when(() -> ManagementFactory.getPlatformMXBean(HotSpotDiagnosticMXBean.class)).thenThrow(noBean);
-      assertNeverTrims(NativeHeapTrimmer.forThisJvm(), "a JVM that does not know HotSpot's diagnostic bean");
+      assertNeverTrims(NativeHeapTrimmer.create(), "a JVM that does not know HotSpot's diagnostic bean");
     }
   }
 

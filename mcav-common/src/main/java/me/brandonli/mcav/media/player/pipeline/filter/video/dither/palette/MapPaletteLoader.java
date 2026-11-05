@@ -43,6 +43,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 public final class MapPaletteLoader {
 
   private static final String PALETTE_RESOURCE = "mcav/common/palette.json";
+
   private static final int OPAQUE = 0xFF << 24;
   private static final int RED_SHIFT = 16;
   private static final int GREEN_SHIFT = 8;
@@ -54,10 +55,14 @@ public final class MapPaletteLoader {
   private static final int COMPONENT_MAXIMUM = 255;
 
   private static final int UNSIGNED_BYTE_MASK = 0xFF;
+
+  private static final boolean HAS_ALPHA = true;
+
   private static final int[] COLORS = loadColors(PALETTE_RESOURCE);
 
   private MapPaletteLoader() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   @VisibleForTesting
@@ -80,11 +85,13 @@ public final class MapPaletteLoader {
       components = gson.fromJson(reader, type);
     } catch (final JsonSyntaxException | IllegalArgumentException exception) {
       // Gson reads an empty element of an int array as a null and reports it with an IllegalArgumentException
-      throw new PaletteLoadingException("Map palette resource is malformed!", exception);
+      final String message = "Map palette resource is malformed!";
+      throw new PaletteLoadingException(message, exception);
     }
 
     if (components == null || components.length == 0) {
-      throw new PaletteLoadingException("Map palette resource is empty!");
+      final String message = "Map palette resource is empty!";
+      throw new PaletteLoadingException(message);
     }
 
     final int[] colors = new int[components.length];
@@ -110,7 +117,7 @@ public final class MapPaletteLoader {
 
   private static int checkComponent(final int component, final int index) {
     if (component < 0 || component > COMPONENT_MAXIMUM) {
-      final String message = "Component %s of map color %s must be between 0 and 255!".formatted(component, index);
+      final String message = "Component %s of map color %s must be between 0 and 255 inclusive!".formatted(component, index);
       throw new PaletteLoadingException(message);
     }
 
@@ -150,6 +157,6 @@ public final class MapPaletteLoader {
     Preconditions.checkArgument(unsigned < COLORS.length, "Map color %s does not exist!", unsigned);
 
     final int argb = COLORS[unsigned];
-    return new Color(argb, true);
+    return new Color(argb, HAS_ALPHA);
   }
 }

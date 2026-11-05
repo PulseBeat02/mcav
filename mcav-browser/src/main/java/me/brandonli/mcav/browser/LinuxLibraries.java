@@ -17,10 +17,12 @@
  */
 package me.brandonli.mcav.browser;
 
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.hash.HashCode;
 import com.google.common.hash.Hasher;
 import com.google.common.hash.Hashing;
-import java.io.BufferedInputStream;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -34,82 +36,49 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.DirectoryStream;
 import java.nio.file.FileSystem;
 import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.PathMatcher;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
-import java.nio.file.attribute.PosixFilePermissions;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.regex.Pattern;
+import me.brandonli.mcav.capability.installer.InstallationException;
+import me.brandonli.mcav.capability.installer.debian.DebianPackageExtractor;
 import me.brandonli.mcav.utils.FileOperationException;
 import me.brandonli.mcav.utils.IoUtils;
 import me.brandonli.mcav.utils.http.DownloadException;
 import me.brandonli.mcav.utils.http.HttpDownloader;
-import org.apache.commons.compress.archivers.ar.ArArchiveEntry;
-import org.apache.commons.compress.archivers.ar.ArArchiveInputStream;
-import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
-import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
-import org.apache.commons.compress.compressors.xz.XZCompressorInputStream;
+import org.checkerframework.checker.initialization.qual.UnderInitialization;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * The shared libraries the browser helper needs on Linux that a server may lack.
- *
- * <p>{@code libcef.so} needs the X11 client libraries, GLib, NSS, ATK and more at load time, even though CEF draws
- * off-screen and never talks to an X server; the Docker images Minecraft servers run in have few of them, and the
- * operator of a shared host can install nothing. So mcav downloads them once from the main archive of Debian 11, which
- * is frozen, checks every package against its pinned SHA-256 hash, and keeps only the pinned libraries, each as a file
- * named by its soname. For every session, the libraries the server lacks are linked into a folder of the session,
- * which is the helper's {@code LD_LIBRARY_PATH}: the libraries the server has are always its own, so no newer library
- * of the server is ever paired with an older one of the bundle. The pins are in {@value #RESOURCE}.
- *
- * <p>{@code libjcef.so} also links against {@value #JAWT} of the Java runtime, which no package can bring, as it
- * belongs to the build of the runtime; a runtime without it, as the headless Java packages of Debian and Ubuntu are, is
- * refused with what to install.
- */
+// libcef.so needs X11, GLib, NSS, ATK and more at load time although CEF draws off-screen, and the image of a Minecraft
+// server often lacks them. MCAV fetches them from Debian 11's frozen archive, pinned by SHA-256, and links only the
+// missing ones into the session, so a newer library of the server is never paired with an older bundled one.
 final class LinuxLibraries {
 
-  /**
-   * The resource that pins the packages.
-   */
   private static final String RESOURCE = "mcav/browser/linux-libraries.txt";
 
-  /**
-   * The marker file of a complete installation.
-   */
   static final String INSTALL_MARKER = "install.lock";
 
-  /**
-   * The folder of a session the libraries are linked into.
-   */
   static final String SESSION_FOLDER = "lib";
 
-  /**
-   * The library of the Java runtime that {@code libjcef.so} links against: the native interface of AWT.
-   */
   static final String JAWT = "libjawt.so";
 
-  /**
-   * The mirrors of the Debian archive the packages are tried from, in order; the hash decides whether a package is
-   * the pinned one, wherever it came from.
-   */
+  // tried in order; the hash decides whether a package is the pinned one
   static final List<String> MIRRORS = List.of("https://archive.debian.org/debian/", "https://deb.debian.org/debian/");
 
-  /**
-   * The mirrors of Debian 11's security updates, for the pins in {@code pool/updates/}: the archive, once they reach it,
-   * and Debian's snapshot archive, which keeps every file under a permanent address.
-   */
+  // for the pins in pool/updates/; the snapshot archive keeps every file under a permanent address
   static final List<String> SECURITY_MIRRORS = List.of(
     "https://archive.debian.org/debian-security/",
     "https://snapshot.debian.org/archive/debian-security/20260901T000000Z/"
@@ -117,35 +86,69 @@ final class LinuxLibraries {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(LinuxLibraries.class);
 
-  private static final String LOCK_RELEASED = "Released the installation lock {} of {}";
-
-  private static final String DOWNLOADING_LIBRARIES = "Downloading {} Linux libraries for the browser ({} MB, once)";
-
-  private static final String LIBRARIES_INSTALLED = "Installed the Linux libraries of the browser in {}";
-
-  private static final String LIBRARIES_MISSING = "The server lacks {}, which the browser gets from {}";
-
-  // Every copy of mcav in this JVM shares this monitor.
+  // interned, so every shaded copy of MCAV in the JVM shares it
   @VisibleForTesting
   static final Object INSTALL_LOCK = "the installation of the Linux libraries of mcav";
 
-  private static final String DATA_MEMBER = "data.tar.xz";
   private static final Pattern PLATFORM = Pattern.compile("[a-z0-9]+-[a-z0-9]+");
   private static final Pattern SONAME = Pattern.compile("lib[A-Za-z0-9_+.-]+\\.so(\\.[0-9]+)*");
   private static final Pattern PACKAGE_PATH = Pattern.compile("(usr/)?lib/[a-z0-9_-]+/(nss/)?[A-Za-z0-9_+.-]+");
   private static final Pattern POOL_PATH = Pattern.compile("pool/(updates/)?main/[a-z0-9+.-]+/[a-z0-9+.-]+/[A-Za-z0-9_+.:~-]+\\.deb");
+  private static final Pattern HASH = Pattern.compile("[0-9a-f]{64}");
+
   private static final String SECURITY_POOL = "pool/updates/";
+
   private static final byte[] ELF_64_LITTLE_ENDIAN = { 0x7F, 'E', 'L', 'F', 2, 1 };
   private static final int ELF_MACHINE_OFFSET = 18;
   private static final int MACHINE_X86_64 = 62;
   private static final int MACHINE_AARCH64 = 183;
-  private static final Pattern HASH = Pattern.compile("[0-9a-f]{64}");
-  private static final long MAX_FILE_BYTES = 64L * 1024 * 1024;
-  private static final int MAX_ENTRIES = 20_000;
-  // xz -9, the strongest preset of dpkg-deb, reads with a dictionary of 64 MiB; a package that asks for far more is
-  // refused before the reader allocates it
-  private static final int MAX_XZ_MEMORY_KIB = 128 * 1024;
-  private static final int MAX_INCLUDE_DEPTH = 8;
+
+  private static final String CACHE_FOLDER = "jcef-libraries";
+  private static final String INSTALLATION_PREFIX = "debian-11-";
+  private static final String NAME_SEPARATOR = "-";
+  private static final String LOCK_SUFFIX = ".lock";
+  private static final String STAGING_SUFFIX = ".staging";
+  private static final String DOWNLOAD_SUFFIX = ".deb";
+  private static final String UNPACKED_SUFFIX = ".unpacked";
+  private static final int FINGERPRINT_DIGITS = 12;
+
+  private static final long BYTES_PER_MEGABYTE = 1_000_000L;
+
+  private static final String LIST_SEPARATOR = ", ";
+
+  private static final String PARENT_FOLDER = "..";
+  private static final String RUNTIME_LIBRARY_FOLDER = "lib";
+
+  private static final int UNSIGNED_BYTE_MASK = 0xFF;
+
+  private static final String ARM64_SUFFIX = "arm64";
+  private static final String AARCH64_TRIPLET = "aarch64-linux-gnu";
+  private static final String X86_64_TRIPLET = "x86_64-linux-gnu";
+
+  private static final List<String> MULTIARCH_FOLDERS = List.of("lib/", "usr/lib/");
+  private static final List<String> DEFAULT_FOLDERS = List.of("lib64", "usr/lib64", "lib", "usr/lib");
+
+  private static final String LOADER_CONFIGURATION = "etc/ld.so.conf";
+  private static final String COMMENT_PREFIX = "#";
+  private static final String INCLUDE_PREFIX = "include ";
+  private static final int MAXIMUM_INCLUDE_DEPTH = 8;
+  private static final String FOLDER_SEPARATOR = "/";
+  private static final String GLOB_SYNTAX = "glob:";
+
+  private static final Pattern FIELD_SEPARATOR = Pattern.compile(" +");
+  private static final String HOST_KEYWORD = "host";
+  private static final int HOST_PLATFORM_FIELD = 1;
+  private static final int HOST_FIRST_SONAME_FIELD = 2;
+
+  private static final int PIN_PLATFORM_FIELD = 0;
+  private static final int PIN_NAME_FIELD = 1;
+  private static final int PIN_VERSION_FIELD = 2;
+  private static final int PIN_HASH_FIELD = 3;
+  private static final int PIN_SIZE_FIELD = 4;
+  private static final int PIN_POOL_FIELD = 5;
+  private static final int PIN_FIRST_FILE_FIELD = 6;
+  private static final int MINIMUM_PIN_FIELDS = 7;
+  private static final char SONAME_SEPARATOR = '=';
 
   private final Path folder;
   private final JcefNatives.Downloader downloader;
@@ -154,42 +157,18 @@ final class LinuxLibraries {
   private final List<Pin> pins;
   private final Map<String, List<String>> hostLibraries;
 
-  /**
-   * Constructs an installer that uses mcav's cache folder, the Debian mirrors and the pinned packages.
-   */
   LinuxLibraries() {
-    this(
-      defaultFolder(),
-      HttpDownloader::download,
-      MIRRORS,
-      SECURITY_MIRRORS,
-      readResource(Objects.requireNonNull(LinuxLibraries.class.getClassLoader(), "mcav is not loaded by the boot loader"))
-    );
+    final Path folder = defaultFolder();
+    final ClassLoader loader = requireNonNull(LinuxLibraries.class.getClassLoader(), "MCAV must not be loaded by the boot loader!");
+    final List<String> pins = readResource(loader);
+    this(folder, HttpDownloader::download, MIRRORS, SECURITY_MIRRORS, pins);
   }
 
-  /**
-   * Constructs an installer with another folder, download, mirrors and pins, so tests can install from a local copy.
-   *
-   * @param folder     the folder the libraries are installed in
-   * @param downloader downloads a file and verifies its hash
-   * @param mirrors    the base addresses of the archive, each ending with a slash
-   * @param pins       the lines of the pins
-   */
   @VisibleForTesting
   LinuxLibraries(final Path folder, final JcefNatives.Downloader downloader, final List<String> mirrors, final List<String> pins) {
     this(folder, downloader, mirrors, mirrors, pins);
   }
 
-  /**
-   * Constructs an installer with another folder, download, mirrors of the archive and of its security updates, and
-   * pins.
-   *
-   * @param folder          the folder the libraries are installed in
-   * @param downloader      downloads a file and verifies its hash and size
-   * @param mirrors         the base addresses of the archive, each ending with a slash
-   * @param securityMirrors the base addresses of the security updates, for pins in {@code pool/updates/}
-   * @param pins            the lines of the pins
-   */
   @VisibleForTesting
   LinuxLibraries(
     final Path folder,
@@ -202,152 +181,150 @@ final class LinuxLibraries {
     this.downloader = downloader;
     this.mirrors = List.copyOf(mirrors);
     this.securityMirrors = List.copyOf(securityMirrors);
+
     final List<Pin> parsed = new ArrayList<>();
-    final Map<String, List<String>> host = new LinkedHashMap<>();
+    final Map<String, List<String>> hostLibraries = new LinkedHashMap<>();
     for (final String line : pins) {
       final String trimmed = line.trim();
-      if (trimmed.isEmpty() || trimmed.startsWith("#")) {
+      if (trimmed.isEmpty() || trimmed.startsWith(COMMENT_PREFIX)) {
         continue;
       }
-      final List<String> fields = List.of(trimmed.split(" +"));
-      if (fields.getFirst().equals("host")) {
-        if (fields.size() < 2) {
-          throw new IllegalArgumentException("The pin " + line + " names no platform");
-        }
-        host.put(requireMatch(PLATFORM, fields.get(1), line), requireSonames(fields.subList(2, fields.size()), line));
+      final List<String> fields = List.of(FIELD_SEPARATOR.split(trimmed));
+      final String firstField = fields.getFirst();
+      if (firstField.equals(HOST_KEYWORD)) {
+        this.putHostLibraries(hostLibraries, fields, line);
       } else {
         parsed.add(Pin.parse(fields, line));
       }
     }
+
     this.pins = List.copyOf(parsed);
-    this.hostLibraries = Map.copyOf(host);
+    this.hostLibraries = Map.copyOf(hostLibraries);
   }
 
-  /**
-   * Gets the folder the libraries are installed in.
-   *
-   * @return the folder
-   */
-  @VisibleForTesting
-  Path getFolder() {
-    return this.folder;
+  private void putHostLibraries(
+    @UnderInitialization LinuxLibraries this,
+    final Map<String, List<String>> hostLibraries,
+    final List<String> fields,
+    final String line
+  ) {
+    if (fields.size() < HOST_FIRST_SONAME_FIELD) {
+      final String message = "The pin %s names no platform!".formatted(line);
+      throw new IllegalArgumentException(message);
+    }
+
+    final String platform = requireMatch(PLATFORM, fields.get(HOST_PLATFORM_FIELD), line);
+    final List<String> sonameFields = fields.subList(HOST_FIRST_SONAME_FIELD, fields.size());
+    final List<String> sonames = this.requireSonames(sonameFields, line);
+    hostLibraries.put(platform, sonames);
   }
 
   private static Path defaultFolder() {
     final Path cache = IoUtils.getCachedFolder();
-    return cache.resolve("jcef-libraries");
+    return cache.resolve(CACHE_FOLDER);
   }
 
-  /**
-   * Reads the bundled pins from {@code mcav/browser/linux-libraries.txt}.
-   *
-   * @param loader the class loader of this class
-   * @return the lines
-   * @throws IllegalStateException if the resource is missing or cannot be read, which only a broken build does
-   */
   @VisibleForTesting
   static List<String> readResource(final ClassLoader loader) {
     try (final InputStream stream = loader.getResourceAsStream(RESOURCE)) {
       if (stream == null) {
-        throw new IllegalStateException("The resource " + RESOURCE + " is missing");
+        final String message = "The resource %s is missing!".formatted(RESOURCE);
+        throw new IllegalStateException(message);
       }
+
       final BufferedReader reader = new BufferedReader(new InputStreamReader(stream, StandardCharsets.UTF_8));
       return reader.lines().toList();
     } catch (final IOException | UncheckedIOException exception) {
-      throw new IllegalStateException("The resource " + RESOURCE + " cannot be read", exception);
+      final String message = "The resource %s cannot be read!".formatted(RESOURCE);
+      throw new IllegalStateException(message, exception);
     }
   }
 
   private static String requireMatch(final Pattern pattern, final String value, final String line) {
     if (!pattern.matcher(value).matches()) {
-      throw new IllegalArgumentException("The pin " + line + " has the invalid value " + value);
+      final String message = "The value %s of the pin %s is invalid!".formatted(value, line);
+      throw new IllegalArgumentException(message);
     }
+
     return value;
   }
 
-  private static List<String> requireSonames(final List<String> sonames, final String line) {
+  private List<String> requireSonames(@UnderInitialization LinuxLibraries this, final List<String> sonames, final String line) {
     for (final String soname : sonames) {
       requireMatch(SONAME, soname, line);
     }
+
     return List.copyOf(sonames);
   }
 
-  /**
-   * Gets the pins of a platform.
-   *
-   * @param platform the jcefmaven identifier of the platform, such as {@code linux-amd64}
-   * @return the pins, in the order of the resource
-   */
   List<Pin> getPins(final String platform) {
-    final List<Pin> matching = new ArrayList<>();
-    for (final Pin pin : this.pins) {
-      if (pin.platform().equals(platform)) {
-        matching.add(pin);
-      }
-    }
-    return matching;
+    return this.pins
+      .stream()
+      .filter(pin -> pin.platform().equals(platform))
+      .toList();
   }
 
-  /**
-   * Installs the libraries of a platform unless they are installed already.
-   *
-   * @param platform the jcefmaven identifier of the platform, such as {@code linux-amd64}
-   * @return the folder of the installation, which holds every library as a file named by its soname
-   * @throws IOException if mcav has no libraries for the platform, or a download, a verification or an extraction fails
-   */
   Path install(final String platform) throws IOException {
     final List<Pin> wanted = this.getPins(platform);
     if (wanted.isEmpty()) {
-      throw new IOException("mcav has no libraries for " + platform);
+      final String message = "Platform %s has no libraries in MCAV!".formatted(platform);
+      throw new IOException(message);
     }
-    final String name = "debian-11-" + platform + "-" + fingerprint(wanted);
+
+    final String fingerprint = fingerprint(wanted);
+    final String name = INSTALLATION_PREFIX + platform + NAME_SEPARATOR + fingerprint;
     final Path installation = this.folder.resolve(name);
     final Path marker = installation.resolve(INSTALL_MARKER);
     if (Files.isRegularFile(marker)) {
-      // An existing installation may still have the permissions of the umask it was made with.
+      // an older installation may still carry the permissions of its umask
       ArchiveExtractor.tighten(this.folder);
       return installation;
     }
+
     ArchiveExtractor.createFolders(this.folder);
-    final Path lockFile = this.folder.resolve(name + ".lock");
+
+    final Path lockFile = this.folder.resolve(name + LOCK_SUFFIX);
     synchronized (INSTALL_LOCK) {
       try (
         final FileChannel channel = FileChannel.open(lockFile, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
         final FileLock lock = JcefNatives.lock(channel)
       ) {
-        if (!Files.isRegularFile(marker)) {
-          this.installLocked(wanted, installation);
-        }
-        LOGGER.debug(LOCK_RELEASED, lock, name);
+        this.installUnlessMarked(marker, wanted, installation);
+        LOGGER.debug("The installation of {} is done, so its lock {} is released next.", name, lock);
       }
     }
+
     return installation;
   }
 
-  /**
-   * Names an installation after its pins, so a changed bundle is installed anew beside the old one.
-   *
-   * @param pins the pins
-   * @return the first twelve hexadecimal digits of the SHA-256 hash of the pinned hashes
-   */
+  private void installUnlessMarked(final Path marker, final List<Pin> wanted, final Path installation) throws IOException {
+    if (!Files.isRegularFile(marker)) {
+      this.installLocked(wanted, installation);
+    }
+  }
+
+  // a changed bundle installs anew beside the old one
   @VisibleForTesting
   static String fingerprint(final List<Pin> pins) {
     final Hasher hasher = Hashing.sha256().newHasher();
     for (final Pin pin : pins) {
       hasher.putString(pin.sha256(), StandardCharsets.US_ASCII);
     }
-    return hasher.hash().toString().substring(0, 12);
+
+    final HashCode hash = hasher.hash();
+    final String hexadecimal = hash.toString();
+    return hexadecimal.substring(0, FINGERPRINT_DIGITS);
   }
 
   private void installLocked(final List<Pin> wanted, final Path installation) throws IOException {
-    long bytes = 0L;
-    for (final Pin pin : wanted) {
-      bytes += pin.size();
-    }
-    LOGGER.info(DOWNLOADING_LIBRARIES, wanted.size(), bytes / 1_000_000L);
+    final long bytes = wanted.stream().mapToLong(Pin::size).sum();
+
+    LOGGER.info("Downloading {} Linux libraries for the browser ({} MB, once).", wanted.size(), bytes / BYTES_PER_MEGABYTE);
+
     final String suffix = UUID.randomUUID().toString();
-    final Path staging = this.folder.resolve(installation.getFileName() + "-" + suffix + ".staging");
-    final Path download = this.folder.resolve(installation.getFileName() + "-" + suffix + ".deb");
+    final String temporaryName = installation.getFileName() + NAME_SEPARATOR + suffix;
+    final Path staging = this.folder.resolve(temporaryName + STAGING_SUFFIX);
+    final Path download = this.folder.resolve(temporaryName + DOWNLOAD_SUFFIX);
     try {
       ArchiveExtractor.createFolders(staging);
       for (final Pin pin : wanted) {
@@ -355,6 +332,7 @@ final class LinuxLibraries {
         extract(download, pin.files(), staging);
         Files.delete(download);
       }
+
       Files.createFile(staging.resolve(INSTALL_MARKER));
       IoUtils.deleteRecursively(installation);
       Files.move(staging, installation, StandardCopyOption.ATOMIC_MOVE);
@@ -362,218 +340,139 @@ final class LinuxLibraries {
       Files.deleteIfExists(download);
       IoUtils.deleteRecursively(staging);
     }
-    LOGGER.info(LIBRARIES_INSTALLED, installation);
+
+    LOGGER.info("Folder {} now holds the Linux libraries of the browser.", installation);
   }
 
   private void download(final Pin pin, final Path destination) throws IOException {
     Exception failure = null;
-    final List<String> bases = pin.pool().startsWith(SECURITY_POOL) ? this.securityMirrors : this.mirrors;
+    final String pool = pin.pool();
+    final List<String> bases = pool.startsWith(SECURITY_POOL) ? this.securityMirrors : this.mirrors;
     for (final String mirror : bases) {
-      final URI uri = URI.create(mirror + pin.pool());
+      final String address = "%s%s".formatted(mirror, pool);
+      final URI uri = URI.create(address);
       try {
         this.downloader.download(uri, destination, pin.sha256(), pin.size());
         return;
       } catch (final IOException | DownloadException | FileOperationException exception) {
         Files.deleteIfExists(destination);
-        if (failure == null) {
-          failure = exception;
-        } else {
-          failure.addSuppressed(exception);
-        }
+        failure = this.combineFailures(failure, exception);
       }
     }
-    final String message = "The package " + pin.name() + " could not be downloaded from any mirror";
+
+    final String message = "The package %s could not be downloaded from any mirror!".formatted(pin.name());
     throw new IOException(message, failure);
   }
 
-  /**
-   * Extracts the pinned libraries of a Debian package: the regular files of its {@value #DATA_MEMBER} at the pinned
-   * paths, each written as a file named by its soname. Links, other files and other members are skipped.
-   *
-   * @param deb    the package
-   * @param files  the paths in the package, mapped to the sonames to write them as
-   * @param target the folder to write into
-   * @throws IOException if the package is not one, or a pinned library is missing or too large
-   */
-  static void extract(final Path deb, final Map<String, String> files, final Path target) throws IOException {
-    extract(deb, files, target, MAX_FILE_BYTES, MAX_ENTRIES);
+  private Exception combineFailures(final @Nullable Exception failure, final Exception exception) {
+    if (failure == null) {
+      return exception;
+    }
+
+    failure.addSuppressed(exception);
+
+    return failure;
   }
 
-  /**
-   * Extracts the pinned libraries of a Debian package with other limits, so tests can reach them.
-   *
-   * @param deb          the package
-   * @param files        the paths in the package, mapped to the sonames to write them as
-   * @param target       the folder to write into
-   * @param maxFileBytes the largest library
-   * @param maxEntries   the most entries the data of the package may have
-   * @throws IOException if the package is not one, or a pinned library is missing or too large
-   */
-  @VisibleForTesting
-  static void extract(final Path deb, final Map<String, String> files, final Path target, final long maxFileBytes, final int maxEntries)
+  static void extract(final Path debianPackage, final Map<String, String> files, final Path target) throws IOException {
+    final Path unpacked = debianPackage.resolveSibling(debianPackage.getFileName() + UNPACKED_SUFFIX);
+    try {
+      DebianPackageExtractor.extract(debianPackage, unpacked);
+      copyLibraries(debianPackage, files, unpacked, target);
+    } catch (final InstallationException exception) {
+      final @Nullable String message = exception.getMessage();
+      throw new IOException(message, exception);
+    } finally {
+      IoUtils.deleteRecursively(unpacked);
+    }
+  }
+
+  private static void copyLibraries(final Path debianPackage, final Map<String, String> files, final Path unpacked, final Path target)
     throws IOException {
-    final boolean extracted;
-    try (
-      final InputStream raw = Files.newInputStream(deb);
-      final ArArchiveInputStream archive = new ArArchiveInputStream(new BufferedInputStream(raw))
-    ) {
-      extracted = extractMembers(archive, files, target, deb, maxFileBytes, maxEntries);
+    final Set<String> missing = new LinkedHashSet<>();
+    for (final Map.Entry<String, String> file : files.entrySet()) {
+      final String path = file.getKey();
+      final Path library = unpacked.resolve(path);
+      // a link is no library
+      if (!Files.isRegularFile(library, LinkOption.NOFOLLOW_LINKS)) {
+        missing.add(path);
+        continue;
+      }
+      final String soname = file.getValue();
+      writeLibrary(library, target.resolve(soname));
     }
-    if (!extracted) {
-      throw new IOException("The package " + deb.getFileName() + " holds no " + DATA_MEMBER);
-    }
-  }
 
-  private static boolean extractMembers(
-    final ArArchiveInputStream archive,
-    final Map<String, String> files,
-    final Path target,
-    final Path deb,
-    final long maxFileBytes,
-    final int maxEntries
-  ) throws IOException {
-    ArArchiveEntry member = archive.getNextEntry();
-    while (member != null) {
-      if (member.getName().equals(DATA_MEMBER)) {
-        // the streams are not closed here: the package closes them all
-        final XZCompressorInputStream decompressed = XZCompressorInputStream.builder()
-          .setInputStream(archive)
-          .setMemoryLimitKiB(MAX_XZ_MEMORY_KIB)
-          .get();
-        final TarArchiveInputStream tar = new TarArchiveInputStream(decompressed);
-        extractData(tar, files, target, deb, maxFileBytes, maxEntries);
-        return true;
-      }
-      member = archive.getNextEntry();
-    }
-    return false;
-  }
-
-  private static void extractData(
-    final TarArchiveInputStream tar,
-    final Map<String, String> files,
-    final Path target,
-    final Path deb,
-    final long maxFileBytes,
-    final int maxEntries
-  ) throws IOException {
-    final Set<String> found = new HashSet<>();
-    int entries = 0;
-    TarArchiveEntry entry = tar.getNextEntry();
-    while (entry != null) {
-      entries++;
-      if (entries > maxEntries) {
-        throw new IOException("The package " + deb.getFileName() + " has more than " + maxEntries + " entries");
-      }
-      final String path = entry.getName().startsWith("./") ? entry.getName().substring(2) : entry.getName();
-      final String soname = files.get(path);
-      // isFile holds for a link as well, and a link is no library
-      final boolean regular = entry.isFile() && !entry.isSymbolicLink() && !entry.isLink();
-      if (soname != null && regular) {
-        if (entry.getSize() > maxFileBytes) {
-          throw new IOException("The library " + path + " is larger than " + maxFileBytes + " bytes");
-        }
-        writeLibrary(tar, target.resolve(soname));
-        found.add(path);
-      }
-      entry = tar.getNextEntry();
-    }
-    final Set<String> missing = new LinkedHashSet<>(files.keySet());
-    missing.removeAll(found);
     if (!missing.isEmpty()) {
-      throw new IOException("The package " + deb.getFileName() + " holds no " + missing);
+      final @Nullable Path packageName = debianPackage.getFileName();
+      final String message = "The package %s lacks the files %s that its pin lists!".formatted(packageName, missing);
+      throw new IOException(message);
     }
   }
 
-  private static void writeLibrary(final InputStream content, final Path file) throws IOException {
-    try (final OutputStream out = Files.newOutputStream(file, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE)) {
-      content.transferTo(out);
+  private static void writeLibrary(final Path library, final Path file) throws IOException {
+    try (final OutputStream output = Files.newOutputStream(file, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE)) {
+      Files.copy(library, output);
     }
-    final FileSystem fileSystem = file.getFileSystem();
-    if (fileSystem.supportedFileAttributeViews().contains("posix")) {
-      Files.setPosixFilePermissions(file, PosixFilePermissions.fromString("rwxr-xr-x"));
-    }
+
+    IoUtils.markExecutable(file);
   }
 
-  /**
-   * Finds the packages whose libraries a server lacks. A package is missing whole, or not at all, as its first library
-   * decides: NSS, for one, loads its modules from the folder of its own library.
-   *
-   * @param platform    the jcefmaven identifier of the platform
-   * @param hostFolders the folders the dynamic loader of the server searches
-   * @return the missing packages, empty if the server has every library
-   * @throws BrowserUnavailableException if the server lacks a library that mcav expects every server to have
-   */
-  List<Pin> findMissing(final String platform, final List<Path> hostFolders) {
-    final List<String> missingHost = new ArrayList<>();
-    for (final String soname : this.hostLibraries.getOrDefault(platform, List.of())) {
-      if (!isPresent(soname, hostFolders, platform)) {
-        missingHost.add(soname);
-      }
-    }
+  void requireHostLibraries(final String platform, final List<Path> hostFolders) {
+    final List<String> hostSonames = this.hostLibraries.getOrDefault(platform, List.of());
+    final List<String> missingHost = hostSonames
+      .stream()
+      .filter(soname -> !isPresent(soname, hostFolders, platform))
+      .toList();
+
     if (!missingHost.isEmpty()) {
-      throw new BrowserUnavailableException(
-        "The browser needs " + String.join(", ", missingHost) + ", which this server lacks and mcav does not bring"
-      );
+      final String libraries = String.join(LIST_SEPARATOR, missingHost);
+      final String message = "The browser needs %s, which this server lacks and MCAV does not bring!".formatted(libraries);
+      throw new BrowserUnavailableException(message);
     }
-    final List<Pin> missing = new ArrayList<>();
-    for (final Pin pin : this.getPins(platform)) {
-      if (!isPresent(pin.sonames().getFirst(), hostFolders, platform)) {
-        missing.add(pin);
-      }
-    }
-    return missing;
   }
 
-  /**
-   * Checks that the Java runtime of the helpers has {@value #JAWT}.
-   *
-   * @param java the Java program of the helpers, in the {@code bin} folder of the runtime
-   * @throws BrowserUnavailableException if the runtime lacks it
-   */
+  // a package is missing whole or not at all, as its first library decides: NSS loads its modules beside its own library
+  List<Pin> findMissing(final String platform, final List<Path> hostFolders) {
+    return this.getPins(platform)
+      .stream()
+      .filter(pin -> this.isMissing(pin, hostFolders, platform))
+      .toList();
+  }
+
+  private boolean isMissing(final Pin pin, final List<Path> hostFolders, final String platform) {
+    final List<String> sonames = pin.sonames();
+    final String soname = sonames.getFirst();
+    return !isPresent(soname, hostFolders, platform);
+  }
+
   static void requireJawt(final Path java) {
-    final Path runtime = java.toAbsolutePath().resolveSibling("..").normalize();
-    if (!Files.exists(runtime.resolve("lib").resolve(JAWT))) {
-      throw new BrowserUnavailableException(
-        "The browser needs the Java runtime's " +
-          JAWT +
-          ", which " +
-          runtime +
-          " lacks: the headless Java packages of Debian and Ubuntu (openjdk-*-jre-headless) leave it out; install the full" +
-          " package of the same version (openjdk-*-jre), or run the server on a full Java runtime"
-      );
+    final Path runtime = java.toAbsolutePath().resolveSibling(PARENT_FOLDER).normalize();
+    final Path library = runtime.resolve(RUNTIME_LIBRARY_FOLDER).resolve(JAWT);
+    if (!Files.exists(library)) {
+      final String message =
+        "The browser needs the Java runtime's %s, which %s lacks: the headless Java packages of Debian and Ubuntu (openjdk-*-jre-headless) leave it out; install the full package of the same version (openjdk-*-jre), or run the server on a full Java runtime!".formatted(
+          JAWT,
+          runtime
+        );
+      throw new BrowserUnavailableException(message);
     }
   }
 
-  /**
-   * Links the libraries of packages a server lacks into a folder of a session.
-   *
-   * @param installation the folder of the installation, which holds them
-   * @param session      the folder of the session
-   * @param missing      the packages the server lacks, see {@link #findMissing(String, List)}
-   * @return the folder of the links
-   * @throws IOException if a link cannot be created
-   */
   static Path link(final Path installation, final Path session, final List<Pin> missing) throws IOException {
     final Path libraries = session.resolve(SESSION_FOLDER);
     Files.createDirectory(libraries);
+
     for (final Pin pin : missing) {
       final List<String> sonames = pin.sonames();
       for (final String soname : sonames) {
         Files.createSymbolicLink(libraries.resolve(soname), installation.resolve(soname));
       }
-      LOGGER.debug(LIBRARIES_MISSING, sonames, installation);
+      LOGGER.debug("The browser gets {} from {}, as the server lacks them.", sonames, installation);
     }
+
     return libraries;
   }
 
-  /**
-   * Checks whether the dynamic loader of a server finds a library.
-   *
-   * @param soname      the soname
-   * @param hostFolders the folders the loader searches
-   * @return true if a folder holds it
-   */
   static boolean isPresent(final String soname, final List<Path> hostFolders, final String platform) {
     for (final Path folder : hostFolders) {
       final Path library = folder.resolve(soname);
@@ -581,160 +480,158 @@ final class LinuxLibraries {
         return true;
       }
     }
+
     return false;
   }
 
-  /**
-   * Checks that a shared library is built for a platform: a 64-bit little-endian ELF file of its machine. A library of
-   * another architecture, such as a 32-bit one of a multiarch system, is one the loader skips.
-   *
-   * @param library  the file
-   * @param platform the jcefmaven identifier of the platform
-   * @return true if it is a library of the platform
-   */
+  // the loader skips a library of another architecture, such as a 32-bit one of a multiarch system
   @VisibleForTesting
   static boolean isBuiltFor(final Path library, final String platform) {
-    final byte[] header = new byte[ELF_MACHINE_OFFSET + 2];
+    final byte[] header = new byte[ELF_MACHINE_OFFSET + Short.BYTES];
     final int read;
-    try (final InputStream in = Files.newInputStream(library)) {
-      read = in.readNBytes(header, 0, header.length);
+    try (final InputStream input = Files.newInputStream(library)) {
+      read = input.readNBytes(header, 0, header.length);
     } catch (final IOException exception) {
       return false;
     }
+
     if (read < header.length) {
       return false;
     }
+
     final byte[] start = Arrays.copyOf(header, ELF_64_LITTLE_ENDIAN.length);
-    final int machine = (header[ELF_MACHINE_OFFSET] & 0xFF) | ((header[ELF_MACHINE_OFFSET + 1] & 0xFF) << 8);
-    final int wanted = platform.endsWith("arm64") ? MACHINE_AARCH64 : MACHINE_X86_64;
+    final int lowByte = header[ELF_MACHINE_OFFSET] & UNSIGNED_BYTE_MASK;
+    final int highByte = header[ELF_MACHINE_OFFSET + 1] & UNSIGNED_BYTE_MASK;
+    final int shiftedHighByte = highByte << Byte.SIZE;
+    final int machine = lowByte | shiftedHighByte;
+    final int wanted = platform.endsWith(ARM64_SUFFIX) ? MACHINE_AARCH64 : MACHINE_X86_64;
     return Arrays.equals(start, ELF_64_LITTLE_ENDIAN) && machine == wanted;
   }
 
-  /**
-   * Lists the folders the dynamic loader of a Linux system searches: those of {@code /etc/ld.so.conf} and the files it
-   * includes, and the default folders, the multiarch ones of the platform included.
-   *
-   * @param root     the root of the file system
-   * @param platform the jcefmaven identifier of the platform
-   * @return the folders, in the order the loader tries them
-   */
   static List<Path> hostFolders(final Path root, final String platform) {
     final Set<Path> folders = new LinkedHashSet<>();
-    readConfiguration(root, root.resolve("etc/ld.so.conf"), folders, 0);
-    final String triplet = platform.endsWith("arm64") ? "aarch64-linux-gnu" : "x86_64-linux-gnu";
-    for (final String folder : List.of("lib/" + triplet, "usr/lib/" + triplet, "lib64", "usr/lib64", "lib", "usr/lib")) {
+    readConfiguration(root, root.resolve(LOADER_CONFIGURATION), folders, 0);
+
+    final String triplet = platform.endsWith(ARM64_SUFFIX) ? AARCH64_TRIPLET : X86_64_TRIPLET;
+    for (final String folder : MULTIARCH_FOLDERS) {
+      folders.add(root.resolve(folder).resolve(triplet));
+    }
+
+    for (final String folder : DEFAULT_FOLDERS) {
       folders.add(root.resolve(folder));
     }
+
     return List.copyOf(folders);
   }
 
   private static void readConfiguration(final Path root, final Path file, final Set<Path> folders, final int depth) {
-    if (depth > MAX_INCLUDE_DEPTH) {
+    if (depth > MAXIMUM_INCLUDE_DEPTH) {
       return;
     }
+
     final List<String> lines;
     try {
       lines = Files.readAllLines(file, StandardCharsets.UTF_8);
     } catch (final IOException exception) {
+      // a missing or unreadable file adds no folder, as in glibc
       return;
     }
+
     for (final String raw : lines) {
-      final int comment = raw.indexOf('#');
-      final String line = (comment >= 0 ? raw.substring(0, comment) : raw).trim();
-      if (line.startsWith("include ")) {
-        final String pattern = line.substring("include ".length()).trim();
-        // as glibc does, a relative include lies beside the file that includes it
-        final Path base = pattern.startsWith("/") ? root : Objects.requireNonNull(file.getParent(), "a file lies in a folder");
-        for (final Path included : glob(base, pattern)) {
-          readConfiguration(root, included, folders, depth + 1);
-        }
-      } else if (line.startsWith("/")) {
+      final int commentStart = raw.indexOf(COMMENT_PREFIX);
+      final String content = commentStart >= 0 ? raw.substring(0, commentStart) : raw;
+      final String line = content.trim();
+      if (line.startsWith(INCLUDE_PREFIX)) {
+        final String pattern = line.substring(INCLUDE_PREFIX.length()).trim();
+        // as in glibc, a relative include lies beside the file that includes it
+        final Path base = includeBase(root, file, pattern);
+        final List<Path> included = glob(base, pattern);
+        readConfigurations(root, included, folders, depth + 1);
+      } else if (line.startsWith(FOLDER_SEPARATOR)) {
         folders.add(root.resolve(line.substring(1)));
       }
     }
   }
 
-  /**
-   * Lists the files an {@code include} line of the loader's configuration names.
-   *
-   * @param root    the root of the file system
-   * @param pattern the pattern, whose last part may hold wildcards
-   * @return the files, sorted by name
-   */
+  private static Path includeBase(final Path root, final Path file, final String pattern) {
+    if (pattern.startsWith(FOLDER_SEPARATOR)) {
+      return root;
+    }
+
+    final Path parent = requireNonNull(file.getParent(), "A file lies in a folder!");
+    return parent;
+  }
+
+  private static void readConfigurations(final Path root, final List<Path> files, final Set<Path> folders, final int depth) {
+    for (final Path file : files) {
+      readConfiguration(root, file, folders, depth);
+    }
+  }
+
   @VisibleForTesting
   static List<Path> glob(final Path root, final String pattern) {
-    final String relative = pattern.startsWith("/") ? pattern.substring(1) : pattern;
-    final int slash = relative.lastIndexOf('/');
+    final String relative = pattern.startsWith(FOLDER_SEPARATOR) ? pattern.substring(1) : pattern;
+    final int slash = relative.lastIndexOf(FOLDER_SEPARATOR);
     final String name = relative.substring(slash + 1);
-    final List<Path> matches = new ArrayList<>();
-    if (!name.isEmpty()) {
-      // the pattern is text, whose wildcards no file system but Linux's allows in a path, so only its folder is
-      // resolved; the folder of a name without one is the root, which the empty text resolves to
-      final Path parent = root.resolve(relative.substring(0, Math.max(slash, 0)));
-      final FileSystem fileSystem = root.getFileSystem();
-      final PathMatcher matcher = fileSystem.getPathMatcher("glob:" + name);
-      try (final DirectoryStream<Path> entries = Files.newDirectoryStream(parent)) {
-        for (final Path entry : entries) {
-          final Path entryName = Objects.requireNonNull(entry.getFileName(), "an entry of a folder has a name");
-          if (matcher.matches(entryName)) {
-            matches.add(entry);
-          }
-        }
-      } catch (final IOException exception) {
-        // an include of a folder that is not there includes nothing
-      }
-      Collections.sort(matches);
+    if (name.isEmpty()) {
+      return List.of();
     }
+
+    final List<Path> matches = new ArrayList<>();
+    // only Linux allows wildcards in a path, so only the folder of the pattern is resolved; the empty text is the root
+    final Path parent = root.resolve(relative.substring(0, Math.max(slash, 0)));
+    final FileSystem fileSystem = root.getFileSystem();
+    final PathMatcher matcher = fileSystem.getPathMatcher(GLOB_SYNTAX + name);
+    try (final DirectoryStream<Path> entries = Files.newDirectoryStream(parent)) {
+      addMatchingEntries(entries, matcher, matches);
+    } catch (final IOException exception) {
+      // an include of a folder that is not there includes nothing
+    }
+    Collections.sort(matches);
+
     return matches;
   }
 
-  /**
-   * One pinned package.
-   *
-   * @param platform the jcefmaven identifier of the platform
-   * @param name     the name of the package
-   * @param version  its version
-   * @param sha256   the SHA-256 hash of the package
-   * @param size     its size in bytes
-   * @param pool     its path in the archive
-   * @param files    the paths of its libraries, mapped to their sonames, the one that decides first
-   */
-  record Pin(String platform, String name, String version, String sha256, long size, String pool, Map<String, String> files) {
-    /**
-     * Reads the fields of a line of the resource.
-     *
-     * @param fields the fields
-     * @param line   the line, for the message of a failure
-     * @return the pin
-     * @throws IllegalArgumentException if a field is invalid
-     */
-    private static Pin parse(final List<String> fields, final String line) {
-      if (fields.size() < 7) {
-        throw new IllegalArgumentException("The pin " + line + " has " + fields.size() + " fields instead of at least 7");
+  private static void addMatchingEntries(final DirectoryStream<Path> entries, final PathMatcher matcher, final List<Path> matches) {
+    for (final Path entry : entries) {
+      final Path entryName = requireNonNull(entry.getFileName(), "An entry of a folder has a name!");
+      if (matcher.matches(entryName)) {
+        matches.add(entry);
       }
+    }
+  }
+
+  @VisibleForTesting
+  Path getFolder() {
+    return this.folder;
+  }
+
+  record Pin(String platform, String name, String version, String sha256, long size, String pool, Map<String, String> files) {
+    private static Pin parse(final List<String> fields, final String line) {
+      if (fields.size() < MINIMUM_PIN_FIELDS) {
+        final String message = "The pin %s has %s fields instead of at least %s fields!".formatted(line, fields.size(), MINIMUM_PIN_FIELDS);
+        throw new IllegalArgumentException(message);
+      }
+
       final Map<String, String> files = new LinkedHashMap<>();
-      for (final String entry : fields.subList(6, fields.size())) {
-        final int equals = entry.indexOf('=');
-        final String soname = requireMatch(SONAME, equals > 0 ? entry.substring(0, equals) : entry, line);
-        final String path = requireMatch(PACKAGE_PATH, entry.substring(equals + 1), line);
+      for (final String entry : fields.subList(PIN_FIRST_FILE_FIELD, fields.size())) {
+        final int separatorIndex = entry.indexOf(SONAME_SEPARATOR);
+        final String sonameText = separatorIndex > 0 ? entry.substring(0, separatorIndex) : entry;
+        final String soname = requireMatch(SONAME, sonameText, line);
+        final String path = requireMatch(PACKAGE_PATH, entry.substring(separatorIndex + 1), line);
         files.put(path, soname);
       }
-      return new Pin(
-        requireMatch(PLATFORM, fields.get(0), line),
-        fields.get(1),
-        fields.get(2),
-        requireMatch(HASH, fields.get(3), line),
-        Long.parseLong(fields.get(4)),
-        requireMatch(POOL_PATH, fields.get(5), line),
-        Collections.unmodifiableMap(files)
-      );
+
+      final String platform = requireMatch(PLATFORM, fields.get(PIN_PLATFORM_FIELD), line);
+      final String name = fields.get(PIN_NAME_FIELD);
+      final String version = fields.get(PIN_VERSION_FIELD);
+      final String sha256 = requireMatch(HASH, fields.get(PIN_HASH_FIELD), line);
+      final long size = Long.parseLong(fields.get(PIN_SIZE_FIELD));
+      final String pool = requireMatch(POOL_PATH, fields.get(PIN_POOL_FIELD), line);
+      final Map<String, String> unmodifiableFiles = Collections.unmodifiableMap(files);
+      return new Pin(platform, name, version, sha256, size, pool, unmodifiableFiles);
     }
 
-    /**
-     * Gets the sonames of the package, the one that decides first.
-     *
-     * @return the sonames
-     */
     List<String> sonames() {
       return List.copyOf(new LinkedHashSet<>(this.files.values()));
     }

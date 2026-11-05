@@ -21,15 +21,13 @@ import com.google.common.base.Preconditions;
 import java.util.Collection;
 import java.util.Optional;
 import java.util.UUID;
-import me.brandonli.mcav.bukkit.media.config.MapConfiguration;
+import me.brandonli.mcav.bukkit.media.mcv2.Mcv2.Settings;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Configuration;
-import me.brandonli.mcav.bukkit.media.result.CompressedMapResult;
 import me.brandonli.mcav.media.player.pipeline.filter.video.FunctionalVideoFilter;
-import me.brandonli.mcav.media.player.pipeline.filter.video.dither.DitherFilter;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.plugin.MCAVSandbox;
-import me.brandonli.mcav.plugin.command.MapDisplaySettings;
 import me.brandonli.mcav.plugin.command.SuggestionProvider;
+import me.brandonli.mcav.plugin.listener.OnlinePlayers;
 import me.brandonli.mcav.plugin.utils.ArgumentUtils;
 import me.brandonli.mcav.plugin.utils.AudioArgument;
 import me.brandonli.mcav.plugin.utils.DitheringArgument;
@@ -58,17 +56,11 @@ import org.incendo.cloud.bukkit.data.MultiplePlayerSelector;
  */
 public final class VideoMcv2Command extends AbstractVideoCommand {
 
-  private static final String NO_PROFILE = "none";
-
-  // for measurements; unset or 0 keeps mcav's default
-  static final String PAGE_SLOTS_PROPERTY = "mcav.sandbox.mcv2.pageSlots";
-
-  static final String BACKLOG_PROPERTY = "mcav.sandbox.mcv2.backlogLimit";
-
   /**
-   * Constructs the command.
+   * Creates the command.
    *
    * @param plugin the plugin
+   * @throws NullPointerException if {@code plugin} is null
    * @since 1.0.0
    */
   public VideoMcv2Command(final MCAVSandbox plugin) {
@@ -77,7 +69,7 @@ public final class VideoMcv2Command extends AbstractVideoCommand {
 
   /**
    * Handles {@code /mcav video mcv2 <playerSelector> <playerType> <audioType> <videoResolution> <blockDimensions>
-   * <mapId> <profile> <ditheringAlgorithm> <ytdlpOptions> <mrl>}.
+   * <mapId> <preset> <ditheringAlgorithm> <ytdlpOptions> <mrl>}.
    *
    * <p>Build the wall first with {@code /mcav screen}, using the same block dimensions and map id. The screen takes a
    * slot of the one MCV2 resource pack that decodes every MCV2 screen of the server, which the viewers are offered if
@@ -96,16 +88,17 @@ public final class VideoMcv2Command extends AbstractVideoCommand {
    * @param videoResolution    the encoded resolution as {@code <width>x<height>}, such as {@code 640x360}
    * @param blockDimensions    the size of the wall as {@code <width>x<height>} in maps, such as {@code 5x3}
    * @param mapId              the id of the top-left map of the wall, as given to {@code /mcav screen}
-   * @param profile            the encoder profile, see {@link Mcv2Profile}
+   * @param preset             the encoder preset, see {@link Mcv2Profile}
    * @param ditheringAlgorithm how the video is dithered for players without the pack, see {@link DitheringArgument}
    * @param ytdlpOptions       extra options, in quotes; {@code ""} for none
    * @param mrl                the media, in quotes if it contains spaces
    * @param filters            the {@code --filters} option: filters applied to every frame in order, such as
    *                           {@code "grayscale,blur=3"}, see {@link FilterChain}; none when absent
+   * @throws NullPointerException if {@code playerSelector}, {@code preset} or {@code ditheringAlgorithm} is null
    * @since 1.0.0
    */
   @Command(
-    "mcav video mcv2 <playerSelector> <playerType> <audioType> <videoResolution> <blockDimensions> <mapId> <profile> <ditheringAlgorithm> <ytdlpOptions> <mrl>"
+    "mcav video mcv2 <playerSelector> <playerType> <audioType> <videoResolution> <blockDimensions> <mapId> <preset> <ditheringAlgorithm> <ytdlpOptions> <mrl>"
   )
   @Permission("mcav.command.video.mcv2")
   @CommandDescription("mcav.command.video.mcv2.info")
@@ -117,14 +110,14 @@ public final class VideoMcv2Command extends AbstractVideoCommand {
     @Argument(suggestions = SuggestionProvider.RESOLUTIONS) @Quoted final String videoResolution,
     @Argument(suggestions = SuggestionProvider.DIMENSIONS) @Quoted final String blockDimensions,
     @Argument(suggestions = SuggestionProvider.IDS) @Range(min = "0") final int mapId,
-    final Mcv2Profile profile,
+    final Mcv2Profile preset,
     final DitheringArgument ditheringAlgorithm,
     @Quoted final String ytdlpOptions,
     @Quoted final String mrl,
     @Flag("filters") @Quoted final @Nullable String filters
   ) {
     Preconditions.checkNotNull(playerSelector, "Player selector must not be null!");
-    Preconditions.checkNotNull(profile, "Profile must not be null!");
+    Preconditions.checkNotNull(preset, "Preset must not be null!");
     Preconditions.checkNotNull(ditheringAlgorithm, "Dithering algorithm must not be null!");
 
     final Optional<Pair<Integer, Integer>> parsedBlocks = parseScreenDimensions(sender, blockDimensions);
@@ -135,16 +128,11 @@ public final class VideoMcv2Command extends AbstractVideoCommand {
       return;
     }
 
-    final Collection<UUID> viewers = ArgumentUtils.parseViewers(playerSelector, this.plugin.getOnlinePlayers());
+    final OnlinePlayers onlinePlayers = this.plugin.getOnlinePlayers();
+    final Collection<UUID> viewers = ArgumentUtils.resolveViewers(playerSelector, onlinePlayers);
     final Mcv2Support support = this.plugin.getMcv2Support();
-    final Optional<Mcv2Configuration> foundConfiguration = support.configure(
-      sender,
-      blocks,
-      resolution,
-      mapId,
-      profile.getSettings(),
-      viewers
-    );
+    final Settings settings = preset.getSettings();
+    final Optional<Mcv2Configuration> foundConfiguration = support.configure(sender, blocks, resolution, mapId, settings, viewers);
     final @Nullable Mcv2Configuration configuration = foundConfiguration.orElse(null);
     if (configuration == null) {
       return;
@@ -154,27 +142,15 @@ public final class VideoMcv2Command extends AbstractVideoCommand {
     this.playVideo(provider, sender, playerSelector, playerType, audioType, videoResolution, mrl, ytdlpOptions, filters);
   }
 
-  static long backlogLimit() {
-    final String value = System.getProperty(BACKLOG_PROPERTY);
-    if (value == null) {
-      return Mcv2Configuration.DEFAULT_BACKLOG_LIMIT;
-    }
-
-    return value.equals(NO_PROFILE) ? Long.MAX_VALUE : Long.parseLong(value);
-  }
-
-  // none turns backpressure off, for measurements
-  static int unsentLimit() {
-    return NO_PROFILE.equals(System.getProperty(BACKLOG_PROPERTY)) ? 0 : Mcv2Configuration.DEFAULT_UNSENT_LIMIT;
-  }
-
   /**
    * Creates the output that encodes the frames in a slot of the MCV2 pack, and starts it on the main thread. Called on
-   * the worker thread.
+   * the worker thread. When every pack slot plays a screen, the frames are dithered onto the maps instead.
    *
    * @param resolution            the resolution frames are scaled to
-   * @param configurationProvider the provider, which returns {@link Mcv2Settings}
-   * @return the pipeline
+   * @param configurationProvider the provider, which returns {@code Mcv2Settings}
+   * @return the pipeline step that encodes the frames, or dithers them onto the maps
+   * @throws NullPointerException                       if an argument is null
+   * @throws java.util.concurrent.CancellationException if the video startup was cancelled or the manager is shut down
    * @since 1.0.0
    */
   @Override
@@ -186,28 +162,11 @@ public final class VideoMcv2Command extends AbstractVideoCommand {
     Preconditions.checkNotNull(configurationProvider, "Configuration provider must not be null!");
 
     final Mcv2Settings settings = (Mcv2Settings) configurationProvider.buildConfiguration(resolution);
-    final FunctionalVideoFilter output = mcv2Filter(this.plugin.getMcv2Support(), settings);
+    final Mcv2Support support = this.plugin.getMcv2Support();
+    final FunctionalVideoFilter output = support.createMcv2Filter(settings);
     this.manager.startFilter(output);
 
     return VideoPipelineStep.of(output);
-  }
-
-  // when every pack slot plays a screen, falls back to the dithered maps of the same wall
-  static FunctionalVideoFilter mcv2Filter(final Mcv2Support support, final Mcv2Settings settings) {
-    final Mcv2Configuration configuration = settings.configuration();
-    final Optional<Mcv2Output> foundOutput = support.output(settings.sender(), configuration, settings.dithering());
-    final @Nullable Mcv2Output output = foundOutput.orElse(null);
-    if (output != null) {
-      return output;
-    }
-
-    final MapConfiguration maps = MapDisplaySettings.createConfiguration(
-      Pair.pair(configuration.getColumns(), configuration.getRows()),
-      Pair.pair(configuration.getVideoWidth(), configuration.getVideoHeight()),
-      configuration.getMap(),
-      configuration.getViewers()
-    );
-    return DitherFilter.dither(settings.dithering().createAlgorithm(), new CompressedMapResult(maps));
   }
 
   record Mcv2Settings(Mcv2Configuration configuration, DitheringArgument dithering, CommandSender sender) {}

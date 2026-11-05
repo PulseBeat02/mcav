@@ -84,6 +84,7 @@ import org.bytedeco.javacpp.Loader;
 import org.bytedeco.opencv.global.opencv_core;
 import org.bytedeco.opencv.presets.opencv_objdetect;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.api.parallel.ResourceLock;
@@ -128,6 +129,24 @@ final class DependencyLoaderTest {
 
   private static final String YTDLP_FILE_NAME = "yt-dlp";
   private static final String PREPARED_FILE_NAME = "prepared";
+
+  private static final String INTERRUPTED_DOWNLOAD_MESSAGE = "Interrupted while downloading!";
+  private static final String OFFLINE_MESSAGE = "offline!";
+  private static final String UNSUPPORTED_VLC_MESSAGE = "Operating system FREEBSD does not support installing VLC automatically!";
+  private static final String MISSING_DEVICE_LIBRARY_MESSAGE = "no jniavdevice in java.library.path!";
+  private static final String MISSING_GTK_MESSAGE = "libgtk-x11-2.0.so.0: cannot open shared object file!";
+
+  private static final String CANCELLED_PREPARATION_MESSAGE = "Preparing {} was cancelled.";
+
+  private static final String UNCONFIGURED_FFMPEG_MESSAGE = "FFmpeg that failed to load is not configured";
+  private static final String INTERRUPT_KEPT_MESSAGE = "the interrupt is kept, so the installation thread ends";
+
+  private DependencyLoader dependencyLoader;
+
+  @BeforeEach
+  void setUp() {
+    this.dependencyLoader = new DependencyLoader();
+  }
 
   @Test
   void shouldStartWithEveryCapability() {
@@ -197,7 +216,10 @@ final class DependencyLoaderTest {
   @Test
   void shouldLoadFaceDetectionAgainWhenTheNativesAreLoaded() {
     final DependencyLoader loader = new DependencyLoader();
-    final boolean objectDetectionLinks = DependencyLoader.loadOptionalModule(() -> Loader.load(opencv_objdetect.class), "face detection");
+    final boolean objectDetectionLinks = this.dependencyLoader.loadOptionalModule(
+      () -> Loader.load(opencv_objdetect.class),
+      "face detection"
+    );
     assumeTrue(objectDetectionLinks, "The object detection natives must link on this system!");
 
     loader.loadFaceDetection(() -> this.throwError(new UnsatisfiedLinkError("no GTK!")));
@@ -229,7 +251,7 @@ final class DependencyLoaderTest {
     final String previous = System.getProperty(DependencyLoader.OPENCV_THREADS_PROPERTY);
     try {
       System.setProperty(DependencyLoader.OPENCV_THREADS_PROPERTY, "3");
-      DependencyLoader.configureOpenCvThreads();
+      this.dependencyLoader.configureOpenCvThreads();
       final int configuredThreads = opencv_core.getNumThreads();
       assertEquals(3, configuredThreads);
     } finally {
@@ -239,7 +261,7 @@ final class DependencyLoaderTest {
         System.setProperty(DependencyLoader.OPENCV_THREADS_PROPERTY, previous);
       }
 
-      DependencyLoader.configureOpenCvThreads();
+      this.dependencyLoader.configureOpenCvThreads();
     }
   }
 
@@ -248,10 +270,10 @@ final class DependencyLoaderTest {
     final String previousPathsFirst = System.getProperty(PATHS_FIRST);
     try {
       System.clearProperty(PATHS_FIRST);
-      DependencyLoader.configureJavaCpp();
+      this.dependencyLoader.configureJavaCpp();
       final String defaultPathsFirst = System.getProperty(PATHS_FIRST);
       System.setProperty(PATHS_FIRST, "true");
-      DependencyLoader.configureJavaCpp();
+      this.dependencyLoader.configureJavaCpp();
       final String customPathsFirst = System.getProperty(PATHS_FIRST);
       assertEquals(DEFAULT_PATHS_FIRST, defaultPathsFirst);
       assertEquals("true", customPathsFirst, "a value set by the application is kept");
@@ -322,7 +344,7 @@ final class DependencyLoaderTest {
     final String rawTemporary = temporary.toString();
     System.setProperty(TEMPORARY_DIRECTORY, rawTemporary);
     try (final TemporaryUserHome _ = TemporaryUserHome.redirectTo(home)) {
-      DependencyLoader.configureJavaCpp();
+      this.dependencyLoader.configureJavaCpp();
       return System.getProperty(CACHE);
     } finally {
       resetProperty(CACHE, previousCache);
@@ -336,11 +358,11 @@ final class DependencyLoaderTest {
   void shouldReportNativesThatCannotBeLinked() {
     final UnsatisfiedLinkError linkError = new UnsatisfiedLinkError("no jniopencv_core!");
     final NativeLoadingException linkFailure = assertThrows(NativeLoadingException.class, () ->
-      DependencyLoader.loadModules(LINUX_X86_64, () -> this.throwError(linkError))
+      this.dependencyLoader.loadModules(LINUX_X86_64, () -> this.throwError(linkError))
     );
     final NoClassDefFoundError missingClass = new NoClassDefFoundError("org/bytedeco/opencv/global/opencv_core");
     final NativeLoadingException classFailure = assertThrows(NativeLoadingException.class, () ->
-      DependencyLoader.loadModules(LINUX_X86_64, () -> this.throwError(missingClass))
+      this.dependencyLoader.loadModules(LINUX_X86_64, () -> this.throwError(missingClass))
     );
     final Throwable linkCause = linkFailure.getCause();
     final Throwable classCause = classFailure.getCause();
@@ -356,7 +378,7 @@ final class DependencyLoaderTest {
   void shouldFailNamingThePlatformWhereJavaCvHasNoNatives(final Platform platform) {
     final AtomicBoolean loaded = new AtomicBoolean();
     final NativeLoadingException failure = assertThrows(NativeLoadingException.class, () ->
-      DependencyLoader.loadModules(platform, () -> loaded.set(true))
+      this.dependencyLoader.loadModules(platform, () -> loaded.set(true))
     );
     final String message = failure.getMessage();
     final String expected = "Platform %s has no FFmpeg and OpenCV natives!".formatted(platform);
@@ -378,7 +400,7 @@ final class DependencyLoaderTest {
   @MethodSource("platformsWithNatives")
   void shouldLoadTheNativesOnEveryPlatformJavaCvSupports(final Platform platform) {
     final AtomicBoolean loaded = new AtomicBoolean();
-    DependencyLoader.loadModules(platform, () -> loaded.set(true));
+    this.dependencyLoader.loadModules(platform, () -> loaded.set(true));
 
     final boolean attempted = loaded.get();
     assertTrue(attempted);
@@ -401,7 +423,7 @@ final class DependencyLoaderTest {
     final ByteArrayOutputStream captured = new ByteArrayOutputStream();
     System.setErr(new PrintStream(captured, true, StandardCharsets.UTF_8));
     try {
-      DependencyLoader.loadModules(LINUX_X86_64, () -> {});
+      this.dependencyLoader.loadModules(LINUX_X86_64, () -> {});
     } finally {
       System.setErr(standardError);
     }
@@ -419,9 +441,9 @@ final class DependencyLoaderTest {
 
   @Test
   void shouldTolerateAMissingFfmpegDeviceLibraryAndStillConfigureFfmpeg() {
-    final UnsatisfiedLinkError deviceError = new UnsatisfiedLinkError("no jniavdevice in java.library.path!");
+    final UnsatisfiedLinkError deviceError = new UnsatisfiedLinkError(MISSING_DEVICE_LIBRARY_MESSAGE);
     final AtomicBoolean configured = new AtomicBoolean();
-    assertDoesNotThrow(() -> DependencyLoader.loadFfmpeg(() -> this.throwError(deviceError), () -> configured.set(true)));
+    assertDoesNotThrow(() -> this.dependencyLoader.loadFfmpeg(() -> this.throwError(deviceError), () -> configured.set(true)));
 
     final boolean setupRan = configured.get();
     assertTrue(setupRan, "the log callback is set up even without the device library");
@@ -431,10 +453,10 @@ final class DependencyLoaderTest {
   void shouldTolerateTheMissingDeviceLibraryAgainWhenFfmpegIsLoadedASecondTime() {
     final AtomicInteger configured = new AtomicInteger();
     final Runnable loader = FailingDeviceLibrary::touch;
-    assertDoesNotThrow(() -> DependencyLoader.loadFfmpeg(loader, configured::incrementAndGet));
+    assertDoesNotThrow(() -> this.dependencyLoader.loadFfmpeg(loader, configured::incrementAndGet));
 
     final NoClassDefFoundError again = assertThrows(NoClassDefFoundError.class, loader::run);
-    assertDoesNotThrow(() -> DependencyLoader.loadFfmpeg(loader, configured::incrementAndGet));
+    assertDoesNotThrow(() -> this.dependencyLoader.loadFfmpeg(loader, configured::incrementAndGet));
 
     final int configuredCount = configured.get();
     assertEquals(2, configuredCount);
@@ -448,7 +470,7 @@ final class DependencyLoaderTest {
   void shouldTolerateTheDeviceClassThatFailedBeforeWithoutItsCause() {
     final NoClassDefFoundError deviceClass = new NoClassDefFoundError("Could not initialize class org.bytedeco.ffmpeg.global.avdevice");
     final AtomicBoolean configured = new AtomicBoolean();
-    assertDoesNotThrow(() -> DependencyLoader.loadFfmpeg(() -> this.throwError(deviceClass), () -> configured.set(true)));
+    assertDoesNotThrow(() -> this.dependencyLoader.loadFfmpeg(() -> this.throwError(deviceClass), () -> configured.set(true)));
 
     final boolean configuredWithoutDevice = configured.get();
     assertTrue(configuredWithoutDevice, "FFmpeg is configured without the device library");
@@ -468,13 +490,13 @@ final class DependencyLoaderTest {
     assertTrue(namesTheClass, failure.getMessage());
 
     final boolean configuredAfterFailure = configured.get();
-    assertFalse(configuredAfterFailure, "FFmpeg that failed to load is not configured");
+    assertFalse(configuredAfterFailure, UNCONFIGURED_FFMPEG_MESSAGE);
   }
 
   @Test
   void shouldConfigureFfmpegAfterLoadingIt() {
     final List<String> steps = new ArrayList<>();
-    DependencyLoader.loadFfmpeg(() -> steps.add("load"), () -> steps.add("setup"));
+    this.dependencyLoader.loadFfmpeg(() -> steps.add("load"), () -> steps.add("setup"));
     final List<String> expected = List.of("load", "setup");
     assertEquals(expected, steps);
   }
@@ -492,7 +514,7 @@ final class DependencyLoaderTest {
 
     assertSame(codecError, codecCause);
     assertTrue(namesTheLibrary, codecMessage);
-    assertFalse(setupRan, "FFmpeg that failed to load is not configured");
+    assertFalse(setupRan, UNCONFIGURED_FFMPEG_MESSAGE);
   }
 
   @Test
@@ -505,7 +527,7 @@ final class DependencyLoaderTest {
     final boolean setupRan = configured.get();
 
     assertSame(silentError, silentCause);
-    assertFalse(setupRan, "FFmpeg that failed to load is not configured");
+    assertFalse(setupRan, UNCONFIGURED_FFMPEG_MESSAGE);
   }
 
   @Test
@@ -517,7 +539,7 @@ final class DependencyLoaderTest {
   @Test
   void shouldRemoveOnlyTheVlcCapabilityWhenTheDownloadFails() {
     final DependencyLoader loader = new DependencyLoader();
-    loader.installVlc(() -> this.failVlcStart(new InstallationException("offline!")));
+    loader.installVlc(() -> this.failVlcStart(new InstallationException(OFFLINE_MESSAGE)));
     final boolean hasVlc = loader.hasCapability(Capability.VLC);
     final boolean hasYtdlp = loader.hasCapability(Capability.YT_DLP);
     final boolean hasFfmpeg = loader.hasCapability(Capability.FFMPEG);
@@ -572,7 +594,8 @@ final class DependencyLoaderTest {
     Uninterruptibles.awaitUninterruptibly(finish);
 
     if (latestOutcome == PreparationOutcome.SUCCEEDS) {
-      throw new IllegalStateException("old failure!");
+      final String message = "old failure!";
+      throw new IllegalStateException(message);
     }
   }
 
@@ -596,17 +619,20 @@ final class DependencyLoaderTest {
 
   private void runNewerPreparation(final PreparationOutcome latestOutcome) {
     if (latestOutcome == PreparationOutcome.FAILS) {
-      throw new IllegalStateException("new failure!");
+      final String message = "new failure!";
+      throw new IllegalStateException(message);
     }
   }
 
   @Test
   void shouldRestoreTheCapabilitiesWhenALaterPreparationSucceeds() throws IOException {
     final DependencyLoader loader = new DependencyLoader();
-    loader.installVlc(() -> this.failVlcStart(new InstallationException("offline!")));
+    loader.installVlc(() -> this.failVlcStart(new InstallationException(OFFLINE_MESSAGE)));
     final Installer installer = mock(Installer.class);
     when(installer.isSupported()).thenReturn(true);
-    when(installer.download(FileMode.EXECUTABLE)).thenThrow(new InstallationException("offline!")).thenReturn(Path.of(YTDLP_FILE_NAME));
+    when(installer.download(FileMode.EXECUTABLE))
+      .thenThrow(new InstallationException(OFFLINE_MESSAGE))
+      .thenReturn(Path.of(YTDLP_FILE_NAME));
     loader.installYtdlp(installer);
     loader.loadFaceDetection(() -> this.throwError(new UnsatisfiedLinkError("no libgtk-x11-2.0!")));
     final boolean vlcBeforeRetry = loader.hasCapability(Capability.VLC);
@@ -633,9 +659,7 @@ final class DependencyLoaderTest {
 
   @Test
   void shouldRemoveTheVlcCapabilityOnUnsupportedSystems() {
-    final UnsupportedOperatingSystemException unsupported = VlcInstallerFailures.unsupportedSystem(
-      "Operating system FREEBSD does not support installing VLC automatically!"
-    );
+    final UnsupportedOperatingSystemException unsupported = VlcInstallerFailures.unsupportedSystem(UNSUPPORTED_VLC_MESSAGE);
     final boolean hasVlc = vlcAvailableAfter(() -> this.failVlcStart(unsupported));
     assertFalse(hasVlc);
   }
@@ -721,7 +745,7 @@ final class DependencyLoaderTest {
   @Test
   void shouldRemoveTheYtdlpCapabilityWhenTheDownloadFails() throws IOException {
     final Installer installer = mock(Installer.class);
-    final InstallationException offline = new InstallationException("offline!");
+    final InstallationException offline = new InstallationException(OFFLINE_MESSAGE);
     when(installer.isSupported()).thenReturn(true);
     when(installer.download(FileMode.EXECUTABLE)).thenThrow(offline);
     final DependencyLoader loader = new DependencyLoader();
@@ -792,7 +816,7 @@ final class DependencyLoaderTest {
   private @Nullable Void failVlcInstallationAfter(final CyclicBarrier barrier, final DependencyLoader loader)
     throws InterruptedException, BrokenBarrierException {
     barrier.await();
-    loader.installVlc(() -> this.failVlcStart(new InstallationException("offline!")));
+    loader.installVlc(() -> this.failVlcStart(new InstallationException(OFFLINE_MESSAGE)));
 
     return null;
   }
@@ -810,7 +834,7 @@ final class DependencyLoaderTest {
     final List<String> loaded = new ArrayList<>();
     final DependencyLoader available = new DependencyLoader();
     available.loadFaceDetection(() -> loaded.add(OBJECT_DETECTION_MODULE));
-    final UnsatisfiedLinkError missingGtk = new UnsatisfiedLinkError("libgtk-x11-2.0.so.0: cannot open shared object file!");
+    final UnsatisfiedLinkError missingGtk = new UnsatisfiedLinkError(MISSING_GTK_MESSAGE);
     final DependencyLoader missing = new DependencyLoader();
     missing.loadFaceDetection(() -> this.throwError(missingGtk));
     final boolean detectionWithNatives = available.hasCapability(Capability.FACE_DETECTION);
@@ -825,17 +849,23 @@ final class DependencyLoaderTest {
   @Test
   void shouldReportOptionalModulesThatLoad() {
     final List<String> loaded = new ArrayList<>();
-    final boolean available = DependencyLoader.loadOptionalModule(() -> loaded.add(OBJECT_DETECTION_MODULE), FACE_DETECTION_MODULE_NAME);
+    final boolean available = this.dependencyLoader.loadOptionalModule(
+      () -> loaded.add(OBJECT_DETECTION_MODULE),
+      FACE_DETECTION_MODULE_NAME
+    );
     assertTrue(available);
     assertEquals(OBJECT_DETECTION_LOADED, loaded);
   }
 
   @Test
   void shouldKeepWorkingWhenAnOptionalModuleCannotBeLinked() {
-    final UnsatisfiedLinkError missingGtk = new UnsatisfiedLinkError("libgtk-x11-2.0.so.0: cannot open shared object file!");
+    final UnsatisfiedLinkError missingGtk = new UnsatisfiedLinkError(MISSING_GTK_MESSAGE);
     final NoClassDefFoundError failedInitializer = new NoClassDefFoundError("Could not initialize class opencv_highgui");
-    final boolean withoutGtk = DependencyLoader.loadOptionalModule(() -> this.throwError(missingGtk), FACE_DETECTION_MODULE_NAME);
-    final boolean withoutClass = DependencyLoader.loadOptionalModule(() -> this.throwError(failedInitializer), FACE_DETECTION_MODULE_NAME);
+    final boolean withoutGtk = this.dependencyLoader.loadOptionalModule(() -> this.throwError(missingGtk), FACE_DETECTION_MODULE_NAME);
+    final boolean withoutClass = this.dependencyLoader.loadOptionalModule(
+      () -> this.throwError(failedInitializer),
+      FACE_DETECTION_MODULE_NAME
+    );
     assertFalse(withoutGtk);
     assertFalse(withoutClass);
   }
@@ -851,7 +881,7 @@ final class DependencyLoaderTest {
     final List<String> loaded = new ArrayList<>();
     final DebianLibraryInstaller installer = DebianLibraryInstallers.create(folder, new Download[0], platform, loaded::add);
 
-    DependencyLoader.provideGtk2(platform, libraryName -> false, () -> installer);
+    this.dependencyLoader.provideGtk2(platform, libraryName -> false, () -> installer);
 
     final List<String> expected = List.of(library.toString());
     assertEquals(expected, loaded);
@@ -864,13 +894,13 @@ final class DependencyLoaderTest {
   @Test
   @ResourceLock(Resources.SYSTEM_ERR)
   void shouldWarnWithoutFailingWhenGtk2CannotBeInstalled(@TempDir final Path folder) {
-    final Download[] downloads = { new Download(LINUX_ARM_64, UNHASHED_PACKAGE_URL) };
+    final Download[] downloads = { Download.of(LINUX_ARM_64, UNHASHED_PACKAGE_URL) };
     final DebianLibraryInstaller installer = DebianLibraryInstallers.create(folder, downloads, LINUX_ARM_64, this::refuseToLoad);
     final PrintStream standardError = System.err;
     final ByteArrayOutputStream captured = new ByteArrayOutputStream();
     System.setErr(new PrintStream(captured, true, StandardCharsets.UTF_8));
     try {
-      DependencyLoader.provideGtk2(LINUX_ARM_64, libraryName -> false, () -> installer);
+      this.dependencyLoader.provideGtk2(LINUX_ARM_64, libraryName -> false, () -> installer);
     } finally {
       System.setErr(standardError);
     }
@@ -884,13 +914,13 @@ final class DependencyLoaderTest {
 
   @Test
   void shouldUseTheGtk2OfTheSystem() {
-    assertDoesNotThrow(() -> DependencyLoader.provideGtk2(LINUX_X86_64, libraryName -> true, this::refuseToInstall));
+    assertDoesNotThrow(() -> this.dependencyLoader.provideGtk2(LINUX_X86_64, libraryName -> true, this::refuseToInstall));
   }
 
   @ParameterizedTest(name = "{0}")
   @MethodSource("platformsWithoutDebianGtk2")
   void shouldNotLookForGtk2OffDebianPlatforms(final Platform platform) {
-    assertDoesNotThrow(() -> DependencyLoader.provideGtk2(platform, this::refuseToLookUp, this::refuseToInstall));
+    assertDoesNotThrow(() -> this.dependencyLoader.provideGtk2(platform, this::refuseToLookUp, this::refuseToInstall));
   }
 
   private static Stream<Platform> platformsWithoutDebianGtk2() {
@@ -930,7 +960,7 @@ final class DependencyLoaderTest {
     final Logger logger = mock(Logger.class);
     final DependencyLoader loader = new DependencyLoader(logger);
     loader.installVlc(() -> {});
-    verify(logger).info("Preparing VLC...");
+    verify(logger).info("Preparing VLC.");
     assertLoggedAPlausibleTime(logger, "VLC ready in {} ms.");
   }
 
@@ -947,14 +977,12 @@ final class DependencyLoaderTest {
   void shouldWarnWhenVlcCannotBePrepared() {
     final Logger logger = mock(Logger.class);
     final DependencyLoader offline = new DependencyLoader(logger);
-    offline.installVlc(() -> this.failVlcStart(new InstallationException("offline!")));
-    final UnsupportedOperatingSystemException unsupported = VlcInstallerFailures.unsupportedSystem(
-      "Operating system FREEBSD does not support installing VLC automatically!"
-    );
+    offline.installVlc(() -> this.failVlcStart(new InstallationException(OFFLINE_MESSAGE)));
+    final UnsupportedOperatingSystemException unsupported = VlcInstallerFailures.unsupportedSystem(UNSUPPORTED_VLC_MESSAGE);
     final String unsupportedReason = unsupported.getMessage();
     final DependencyLoader unsupportedLoader = new DependencyLoader(logger);
     unsupportedLoader.installVlc(() -> this.failVlcStart(unsupported));
-    verify(logger).warn("VLC is not available because of \"{}\", so VLC players cannot be used.", "offline!");
+    verify(logger).warn("VLC is not available because of \"{}\", so VLC players cannot be used.", OFFLINE_MESSAGE);
     verify(logger).warn("VLC is not available because of \"{}\", so VLC players cannot be used.", unsupportedReason);
   }
 
@@ -965,16 +993,16 @@ final class DependencyLoaderTest {
     loader.installVlc(this::interruptAndFailVlcStart);
     final boolean interrupted = Thread.interrupted();
     final boolean hasVlc = loader.hasCapability(Capability.VLC);
-    assertTrue(interrupted, "the interrupt is kept, so the installation thread ends");
+    assertTrue(interrupted, INTERRUPT_KEPT_MESSAGE);
     assertFalse(hasVlc);
-    verify(logger).info("Preparing {} was cancelled.", "VLC");
+    verify(logger).info(CANCELLED_PREPARATION_MESSAGE, "VLC");
     verify(logger, never()).warn(anyString(), any(Object.class));
   }
 
   private void interruptAndFailVlcStart() {
     final Thread current = Thread.currentThread();
     current.interrupt();
-    throw new InstallationException("Interrupted while downloading!");
+    throw new InstallationException(INTERRUPTED_DOWNLOAD_MESSAGE);
   }
 
   @Test
@@ -985,7 +1013,7 @@ final class DependencyLoaderTest {
     when(working.isSupported()).thenReturn(true);
     when(working.download(FileMode.EXECUTABLE)).thenReturn(installed);
     final Installer offline = mock(Installer.class);
-    final InstallationException offlineFailure = new InstallationException("offline!");
+    final InstallationException offlineFailure = new InstallationException(OFFLINE_MESSAGE);
     when(offline.isSupported()).thenReturn(true);
     when(offline.download(FileMode.EXECUTABLE)).thenThrow(offlineFailure);
     final Installer unsupported = mock(Installer.class);
@@ -997,7 +1025,7 @@ final class DependencyLoaderTest {
     final DependencyLoader unsupportedLoader = new DependencyLoader(logger);
     unsupportedLoader.installYtdlp(unsupported);
     assertLoggedAPlausibleTime(logger, "yt-dlp ready in {} ms.");
-    verify(logger).warn("yt-dlp could not be installed because of \"{}\", so URL parsing cannot be used.", "offline!");
+    verify(logger).warn("yt-dlp could not be installed because of \"{}\", so URL parsing cannot be used.", OFFLINE_MESSAGE);
     final Platform platform = Platform.getCurrentPlatform();
     verify(logger).warn("yt-dlp is not available for platform {}, URL parsing cannot be used.", platform);
   }
@@ -1012,16 +1040,16 @@ final class DependencyLoaderTest {
     loader.installYtdlp(installer);
     final boolean interrupted = Thread.interrupted();
     final boolean hasYtdlp = loader.hasCapability(Capability.YT_DLP);
-    assertTrue(interrupted, "the interrupt is kept, so the installation thread ends");
+    assertTrue(interrupted, INTERRUPT_KEPT_MESSAGE);
     assertFalse(hasYtdlp);
-    verify(logger).info("Preparing {} was cancelled.", "yt-dlp");
+    verify(logger).info(CANCELLED_PREPARATION_MESSAGE, "yt-dlp");
     verify(logger, never()).warn(anyString(), any(Object.class));
   }
 
   private Path interruptAndFailDownload() {
     final Thread current = Thread.currentThread();
     current.interrupt();
-    throw new InstallationException("Interrupted while downloading!");
+    throw new InstallationException(INTERRUPTED_DOWNLOAD_MESSAGE);
   }
 
   private static boolean vlcAvailableAfter(final DependencyLoader.VlcStarter starter) {
@@ -1033,7 +1061,7 @@ final class DependencyLoaderTest {
   private NativeLoadingException loadFfmpegFailingWith(final LinkageError error, final AtomicBoolean configured) {
     final Runnable failingLoader = () -> this.throwError(error);
     final Runnable setup = () -> configured.set(true);
-    return assertThrows(NativeLoadingException.class, () -> DependencyLoader.loadFfmpeg(failingLoader, setup));
+    return assertThrows(NativeLoadingException.class, () -> this.dependencyLoader.loadFfmpeg(failingLoader, setup));
   }
 
   private static void resetProperty(final String key, final @Nullable String value) {
@@ -1052,7 +1080,7 @@ final class DependencyLoaderTest {
     private FailingDeviceLibrary() {}
 
     private static int fail() {
-      throw new UnsatisfiedLinkError("no jniavdevice in java.library.path!");
+      throw new UnsatisfiedLinkError(MISSING_DEVICE_LIBRARY_MESSAGE);
     }
 
     static void touch() {

@@ -35,7 +35,7 @@ import org.junit.jupiter.api.Tag;
 
 // Fuzzes how the media a player names in a command becomes a source: whatever the text, detection never throws, and a
 // detected source is what its detector promises, a device of a non-negative index, a raw FFmpeg input with a format, a
-// file that exists, or a URL with a scheme and a host. The seeds are the media strings of the tests and the
+// file that exists, or a URI with a scheme and a host. The seeds are the media strings of the tests and the
 // documentation.
 @Tag("fuzz")
 final class SourceDetectionFuzzTest {
@@ -55,7 +55,7 @@ final class SourceDetectionFuzzTest {
       case final DeviceSource device -> {
         final int index = device.getDeviceId();
         final boolean validIndex = index >= 0;
-        assertTrue(validIndex, () -> "device " + index + " from '" + resource + "'");
+        assertTrue(validIndex, () -> "device %s from '%s'".formatted(index, resource));
 
         final int written = Integer.parseInt(resource);
         assertEquals(written, index, "a device is the number that was written");
@@ -63,17 +63,17 @@ final class SourceDetectionFuzzTest {
       case final FfmpegDirectSource direct -> {
         final String format = direct.getFormat();
         final boolean blank = format.isBlank();
-        assertFalse(blank, () -> "a raw FFmpeg input without a format from '" + resource + "'");
+        assertFalse(blank, () -> "a raw FFmpeg input without a format from '%s'".formatted(resource));
       }
       case final FileSource file -> {
         final Path path = file.getPath();
         final boolean exists = Files.exists(path);
-        assertTrue(exists, () -> "a file that does not exist from '" + resource + "'");
+        assertTrue(exists, () -> "a file that does not exist from '%s'".formatted(resource));
       }
       case final UriSource uri -> {
         final URI address = uri.getUri();
         final boolean complete = address.getScheme() != null && address.getHost() != null;
-        assertTrue(complete, () -> "a URL without a scheme or a host from '" + resource + "'");
+        assertTrue(complete, () -> "a URL without a scheme or a host from '%s'".formatted(resource));
       }
       default -> {
         final String message = "Source %s from '%s' is of an unknown kind!".formatted(source, resource);

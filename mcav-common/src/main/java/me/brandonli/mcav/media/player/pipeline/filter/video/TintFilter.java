@@ -34,7 +34,7 @@ import org.bytedeco.opencv.opencv_core.Scalar;
  *
  * @since 1.0.0
  */
-public class TintFilter extends MatVideoFilter {
+public final class TintFilter extends MatVideoFilter {
 
   private final Scalar color;
   private final double strength;
@@ -50,7 +50,7 @@ public class TintFilter extends MatVideoFilter {
    * @since 1.0.0
    */
   public TintFilter(final double[] color, final double strength) {
-    Preconditions.checkArgument(strength >= 0 && strength <= 1, "Strength must be between 0 and 1!");
+    Preconditions.checkArgument(strength >= 0 && strength <= 1, "Strength must be between 0 and 1 inclusive!");
 
     this.color = ImageUtils.toScalar(color);
     this.strength = strength;
@@ -60,17 +60,17 @@ public class TintFilter extends MatVideoFilter {
   /**
    * Blends the frame in place with a matrix of the tint color that is reused from frame to frame.
    *
-   * @param mat the 8-bit BGR matrix of the frame
+   * @param matrix the 8-bit BGR matrix of the frame
    * @return true, because the frame may have changed
    * @since 1.0.0
    */
   @Override
-  protected boolean modifyMat(final Mat mat) {
+  protected boolean modifyMat(final Mat matrix) {
     final double frameWeight = 1.0 - this.strength;
     final Mat solid = this.tint.borrow();
     try {
-      this.fillLike(solid, mat);
-      opencv_core.addWeighted(mat, frameWeight, solid, this.strength, 0.0, mat);
+      this.fillLike(solid, matrix);
+      opencv_core.addWeighted(matrix, frameWeight, solid, this.strength, 0.0, matrix);
     } finally {
       this.tint.giveBack(solid);
     }

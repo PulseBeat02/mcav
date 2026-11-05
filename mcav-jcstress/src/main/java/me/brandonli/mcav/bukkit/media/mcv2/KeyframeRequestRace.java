@@ -73,7 +73,7 @@ public class KeyframeRequestRace {
    * @param outcome whether a request still waits
    */
   @Arbiter
-  public void after(final ZZ_Result outcome) {
+  public void observe(final ZZ_Result outcome) {
     outcome.r2 = this.requests.take();
   }
 }

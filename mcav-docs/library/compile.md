@@ -31,7 +31,7 @@ Their compilations run [Error Prone](https://errorprone.info/) and, for producti
 and must stay free of warnings. The coverage, property, fuzz and PIT rows below apply to these twelve modules;
 `<module>` means one of their names.
 
-`mcav-docs` builds the book. buildSrc has separate bootstrap tests (`./gradlew :buildSrc:test`).
+`mcav-docs` builds the book. `buildSrc` has separate bootstrap tests (`./gradlew :buildSrc:test`).
 `mcav-jcstress` uses the Java-library, formatting and lint conventions through
 `buildSrc/src/main/kotlin/mcav.jcstress.gradle.kts`; it skips Checker Framework and removes `-Werror` from
 `compileJava`, with no module coverage, property, fuzz or PIT tasks.
@@ -44,11 +44,11 @@ and must stay free of warnings. The coverage, property, fuzz and PIT rows below 
 | `./gradlew :mcav-docs:build` | Builds only the documentation, into `mcav-docs/build/html/index.html`. |
 | `./gradlew spotlessApply` | Formats the sources; run before building after editing code. |
 | `./gradlew spotlessRepositoryCheck` | Checks whitespace in the repository text files, including the version catalog, the tool checksums and the Python lock. |
-| `-Pmcav.testJavaHome=<path to a Java 25 JDK>` | Runs the tests on another JDK, for machines whose JDK cannot load the bundled OpenCV natives. |
+| `-Pmcav.test_java_home=<path to a Java 25 JDK>` | Runs the tests on another JDK, for machines whose JDK cannot load the bundled OpenCV natives. |
 | `./gradlew coverageLint` | Prints every line and branch no test covers, as `file:line`. |
 | `-Pmcav.coverage=false` | Turns off the coverage lint, which `check`, and so `build`, enforces by default; any other value keeps it on. |
 | `-Pmcav.networkTests=true` | Also runs the tests that download from the internet, such as the check of the bundled yt-dlp release. |
-| `-Pmcav.syncMeasurement=true` | Also measures how far the sound of a virtual machine drifts from its picture, with one JVM per test task and one test task at a time; run it on a quiet machine. |
+| `-Pmcav.sync_measurement=true` | Also measures how far the sound of a virtual machine drifts from its picture, with one JVM per test task and one test task at a time; run it on a quiet machine. |
 | `./gradlew :<module>:pitest` | Runs [PIT](https://pitest.org/) mutation testing on one module, writing its report to `build/reports/pitest`. |
 | `./gradlew :mcav-bukkit:buildMcv2Natives` | Builds the six MCV2 native libraries with Zig 0.16.0, which Gradle downloads and checksum-verifies, on a Gradle worker, so the module's tasks that do not need the libraries run meanwhile; it compiles as many objects at once as Gradle has workers. Resource processing runs this automatically; unchanged inputs are up to date. |
 | `./gradlew :mcav-bukkit:formatMcv2Natives` | Formats the native sources with clang-format 18.1.8 from `requirements.lock`, checking its version first; `CLANG_FORMAT=/path/to/clang-format` names an installed one. `build` runs `checkMcv2NativesFormat`, which only checks the format. |

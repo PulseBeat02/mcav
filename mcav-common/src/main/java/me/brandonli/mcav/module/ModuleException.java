@@ -26,13 +26,13 @@ import me.brandonli.mcav.MCAVException;
  *
  * @since 1.0.0
  */
-public class ModuleException extends MCAVException {
+public final class ModuleException extends MCAVException {
 
   @Serial
   private static final long serialVersionUID = -2431307065385281467L;
 
   /**
-   * Constructs a new exception.
+   * Creates an exception with a message.
    *
    * @param message the detail message
    * @since 1.0.0
@@ -42,7 +42,7 @@ public class ModuleException extends MCAVException {
   }
 
   /**
-   * Constructs a new exception.
+   * Creates an exception with a message and the exception that caused it.
    *
    * @param message the detail message
    * @param cause   the underlying failure

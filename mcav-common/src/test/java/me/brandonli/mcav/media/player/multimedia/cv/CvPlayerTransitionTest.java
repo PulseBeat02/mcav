@@ -437,7 +437,8 @@ final class CvPlayerTransitionTest {
 
         final int concurrentDeliveries = maximum.get();
         assertEquals(1, concurrentDeliveries);
-        assertEquals(List.of(firstValue, secondValue), colors, "the replacement must be delivered after the old session");
+        final List<Integer> expected = List.of(firstValue, secondValue);
+        assertEquals(expected, colors, "the replacement must be delivered after the old session");
         assertEquals(List.of(), failures);
       } finally {
         releaseFirst.countDown();
@@ -630,7 +631,8 @@ final class CvPlayerTransitionTest {
 
     @Override
     protected FrameGrabber createFrameGrabber(final String resource) {
-      throw new AssertionError("Sessions are replaced at the boundary in this fixture!");
+      final String message = "Sessions are replaced at the boundary in this fixture!";
+      throw new AssertionError(message);
     }
   }
 

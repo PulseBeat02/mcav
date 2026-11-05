@@ -54,8 +54,8 @@ MCAV cannot be enabled: Minecraft 26.1 is not supported, MCAV only runs on Minec
 ```
 
 The same happens when Simple Voice Chat audio is enabled but the Simple Voice Chat plugin is missing (see the
-[configuration](config.md)). Any other failure during the start is reported by Paper with a stack trace, and the
-plugin is disabled.
+[configuration](config.md)). Paper reports any other failure during the start with a stack trace and disables the
+plugin.
 
 ```{warning}
 On x86-64 and ARM64 Linux, MCAV installs QEMU from Debian packages for the virtual machine commands when it is missing.

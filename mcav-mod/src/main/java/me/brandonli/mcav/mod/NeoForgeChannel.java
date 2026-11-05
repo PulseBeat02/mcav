@@ -23,8 +23,7 @@ import net.neoforged.neoforge.client.network.ClientPacketDistributor;
 import net.neoforged.neoforge.network.registration.NetworkRegistry;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-// NeoForge's network registry follows the channels the server registers; ticks and the login events run on the
-// client thread
+// NeoForge's network registry follows the server's channels; ticks and the login events run on the client thread
 final class NeoForgeChannel implements ReportChannel {
 
   private @Nullable Connection connection;
@@ -39,12 +38,13 @@ final class NeoForgeChannel implements ReportChannel {
 
   @Override
   public boolean isOpen() {
-    final Connection current = this.connection;
+    final @Nullable Connection current = this.connection;
     return current != null && NetworkRegistry.hasChannel(current, ConnectionProtocol.PLAY, Mcv2Payload.TYPE.id());
   }
 
   @Override
   public void send(final byte[] report) {
-    ClientPacketDistributor.sendToServer(new Mcv2Payload(report));
+    final Mcv2Payload payload = new Mcv2Payload(report);
+    ClientPacketDistributor.sendToServer(payload);
   }
 }

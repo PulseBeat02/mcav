@@ -32,7 +32,6 @@ import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.LongSupplier;
 import me.brandonli.mcav.media.image.ImageBuffer;
-import me.brandonli.mcav.media.player.PlayerException;
 import me.brandonli.mcav.media.player.attachable.AudioAttachableCallback;
 import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
 import me.brandonli.mcav.media.player.metadata.OriginalVideoMetadata;
@@ -46,39 +45,32 @@ import me.brandonli.mcav.utils.interaction.MouseClick;
 import me.brandonli.mcav.utils.os.Os;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-/**
- * The {@link BrowserPlayer}: a {@link HelperSession} per start, whose frames it runs through the video pipeline and
- * whose input it forwards.
- *
- * <p>A player is idle until it starts, plays until it is released or its helper ends by itself, and then counts as
- * failed until it starts again, which closes the failed helper first. A released player cannot start again. Frames and
- * failures of a helper that is no longer the current one are ignored, so a late frame of a replaced browser never
- * reaches the pipeline.
- */
+// Frames and failures of a helper that is no longer the current one are ignored, so a late frame of a replaced browser
+// never reaches the pipeline.
 final class CefBrowserPlayer implements BrowserPlayer {
 
-  /**
-   * How long a helper may take until its page shows. The first start after a download can be slow, for example while a
-   * virus scanner checks the new files.
-   */
-  private static final long START_TIMEOUT_MILLIS = 180_000L;
+  private static final int NO_SCROLL = 0;
 
-  /**
-   * How long the sound of the page is held before the audio pipeline gets it, in milliseconds: not at all. The page
-   * hands its sound over in chunks of 2048 frames (43 ms) as soon as Chromium rendered them, a little ahead of time.
-   * Timed as the sound of a virtual machine is, where the last sample of a chunk counts as played when the chunk
-   * arrives, it reaches the pipeline about 20 ms before its picture ({@code BrowserSoundTest}); but an output starts to
-   * play a chunk only when it arrives, 43 ms later than that, so a hold would only make the sound late.
-   */
-  private static final int AUDIO_DELAY_MILLIS = 0;
+  private static final int UNSTARTED_PAGE_SIDE = 1;
 
-  /**
-   * The most sound of the page that waits for the audio pipeline, the delay included, in milliseconds.
-   */
-  static final int MAX_QUEUED_AUDIO_MILLIS = AUDIO_DELAY_MILLIS + 120;
+  private static final String INPUT_QUEUE_FULL_MESSAGE = "Browser input queue is full.";
 
-  private static final SessionFactory DEFAULT_SESSIONS = new DefaultSessionFactory();
+  // the first start after a download can be slow, for example while a virus scanner checks the new files
+  private static final long START_TIMEOUT_MILLISECONDS = 180_000L;
+
+  // the page hands over its sound slightly ahead of its picture, and an output plays a chunk only once it arrives, so a
+  // hold would only make the sound late (BrowserSoundTest)
+  private static final int AUDIO_DELAY_MILLISECONDS = 0;
+
+  static final int MAXIMUM_QUEUED_AUDIO_MILLISECONDS = AUDIO_DELAY_MILLISECONDS + 120;
+
+  private static final SessionFactory DEFAULT_SESSIONS = new HelperSessionFactory();
+
   private static final Equivalence<Object> SESSION_IDENTITY = Equivalence.identity();
+
+  private static final int NO_CLICK = 0;
+  private static final int SINGLE_CLICK = 1;
+  private static final int DOUBLE_CLICK = 2;
 
   private final BrowserOptions options;
   private final SessionFactory sessions;
@@ -88,45 +80,27 @@ final class CefBrowserPlayer implements BrowserPlayer {
   private final Lock lock;
   private final AtomicReference<State> state;
   private final AtomicBoolean released;
-  // the thread that starts a helper while it does, which a release interrupts instead of waiting for the start's lock up
-  // to START_TIMEOUT_MILLIS; guarded by itself, so no interrupt reaches the thread once its start is over
   private final Object starter;
-  private @Nullable Thread starting;
-  // Guarded by starter; the starting thread clears the interrupt sent by release().
-  private boolean startInterrupted;
   private final LogBudget dropReports;
+
+  // a release interrupts the starting thread instead of waiting up to START_TIMEOUT_MILLISECONDS for its lock; guarded by
+  // starter, so no interrupt reaches the thread after its start
+  private @Nullable Thread starting;
+  // guarded by starter; the starting thread clears the interrupt of release()
+  private boolean startInterrupted;
   private volatile @Nullable BrowserSession session;
   private volatile @Nullable DelayedAudioOutput audioOutput;
   private volatile @Nullable BrowserSource source;
 
-  /**
-   * Constructs a player that starts real helpers.
-   *
-   * @param options how the player treats the pages it shows
-   */
   CefBrowserPlayer(final BrowserOptions options) {
     this(options, DEFAULT_SESSIONS);
   }
 
-  /**
-   * Constructs a player that starts its sessions with a factory, so tests can control the helper.
-   *
-   * @param options  how the player treats the pages it shows
-   * @param sessions starts the session of every start
-   */
   @VisibleForTesting
   CefBrowserPlayer(final BrowserOptions options, final SessionFactory sessions) {
     this(options, sessions, System::nanoTime);
   }
 
-  /**
-   * Constructs a player with a factory for its sessions and the clock of the budget of its reports, so tests can move
-   * time.
-   *
-   * @param options  how the player treats the pages it shows
-   * @param sessions starts the session of every start
-   * @param clock    a monotonic clock in nanoseconds
-   */
   @VisibleForTesting
   CefBrowserPlayer(final BrowserOptions options, final SessionFactory sessions, final LongSupplier clock) {
     this.options = options;
@@ -143,7 +117,8 @@ final class CefBrowserPlayer implements BrowserPlayer {
 
   @Override
   public boolean start(final BrowserSource source) {
-    Preconditions.checkNotNull(source, "Source must not be null");
+    Preconditions.checkNotNull(source, "Source must not be null!");
+
     this.lock.lock();
     try {
       return this.startReleasably(source);
@@ -159,15 +134,17 @@ final class CefBrowserPlayer implements BrowserPlayer {
     synchronized (this.starter) {
       this.starting = caller;
     }
+
     try {
-      // Check after start becomes interruptible, so release either finds this start or is observed here.
+      // checked once start is interruptible, so a release either finds this start or is seen here
       final boolean idle = !this.released.get() && this.state.get() != State.PLAYING;
       return idle && this.startSession(source);
-    } catch (final PlayerException failure) {
+    } catch (final BrowserException exception) {
       if (this.released.get()) {
         return false;
       }
-      throw failure;
+
+      throw exception;
     } finally {
       final boolean interrupted;
       synchronized (this.starter) {
@@ -175,6 +152,7 @@ final class CefBrowserPlayer implements BrowserPlayer {
         interrupted = this.startInterrupted;
         this.startInterrupted = false;
       }
+
       if (interrupted && !callerInterrupted) {
         Thread.interrupted();
       }
@@ -184,6 +162,7 @@ final class CefBrowserPlayer implements BrowserPlayer {
   private boolean startSession(final BrowserSource source) {
     this.closeSession();
     this.source = source;
+
     final int width = source.getWidth();
     final int height = source.getHeight();
     final OriginalVideoMetadata metadata = OriginalVideoMetadata.of(width, height);
@@ -192,35 +171,39 @@ final class CefBrowserPlayer implements BrowserPlayer {
     this.session = started;
     this.audioOutput = DelayedAudioOutput.start(
       "the browser",
-      AUDIO_DELAY_MILLIS,
-      MAX_QUEUED_AUDIO_MILLIS,
+      AUDIO_DELAY_MILLISECONDS,
+      MAXIMUM_QUEUED_AUDIO_MILLISECONDS,
       this.audioCallback::retrieve,
       this::report
     );
     this.state.set(State.PLAYING);
-    // An earlier helper exit must fail startup even if it preceded session ownership.
+    // a helper exit before the session was owned must fail the start too
     listener.setSession(started);
+
     final boolean playing = this.state.get() == State.PLAYING;
     if (playing) {
-      // the frames of the start arrived before the session was the player's; the page is sent once more, so a page
-      // that never changes again still reaches the pipeline
+      // the frames of the start arrived before the session was the player's; a page that stays still needs them again
       started.requestFrame();
     }
+
     return playing;
   }
 
   private void closeSession() {
     final BrowserSession current = this.session;
     this.session = null;
+
     if (current != null) {
       current.close();
     }
+
     this.closeAudio();
   }
 
   private void closeAudio() {
     final DelayedAudioOutput output = this.audioOutput;
     this.audioOutput = null;
+
     if (output != null) {
       output.close();
     }
@@ -232,7 +215,8 @@ final class CefBrowserPlayer implements BrowserPlayer {
     if (!first) {
       return false;
     }
-    // a start holds the lock while its helper starts, up to START_TIMEOUT_MILLIS, so it is stopped rather than awaited
+
+    // a start holds the lock while its helper starts, up to START_TIMEOUT_MILLISECONDS, so it is stopped rather than awaited
     synchronized (this.starter) {
       final Thread thread = this.starting;
       if (thread != null) {
@@ -240,6 +224,7 @@ final class CefBrowserPlayer implements BrowserPlayer {
         thread.interrupt();
       }
     }
+
     this.lock.lock();
     try {
       this.state.set(State.IDLE);
@@ -247,32 +232,27 @@ final class CefBrowserPlayer implements BrowserPlayer {
     } finally {
       this.lock.unlock();
     }
+
     return true;
   }
 
   @Override
-  public boolean isPlaying() {
-    return this.state.get() == State.PLAYING;
-  }
-
-  @Override
   public void moveMouse(final int pageX, final int pageY) {
-    this.sendMouse(HelperProtocol.MOUSE_MOVE, pageX, pageY, HelperProtocol.BUTTON_LEFT, 0);
+    this.sendMouse(HelperProtocol.MOUSE_MOVE, pageX, pageY, HelperProtocol.BUTTON_LEFT, NO_CLICK);
   }
 
   @Override
   public void sendMouseEvent(final MouseClick type, final int pageX, final int pageY) {
-    Preconditions.checkNotNull(type, "Mouse click type must not be null");
+    Preconditions.checkNotNull(type, "Mouse click type must not be null!");
+
     this.moveMouse(pageX, pageY);
+
     final Runnable input = switch (type) {
-      case LEFT -> () -> this.click(HelperProtocol.BUTTON_LEFT, pageX, pageY, 1);
-      case RIGHT -> () -> this.click(HelperProtocol.BUTTON_RIGHT, pageX, pageY, 1);
-      case DOUBLE -> () -> {
-        this.click(HelperProtocol.BUTTON_LEFT, pageX, pageY, 1);
-        this.click(HelperProtocol.BUTTON_LEFT, pageX, pageY, 2);
-      };
-      case HOLD -> () -> this.sendMouse(HelperProtocol.MOUSE_PRESS, pageX, pageY, HelperProtocol.BUTTON_LEFT, 1);
-      case RELEASE -> () -> this.sendMouse(HelperProtocol.MOUSE_RELEASE, pageX, pageY, HelperProtocol.BUTTON_LEFT, 1);
+      case LEFT -> () -> this.click(HelperProtocol.BUTTON_LEFT, pageX, pageY, SINGLE_CLICK);
+      case RIGHT -> () -> this.click(HelperProtocol.BUTTON_RIGHT, pageX, pageY, SINGLE_CLICK);
+      case DOUBLE -> () -> this.doubleClick(pageX, pageY);
+      case HOLD -> () -> this.sendMouse(HelperProtocol.MOUSE_PRESS, pageX, pageY, HelperProtocol.BUTTON_LEFT, SINGLE_CLICK);
+      case RELEASE -> () -> this.sendMouse(HelperProtocol.MOUSE_RELEASE, pageX, pageY, HelperProtocol.BUTTON_LEFT, SINGLE_CLICK);
     };
     input.run();
   }
@@ -282,12 +262,18 @@ final class CefBrowserPlayer implements BrowserPlayer {
     this.sendMouse(HelperProtocol.MOUSE_RELEASE, pageX, pageY, button, clickCount);
   }
 
+  private void doubleClick(final int pageX, final int pageY) {
+    this.click(HelperProtocol.BUTTON_LEFT, pageX, pageY, SINGLE_CLICK);
+    this.click(HelperProtocol.BUTTON_LEFT, pageX, pageY, DOUBLE_CLICK);
+  }
+
   @Override
   public void scroll(final int pageX, final int pageY, final int deltaX, final int deltaY) {
     final BrowserSession current = this.getInputSession();
     if (current == null) {
       return;
     }
+
     final int[] position = this.clamp(pageX, pageY);
     final int clampedX = Math.clamp(deltaX, Short.MIN_VALUE, Short.MAX_VALUE);
     final int clampedY = Math.clamp(deltaY, Short.MIN_VALUE, Short.MAX_VALUE);
@@ -296,12 +282,14 @@ final class CefBrowserPlayer implements BrowserPlayer {
       position[0],
       position[1],
       HelperProtocol.BUTTON_LEFT,
-      0,
+      NO_CLICK,
       clampedX,
       clampedY
     );
     final boolean queued = current.sendMouse(input);
-    this.reportIfDropped(queued);
+    if (!queued) {
+      this.reportDropped();
+    }
   }
 
   private void sendMouse(final int action, final int pageX, final int pageY, final int button, final int clickCount) {
@@ -309,32 +297,43 @@ final class CefBrowserPlayer implements BrowserPlayer {
     if (current == null) {
       return;
     }
+
     final int[] position = this.clamp(pageX, pageY);
-    final MouseInput input = new MouseInput(action, position[0], position[1], button, clickCount, 0, 0);
+    final MouseInput input = new MouseInput(action, position[0], position[1], button, clickCount, NO_SCROLL, NO_SCROLL);
     final boolean queued = current.sendMouse(input);
-    this.reportIfDropped(queued);
+    if (!queued) {
+      this.reportDropped();
+    }
   }
 
   @Override
   public void sendKeyEvent(final String text) {
-    Preconditions.checkNotNull(text, "Text must not be null");
+    Preconditions.checkNotNull(text, "Text must not be null!");
+
     final BrowserSession current = this.getInputSession();
     if (current == null) {
       return;
     }
+
     final boolean isSpecialKey = SpecialKeys.isSpecialKey(text);
     final int action = isSpecialKey ? HelperProtocol.KEY_PRESS : HelperProtocol.KEY_TYPE;
     final boolean queued = current.sendKey(action, text);
-    this.reportIfDropped(queued);
+    if (!queued) {
+      this.reportDropped();
+    }
   }
 
-  private void reportIfDropped(final boolean queued) {
-    if (!queued) {
-      this.dropReports.log(
-        () -> this.report("Browser input queue is full", new RejectedExecutionException("The browser input backlog is full")),
-        dropped -> this.report("Browser input queue is full", new RejectedExecutionException(dropped + " more inputs were dropped"))
-      );
-    }
+  private void reportDropped() {
+    this.dropReports.log(
+      () -> this.report(INPUT_QUEUE_FULL_MESSAGE, new RejectedExecutionException("The browser input backlog is full!")),
+      this::reportDroppedInputs
+    );
+  }
+
+  private void reportDroppedInputs(final long dropped) {
+    final String message = "The browser dropped %s more inputs!".formatted(dropped);
+    final RejectedExecutionException exception = new RejectedExecutionException(message);
+    this.report(INPUT_QUEUE_FULL_MESSAGE, exception);
   }
 
   private @Nullable BrowserSession getInputSession() {
@@ -342,55 +341,34 @@ final class CefBrowserPlayer implements BrowserPlayer {
     return this.isPlaying() ? current : null;
   }
 
-  /**
-   * Clamps a position to the page.
-   *
-   * @param pageX the x coordinate
-   * @param pageY the y coordinate
-   * @return the coordinates inside the page
-   */
   @VisibleForTesting
   int[] clamp(final int pageX, final int pageY) {
     final BrowserSource current = this.source;
-    final int width = current == null ? 1 : current.getWidth();
-    final int height = current == null ? 1 : current.getHeight();
+    final int width = current == null ? UNSTARTED_PAGE_SIDE : current.getWidth();
+    final int height = current == null ? UNSTARTED_PAGE_SIDE : current.getHeight();
     final int clampedX = Math.clamp(pageX, 0, width - 1);
     final int clampedY = Math.clamp(pageY, 0, height - 1);
     return new int[] { clampedX, clampedY };
   }
 
-  /**
-   * Runs a picture of the page through the video pipeline, unless the session is no longer the current one. Failures
-   * are reported, except errors of the virtual machine, which are thrown.
-   *
-   * @param from     the session the picture comes from
-   * @param metadata the size of the page of that session
-   * @param frame    the picture, which is closed afterwards
-   */
   @VisibleForTesting
   void deliver(final BrowserSession from, final OriginalVideoMetadata metadata, final ImageBuffer frame) {
     try {
       if (!this.isCurrent(from) || !this.isPlaying()) {
         return;
       }
+
       final VideoPipelineStep pipeline = this.videoCallback.retrieve();
       pipeline.processAll(frame, metadata);
     } catch (final RuntimeException | Error exception) {
-      // a frame runs user filters and native OpenCV code, which can fail with any Error; only errors of the virtual
-      // machine are thrown, every other failure is reported
+      // user filters and native OpenCV code can fail with any Error; only errors of the virtual machine are thrown
       ThrowableUtils.throwIfFatal(exception);
-      this.report("Failed to process a browser frame", exception);
+      this.report("Failed to process a browser frame.", exception);
     } finally {
       frame.close();
     }
   }
 
-  /**
-   * Hands sound of the current session to its audio output; sound of a session that is over is dropped.
-   *
-   * @param from    the session that played it
-   * @param samples 16-bit little-endian stereo samples at 48 kHz
-   */
   @VisibleForTesting
   void deliverAudio(final BrowserSession from, final byte[] samples) {
     final DelayedAudioOutput output = this.audioOutput;
@@ -399,31 +377,21 @@ final class CefBrowserPlayer implements BrowserPlayer {
     }
   }
 
-  /**
-   * Marks the player as failed when its current helper ended by itself, and reports why.
-   *
-   * @param from   the session that ended
-   * @param reason why it ended
-   * @param cause  the failure
-   */
   private void onEnded(final BrowserSession from, final String reason, final Throwable cause) {
     if (!this.isCurrent(from)) {
       return;
     }
+
     final boolean failed = this.state.compareAndSet(State.PLAYING, State.FAILED);
     if (failed) {
       this.closeAudio();
-      this.report(reason, cause);
+
+      final String message = "Because of \"%s\", the browser session ended.".formatted(reason);
+      this.report(message, cause);
     }
   }
 
-  /**
-   * Checks whether a session is the current one of the player. Sessions compare by identity: an old session may
-   * belong to the same page, but its frames and failures are over.
-   *
-   * @param from the session
-   * @return true if it is the current session
-   */
+  // by identity: an old session may show the same page, but it is over
   private boolean isCurrent(final BrowserSession from) {
     final BrowserSession current = this.session;
     return current != null && SESSION_IDENTITY.equivalent(current, from);
@@ -432,6 +400,23 @@ final class CefBrowserPlayer implements BrowserPlayer {
   private void report(final String message, final Throwable error) {
     final BiConsumer<String, Throwable> handler = this.exceptionHandler.getExceptionHandler();
     handler.accept(message, error);
+  }
+
+  @Override
+  public void setExceptionHandler(final BiConsumer<String, Throwable> exceptionHandler) {
+    Preconditions.checkNotNull(exceptionHandler, "Exception handler must not be null!");
+
+    this.exceptionHandler.setExceptionHandler(exceptionHandler);
+  }
+
+  @Override
+  public boolean isPlaying() {
+    return this.state.get() == State.PLAYING;
+  }
+
+  @Override
+  public BiConsumer<String, Throwable> getExceptionHandler() {
+    return this.exceptionHandler.getExceptionHandler();
   }
 
   @Override
@@ -444,67 +429,31 @@ final class CefBrowserPlayer implements BrowserPlayer {
     return this.audioCallback;
   }
 
-  @Override
-  public BiConsumer<String, Throwable> getExceptionHandler() {
-    return this.exceptionHandler.getExceptionHandler();
-  }
-
-  @Override
-  public void setExceptionHandler(final BiConsumer<String, Throwable> exceptionHandler) {
-    Preconditions.checkNotNull(exceptionHandler, "Exception handler must not be null");
-    this.exceptionHandler.setExceptionHandler(exceptionHandler);
-  }
-
-  /**
-   * Starts the session of a start.
-   */
   @FunctionalInterface
   interface SessionFactory {
-    /**
-     * Starts a session and waits until it shows the page.
-     *
-     * @param source   the page and its size
-     * @param options  the options of the player
-     * @param listener receives the frames and an unexpected end
-     * @return the session
-     * @throws PlayerException if the browser cannot be started
-     */
-    BrowserSession open(BrowserSource source, BrowserOptions options, BrowserSession.Listener listener);
+    BrowserSession open(final BrowserSource source, final BrowserOptions options, final BrowserSession.Listener listener);
   }
 
-  /**
-   * Installs the CEF natives on first use and starts real helper processes.
-   */
-  static final class DefaultSessionFactory implements SessionFactory {
+  static final class HelperSessionFactory implements SessionFactory {
+
+    private static final Path ROOT = Path.of("/");
 
     private final JcefNatives natives;
     private final LinuxLibraries libraries;
     private final List<String> extraJvmOptions;
+
     private @Nullable HelperLauncher launcher;
 
-    private DefaultSessionFactory() {
+    private HelperSessionFactory() {
       this(new JcefNatives(), List.of());
     }
 
-    /**
-     * Constructs a factory with another installer and JVM options for the helpers, so tests can add a coverage agent.
-     *
-     * @param natives         installs the CEF natives
-     * @param extraJvmOptions options added to the JVM of every helper
-     */
     @VisibleForTesting
-    DefaultSessionFactory(final JcefNatives natives, final List<String> extraJvmOptions) {
+    HelperSessionFactory(final JcefNatives natives, final List<String> extraJvmOptions) {
       this(natives, new LinuxLibraries(), extraJvmOptions);
     }
 
-    /**
-     * Constructs a factory with other installers and JVM options for the helpers.
-     *
-     * @param natives         installs the CEF natives
-     * @param libraries       installs the libraries a Linux server may lack
-     * @param extraJvmOptions options added to the JVM of every helper
-     */
-    private DefaultSessionFactory(final JcefNatives natives, final LinuxLibraries libraries, final List<String> extraJvmOptions) {
+    private HelperSessionFactory(final JcefNatives natives, final LinuxLibraries libraries, final List<String> extraJvmOptions) {
       this.natives = natives;
       this.libraries = libraries;
       this.extraJvmOptions = List.copyOf(extraJvmOptions);
@@ -513,56 +462,45 @@ final class CefBrowserPlayer implements BrowserPlayer {
     @Override
     public BrowserSession open(final BrowserSource source, final BrowserOptions options, final BrowserSession.Listener listener) {
       HelperProcesses.requireOpen();
+
       final Path installation;
       final HelperLauncher current;
       try {
         installation = this.natives.install();
-        current = withLibraries(this.getLauncher(), this.libraries);
+        final HelperLauncher base = this.getLauncher();
+        current = this.withLibraries(base, this.libraries);
       } catch (final IOException | DownloadException | FileOperationException exception) {
-        throw new BrowserUnavailableException("The browser cannot be installed: " + exception.getMessage(), exception);
+        final String message = "The browser cannot be installed!";
+        throw new BrowserUnavailableException(message, exception);
       }
+
       return HelperSession.open(current, installation, source, options, listener);
     }
 
-    /**
-     * Gives the helpers of a Linux server the libraries it lacks, installing them first.
-     *
-     * @param base      the launcher
-     * @param libraries installs and links the libraries
-     * @return the launcher, with the libraries on Linux
-     * @throws IOException if the libraries cannot be installed
-     */
     @VisibleForTesting
-    static HelperLauncher withLibraries(final HelperLauncher base, final LinuxLibraries libraries) throws IOException {
+    HelperLauncher withLibraries(final HelperLauncher base, final LinuxLibraries libraries) throws IOException {
       if (base.getOs() != Os.LINUX) {
         return base;
       }
-      return withLibraries(base, libraries, Path.of("/"));
+
+      return this.withLibraries(base, libraries, ROOT);
     }
 
-    /**
-     * Gives the helpers of a Linux server the libraries it lacks, reading the server's loader configuration below a
-     * root, so tests can make up a server.
-     *
-     * @param base      the launcher
-     * @param libraries installs the libraries
-     * @param root      the root of the file system of the server
-     * @return the launcher that links the libraries into every session, or the launcher itself when the server lacks
-     *         none, which downloads nothing then
-     * @throws IOException                 if the libraries cannot be installed
-     * @throws BrowserUnavailableException if the Java runtime of the helpers lacks {@value LinuxLibraries#JAWT}, or the
-     *                                     server lacks a library that mcav does not bring
-     */
     @VisibleForTesting
-    static HelperLauncher withLibraries(final HelperLauncher base, final LinuxLibraries libraries, final Path root) throws IOException {
-      LinuxLibraries.requireJawt(base.getJava());
+    HelperLauncher withLibraries(final HelperLauncher base, final LinuxLibraries libraries, final Path root) throws IOException {
+      final Path java = base.getJava();
+      LinuxLibraries.requireJawt(java);
+
       final JcefNatives.NativePlatform platform = JcefNatives.detectCurrent();
       final String identifier = platform.getIdentifier();
       final List<Path> folders = LinuxLibraries.hostFolders(root, identifier);
+      libraries.requireHostLibraries(identifier, folders);
+
       final List<LinuxLibraries.Pin> missing = libraries.findMissing(identifier, folders);
       if (missing.isEmpty()) {
         return base;
       }
+
       final Path bundle = libraries.install(identifier);
       return base.withLibraries(session -> LinuxLibraries.link(bundle, session, missing));
     }
@@ -570,20 +508,19 @@ final class CefBrowserPlayer implements BrowserPlayer {
     private synchronized HelperLauncher getLauncher() {
       HelperLauncher current = this.launcher;
       if (current == null) {
-        current = HelperLauncher.createDefault(START_TIMEOUT_MILLIS, this.extraJvmOptions);
+        current = HelperLauncher.createDefault(START_TIMEOUT_MILLISECONDS, this.extraJvmOptions);
         this.launcher = current;
       }
+
       return current;
     }
   }
 
-  /**
-   * Passes the frames, the sound and the end of a session to the player, once the session is known. Frames and sound
-   * before are dropped; an end before is kept and passed on when the session becomes known.
-   */
+  // frames and sound before the session is known are dropped; an end is kept until then
   private final class SessionListener implements BrowserSession.Listener {
 
     private final OriginalVideoMetadata metadata;
+
     private volatile @Nullable BrowserSession owner;
     private @Nullable Consumer<BrowserSession> earlyEnd;
 
@@ -597,6 +534,7 @@ final class CefBrowserPlayer implements BrowserPlayer {
         this.owner = session;
         end = this.earlyEnd;
       }
+
       if (end != null) {
         end.accept(session);
       }
@@ -609,6 +547,7 @@ final class CefBrowserPlayer implements BrowserPlayer {
         frame.close();
         return;
       }
+
       CefBrowserPlayer.this.deliver(from, this.metadata, frame);
     }
 
@@ -630,19 +569,15 @@ final class CefBrowserPlayer implements BrowserPlayer {
           return;
         }
       }
+
       CefBrowserPlayer.this.onEnded(from, reason, cause);
     }
   }
 
-  /**
-   * The lifecycle of the player.
-   */
   private enum State {
-    /** Not started, or released. */
     IDLE,
-    /** Streaming a page. */
     PLAYING,
-    /** The helper ended by itself; it is closed when the player starts again or is released. */
+    // closed when the player starts again or is released
     FAILED,
   }
 }

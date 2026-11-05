@@ -27,56 +27,38 @@ import org.bytedeco.opencv.opencv_core.Mat;
 import org.bytedeco.opencv.opencv_core.Scalar;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-/**
- * The server's copy of the page a browser helper streams: the changed regions the helper sends are written into it,
- * and every frame for the video pipeline is a copy of it converted from BGRA to the BGR the pipeline works with. The
- * page starts white, like a page before its first paint.
- */
+// The page starts white, like a page before its first paint.
 final class FrameCanvas implements AutoCloseable {
+
+  private static final double FULL_CHANNEL = 255.0;
 
   private final int width;
   private final int height;
   private final Mat page;
   private final ByteBuffer pixels;
+
   private boolean closed;
 
-  /**
-   * Constructs a white canvas.
-   *
-   * @param width  the width of the page in pixels
-   * @param height the height of the page in pixels
-   */
   FrameCanvas(final int width, final int height) {
     this.width = width;
     this.height = height;
-    final Scalar white = new Scalar(255.0, 255.0, 255.0, 255.0);
+    final Scalar white = new Scalar(FULL_CHANNEL, FULL_CHANNEL, FULL_CHANNEL, FULL_CHANNEL);
     this.page = new Mat(height, width, opencv_core.CV_8UC4, white);
     this.pixels = this.page.createBuffer();
   }
 
-  /**
-   * Writes a changed region into the page.
-   *
-   * @param region the region, whose position and size {@link HelperProtocol} already checked against its page
-   * @throws ProtocolException if the region belongs to a page of another size
-   */
   synchronized void apply(final FrameRegion region) throws ProtocolException {
-    if (region.getPageWidth() != this.width || region.getPageHeight() != this.height) {
-      throw new ProtocolException(
-        "A frame of a " +
-          region.getPageWidth() +
-          "x" +
-          region.getPageHeight() +
-          " page arrived for a " +
-          this.width +
-          "x" +
-          this.height +
-          " page"
-      );
+    final int pageWidth = region.getPageWidth();
+    final int pageHeight = region.getPageHeight();
+    if (pageWidth != this.width || pageHeight != this.height) {
+      final String message = "A frame of a %sx%s page arrived for a %sx%s page!".formatted(pageWidth, pageHeight, this.width, this.height);
+      throw new ProtocolException(message);
     }
+
     if (this.closed) {
       return;
     }
+
     final byte[] source = region.getPixels();
     final int left = region.getX();
     final int top = region.getY();
@@ -90,18 +72,24 @@ final class FrameCanvas implements AutoCloseable {
     }
   }
 
-  /**
-   * Copies the page as a BGR image.
-   *
-   * @return the image, which the caller owns, or null once the canvas was closed
-   */
   synchronized @Nullable ImageBuffer snapshot() {
     if (this.closed) {
       return null;
     }
+
     final Mat bgr = new Mat();
     opencv_imgproc.cvtColor(this.page, bgr, opencv_imgproc.COLOR_BGRA2BGR);
     return ImageBuffer.mat(bgr);
+  }
+
+  @Override
+  public synchronized void close() {
+    if (this.closed) {
+      return;
+    }
+
+    this.closed = true;
+    this.page.close();
   }
 
   int getWidth() {
@@ -112,25 +100,8 @@ final class FrameCanvas implements AutoCloseable {
     return this.height;
   }
 
-  /**
-   * Gets the native picture of the page, so tests can check that closing releases it.
-   *
-   * @return the picture
-   */
   @VisibleForTesting
   Mat getPage() {
     return this.page;
-  }
-
-  /**
-   * Frees the native memory of the page.
-   */
-  @Override
-  public synchronized void close() {
-    if (this.closed) {
-      return;
-    }
-    this.closed = true;
-    this.page.close();
   }
 }

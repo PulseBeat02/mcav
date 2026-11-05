@@ -48,9 +48,6 @@ abstract class DownloadToolArchive : DefaultTask() {
 
     private companion object {
 
-        const val DOWNLOADING: String = "Downloading tool archive {}."
-        const val VERIFIED: String = "Verified SHA-256 {} of {}."
-
         const val CONNECT_TIMEOUT_MILLISECONDS: Int = 30_000
         const val READ_TIMEOUT_MILLISECONDS: Int = 120_000
 
@@ -106,8 +103,8 @@ abstract class DownloadToolArchive : DefaultTask() {
     /**
      * Downloads the archive, checks its digest and unpacks it.
      *
-     * @throws GradleException if the pinned digest is malformed, the download fails, the digest differs, the archive is of
-     * another type or it lacks the executable
+     * @throws GradleException          if the download fails, the digest differs or the archive lacks the executable
+     * @throws IllegalArgumentException if the pinned digest is malformed or the archive is of another type
      */
     @TaskAction
     fun install(): Unit {
@@ -115,7 +112,7 @@ abstract class DownloadToolArchive : DefaultTask() {
         val expected: String = this.sha256.get()
         if (!expected.matches(SHA256_DIGEST)) {
             val message: String = "Pinned SHA-256 of $address must be 64 lowercase hexadecimal digits!"
-            throw GradleException(message)
+            throw IllegalArgumentException(message)
         }
 
         val archive: File = this.download(address)
@@ -130,7 +127,7 @@ abstract class DownloadToolArchive : DefaultTask() {
         val uri: URI = URI(address)
         val fileName: String = uri.path.substringAfterLast(PATH_SEPARATOR)
         val archive: File = this.temporaryDir.resolve(fileName)
-        this.logger.lifecycle(DOWNLOADING, address)
+        this.logger.lifecycle("Downloading tool archive {}.", address)
 
         try {
             this.copyFrom(uri, archive)
@@ -146,16 +143,16 @@ abstract class DownloadToolArchive : DefaultTask() {
         val connection: URLConnection = this.openConnection(uri)
         connection.connectTimeout = CONNECT_TIMEOUT_MILLISECONDS
         connection.readTimeout = READ_TIMEOUT_MILLISECONDS
-        connection.getInputStream().use { input -> this.copy(input, archive) }
+        connection.getInputStream().use { this.copy(it, archive) }
     }
 
     // hook for the pitest mutants that drop a timeout or the close: tests inspect the connection it returns
-    protected open fun openConnection(uri: URI): URLConnection {
+    internal open fun openConnection(uri: URI): URLConnection {
         return uri.toURL().openConnection()
     }
 
     private fun copy(input: InputStream, target: File): Unit {
-        target.outputStream().use { output -> input.copyTo(output) }
+        target.outputStream().use { input.copyTo(it) }
     }
 
     private fun verifyChecksum(archive: File, address: String, expected: String): Unit {
@@ -167,7 +164,7 @@ abstract class DownloadToolArchive : DefaultTask() {
             throw GradleException(message)
         }
 
-        this.logger.lifecycle(VERIFIED, expected, address)
+        this.logger.lifecycle("Verified SHA-256 {} of {}.", expected, address)
     }
 
     private fun openArchive(archive: File, address: String): FileTree {
@@ -185,12 +182,12 @@ abstract class DownloadToolArchive : DefaultTask() {
         }
 
         val message: String = "Tool archive $address must be a .zip, .tar.gz or .tar.xz file!"
-        throw GradleException(message)
+        throw IllegalArgumentException(message)
     }
 
     private fun unpackXz(archive: File): FileTree {
         val unpacked: File = this.temporaryDir.resolve(UNPACKED_TAR)
-        XZInputStream(archive.inputStream()).use { input -> this.copy(input, unpacked) }
+        XZInputStream(archive.inputStream()).use { this.copy(it, unpacked) }
 
         return this.archives.tarTree(unpacked)
     }

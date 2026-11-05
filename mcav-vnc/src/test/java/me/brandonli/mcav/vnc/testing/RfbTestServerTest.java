@@ -36,9 +36,11 @@ import org.junit.jupiter.params.provider.CsvSource;
 final class RfbTestServerTest {
 
   private static final byte[] VERSION = "RFB 003.008\n".getBytes(StandardCharsets.US_ASCII);
+
   private static final int COLOR = 0xFF8040;
 
   private static final int PADDING_BYTES = 3;
+  private static final int PIXEL_FORMAT_BYTES = 16;
 
   private static final int BITS_PER_BYTE = 8;
 
@@ -53,15 +55,15 @@ final class RfbTestServerTest {
 
   @ParameterizedTest
   @CsvSource({ "32,true,00ff8040", "32,false,4080ff00", "16,true,fbe7", "16,false,e7fb", "8,true,ec", "8,false,ec" })
-  void shouldEncodeRawPixelsInTheNegotiatedByteOrder(final int bits, final boolean bigEndian, final String expectedHexadecimal)
+  void shouldEncodeRawPixelsInTheNegotiatedByteOrder(final int bitsPerPixel, final boolean bigEndian, final String expectedHexadecimal)
     throws IOException {
     try (final RfbTestServer server = RfbTestServer.start(1, 1); final Socket socket = this.connect(server)) {
       server.setColor(COLOR);
       final DataInputStream input = new DataInputStream(socket.getInputStream());
       final DataOutputStream output = new DataOutputStream(socket.getOutputStream());
       this.handshake(input, output);
-      this.setPixelFormat(output, bits, bigEndian);
-      final byte[] actual = this.requestPixel(input, output, bits / BITS_PER_BYTE);
+      this.setPixelFormat(output, bitsPerPixel, bigEndian);
+      final byte[] actual = this.requestPixel(input, output, bitsPerPixel / BITS_PER_BYTE);
       final HexFormat hexadecimal = HexFormat.of();
       final byte[] expected = hexadecimal.parseHex(expectedHexadecimal);
       assertArrayEquals(expected, actual);
@@ -81,6 +83,7 @@ final class RfbTestServerTest {
         final byte[] expected = { (byte) 0xE7, (byte) 0xFB };
         assertArrayEquals(expected, pixel);
       }
+
       try (final Socket second = this.connect(server)) {
         final DataInputStream input = new DataInputStream(second.getInputStream());
         final DataOutputStream output = new DataOutputStream(second.getOutputStream());
@@ -101,36 +104,43 @@ final class RfbTestServerTest {
   }
 
   private void handshake(final DataInputStream input, final DataOutputStream output) throws IOException {
-    final byte[] version = input.readNBytes(12);
+    final byte[] version = input.readNBytes(VERSION.length);
     assertArrayEquals(VERSION, version);
+
     output.write(VERSION);
     output.flush();
     final int securityCount = input.readUnsignedByte();
     final int securityType = input.readUnsignedByte();
     assertEquals(1, securityCount);
     assertEquals(1, securityType);
+
     output.writeByte(1);
     output.flush();
     final int securityResult = input.readInt();
     assertEquals(0, securityResult);
+
     output.writeByte(1);
     output.flush();
     final int width = input.readUnsignedShort();
     final int height = input.readUnsignedShort();
     assertEquals(1, width);
     assertEquals(1, height);
-    final byte[] format = input.readNBytes(16);
-    assertEquals(32, format[0]);
-    assertEquals(1, format[2]);
+
+    final byte[] format = input.readNBytes(PIXEL_FORMAT_BYTES);
+    final byte bitsPerPixel = format[0];
+    final byte bigEndianFlag = format[2];
+    assertEquals(32, bitsPerPixel);
+    assertEquals(1, bigEndianFlag);
+
     final int nameLength = input.readInt();
     input.skipNBytes(nameLength);
   }
 
-  private void setPixelFormat(final DataOutputStream output, final int bits, final boolean bigEndian) throws IOException {
+  private void setPixelFormat(final DataOutputStream output, final int bitsPerPixel, final boolean bigEndian) throws IOException {
     output.writeByte(0);
     output.write(new byte[PADDING_BYTES]);
-    final PixelFormat format = FORMATS.get(bits);
-    output.writeByte(bits);
+    final PixelFormat format = FORMATS.get(bitsPerPixel);
+    output.writeByte(bitsPerPixel);
     output.writeByte(format.depth());
     output.writeByte(bigEndian ? 1 : 0);
     output.writeByte(1);

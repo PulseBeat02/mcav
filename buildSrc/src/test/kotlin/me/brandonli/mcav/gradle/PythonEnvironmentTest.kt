@@ -103,7 +103,7 @@ class PythonEnvironmentTest {
 
     private fun environment(lock: String): RecordingEnvironment {
         val project: Project = ProjectBuilder.builder().withProjectDir(this.directory.toFile()).build()
-        val task: RecordingEnvironment = project.tasks.register("installPythonEnvironment", RecordingEnvironment::class.java).get()
+        val task: RecordingEnvironment = project.tasks.register(PythonEnvironment.TASK_NAME, RecordingEnvironment::class.java).get()
         val requirements: File = this.directory.resolve(LOCK_FILE).toFile()
         requirements.writeText(lock)
         task.uvExecutable.set(this.directory.resolve(UV_EXECUTABLE).toFile())

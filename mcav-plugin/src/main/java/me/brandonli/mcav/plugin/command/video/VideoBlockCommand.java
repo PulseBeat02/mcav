@@ -55,9 +55,10 @@ import org.incendo.cloud.bukkit.data.MultiplePlayerSelector;
 public final class VideoBlockCommand extends AbstractVideoCommand {
 
   /**
-   * Constructs the command.
+   * Creates the command.
    *
    * @param plugin the plugin
+   * @throws NullPointerException if {@code plugin} is null
    * @since 1.0.0
    */
   public VideoBlockCommand(final MCAVSandbox plugin) {
@@ -92,6 +93,7 @@ public final class VideoBlockCommand extends AbstractVideoCommand {
    *                        {@code 0}, or a raw FFmpeg input written as {@code format||input}
    * @param filters         the {@code --filters} option: filters applied to every frame in order, such as
    *                        {@code "grayscale,blur=3"}, see {@link FilterChain}; none when absent
+   * @throws NullPointerException if an argument other than {@code filters} is null
    * @since 1.0.0
    */
   @Command("mcav video block <playerSelector> <playerType> <audioType> <videoResolution> <location> <ytdlpOptions> <mrl>")
@@ -111,7 +113,7 @@ public final class VideoBlockCommand extends AbstractVideoCommand {
     Preconditions.checkNotNull(playerSelector, "Player selector must not be null!");
     Preconditions.checkNotNull(location, "Location must not be null!");
 
-    final Collection<UUID> players = ArgumentUtils.parsePlayerSelectors(playerSelector);
+    final Collection<UUID> players = ArgumentUtils.resolvePlayerIds(playerSelector);
     final VideoConfigurationProvider configurationProvider = resolution -> this.createConfiguration(resolution, players, location);
     this.playVideo(configurationProvider, sender, playerSelector, playerType, audioType, videoResolution, mrl, ytdlpOptions, filters);
   }
@@ -125,6 +127,8 @@ public final class VideoBlockCommand extends AbstractVideoCommand {
    *                              {@link #playVideo(CommandSender, MultiplePlayerSelector, PlayerArgument, AudioArgument, String, Location, String, String, String)},
    *                              which returns a {@link BlockConfiguration}
    * @return the pipeline that shows the frames on the wall
+   * @throws NullPointerException                       if an argument is null
+   * @throws java.util.concurrent.CancellationException if the video startup was cancelled or the manager is shut down
    * @since 1.0.0
    */
   @Override

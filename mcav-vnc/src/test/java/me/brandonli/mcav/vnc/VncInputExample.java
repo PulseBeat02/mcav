@@ -39,14 +39,19 @@ import me.brandonli.mcav.utils.interaction.MouseClick;
 // Shows the screen of the VNC server at localhost:5900 in a window and forwards clicks to it.
 public final class VncInputExample {
 
+  private static final String HOST = "localhost";
+  private static final int PORT = 5900;
+
   private static final int WIDTH = 1024;
   private static final int HEIGHT = 768;
 
+  private static final int FRAME_RATE = 30;
+
   private VncInputExample() {
-    throw new UnsupportedOperationException("Example class cannot be instantiated!");
+    final String message = "Example class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
-  // Opens the window, connects to the server, and releases everything when the JVM exits.
   static void main() {
     final MCAVApi api = MCAV.api();
     api.install(VncModule.class);
@@ -55,18 +60,15 @@ public final class VncInputExample {
     openWindow(label);
 
     final VideoPipelineStepBuilder builder = PipelineBuilder.video();
-    builder.then((image, _) -> {
-      show(label, image);
-      return false;
-    });
+    builder.then((image, _) -> show(label, image));
     final VideoPipelineStep pipeline = builder.build();
 
     final VncSourceBuilder sourceBuilder = VncSource.builder();
-    sourceBuilder.host("localhost");
-    sourceBuilder.port(5900);
+    sourceBuilder.host(HOST);
+    sourceBuilder.port(PORT);
     sourceBuilder.screenWidth(WIDTH);
     sourceBuilder.screenHeight(HEIGHT);
-    sourceBuilder.targetFrameRate(30);
+    sourceBuilder.targetFrameRate(FRAME_RATE);
     final VncSource source = sourceBuilder.build();
 
     final VncPlayer player = VncPlayer.create();
@@ -101,17 +103,21 @@ public final class VncInputExample {
   }
 
   private static void releaseOnExit(final MCAVApi api, final VncPlayer player) {
-    final Thread hook = new Thread(() -> {
-      player.release();
-      api.release();
-    });
+    final Thread hook = new Thread(() -> release(player, api));
     final Runtime runtime = Runtime.getRuntime();
     runtime.addShutdownHook(hook);
   }
 
-  private static void show(final JLabel label, final ImageBuffer samples) {
+  private static void release(final VncPlayer player, final MCAVApi api) {
+    player.release();
+    api.release();
+  }
+
+  private static boolean show(final JLabel label, final ImageBuffer samples) {
     final BufferedImage image = samples.toBufferedImage();
     final ImageIcon icon = new ImageIcon(image);
     SwingUtilities.invokeLater(() -> label.setIcon(icon));
+
+    return false;
   }
 }

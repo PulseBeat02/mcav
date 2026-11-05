@@ -19,28 +19,16 @@ package me.brandonli.mcav.browser;
 
 import java.net.Inet4Address;
 import java.net.InetAddress;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
-/**
- * Decides which addresses a page may connect to when private networks are not allowed: public unicast addresses of the
- * internet only.
- *
- * <p>Refused are the IPv4 ranges that are not globally reachable: "this" network, private networks, carrier-grade
- * NAT, loopback, link-local (which holds the metadata service of cloud machines), IETF assignments, documentation,
- * benchmarking, multicast and the reserved range with broadcast. IPv6 addresses must be global unicast
- * ({@code 2000::/3}) outside the IETF assignments with Teredo, documentation and 6to4; an IPv4 address inside an IPv6
- * address, mapped ({@code ::ffff:0:0/96}) or translated by NAT64 ({@code 64:ff9b::/96}), is judged as that IPv4
- * address, so an IPv6-only server can still reach IPv4 sites through NAT64.
- *
- * <p>A network may translate with a prefix of its own instead of {@code 64:ff9b::/96}, and its addresses look like any
- * global unicast address. Its resolver reveals such prefixes when asked for {@value #IPV4_ONLY_HOST} (RFC 7050): it
- * answers with IPv6 addresses that embed the well-known IPv4 addresses of that name. {@link #findTranslationPrefixes}
- * reads the prefixes from that answer, and an address inside one of them is judged by the IPv4 address it embeds. Only
- * a prefix in global unicast space or in that of the well-known NAT64 prefixes counts: a prefix anywhere else, as a
- * forged answer might hold, would make addresses the policy refuses look translated.
- */
+// Public unicast addresses only, as a page could otherwise reach private networks or a cloud metadata service. IPv4
+// inside IPv6 (mapped, or translated by NAT64 with the well-known or a network's own prefix) is judged as IPv4. A network
+// prefix counts only in global unicast or well-known NAT64 space, so a forged answer cannot make refused addresses pass.
 final class AddressPolicy {
 
   private static final int[][] REFUSED_IPV4 = {
@@ -63,76 +51,75 @@ final class AddressPolicy {
 
   private static final int EMBEDDED_IPV4_OFFSET = 12;
 
-  /**
-   * The name whose IPv6 answers show the NAT64 prefixes of the network (RFC 7050).
-   */
+  // its IPv6 answers show the NAT64 prefixes of the network (RFC 7050)
   static final String IPV4_ONLY_HOST = "ipv4only.arpa";
 
-  // the IPv4 addresses of ipv4only.arpa, 192.0.0.170 and 192.0.0.171
+  // 192.0.0.170 and 192.0.0.171
   private static final int[] WELL_KNOWN_IPV4 = { 0xC00000AA, 0xC00000AB };
 
-  // the prefix lengths of RFC 6052, each with its own place for the IPv4 address
+  // RFC 6052, each with its own place for the IPv4 address
   private static final int[] TRANSLATION_PREFIX_LENGTHS = { 32, 40, 48, 56, 64, 96 };
 
-  // the byte of an IPv6 address that RFC 6052 keeps zero and skips when it embeds an IPv4 address
+  // RFC 6052 keeps this byte zero and skips it when it embeds an IPv4 address
   private static final int U_OCTET = 8;
 
   private static final int IPV6_BYTES = 16;
+
+  private static final int UNSIGNED_BYTE_MASK = 0xFF;
+
+  private static final int SECOND_WORD_OFFSET = 4;
+  private static final int THIRD_WORD_OFFSET = 8;
+
+  // the third 32 bits of ::ffff:0:0/96
+  private static final int IPV4_MAPPED_WORD = 0x0000FFFF;
+
+  private static final int GLOBAL_UNICAST_MASK = 0xE0000000;
+  private static final int GLOBAL_UNICAST_PREFIX = 0x20000000;
+
+  private static final int IETF_MASK = 0xFFFFFE00;
+  private static final int IETF_PREFIX = 0x20010000;
+
+  private static final int DOCUMENTATION_PREFIX = 0x20010DB8;
+  private static final int WIDE_DOCUMENTATION_MASK = 0xFFFFF000;
+  private static final int WIDE_DOCUMENTATION_PREFIX = 0x3FFF0000;
+
+  private static final int SIX_TO_FOUR_MASK = 0xFFFF0000;
+  private static final int SIX_TO_FOUR_PREFIX = 0x20020000;
 
   // the first 32 bits of the well-known NAT64 prefix 64:ff9b::/96 (RFC 6052) and of 64:ff9b:1::/48 (RFC 8215)
   private static final int WELL_KNOWN_NAT64 = 0x0064FF9B;
 
   private AddressPolicy() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
-  /**
-   * Checks whether an address is a public address of the internet.
-   *
-   * @param address the address
-   * @return true if a page may connect to it without access to private networks
-   */
   static boolean isPublic(final InetAddress address) {
-    final byte[] bytes = address.getAddress();
-    if (address instanceof Inet4Address) {
-      return isPublicIpv4(toInt(bytes, 0));
-    }
-    return isPublicIpv6(bytes);
+    return isPublic(address, List.of());
   }
 
-  /**
-   * Checks whether an address is a public address of the internet on a network that translates IPv6 to IPv4 with
-   * prefixes of its own: an address inside such a prefix is judged by the IPv4 address it embeds.
-   *
-   * @param address  the address
-   * @param prefixes the NAT64 prefixes of the network
-   * @return true if a page may connect to it without access to private networks
-   */
   static boolean isPublic(final InetAddress address, final List<TranslationPrefix> prefixes) {
     final byte[] bytes = address.getAddress();
     if (address instanceof Inet4Address) {
       return isPublicIpv4(toInt(bytes, 0));
     }
+
     boolean translated = false;
     for (final TranslationPrefix prefix : prefixes) {
-      if (prefix.contains(bytes)) {
-        if (!isPublicIpv4(embeddedIpv4(bytes, prefix.getLength()))) {
-          return false;
-        }
-        translated = true;
+      if (!prefix.contains(bytes)) {
+        continue;
       }
+      final int length = prefix.getLength();
+      if (!isPublicIpv4(embeddedIpv4(bytes, length))) {
+        return false;
+      }
+      translated = true;
     }
+
     return translated || isPublicIpv6(bytes);
   }
 
-  /**
-   * Finds the NAT64 prefixes of the network in the answer of its resolver for {@value #IPV4_ONLY_HOST}: every IPv6
-   * address that embeds one of the name's IPv4 addresses where RFC 6052 puts it for a prefix length gives a prefix of
-   * that length. IPv4 addresses in the answer are skipped.
-   *
-   * @param answer the addresses of {@value #IPV4_ONLY_HOST}
-   * @return the prefixes, each once
-   */
+  // an IPv6 address embedding a well-known IPv4 address where RFC 6052 puts it for a length gives a prefix of that length
   static List<TranslationPrefix> findTranslationPrefixes(final InetAddress[] answer) {
     final List<TranslationPrefix> prefixes = new ArrayList<>();
     for (final InetAddress address : answer) {
@@ -140,32 +127,29 @@ final class AddressPolicy {
       if (bytes.length != IPV6_BYTES || !isTranslationNetwork(bytes)) {
         continue;
       }
-      for (final int length : TRANSLATION_PREFIX_LENGTHS) {
-        final boolean uOctetAfterPrefix = length / Byte.SIZE <= U_OCTET;
-        if (uOctetAfterPrefix && bytes[U_OCTET] != 0) {
-          continue;
-        }
-        final int embedded = embeddedIpv4(bytes, length);
-        if (embedded != WELL_KNOWN_IPV4[0] && embedded != WELL_KNOWN_IPV4[1]) {
-          continue;
-        }
-        final TranslationPrefix prefix = new TranslationPrefix(bytes, length);
-        if (prefixes.stream().noneMatch(prefix::isSameAs)) {
-          prefixes.add(prefix);
-        }
-      }
+      addTranslationPrefixes(bytes, prefixes);
     }
+
     return prefixes;
   }
 
-  /**
-   * Reads the IPv4 address an IPv6 address embeds after a NAT64 prefix of a length of RFC 6052: the four bytes after
-   * the prefix, skipping the byte RFC 6052 keeps zero.
-   *
-   * @param bytes        the sixteen bytes of the address
-   * @param prefixLength the length of the prefix in bits, one of 32, 40, 48, 56, 64 and 96
-   * @return the IPv4 address as a big-endian number
-   */
+  private static void addTranslationPrefixes(final byte[] bytes, final List<TranslationPrefix> prefixes) {
+    for (final int length : TRANSLATION_PREFIX_LENGTHS) {
+      final boolean uOctetAfterPrefix = length / Byte.SIZE <= U_OCTET;
+      if (uOctetAfterPrefix && bytes[U_OCTET] != 0) {
+        continue;
+      }
+      final int embedded = embeddedIpv4(bytes, length);
+      if (embedded != WELL_KNOWN_IPV4[0] && embedded != WELL_KNOWN_IPV4[1]) {
+        continue;
+      }
+      final TranslationPrefix prefix = new TranslationPrefix(bytes, length);
+      if (!prefixes.contains(prefix)) {
+        prefixes.add(prefix);
+      }
+    }
+  }
+
   private static int embeddedIpv4(final byte[] bytes, final int prefixLength) {
     int address = 0;
     int index = prefixLength / Byte.SIZE;
@@ -173,18 +157,13 @@ final class AddressPolicy {
       if (index == U_OCTET) {
         index++;
       }
-      address = (address << Byte.SIZE) | (bytes[index] & 0xFF);
+      address = (address << Byte.SIZE) | (bytes[index] & UNSIGNED_BYTE_MASK);
       index++;
     }
+
     return address;
   }
 
-  /**
-   * Checks whether an IPv4 address is public.
-   *
-   * @param address the address as a big-endian number
-   * @return true if it is in none of the refused ranges
-   */
   static boolean isPublicIpv4(final int address) {
     for (final int[] range : REFUSED_IPV4) {
       final int mask = -1 << (Integer.SIZE - range[1]);
@@ -192,107 +171,83 @@ final class AddressPolicy {
         return false;
       }
     }
+
     return true;
   }
 
-  /**
-   * Checks whether an IPv6 address is public.
-   *
-   * @param bytes the sixteen bytes of the address
-   * @return true if it is global unicast outside the refused ranges, or embeds a public IPv4 address
-   */
   static boolean isPublicIpv6(final byte[] bytes) {
     final int first = toInt(bytes, 0);
-    final int second = toInt(bytes, 4);
-    final int third = toInt(bytes, 8);
-    final boolean mapped = first == 0 && second == 0 && third == 0x0000FFFF;
+    final int second = toInt(bytes, SECOND_WORD_OFFSET);
+    final int third = toInt(bytes, THIRD_WORD_OFFSET);
+    final boolean mapped = first == 0 && second == 0 && third == IPV4_MAPPED_WORD;
     final boolean inNat64Prefix = first == WELL_KNOWN_NAT64 && second == 0 && third == 0;
     if (mapped || inNat64Prefix) {
       return isPublicIpv4(toInt(bytes, EMBEDDED_IPV4_OFFSET));
     }
+
     return isGlobalUnicast(first);
   }
 
-  /**
-   * Checks whether an IPv6 address lies where a network may translate to IPv4: in global unicast space outside the
-   * refused ranges, or in the space of the well-known NAT64 prefixes.
-   *
-   * @param bytes the sixteen bytes of the address
-   * @return true if a NAT64 prefix may begin with it
-   */
   private static boolean isTranslationNetwork(final byte[] bytes) {
     final int first = toInt(bytes, 0);
     return first == WELL_KNOWN_NAT64 || isGlobalUnicast(first);
   }
 
-  /**
-   * Checks whether the first 32 bits of an IPv6 address are global unicast ({@code 2000::/3}) outside the IETF
-   * assignments with Teredo, documentation and 6to4.
-   *
-   * @param first the first 32 bits
-   * @return true if the address is global unicast
-   */
   private static boolean isGlobalUnicast(final int first) {
-    final boolean inGlobalUnicastRange = (first & 0xE0000000) == 0x20000000;
-    final boolean inIetfRange = (first & 0xFFFFFE00) == 0x20010000;
-    final boolean inDocumentationRange = first == 0x20010DB8 || (first & 0xFFFFF000) == 0x3FFF0000;
-    final boolean inSixToFourRange = (first & 0xFFFF0000) == 0x20020000;
+    final boolean inGlobalUnicastRange = (first & GLOBAL_UNICAST_MASK) == GLOBAL_UNICAST_PREFIX;
+    final boolean inIetfRange = (first & IETF_MASK) == IETF_PREFIX;
+    final boolean inDocumentationRange = first == DOCUMENTATION_PREFIX || (first & WIDE_DOCUMENTATION_MASK) == WIDE_DOCUMENTATION_PREFIX;
+    final boolean inSixToFourRange = (first & SIX_TO_FOUR_MASK) == SIX_TO_FOUR_PREFIX;
     return inGlobalUnicastRange && !inIetfRange && !inDocumentationRange && !inSixToFourRange;
   }
 
   private static int toInt(final byte[] bytes, final int offset) {
-    return (
-      ((bytes[offset] & 0xFF) << 24) | ((bytes[offset + 1] & 0xFF) << 16) | ((bytes[offset + 2] & 0xFF) << 8) | (bytes[offset + 3] & 0xFF)
-    );
+    final ByteBuffer word = ByteBuffer.wrap(bytes, offset, Integer.BYTES);
+    return word.getInt();
   }
 
-  /**
-   * A NAT64 prefix of the network: an IPv6 address that begins with it embeds an IPv4 address where RFC 6052 puts it
-   * for the length of the prefix.
-   */
   static final class TranslationPrefix {
 
     private final byte[] bytes;
     private final int length;
 
-    /**
-     * Takes a prefix from the start of an address.
-     *
-     * @param address the sixteen bytes of an address inside the prefix
-     * @param length  the length of the prefix in bits, a multiple of eight
-     */
     private TranslationPrefix(final byte[] address, final int length) {
       this.bytes = Arrays.copyOf(address, length / Byte.SIZE);
       this.length = length;
     }
 
-    /**
-     * Gets the length of the prefix.
-     *
-     * @return the length in bits
-     */
-    int getLength() {
-      return this.length;
-    }
-
-    /**
-     * Checks whether an IPv6 address begins with the prefix.
-     *
-     * @param address the sixteen bytes of the address
-     * @return true if the address is inside the prefix
-     */
     boolean contains(final byte[] address) {
       return Arrays.equals(this.bytes, 0, this.bytes.length, address, 0, this.bytes.length);
     }
 
-    /**
-     * Checks whether another prefix has the same bits and length.
-     *
-     * @param other the other prefix
-     * @return true if both are the same prefix
-     */
-    private boolean isSameAs(final TranslationPrefix other) {
-      return this.length == other.length && Arrays.equals(this.bytes, other.bytes);
+    int getLength() {
+      return this.length;
+    }
+
+    @Override
+    public boolean equals(final @Nullable Object other) {
+      if (this == other) {
+        return true;
+      }
+
+      if (!(other instanceof final TranslationPrefix prefix)) {
+        return false;
+      }
+
+      return this.length == prefix.length && Arrays.equals(this.bytes, prefix.bytes);
+    }
+
+    @Override
+    public int hashCode() {
+      final int bytesHashCode = Arrays.hashCode(this.bytes);
+      return Objects.hash(this.length, bytesHashCode);
+    }
+
+    @Override
+    public String toString() {
+      // the helper process has no Guava on its class path
+      final String bytesText = Arrays.toString(this.bytes);
+      return "TranslationPrefix{length=%s, bytes=%s}".formatted(this.length, bytesText);
     }
   }
 }

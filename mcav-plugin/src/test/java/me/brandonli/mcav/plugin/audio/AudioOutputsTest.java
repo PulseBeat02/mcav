@@ -39,13 +39,15 @@ final class AudioOutputsTest {
   void shouldNotPlayAnOutputThatIsOffOrStillStarting() {
     final Component expected = Message.UNSUPPORTED_AUDIO.build();
     final Optional<Component> problem = AudioOutputs.findProblem(this.provider, AudioArgument.DISCORD_BOT);
-    assertEquals(Optional.of(expected), problem);
+    final Optional<Component> expectedProblem = Optional.of(expected);
+    assertEquals(expectedProblem, problem);
 
     when(this.provider.isHttpEnabled()).thenReturn(true);
 
-    final Component AUDIO_NOT_READYExpected = Message.AUDIO_NOT_READY.build();
+    final Component expectedNotReady = Message.AUDIO_NOT_READY.build();
     final Optional<Component> audioOutputsProblem = AudioOutputs.findProblem(this.provider, AudioArgument.HTTP_SERVER);
-    assertEquals(Optional.of(AUDIO_NOT_READYExpected), audioOutputsProblem);
+    final Optional<Component> expectedNotReadyProblem = Optional.of(expectedNotReady);
+    assertEquals(expectedNotReadyProblem, audioOutputsProblem);
 
     when(this.provider.isHttpReady()).thenReturn(true);
 
@@ -74,7 +76,8 @@ final class AudioOutputsTest {
 
     final Component expected = Message.AUDIO_HTTP.build("http://mc.example.com:3000");
     final Optional<Component> link = AudioOutputs.createLink(this.provider, AudioArgument.HTTP_SERVER);
-    assertEquals(Optional.of(expected), link);
+    final Optional<Component> expectedLink = Optional.of(expected);
+    assertEquals(expectedLink, link);
 
     final Optional<Component> audioOutputsLink = AudioOutputs.createLink(this.provider, AudioArgument.SIMPLE_VOICE_CHAT);
     assertEquals(Optional.empty(), audioOutputsLink);

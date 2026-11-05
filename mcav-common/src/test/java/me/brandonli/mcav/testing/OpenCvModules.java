@@ -27,7 +27,8 @@ import org.bytedeco.javacpp.Loader;
 public final class OpenCvModules {
 
   private OpenCvModules() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   public static boolean canLoad(final Class<?> preset) {

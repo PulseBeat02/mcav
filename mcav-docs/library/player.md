@@ -8,7 +8,7 @@ Release every player when you are done with it by calling `release()`. Players o
 network connections that are only freed on release.
 ```
 
-# Video Players
+## Video players
 
 Create a video player with one of the factories of `VideoPlayer`:
 
@@ -16,21 +16,21 @@ Create a video player with one of the factories of `VideoPlayer`:
 |------------------------|-----------------------------------------------------------------|-------|
 | `VideoPlayer.ffmpeg()` | The FFmpeg libraries bundled with MCAV; the recommended default | Yes   |
 | `VideoPlayer.vlc()`    | VLC, which must be installed or installable (see capabilities)  | Yes   |
-| `VideoPlayer.opencv()` | The OpenCV video reader; where the bundled OpenCV build has no file backend, as on Linux, files are read with the bundled FFmpeg instead | Only there |
+| `VideoPlayer.opencv()` | The OpenCV video reader; where the bundled OpenCV build has no file backend, as on Linux, it reads files with the bundled FFmpeg instead | Only there |
 | `VideoPlayer.device()` | Cameras and capture cards, played from a `DeviceSource`         | No    |
 
 ```{note}
-VLC is prepared in the background after `install` returned (see the [installation
+MCAV prepares VLC in the background after `install` returns (see the [installation
 lifecycle](instance.md#installation-lifecycle)). When the machine has no VLC, the first start downloads it into the MCAV
 cache folder, which can take several minutes. Until VLC is ready, `VideoPlayer.vlc()` throws an `IllegalStateException`
-that says VLC is still being prepared; if the preparation found that VLC is not available on this system, the exception
+that says VLC is still being prepared; if the preparation finds that VLC is not available on this system, the exception
 says so instead. Wait for `api.whenCapabilityReady(Capability.VLC)`, or play with `VideoPlayer.ffmpeg()` in the
 meantime.
 ```
 
 Every video player has three slots: a `VideoAttachableCallback` for the video pipeline, an `AudioAttachableCallback`
-for the audio pipeline, and a `DimensionAttachableCallback` for the size frames are scaled to. Pipelines can be
-attached before starting and swapped while playing.
+for the audio pipeline, and a `DimensionAttachableCallback` for the size frames are scaled to. You can
+attach pipelines before starting and swap them while playing.
 
 ```{note}
 Frames always reach the pipeline as 8-bit BGR images with three channels, and audio always as signed 16-bit
@@ -42,18 +42,20 @@ on a worker thread; it waits during playback. The `display` filter is yours and 
 window. `speakers.start()` throws a `PlayerException` on a machine without a sound device.
 
 ```java
-  public void playVideoFile(final Path videoFile, final VideoFilter display, final Duration playTime)
-    throws InterruptedException {
+  public void playVideoFile(final Path videoFile, final VideoFilter display, final Duration playTime) {
     final VideoPipelineStep videoPipelineStep = VideoPipelineStep.of(display);
     final DirectAudioOutput speakers = new DirectAudioOutput();
     final VideoPlayerMultiplexer player = VideoPlayer.ffmpeg();
     try {
       speakers.start();
-      final AudioPipelineStep audioPipelineStep = AudioPipelineStep.of(speakers);
+
       final VideoAttachableCallback videoCallback = player.getVideoAttachableCallback();
       videoCallback.attach(videoPipelineStep);
+
+      final AudioPipelineStep audioPipelineStep = AudioPipelineStep.of(speakers);
       final AudioAttachableCallback audioCallback = player.getAudioAttachableCallback();
       audioCallback.attach(audioPipelineStep);
+
       final DimensionAttachableCallback dimensionCallback = player.getDimensionAttachableCallback();
       final int width = 640;
       final int height = 360;
@@ -66,6 +68,12 @@ window. `speakers.start()` throws a `PlayerException` on a machine without a sou
       if (started) {
         Thread.sleep(playTime);
       }
+    } catch (final InterruptedException exception) {
+      final Thread current = Thread.currentThread();
+      current.interrupt();
+
+      final String message = "Video playback was interrupted!";
+      throw new IllegalStateException(message, exception);
     } finally {
       try {
         player.release();
@@ -80,7 +88,7 @@ window. `speakers.start()` throws a `PlayerException` on a machine without a sou
 `resume()` returns `false` and does not restart it; call `start` with the source again to play it once more, which is
 also how to loop a video.
 
-## Speed, position and volume
+### Speed, position and volume
 
 The FFmpeg, OpenCV and device players extend `AbstractVideoPlayerCv`, which adds a playback speed and the position:
 
@@ -96,10 +104,13 @@ volume is a filter of the audio pipeline, `VolumeFilter` (see [filters](filters.
 every player and every audio output behind it.
 
 ```java
+  private static final Logger LOGGER = LoggerFactory.getLogger(MyPlugin.class);
+
   public boolean playFaster(final VideoPlayerMultiplexer player) {
     if (player instanceof final AbstractVideoPlayerCv decoded) {
       final long position = decoded.getPositionMilliseconds();
       LOGGER.debug("Speeding up at {} milliseconds.", position);
+
       final double speed = 1.5;
       return decoded.setSpeed(speed);
     }
@@ -109,7 +120,7 @@ every player and every audio output behind it.
 ```
 
 The FFmpeg and VLC players can play video and audio from two different sources and keep them in sync. This is how
-the separate streams yt-dlp resolves for high-quality YouTube videos are played. The OpenCV and device backends
+MCAV plays the separate streams that yt-dlp resolves for high-quality YouTube videos. The OpenCV and device backends
 share the multiplexer interface; the device backend decodes no audio, and the OpenCV backend only where it reads files
 with the bundled FFmpeg, as on Linux.
 
@@ -122,19 +133,21 @@ with the bundled FFmpeg, as on Linux.
 ```
 
 ```{warning}
-The `ImageBuffer` passed to a video pipeline is reused for the next frame. Copy it with `copy()` if you want to keep
+The player reuses the `ImageBuffer` it passes to a video pipeline for the next frame. Copy it with `copy()` if you want
+to keep
 it.
 ```
 
-Failures on the player threads, such as a broken network stream, are reported to the exception handler, which logs
+The player reports failures on its threads, such as a broken network stream, to the exception handler, which logs
 them by default. Set your own with `player.setExceptionHandler((message, error) -> ...)`.
 
-# Image Players
+## Image players
 
 The `ImagePlayer` plays frames generated by your code through a video pipeline, at the frame rate of the source. This
 is useful for charts, screen captures, or anything else you can draw.
 
-The `chartSupplier` returns the next 640 by 360 frame as a `BufferedImage` and is called once per frame; release the
+The `chartSupplier` returns the next 640 by 360 frame as a `BufferedImage` and the player calls it once per frame;
+release the
 returned player when the chart should stop.
 
 ```java
@@ -162,7 +175,7 @@ The animation must stay open while it plays, so the example below plays it for a
 and only then closes the animation:
 
 ```java
-  public void playGif(final Path gifFile, final VideoFilter display, final Duration playTime) throws InterruptedException {
+  public void playGif(final Path gifFile, final VideoFilter display, final Duration playTime) {
     final FileSource file = FileSource.path(gifFile);
     try (final DynamicImageBuffer gif = DynamicImageBuffer.path(file)) {
       final RepeatingFrameSource frameSource = RepeatingFrameSource.repeating(gif);
@@ -175,6 +188,12 @@ and only then closes the animation:
       try {
         player.start(frameSource);
         Thread.sleep(playTime);
+      } catch (final InterruptedException exception) {
+        final Thread current = Thread.currentThread();
+        current.interrupt();
+
+        final String message = "GIF playback was interrupted!";
+        throw new IllegalStateException(message, exception);
       } finally {
         player.release();
       }

@@ -43,6 +43,8 @@ final class ScreenCommandTest {
 
   private static final int MAP_ID = 10;
 
+  private static final int MAP_ID_HEADROOM = 20;
+
   private final ScreenCommand command = new ScreenCommand();
   private final CommandSender sender = mock(CommandSender.class);
   private final Location location = new Location(null, 1.0, 64.0, 2.0);
@@ -101,7 +103,7 @@ final class ScreenCommandTest {
   void shouldTellTheSenderWhenTheMapIdsCannotBeUsed(final Class<? extends RuntimeException> failureType) {
     try (final MockedStatic<MapUtils> maps = Mockito.mockStatic(MapUtils.class)) {
       maps.when(this::buildMapScreenNearTheLargestMapId).thenThrow(failureType);
-      this.command.buildScreen(this.sender, SCREEN_SIZE, Integer.MAX_VALUE - 20, Material.STONE, this.location);
+      this.command.buildScreen(this.sender, SCREEN_SIZE, Integer.MAX_VALUE - MAP_ID_HEADROOM, Material.STONE, this.location);
     }
     final List<Component> messages = Components.received(this.sender);
     final Component error = Message.UNSUPPORTED_MAP_ID.build();
@@ -110,7 +112,7 @@ final class ScreenCommandTest {
   }
 
   private void buildMapScreenNearTheLargestMapId() {
-    MapUtils.buildMapScreen(this.sender, this.location, Material.STONE, SCREEN_WIDTH, SCREEN_HEIGHT, Integer.MAX_VALUE - 20);
+    MapUtils.buildMapScreen(this.sender, this.location, Material.STONE, SCREEN_WIDTH, SCREEN_HEIGHT, Integer.MAX_VALUE - MAP_ID_HEADROOM);
   }
 
   @Test

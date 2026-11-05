@@ -28,22 +28,24 @@ import org.junit.jupiter.api.Test;
 
 final class FileOperationExceptionTest {
 
+  private static final String DELETE_FAILED_MESSAGE = "File cache.bin could not be deleted!";
+
   @Test
   void shouldKeepTheMessage() {
-    final FileOperationException exception = new FileOperationException("File cache.bin could not be deleted!");
+    final FileOperationException exception = new FileOperationException(DELETE_FAILED_MESSAGE);
     final String message = exception.getMessage();
     final Throwable cause = exception.getCause();
-    assertEquals("File cache.bin could not be deleted!", message);
+    assertEquals(DELETE_FAILED_MESSAGE, message);
     assertNull(cause);
   }
 
   @Test
   void shouldKeepTheMessageAndTheCause() {
     final IOException deleteFailure = new IOException("permission denied!");
-    final FileOperationException exception = new FileOperationException("File cache.bin could not be deleted!", deleteFailure);
+    final FileOperationException exception = new FileOperationException(DELETE_FAILED_MESSAGE, deleteFailure);
     final String message = exception.getMessage();
     final Throwable cause = exception.getCause();
-    assertEquals("File cache.bin could not be deleted!", message);
+    assertEquals(DELETE_FAILED_MESSAGE, message);
     assertSame(deleteFailure, cause);
   }
 

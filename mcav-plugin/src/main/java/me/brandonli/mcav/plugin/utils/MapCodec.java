@@ -29,7 +29,7 @@ package me.brandonli.mcav.plugin.utils;
  */
 public enum MapCodec {
   /**
-   * Map colours, dithered: every client shows them, at 128 by 128 pixels a map.
+   * Map colors, dithered: every client shows them, at 128 by 128 pixels a map.
    *
    * @since 1.0.0
    */

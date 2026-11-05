@@ -67,6 +67,9 @@ final class NetworkUtilsTest {
   private static final String OLD_PATH = "/old";
   private static final String NEW_PATH = "/new";
 
+  private static final String RELATIVE_ADDRESS_PATH = "relative/ip";
+  private static final String RELATIVE_PACK_PATH = "relative/pack.zip";
+
   private LocalHttpServer http;
 
   @BeforeEach
@@ -167,7 +170,7 @@ final class NetworkUtilsTest {
   @Test
   void shouldRejectAddressServicesThatAreNotHttpUris() {
     final URI ftp = URI.create("ftp://127.0.0.1/ip");
-    final URI relative = URI.create("relative/ip");
+    final URI relative = URI.create(RELATIVE_ADDRESS_PATH);
     final URI withoutHost = URI.create("http:///ip");
     assertThrows(IllegalArgumentException.class, () -> NetworkUtils.lookUpPublicAddress(ftp));
     assertThrows(IllegalArgumentException.class, () -> NetworkUtils.lookUpPublicAddress(relative));
@@ -180,8 +183,8 @@ final class NetworkUtilsTest {
     final byte[] address = PUBLIC_ADDRESS.getBytes(StandardCharsets.US_ASCII);
     this.http.respond(ADDRESS_PATH, OK_STATUS, address);
     final URI service = this.http.uri(ADDRESS_PATH);
-    final Thread currentThread = Thread.currentThread();
-    currentThread.interrupt();
+    final Thread current = Thread.currentThread();
+    current.interrupt();
     final Optional<String> result = NetworkUtils.lookUpPublicAddress(service);
     final boolean interrupted = Thread.interrupted();
     final boolean resultEmpty = result.isEmpty();
@@ -236,7 +239,7 @@ final class NetworkUtilsTest {
   @Test
   void shouldRejectUrlsThatAreNotReachableHttpResources() throws IOException {
     final URI ftp = URI.create("ftp://127.0.0.1/pack.zip");
-    final URI relative = URI.create("relative/pack.zip");
+    final URI relative = URI.create(RELATIVE_PACK_PATH);
     final URI withoutHost = URI.create("http:///pack.zip");
     final URI closed = closedPortUri();
     final boolean ftpReachable = NetworkUtils.isReachable(ftp);
@@ -265,8 +268,8 @@ final class NetworkUtilsTest {
   void shouldKeepTheInterruptFlagWhenInterruptedDuringTheCheck() {
     this.http.respond(PACK_PATH, OK_STATUS, new byte[] { 1 });
     final URI pack = this.http.uri(PACK_PATH);
-    final Thread currentThread = Thread.currentThread();
-    currentThread.interrupt();
+    final Thread current = Thread.currentThread();
+    current.interrupt();
     final boolean reachable = NetworkUtils.isReachable(pack);
     final boolean interrupted = Thread.interrupted();
     assertFalse(reachable);

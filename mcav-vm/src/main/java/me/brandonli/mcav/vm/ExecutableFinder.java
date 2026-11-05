@@ -17,6 +17,8 @@
  */
 package me.brandonli.mcav.vm;
 
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import java.io.File;
@@ -36,6 +38,8 @@ import java.util.regex.Pattern;
 import me.brandonli.mcav.utils.os.Os;
 import me.brandonli.mcav.utils.os.OsUtils;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Finds programs the way a shell does, and in the folders package managers install them to when those are missing
@@ -55,14 +59,31 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * <p>On Windows only files with an executable extension ({@code .com}, {@code .exe}, {@code .bat}, or {@code .cmd})
  * are found, and the working folder is never searched, so a file planted there cannot be run in place of the real
  * program. Found programs are returned as absolute paths.
+ *
+ * <p>This class is immutable and thread-safe.
+ *
+ * @since 1.0.0
  */
 public final class ExecutableFinder {
 
+  private static final Logger LOGGER = LoggerFactory.getLogger(ExecutableFinder.class);
+
   private static final List<String> WINDOWS_EXTENSIONS = List.of(".com", ".exe", ".bat", ".cmd");
+
+  private static final String PATH_VARIABLE = "PATH";
+  private static final Pattern PATH_SEPARATOR = Pattern.compile(Pattern.quote(File.pathSeparator));
+
   private static final Path SYSTEM_ROOT = Path.of("/");
+  private static final String PATHS_FILE = "etc/paths";
+  private static final String PATHS_DIRECTORY = "etc/paths.d";
+
   private static final List<String> MAC_FOLDERS = List.of("opt/homebrew/bin", "usr/local/bin");
   private static final List<String> UNIX_FOLDERS = List.of("usr/local/bin", "usr/bin");
+
+  private static final String PROGRAM_FILES_VARIABLE = "ProgramFiles";
   private static final String DEFAULT_PROGRAM_FILES = "C:\\Program Files";
+  private static final String QEMU_FOLDER = "qemu";
+
   private static final File[] NO_FILES = new File[0];
 
   private final Os os;
@@ -70,7 +91,9 @@ public final class ExecutableFinder {
   private final Path root;
 
   /**
-   * Constructs a finder for the current operating system.
+   * Creates a finder for the current operating system.
+   *
+   * @since 1.0.0
    */
   public ExecutableFinder() {
     final Os currentOs = OsUtils.getOs();
@@ -80,14 +103,6 @@ public final class ExecutableFinder {
     this.root = SYSTEM_ROOT;
   }
 
-  /**
-   * Constructs a finder for an operating system and environment, so tests can simulate other machines.
-   *
-   * @param os          the operating system
-   * @param environment the environment variables, which provide the {@code PATH} and, on Windows, the
-   *                    {@code ProgramFiles} folder
-   * @param root        the root folder the fixed Unix folders such as {@code /etc/paths} are resolved against
-   */
   @VisibleForTesting
   ExecutableFinder(final Os os, final Map<String, String> environment, final Path root) {
     this.os = os;
@@ -100,17 +115,19 @@ public final class ExecutableFinder {
    *
    * @param name the program name, such as {@code qemu-system-x86_64}, or a path to it
    * @return the absolute path of the program, or empty if it is not installed where this finder looks
-   * @throws NullPointerException if {@code name} is null
+   * @throws NullPointerException     if {@code name} is null
+   * @throws IllegalArgumentException if {@code name} is blank or not a valid path
+   * @since 1.0.0
    */
   public Optional<Path> find(final String name) {
-    Preconditions.checkNotNull(name, "Name must not be null");
-    Preconditions.checkArgument(!name.isBlank(), "Name must not be blank");
+    Preconditions.checkNotNull(name, "Name must not be null!");
+    Preconditions.checkArgument(!name.isBlank(), "Name must not be blank!");
 
     final Path direct = Path.of(name);
     final Path parent = direct.getParent();
     if (parent != null) {
       final Path fileNameOrNull = direct.getFileName();
-      final Path fileName = Objects.requireNonNull(fileNameOrNull, "A path with a parent has a file name");
+      final Path fileName = requireNonNull(fileNameOrNull); // checker framework
       final String bareName = fileName.toString();
       return this.findIn(parent, bareName);
     }
@@ -122,6 +139,7 @@ public final class ExecutableFinder {
         return found;
       }
     }
+
     return Optional.empty();
   }
 
@@ -129,19 +147,16 @@ public final class ExecutableFinder {
     final List<String> candidates = this.getCandidateNames(name);
     for (final String candidateName : candidates) {
       final Path candidate = directory.resolve(candidateName);
-      final boolean executable = isExecutable(candidate);
+      final boolean executable = this.isExecutable(candidate);
       if (executable) {
         final Path absolute = candidate.toAbsolutePath();
         return Optional.of(absolute);
       }
     }
+
     return Optional.empty();
   }
 
-  /**
-   * Gets the file names a program may have: on Windows the name with each executable extension, or the name itself
-   * if it already has one; elsewhere the name itself.
-   */
   private List<String> getCandidateNames(final String name) {
     if (this.os != Os.WINDOWS) {
       return List.of(name);
@@ -154,17 +169,18 @@ public final class ExecutableFinder {
       if (hasExtension) {
         return List.of(name);
       }
-      names.add(name + extension);
+      final String candidateName = "%s%s".formatted(name, extension);
+      names.add(candidateName);
     }
+
     return names;
   }
 
   private List<Path> getSearchDirectories() {
-    final String path = this.getVariable("PATH");
-    final String separator = Pattern.quote(File.pathSeparator);
-    final String[] segments = path.split(separator);
+    final String path = this.getVariable(PATH_VARIABLE);
+    final String[] segments = PATH_SEPARATOR.split(path);
     final List<String> entries = List.of(segments);
-    final List<Path> directories = toDirectories(entries);
+    final List<Path> directories = this.toDirectories(entries);
 
     final List<Path> fallbacks = switch (this.os) {
       case MAC -> this.getMacDirectories();
@@ -177,8 +193,8 @@ public final class ExecutableFinder {
   }
 
   private List<Path> getMacDirectories() {
-    final Path pathsFile = this.root.resolve("etc/paths");
-    final List<Path> listed = readPathsFile(pathsFile);
+    final Path pathsFile = this.root.resolve(PATHS_FILE);
+    final List<Path> listed = this.readPathsFile(pathsFile);
     final List<Path> directories = new ArrayList<>(listed);
 
     final List<Path> fromPathsDirectory = this.readPathsDirectory();
@@ -189,33 +205,29 @@ public final class ExecutableFinder {
     return directories;
   }
 
-  /**
-   * Reads the folders listed in the files of {@code /etc/paths.d}, file by file in the order of their names, as a
-   * login shell on macOS does.
-   *
-   * @return the listed folders
-   */
   private List<Path> readPathsDirectory() {
-    final Path pathsDirectory = this.root.resolve("etc/paths.d");
+    final Path pathsDirectory = this.root.resolve(PATHS_DIRECTORY);
     final File pathsFolder = pathsDirectory.toFile();
     final File[] children = pathsFolder.listFiles(File::isFile);
     final File[] files = Objects.requireNonNullElse(children, NO_FILES);
     final Comparator<File> byName = Comparator.comparing(File::getName);
+    // a macOS login shell reads them in name order
     Arrays.sort(files, byName);
 
     final List<Path> directories = new ArrayList<>();
     for (final File file : files) {
       final Path filePath = file.toPath();
-      final List<Path> fromFile = readPathsFile(filePath);
+      final List<Path> fromFile = this.readPathsFile(filePath);
       directories.addAll(fromFile);
     }
+
     return directories;
   }
 
   private List<Path> getWindowsDirectories() {
-    final String programFiles = this.getVariable("ProgramFiles");
+    final String programFiles = this.getVariable(PROGRAM_FILES_VARIABLE);
     final String folder = programFiles.isBlank() ? DEFAULT_PROGRAM_FILES : programFiles;
-    final Path qemu = Path.of(folder, "qemu");
+    final Path qemu = Path.of(folder, QEMU_FOLDER);
     return List.of(qemu);
   }
 
@@ -225,6 +237,7 @@ public final class ExecutableFinder {
       final Path directory = this.root.resolve(folder);
       directories.add(directory);
     }
+
     return directories;
   }
 
@@ -242,38 +255,43 @@ public final class ExecutableFinder {
         return entry.getValue();
       }
     }
+
     return "";
   }
 
-  private static List<Path> readPathsFile(final Path file) {
+  private List<Path> readPathsFile(final Path file) {
     final boolean exists = Files.isRegularFile(file);
     if (!exists) {
       return List.of();
     }
+
     try {
       final List<String> lines = Files.readAllLines(file);
-      return toDirectories(lines);
+      return this.toDirectories(lines);
     } catch (final IOException exception) {
+      LOGGER.debug("Could not read the paths file {}, skipping it.", file, exception);
       return List.of();
     }
   }
 
-  private static List<Path> toDirectories(final List<String> entries) {
+  private List<Path> toDirectories(final List<String> entries) {
     final List<Path> directories = new ArrayList<>();
     for (final String entry : entries) {
-      final Path directory = toDirectory(entry);
+      final Path directory = this.toDirectory(entry);
       if (directory != null) {
         directories.add(directory);
       }
     }
+
     return directories;
   }
 
-  private static @Nullable Path toDirectory(final String entry) {
+  private @Nullable Path toDirectory(final String entry) {
     final String trimmed = entry.strip();
     if (trimmed.isEmpty()) {
       return null;
     }
+
     try {
       return Path.of(trimmed);
     } catch (final InvalidPathException exception) {
@@ -281,7 +299,7 @@ public final class ExecutableFinder {
     }
   }
 
-  private static boolean isExecutable(final Path path) {
+  private boolean isExecutable(final Path path) {
     return Files.isRegularFile(path) && Files.isExecutable(path);
   }
 }

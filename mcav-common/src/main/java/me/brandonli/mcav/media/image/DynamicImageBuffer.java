@@ -33,9 +33,54 @@ import me.brandonli.mcav.utils.http.DownloadException;
  *
  * <p>Implementations are not thread-safe.
  *
+ * {@snippet :
+ * final String fileName = "animation.gif";
+ * final Path file = Path.of(fileName);
+ * final FileSource source = FileSource.path(file);
+ * try (final DynamicImageBuffer animation = DynamicImageBuffer.path(source)) {
+ *   final float frameRate = animation.getFrameRate();
+ *   final List<ImageBuffer> frames = animation.getFrames();
+ * }
+ * }
+ *
  * @since 1.0.0
  */
 public interface DynamicImageBuffer extends Image {
+  /**
+   * Decodes an animated image file.
+   *
+   * @param source the image file
+   * @return the decoded animation
+   * @throws ImageDecodingException   if the file cannot be decoded
+   * @throws IllegalArgumentException if decoding succeeds but yields no image frames
+   * @throws NullPointerException     if {@code source} is null
+   * @since 1.0.0
+   */
+  static DynamicImageBuffer path(final FileSource source) {
+    Preconditions.checkNotNull(source, "Source must not be null!");
+
+    return new FfmpegDynamicImageBuffer(source);
+  }
+
+  /**
+   * Downloads and decodes an animated image.
+   *
+   * @param source the URI of the image
+   * @return the decoded animation
+   * @throws ImageDecodingException   if the downloaded file cannot be decoded
+   * @throws DownloadException        if the image cannot be downloaded, including when it is larger than
+   *                                  {@link me.brandonli.mcav.utils.IoUtils#MAXIMUM_IMAGE_BYTES}
+   * @throws FileOperationException   if the downloaded image cannot be moved into the cache folder
+   * @throws IllegalArgumentException if decoding succeeds but yields no image frames
+   * @throws NullPointerException     if {@code source} is null
+   * @since 1.0.0
+   */
+  static DynamicImageBuffer uri(final UriSource source) {
+    Preconditions.checkNotNull(source, "Source must not be null!");
+
+    return new FfmpegDynamicImageBuffer(source);
+  }
+
   /**
    * Returns every frame of the animation in playback order.
    *
@@ -70,39 +115,4 @@ public interface DynamicImageBuffer extends Image {
    * @since 1.0.0
    */
   int getFrameCount();
-
-  /**
-   * Decodes an animated image file.
-   *
-   * @param source the image file
-   * @return the decoded animation
-   * @throws ImageDecodingException  if the file cannot be decoded
-   * @throws IllegalArgumentException if decoding succeeds but yields no image frames
-   * @throws NullPointerException     if {@code source} is null
-   * @since 1.0.0
-   */
-  static DynamicImageBuffer path(final FileSource source) {
-    Preconditions.checkNotNull(source, "Source must not be null!");
-
-    return new FfmpegDynamicImageBuffer(source);
-  }
-
-  /**
-   * Downloads and decodes an animated image.
-   *
-   * @param source the URL of the image
-   * @return the decoded animation
-   * @throws ImageDecodingException  if the downloaded file cannot be decoded
-   * @throws DownloadException       if the image cannot be downloaded, including when it is larger than
-   *                                  {@link me.brandonli.mcav.utils.IoUtils#MAXIMUM_IMAGE_BYTES}
-   * @throws FileOperationException   if the downloaded image cannot be moved into the cache folder
-   * @throws IllegalArgumentException if decoding succeeds but yields no image frames
-   * @throws NullPointerException     if {@code source} is null
-   * @since 1.0.0
-   */
-  static DynamicImageBuffer uri(final UriSource source) {
-    Preconditions.checkNotNull(source, "Source must not be null!");
-
-    return new FfmpegDynamicImageBuffer(source);
-  }
 }

@@ -55,6 +55,7 @@ val repositoryFilePatterns: List<String> = listOf(
     "mcav-http/mcav-website/*.ts"
 )
 val excludedRepositoryPatterns: List<String> = listOf("**/build/**", "**/node_modules/**", "**/out/**")
+
 val libraryModules: List<String> = listOf(
     "mcav-browser",
     "mcav-bukkit",

@@ -31,7 +31,8 @@ final class DitherPaletteColorsTest {
     final List<Integer> colors = List.of(0x000000, 0xFF0000, 0x00FF00);
     final DitherPalette palette = DitherPalette.colors(colors);
     final int[] opaqueColors = palette.getPalette();
-    assertArrayEquals(new int[] { 0xFF000000, 0xFFFF0000, 0xFF00FF00 }, opaqueColors);
+    final int[] expected = new int[] { 0xFF000000, 0xFFFF0000, 0xFF00FF00 };
+    assertArrayEquals(expected, opaqueColors);
   }
 
   @Test

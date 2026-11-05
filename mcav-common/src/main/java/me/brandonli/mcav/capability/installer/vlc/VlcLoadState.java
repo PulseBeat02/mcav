@@ -27,6 +27,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 final class VlcLoadState {
 
   private final Object lock;
+
   private boolean loaded;
   private @Nullable Path libraryDirectory;
 

@@ -35,6 +35,8 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.FileSystem;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.FileAttribute;
+import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
@@ -49,66 +51,32 @@ import java.util.concurrent.Semaphore;
 import java.util.function.IntPredicate;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-/**
- * An X display that shows nothing, for JCEF on Linux.
- *
- * <p>When CEF has started, JCEF creates a window of one pixel on the X display of CEF (its {@code TempWindowX11}), and
- * aborts the helper if there is no display, although CEF itself draws off-screen on Chromium's headless Ozone platform
- * and never uses X. So the helper answers the X connections itself, instead of an X server: the connection setup, with
- * one TrueColor screen and no extensions, atoms, empty properties, an empty keyboard, and the geometry of the screen.
- * Every other request that has no reply is discarded, and one that needs a reply gets an error. Nothing is drawn.
- *
- * <p>The display listens on the loopback interface, on a port of at least 6000, so the display number is the port minus
- * 6000 (X11 over TCP), and it lets in only clients that present the random cookie of the authority file it writes.
- * Requests are bounded in size, and so are the connections and the atoms.
- */
+// Answers X connections for JCEF, which aborts the helper without a display although CEF draws off-screen. Listens on
+// loopback only, admits only clients with the cookie of its authority file, and bounds requests, connections and atoms.
 final class NullDisplay implements AutoCloseable {
 
-  /**
-   * The port of display 0 of X11 over TCP.
-   */
+  private static final String ACCEPT_THREAD_NAME = "mcav-browser-null-display";
+  private static final String CLIENT_THREAD_NAME = "mcav-browser-null-display-client";
+
   static final int X11_BASE_PORT = 6000;
 
-  /**
-   * The name of the X authority file in the folder of a session, which the helper writes for its display.
-   */
   static final String AUTHORITY_FILE = "Xauthority";
 
-  /**
-   * The largest request a client may send, in units of four bytes, as the connection setup announces it.
-   */
-  static final int MAX_REQUEST_UNITS = 16_384;
+  static final int MAXIMUM_REQUEST_UNITS = 16_384;
 
-  /**
-   * The most connections the display serves at once.
-   */
-  static final int MAX_CONNECTIONS = 16;
+  static final int MAXIMUM_CONNECTIONS = 16;
 
-  /**
-   * The most clients that have not introduced themselves yet; a new one ends the connection of the oldest, so clients
-   * without the cookie can never keep one that has it out.
-   */
-  static final int MAX_PENDING = 256;
+  // a new client ends the oldest pending one, so clients without the cookie cannot crowd out one that has it
+  static final int MAXIMUM_PENDING = 256;
 
-  /**
-   * How long a client may take to introduce itself, in milliseconds, so a client without the cookie cannot hold one
-   * of the {@value #MAX_CONNECTIONS} connections; one that introduced itself may stay quiet as long as it likes.
-   */
-  private static final int SETUP_TIMEOUT_MILLIS = 10_000;
+  // so a client without the cookie cannot hold a connection; an introduced one may stay quiet
+  private static final int SETUP_TIMEOUT_MILLISECONDS = 10_000;
+  private static final int NO_TIMEOUT = 0;
 
-  /**
-   * The most atoms a display names, the predefined ones included.
-   */
-  static final int MAX_ATOMS = 4_096;
+  static final int MAXIMUM_ATOMS = 4_096;
 
-  /**
-   * The most bytes the names of the atoms of a display hold together.
-   */
-  static final int MAX_ATOM_BYTES = 1 << 20;
+  static final int MAXIMUM_ATOM_BYTES = 1 << 20;
 
-  /**
-   * The size of the cookie, in bytes.
-   */
   static final int COOKIE_BYTES = 16;
 
   static final int CREATE_WINDOW = 1;
@@ -124,28 +92,29 @@ final class NullDisplay implements AutoCloseable {
   static final int LIST_EXTENSIONS = 99;
   static final int GET_KEYBOARD_MAPPING = 101;
   static final int GET_MODIFIER_MAPPING = 119;
+
   static final int BAD_REQUEST = 1;
   static final int BAD_ATOM = 5;
   static final int BAD_ALLOC = 11;
   static final int BAD_LENGTH = 16;
   static final int BAD_IMPLEMENTATION = 17;
 
-  // the core requests that have a reply, which a client waits for (X Window System Protocol, chapter 9)
+  // core requests with a reply (X Window System Protocol, chapter 9)
   private static final Set<Integer> REPLYING = Set.of(
-    3,
-    14,
-    15,
-    16,
-    17,
-    20,
+    GET_WINDOW_ATTRIBUTES,
+    GET_GEOMETRY,
+    QUERY_TREE,
+    INTERN_ATOM,
+    GET_ATOM_NAME,
+    GET_PROPERTY,
     21,
     23,
     26,
     31,
-    38,
+    QUERY_POINTER,
     39,
     40,
-    43,
+    GET_INPUT_FOCUS,
     44,
     47,
     48,
@@ -161,9 +130,9 @@ final class NullDisplay implements AutoCloseable {
     91,
     92,
     97,
-    98,
-    99,
-    101,
+    QUERY_EXTENSION,
+    LIST_EXTENSIONS,
+    GET_KEYBOARD_MAPPING,
     103,
     106,
     108,
@@ -171,9 +140,10 @@ final class NullDisplay implements AutoCloseable {
     116,
     117,
     118,
-    119
+    GET_MODIFIER_MAPPING
   );
-  // the predefined atoms of the core protocol, numbered from 1 (X Window System Protocol, appendix B)
+
+  // numbered from 1 (X Window System Protocol, appendix B)
   private static final List<String> PREDEFINED_ATOMS = List.of(
     "PRIMARY",
     "SECONDARY",
@@ -244,17 +214,117 @@ final class NullDisplay implements AutoCloseable {
     "WM_CLASS",
     "WM_TRANSIENT_FOR"
   );
+
   private static final String COOKIE_NAME = "MIT-MAGIC-COOKIE-1";
   private static final int FAMILY_WILD = 0xFFFF;
-  private static final int MAX_AUTHORIZATION_BYTES = 256;
+  private static final int MAXIMUM_AUTHORIZATION_BYTES = 256;
+
   private static final int ROOT = 0x100;
   private static final int COLORMAP = 0x20;
   private static final int VISUAL = 0x21;
+
   private static final int SCREEN_WIDTH = 1920;
   private static final int SCREEN_HEIGHT = 1080;
-  private static final int MIN_KEYCODE = 8;
-  private static final int MAX_KEYCODE = 255;
+
+  private static final int MINIMUM_KEY_CODE = 8;
+  private static final int MAXIMUM_KEY_CODE = 255;
+
   private static final byte[] VENDOR = "mcav null display".getBytes(StandardCharsets.US_ASCII);
+
+  private static final String POSIX_ATTRIBUTE_VIEW = "posix";
+  private static final String OWNER_ONLY_PERMISSIONS = "rw-------";
+
+  private static final byte[] LOOPBACK_ADDRESS = { 127, 0, 0, 1 };
+  private static final int MAXIMUM_BIND_ATTEMPTS = 64;
+  private static final int EPHEMERAL_PORT = 0;
+
+  private static final int UNSIGNED_BYTE_MASK = 0xFF;
+  private static final int UNSIGNED_SHORT_MASK = 0xFFFF;
+
+  private static final int UNIT_BYTES = 4;
+  private static final int MESSAGE_BYTES = 32;
+
+  private static final int NO_ATOM = 0;
+
+  private static final int FIRST_EXTENSION_OPCODE = 128;
+
+  private static final int LITTLE_ENDIAN_ORDER = 'l';
+  private static final int BIG_ENDIAN_ORDER = 'B';
+
+  private static final int SETUP_REQUEST_BYTES = 11;
+  private static final int SETUP_REPLY_HEADER_BYTES = 8;
+  private static final int SETUP_FIXED_BYTES = 32;
+
+  private static final int SETUP_FAILED = 0;
+  private static final int SETUP_SUCCESS = 1;
+
+  private static final int X11_MAJOR_VERSION = 11;
+  private static final int X11_MINOR_VERSION = 0;
+
+  private static final int RELEASE_NUMBER = 1;
+  private static final int RESOURCE_ID_BASE = 0x00400000;
+  private static final int RESOURCE_ID_MASK = 0x001FFFFF;
+  private static final int SCREEN_COUNT = 1;
+  private static final int NO_MOTION_BUFFER = 0;
+
+  private static final int LEAST_SIGNIFICANT_FIRST = 0;
+  private static final int MOST_SIGNIFICANT_FIRST = 1;
+
+  private static final int SCANLINE_BITS = 32;
+
+  // depth and bits per pixel of each pixmap format
+  private static final int[][] PIXMAP_FORMATS = { { 1, 1 }, { 24, 32 }, { 32, 32 } };
+  private static final int PIXMAP_FORMAT_BYTES = 8;
+  private static final int PIXMAP_FORMAT_PADDING_BYTES = 5;
+
+  private static final int NO_INPUT_MASKS = 0;
+  private static final int NEVER_BACKING_STORE = 0;
+  private static final int NO_SAVE_UNDERS = 0;
+  private static final int SCREEN_BYTES = 40;
+  private static final int DEPTH_BYTES = 8;
+  private static final int VISUAL_BYTES = 24;
+  private static final int WHITE_PIXEL = 0xFFFFFF;
+  private static final int BLACK_PIXEL = 0;
+  private static final int SCREEN_WIDTH_MILLIMETERS = 508;
+  private static final int SCREEN_HEIGHT_MILLIMETERS = 286;
+  private static final int INSTALLED_COLORMAPS = 1;
+  private static final int ROOT_DEPTH = 24;
+  private static final int VISUAL_LESS_DEPTH = 32;
+  private static final int DEPTH_COUNT = 2;
+  private static final int VISUALS_PER_ROOT_DEPTH = 1;
+
+  private static final int TRUE_COLOR = 4;
+  private static final int BITS_PER_RGB_VALUE = 8;
+  private static final int COLORMAP_ENTRIES = 256;
+
+  private static final int RED_MASK = 0xFF0000;
+  private static final int GREEN_MASK = 0x00FF00;
+  private static final int BLUE_MASK = 0x0000FF;
+
+  private static final int REPLY = 1;
+  private static final int ERROR = 0;
+
+  private static final int TYPE_OFFSET = 0;
+  private static final int DATA_OFFSET = 1;
+  private static final int SEQUENCE_OFFSET = 2;
+  private static final int LENGTH_OFFSET = 4;
+  private static final int REPLY_BODY_OFFSET = 8;
+  private static final int ERROR_VALUE_OFFSET = 4;
+  private static final int ERROR_OPCODE_OFFSET = 10;
+
+  private static final int MODIFIER_COUNT = 8;
+  private static final int KEY_CODES_PER_MODIFIER = 1;
+  private static final int KEY_SYMBOLS_PER_KEY_CODE = 1;
+
+  private static final int WINDOW_ATTRIBUTES_EXTRA_BYTES = 12;
+  private static final int WINDOW_CLASS_OFFSET = 12;
+  private static final int WINDOW_COLORMAP_OFFSET = 28;
+  private static final int INPUT_OUTPUT = 1;
+
+  private static final int GEOMETRY_WIDTH_OFFSET = 16;
+  private static final int GEOMETRY_HEIGHT_OFFSET = 18;
+
+  private static final int SAME_SCREEN = 1;
 
   private final ServerSocket server;
   private final byte[] cookie;
@@ -262,47 +332,34 @@ final class NullDisplay implements AutoCloseable {
   private final Semaphore slots;
   private final Set<Socket> clients;
   private final Deque<Socket> pending;
-  private final int setupTimeoutMillis;
+  private final int setupTimeoutMilliseconds;
 
-  private NullDisplay(final ServerSocket server, final byte[] cookie, final int setupTimeoutMillis) {
+  private NullDisplay(final ServerSocket server, final byte[] cookie, final int setupTimeoutMilliseconds) {
     this.server = server;
-    this.setupTimeoutMillis = setupTimeoutMillis;
+    this.setupTimeoutMilliseconds = setupTimeoutMilliseconds;
     this.cookie = cookie.clone();
     this.atoms = new Atoms();
-    this.slots = new Semaphore(MAX_CONNECTIONS);
+    this.slots = new Semaphore(MAXIMUM_CONNECTIONS);
     this.clients = ConcurrentHashMap.newKeySet();
     this.pending = new ArrayDeque<>();
   }
 
-  /**
-   * Starts a display and writes its authority file, which clients find through {@code XAUTHORITY}.
-   *
-   * @param authority the authority file to write, which must not exist yet
-   * @return the running display
-   * @throws IOException if no port is free or the file cannot be written
-   */
   static NullDisplay start(final Path authority) throws IOException {
-    return start(authority, SETUP_TIMEOUT_MILLIS);
+    return start(authority, SETUP_TIMEOUT_MILLISECONDS);
   }
 
-  /**
-   * Starts a display with another time for the setup, so tests need not wait for it.
-   *
-   * @param authority          the authority file to write
-   * @param setupTimeoutMillis how long a client may take to introduce itself
-   * @return the running display
-   * @throws IOException if the display cannot listen or the file cannot be written
-   */
   @VisibleForTesting
-  static NullDisplay start(final Path authority, final int setupTimeoutMillis) throws IOException {
+  static NullDisplay start(final Path authority, final int setupTimeoutMilliseconds) throws IOException {
     final ServerSocket server = bind(NullDisplay::isDisplayPort);
     try {
       final byte[] cookie = createCookie();
       writeAuthority(authority, cookie);
-      final NullDisplay display = new NullDisplay(server, cookie, setupTimeoutMillis);
-      final Thread thread = new Thread(display::acceptConnections, "mcav-browser-null-display");
+
+      final NullDisplay display = new NullDisplay(server, cookie, setupTimeoutMilliseconds);
+      final Thread thread = new Thread(display::acceptConnections, ACCEPT_THREAD_NAME);
       thread.setDaemon(true);
       thread.start();
+
       return display;
     } catch (final IOException | RuntimeException exception) {
       server.close();
@@ -310,28 +367,14 @@ final class NullDisplay implements AutoCloseable {
     }
   }
 
-  /**
-   * Binds a port on the IPv4 loopback interface that a display number can name. The system picks ephemeral ports far
-   * above {@value #X11_BASE_PORT}; a port it may not use is kept bound until the search ends, so it is not picked again.
-   *
-   * @param usable whether a display can use a port
-   * @return the listening socket
-   * @throws IOException if no usable port is bound after 64 tries
-   */
+  // an unusable port stays bound until the search ends, so the system does not hand it out again
   @VisibleForTesting
   static ServerSocket bind(final IntPredicate usable) throws IOException {
-    // the name of a display holds an IPv4 address or a host name, never an IPv6 address
-    final InetAddress loopback = InetAddress.getByAddress(new byte[] { 127, 0, 0, 1 });
+    // a display name cannot hold an IPv6 address
+    final InetAddress loopback = InetAddress.getByAddress(LOOPBACK_ADDRESS);
     final List<ServerSocket> unusable = new ArrayList<>();
     try {
-      while (unusable.size() < 64) {
-        final ServerSocket candidate = new ServerSocket(0, MAX_CONNECTIONS, loopback);
-        if (usable.test(candidate.getLocalPort())) {
-          return candidate;
-        }
-        unusable.add(candidate);
-      }
-      throw new IOException("The system gives out no port of at least " + X11_BASE_PORT + " for the display");
+      return bindFirstUsable(usable, loopback, unusable);
     } finally {
       for (final ServerSocket socket : unusable) {
         socket.close();
@@ -339,62 +382,61 @@ final class NullDisplay implements AutoCloseable {
     }
   }
 
-  /**
-   * Checks whether a display number can name a port: X11 over TCP connects to 6000 plus the number.
-   *
-   * @param port the port
-   * @return true if it is at least {@value #X11_BASE_PORT}
-   */
+  private static ServerSocket bindFirstUsable(final IntPredicate usable, final InetAddress loopback, final List<ServerSocket> unusable)
+    throws IOException {
+    while (unusable.size() < MAXIMUM_BIND_ATTEMPTS) {
+      final ServerSocket candidate = new ServerSocket(EPHEMERAL_PORT, MAXIMUM_CONNECTIONS, loopback);
+      final int port = candidate.getLocalPort();
+      if (usable.test(port)) {
+        return candidate;
+      }
+      unusable.add(candidate);
+    }
+
+    final String message = "The system gives out no port of at least %s for the display!".formatted(X11_BASE_PORT);
+    throw new IOException(message);
+  }
+
+  // X11 over TCP connects to 6000 plus the display number
   @VisibleForTesting
   static boolean isDisplayPort(final int port) {
     return port >= X11_BASE_PORT;
   }
 
-  /**
-   * Creates the secret a client of the display must present.
-   *
-   * @return {@value #COOKIE_BYTES} random bytes
-   */
   @VisibleForTesting
   static byte[] createCookie() {
     final SecureRandom random = new SecureRandom();
     final byte[] cookie = new byte[COOKIE_BYTES];
     random.nextBytes(cookie);
+
     return cookie;
   }
 
-  /**
-   * Writes an X authority file with one cookie that matches every display, readable by the owner only where the file
-   * system has POSIX permissions.
-   *
-   * @param authority the file, which must not exist yet
-   * @param cookie    the cookie
-   * @throws IOException if the file cannot be written
-   */
   @VisibleForTesting
   static void writeAuthority(final Path authority, final byte[] cookie) throws IOException {
     final byte[] entry = createAuthorityEntry(cookie);
     final FileSystem fileSystem = authority.getFileSystem();
-    final boolean supportsPosix = fileSystem.supportedFileAttributeViews().contains("posix");
+    final Set<String> views = fileSystem.supportedFileAttributeViews();
+    final boolean supportsPosix = views.contains(POSIX_ATTRIBUTE_VIEW);
     if (supportsPosix) {
-      Files.createFile(authority, PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rw-------")));
+      final Set<PosixFilePermission> permissions = PosixFilePermissions.fromString(OWNER_ONLY_PERMISSIONS);
+      final FileAttribute<Set<PosixFilePermission>> ownerOnly = PosixFilePermissions.asFileAttribute(permissions);
+      Files.createFile(authority, ownerOnly);
     } else {
       Files.createFile(authority);
     }
+
     Files.write(authority, entry);
   }
 
-  /**
-   * Encodes one entry of an X authority file: family, address, display number, method name and cookie, each counted
-   * with a big-endian 16-bit length. The family matches every host and the empty display number every display.
-   *
-   * @param cookie the cookie
-   * @return the entry
-   */
+  // family, address, display number, method name and cookie, each after a big-endian 16-bit length; this family matches
+  // every host and the empty display number every display
   @VisibleForTesting
   static byte[] createAuthorityEntry(final byte[] cookie) {
     final byte[] name = COOKIE_NAME.getBytes(StandardCharsets.US_ASCII);
-    final ByteBuffer entry = ByteBuffer.allocate(2 + 2 + 2 + 2 + name.length + 2 + cookie.length);
+    final ByteBuffer entry = ByteBuffer.allocate(
+      Short.BYTES + Short.BYTES + Short.BYTES + Short.BYTES + name.length + Short.BYTES + cookie.length
+    );
     entry.putShort((short) FAMILY_WILD);
     entry.putShort((short) 0);
     entry.putShort((short) 0);
@@ -402,36 +444,15 @@ final class NullDisplay implements AutoCloseable {
     entry.put(name);
     entry.putShort((short) cookie.length);
     entry.put(cookie);
+
     return entry.array();
   }
 
-  /**
-   * Gets the name of the display, for CEF's {@code --display} switch.
-   *
-   * @return the name, such as {@code 127.0.0.1:26768}
-   */
-  String getDisplay() {
-    final InetAddress address = this.server.getInetAddress();
-    final String host = address.getHostAddress();
-    return host + ":" + (this.server.getLocalPort() - X11_BASE_PORT);
-  }
-
-  /**
-   * Counts the clients that are connected now.
-   *
-   * @return the number of clients
-   */
   @VisibleForTesting
   int countClients() {
     return this.clients.size();
   }
 
-  /**
-   * Gets the name of a display, for Chromium's {@code --display} switch.
-   *
-   * @param display the display, or null if there is none
-   * @return the name, or null without a display
-   */
   static @Nullable String nameOf(final @Nullable NullDisplay display) {
     return display == null ? null : display.getDisplay();
   }
@@ -442,15 +463,16 @@ final class NullDisplay implements AutoCloseable {
       try {
         client = this.server.accept();
       } catch (final IOException exception) {
+        // an accept failure, including close(), ends the display
         return;
       }
       this.clients.add(client);
       final Socket evicted = this.admit(client);
       if (evicted != null) {
-        closeQuietly(evicted);
+        this.closeQuietly(evicted);
       }
       Thread.ofVirtual()
-        .name("mcav-browser-null-display-client")
+        .name(CLIENT_THREAD_NAME)
         .start(() -> this.serve(client));
     }
   }
@@ -458,75 +480,71 @@ final class NullDisplay implements AutoCloseable {
   private @Nullable Socket admit(final Socket client) {
     synchronized (this.pending) {
       this.pending.addLast(client);
-      return this.pending.size() > MAX_PENDING ? this.pending.removeFirst() : null;
+
+      if (this.pending.size() <= MAXIMUM_PENDING) {
+        return null;
+      }
+
+      return this.pending.removeFirst();
     }
   }
 
-  private void introduced(final Socket client) {
+  private void removeFromPending(final Socket client) {
     synchronized (this.pending) {
       this.pending.remove(client);
     }
   }
 
   private void serve(final Socket client) {
-    boolean slot = false;
+    boolean slotAcquired = false;
     try (client) {
-      client.setSoTimeout(this.setupTimeoutMillis);
-      final DataInputStream in = new DataInputStream(new BufferedInputStream(client.getInputStream()));
-      final OutputStream out = new BufferedOutputStream(client.getOutputStream());
-      final ByteOrder order = readSetup(in, out, this.cookie);
-      this.introduced(client);
-      slot = this.slots.tryAcquire();
-      if (slot) {
-        client.setSoTimeout(0);
-        serveRequests(in, out, order, this.atoms);
+      client.setSoTimeout(this.setupTimeoutMilliseconds);
+
+      final InputStream clientInput = client.getInputStream();
+      final DataInputStream input = new DataInputStream(new BufferedInputStream(clientInput));
+      final OutputStream clientOutput = client.getOutputStream();
+      final OutputStream output = new BufferedOutputStream(clientOutput);
+      final ByteOrder order = answerSetup(input, output, this.cookie);
+
+      this.removeFromPending(client);
+
+      slotAcquired = this.slots.tryAcquire();
+
+      if (slotAcquired) {
+        client.setSoTimeout(NO_TIMEOUT);
+        serveRequests(input, output, order, this.atoms);
       }
     } catch (final IOException exception) {
-      // the client went away or broke the protocol; either way its connection ends
+      // the client left or broke the protocol: its connection ends
     } finally {
-      this.introduced(client);
+      this.removeFromPending(client);
       this.clients.remove(client);
-      if (slot) {
+      if (slotAcquired) {
         this.slots.release();
       }
     }
   }
 
-  /**
-   * Serves one connection until it ends: the setup, then every request.
-   *
-   * @param input  the stream from the client
-   * @param output the stream to the client, flushed after every answer
-   * @param cookie the cookie a client must present
-   * @param atoms  the atoms of the display
-   * @throws IOException if the connection fails, the client breaks the protocol or presents another cookie
-   */
   @VisibleForTesting
-  static void serve(final InputStream input, final OutputStream output, final byte[] cookie, final Atoms atoms) throws IOException {
-    final DataInputStream in = new DataInputStream(input);
-    final ByteOrder order = readSetup(in, output, cookie);
-    serveRequests(in, output, order, atoms);
+  static void serve(final InputStream clientInput, final OutputStream output, final byte[] cookie, final Atoms atoms) throws IOException {
+    final DataInputStream input = new DataInputStream(clientInput);
+    final ByteOrder order = answerSetup(input, output, cookie);
+    serveRequests(input, output, order, atoms);
   }
 
-  private static void serveRequests(final DataInputStream in, final OutputStream output, final ByteOrder order, final Atoms atoms)
+  private static void serveRequests(final DataInputStream input, final OutputStream output, final ByteOrder order, final Atoms atoms)
     throws IOException {
     int sequence = 0;
     while (true) {
-      final int opcode = in.read();
+      final int opcode = input.read();
       if (opcode < 0) {
         return;
       }
-      final int data = in.readUnsignedByte();
-      final byte[] lengthBytes = new byte[2];
-      in.readFully(lengthBytes);
-      final int units = ByteBuffer.wrap(lengthBytes).order(order).getShort() & 0xFFFF;
-      if (units == 0 || units > MAX_REQUEST_UNITS) {
-        // no extension is announced, so neither are the long requests of BIG-REQUESTS
-        throw new ProtocolException("A request of " + units + " units is outside 1 to " + MAX_REQUEST_UNITS);
-      }
-      final byte[] body = new byte[units * 4 - 4];
-      in.readFully(body);
-      sequence = (sequence + 1) & 0xFFFF;
+      final int data = input.readUnsignedByte();
+      final int units = readRequestUnits(input, order);
+      final byte[] body = new byte[units * UNIT_BYTES - UNIT_BYTES];
+      input.readFully(body);
+      sequence = (sequence + 1) & UNSIGNED_SHORT_MASK;
       final ByteBuffer request = ByteBuffer.wrap(body).order(order);
       final ByteBuffer answer = answer(opcode, data, request, sequence, order, atoms);
       if (answer != null) {
@@ -535,42 +553,71 @@ final class NullDisplay implements AutoCloseable {
     }
   }
 
-  /**
-   * Reads the setup of a connection and answers it: a screen if the client presented the cookie, a refusal otherwise.
-   *
-   * @return the byte order of the client
-   */
-  private static ByteOrder readSetup(final DataInputStream in, final OutputStream output, final byte[] cookie) throws IOException {
-    final int orderByte = in.readUnsignedByte();
-    final ByteOrder order = switch (orderByte) {
-      case 'l' -> ByteOrder.LITTLE_ENDIAN;
-      case 'B' -> ByteOrder.BIG_ENDIAN;
-      default -> throw new ProtocolException("The connection setup names the byte order " + orderByte);
-    };
-    final byte[] head = new byte[11];
-    in.readFully(head);
+  private static int readRequestUnits(final DataInputStream input, final ByteOrder order) throws IOException {
+    final byte[] lengthBytes = new byte[Short.BYTES];
+    input.readFully(lengthBytes);
+    final ByteBuffer lengthBuffer = ByteBuffer.wrap(lengthBytes).order(order);
+    final int units = lengthBuffer.getShort() & UNSIGNED_SHORT_MASK;
+    if (units == 0 || units > MAXIMUM_REQUEST_UNITS) {
+      // no BIG-REQUESTS extension, so no longer requests
+      final String message = "A request of %s units must have 1 to %s units!".formatted(units, MAXIMUM_REQUEST_UNITS);
+      throw new ProtocolException(message);
+    }
+
+    return units;
+  }
+
+  private static ByteOrder answerSetup(final DataInputStream input, final OutputStream output, final byte[] cookie) throws IOException {
+    final ByteOrder order = readByteOrder(input);
+    final byte[] head = new byte[SETUP_REQUEST_BYTES];
+    input.readFully(head);
     final ByteBuffer setup = ByteBuffer.wrap(head).order(order);
     setup.get();
-    final int major = setup.getShort() & 0xFFFF;
+    final int major = setup.getShort() & UNSIGNED_SHORT_MASK;
     setup.getShort();
-    final int nameLength = setup.getShort() & 0xFFFF;
-    final int dataLength = setup.getShort() & 0xFFFF;
-    if (nameLength > MAX_AUTHORIZATION_BYTES || dataLength > MAX_AUTHORIZATION_BYTES) {
-      throw new ProtocolException("The authorization of the connection setup is longer than " + MAX_AUTHORIZATION_BYTES + " bytes");
+    final int nameLength = setup.getShort() & UNSIGNED_SHORT_MASK;
+    final int dataLength = setup.getShort() & UNSIGNED_SHORT_MASK;
+    if (nameLength > MAXIMUM_AUTHORIZATION_BYTES || dataLength > MAXIMUM_AUTHORIZATION_BYTES) {
+      final String message = "The authorization of the connection setup is longer than %s bytes!".formatted(MAXIMUM_AUTHORIZATION_BYTES);
+      throw new ProtocolException(message);
     }
-    final byte[] name = readPadded(in, nameLength);
-    final byte[] presented = readPadded(in, dataLength);
-    final boolean named = COOKIE_NAME.equals(new String(name, StandardCharsets.US_ASCII));
-    // Compare in constant time so response timing cannot reveal the cookie.
-    final boolean matches = MessageDigest.isEqual(presented, cookie);
-    if (major != 11 || !named || !matches) {
-      final String reason = major != 11 ? "only X11 is spoken here" : "the cookie of the display is missing";
+
+    final byte[] name = readPadded(input, nameLength);
+    final byte[] presented = readPadded(input, dataLength);
+    final boolean cookiePresented = isCookiePresented(name, presented, cookie);
+    final boolean supportedVersion = major == X11_MAJOR_VERSION;
+    if (!supportedVersion || !cookiePresented) {
+      final String reason = !supportedVersion ? "only X11 is spoken here" : "the cookie of the display is missing";
       writeRefusal(output, order, reason);
-      throw new ProtocolException("A client was refused: " + reason);
+
+      final String message = "Because %s, a client was refused!".formatted(reason);
+      throw new ProtocolException(message);
     }
+
     final ByteBuffer accepted = createSetupReply(order);
     send(output, accepted);
+
     return order;
+  }
+
+  private static ByteOrder readByteOrder(final DataInputStream input) throws IOException {
+    final int orderByte = input.readUnsignedByte();
+    return switch (orderByte) {
+      case LITTLE_ENDIAN_ORDER -> ByteOrder.LITTLE_ENDIAN;
+      case BIG_ENDIAN_ORDER -> ByteOrder.BIG_ENDIAN;
+      default -> {
+        final String message = "Byte order %s of the connection setup is unknown!".formatted(orderByte);
+        throw new ProtocolException(message);
+      }
+    };
+  }
+
+  private static boolean isCookiePresented(final byte[] name, final byte[] presented, final byte[] cookie) {
+    final String method = new String(name, StandardCharsets.US_ASCII);
+    final boolean named = COOKIE_NAME.equals(method);
+    // constant time, so timing cannot reveal the cookie
+    final boolean matches = MessageDigest.isEqual(presented, cookie);
+    return named && matches;
   }
 
   private static void send(final OutputStream output, final ByteBuffer message) throws IOException {
@@ -578,124 +625,120 @@ final class NullDisplay implements AutoCloseable {
     output.flush();
   }
 
-  private static byte[] readPadded(final DataInputStream in, final int length) throws IOException {
+  private static byte[] readPadded(final DataInputStream input, final int length) throws IOException {
     final byte[] value = new byte[length];
-    in.readFully(value);
-    in.readFully(new byte[pad(length)]);
+    input.readFully(value);
+    final int padding = countPaddingBytes(length);
+    input.skipNBytes(padding);
+
     return value;
   }
 
-  private static int pad(final int length) {
-    return (4 - (length % 4)) % 4;
+  private static int countPaddingBytes(final int length) {
+    return (UNIT_BYTES - (length % UNIT_BYTES)) % UNIT_BYTES;
   }
 
   private static void writeRefusal(final OutputStream output, final ByteOrder order, final String reason) throws IOException {
     final byte[] text = reason.getBytes(StandardCharsets.US_ASCII);
-    final int padded = text.length + pad(text.length);
-    final ByteBuffer refusal = ByteBuffer.allocate(8 + padded).order(order);
-    refusal.put((byte) 0);
+    final int padded = text.length + countPaddingBytes(text.length);
+    final ByteBuffer refusal = ByteBuffer.allocate(SETUP_REPLY_HEADER_BYTES + padded).order(order);
+    refusal.put((byte) SETUP_FAILED);
     refusal.put((byte) text.length);
-    refusal.putShort((short) 11);
-    refusal.putShort((short) 0);
-    refusal.putShort((short) (padded / 4));
+    refusal.putShort((short) X11_MAJOR_VERSION);
+    refusal.putShort((short) X11_MINOR_VERSION);
+    refusal.putShort((short) (padded / UNIT_BYTES));
     refusal.put(text);
-    output.write(refusal.array());
-    output.flush();
+
+    send(output, refusal);
   }
 
-  /**
-   * Describes the display: one screen of {@value #SCREEN_WIDTH}x{@value #SCREEN_HEIGHT} with a 24-bit TrueColor visual.
-   *
-   * @param order the byte order of the client
-   * @return the reply to the connection setup
-   */
   @VisibleForTesting
   static ByteBuffer createSetupReply(final ByteOrder order) {
-    final int vendorPadded = VENDOR.length + pad(VENDOR.length);
-    final int formats = 3 * 8;
-    final int screen = 40 + 8 + 24 + 8;
-    final int additional = 32 + vendorPadded + formats + screen;
-    final ByteBuffer reply = ByteBuffer.allocate(8 + additional).order(order);
-    reply.put((byte) 1);
+    final int vendorPadded = VENDOR.length + countPaddingBytes(VENDOR.length);
+    final int formats = PIXMAP_FORMATS.length * PIXMAP_FORMAT_BYTES;
+    final int screen = SCREEN_BYTES + DEPTH_BYTES + VISUAL_BYTES + DEPTH_BYTES;
+    final int additional = SETUP_FIXED_BYTES + vendorPadded + formats + screen;
+    final ByteBuffer reply = ByteBuffer.allocate(SETUP_REPLY_HEADER_BYTES + additional).order(order);
+    reply.put((byte) SETUP_SUCCESS);
     reply.put((byte) 0);
-    reply.putShort((short) 11);
-    reply.putShort((short) 0);
-    reply.putShort((short) (additional / 4));
-    // release, resource base and mask, motion buffer, vendor length, request length, screens, formats, image order,
-    // bitmap order, scanline unit and pad, keycodes
-    reply.putInt(1);
-    reply.putInt(0x00400000);
-    reply.putInt(0x001FFFFF);
-    reply.putInt(0);
-    reply.putShort((short) VENDOR.length);
-    reply.putShort((short) MAX_REQUEST_UNITS);
-    reply.put((byte) 1);
-    reply.put((byte) 3);
-    reply.put((byte) (order == ByteOrder.LITTLE_ENDIAN ? 0 : 1));
-    reply.put((byte) 0);
-    reply.put((byte) 32);
-    reply.put((byte) 32);
-    reply.put((byte) MIN_KEYCODE);
-    reply.put((byte) MAX_KEYCODE);
-    reply.putInt(0);
-    reply.put(VENDOR);
-    reply.put(new byte[vendorPadded - VENDOR.length]);
-    for (final int[] format : new int[][] { { 1, 1 }, { 24, 32 }, { 32, 32 } }) {
-      reply.put((byte) format[0]);
-      reply.put((byte) format[1]);
-      reply.put((byte) 32);
-      reply.put(new byte[5]);
-    }
-    // the screen: root, colormap, white and black pixels, input masks, size in pixels and millimetres, installed
-    // colormaps, root visual, backing stores, save unders, root depth and two depths
-    reply.putInt(ROOT);
-    reply.putInt(COLORMAP);
-    reply.putInt(0xFFFFFF);
-    reply.putInt(0);
-    reply.putInt(0);
-    reply.putShort((short) SCREEN_WIDTH);
-    reply.putShort((short) SCREEN_HEIGHT);
-    reply.putShort((short) 508);
-    reply.putShort((short) 286);
-    reply.putShort((short) 1);
-    reply.putShort((short) 1);
-    reply.putInt(VISUAL);
-    reply.put((byte) 0);
-    reply.put((byte) 0);
-    reply.put((byte) 24);
-    reply.put((byte) 2);
-    // depth 24 with one TrueColor visual, then depth 32 without visuals
-    reply.put((byte) 24);
-    reply.put((byte) 0);
-    reply.putShort((short) 1);
-    reply.putInt(0);
-    reply.putInt(VISUAL);
-    reply.put((byte) 4);
-    reply.put((byte) 8);
-    reply.putShort((short) 256);
-    reply.putInt(0xFF0000);
-    reply.putInt(0x00FF00);
-    reply.putInt(0x0000FF);
-    reply.putInt(0);
-    reply.put((byte) 32);
-    reply.put((byte) 0);
-    reply.putShort((short) 0);
-    reply.putInt(0);
+    reply.putShort((short) X11_MAJOR_VERSION);
+    reply.putShort((short) X11_MINOR_VERSION);
+    reply.putShort((short) (additional / UNIT_BYTES));
+    putSetupFields(reply, order);
+    putPixmapFormats(reply);
+    putScreen(reply);
     reply.flip();
+
     return reply;
   }
 
-  /**
-   * Answers one request.
-   *
-   * @param opcode   the major opcode
-   * @param data     the second byte of the request
-   * @param request  the rest of the request after its length
-   * @param sequence the sequence number of the request
-   * @param order    the byte order of the client
-   * @param atoms    the atoms of the display
-   * @return the reply or the error, or null for a request without a reply
-   */
+  private static void putSetupFields(final ByteBuffer reply, final ByteOrder order) {
+    reply.putInt(RELEASE_NUMBER);
+    reply.putInt(RESOURCE_ID_BASE);
+    reply.putInt(RESOURCE_ID_MASK);
+    reply.putInt(NO_MOTION_BUFFER);
+    reply.putShort((short) VENDOR.length);
+    reply.putShort((short) MAXIMUM_REQUEST_UNITS);
+    reply.put((byte) SCREEN_COUNT);
+    reply.put((byte) PIXMAP_FORMATS.length);
+    final int imageByteOrder = order == ByteOrder.LITTLE_ENDIAN ? LEAST_SIGNIFICANT_FIRST : MOST_SIGNIFICANT_FIRST;
+    reply.put((byte) imageByteOrder);
+    reply.put((byte) LEAST_SIGNIFICANT_FIRST);
+    reply.put((byte) SCANLINE_BITS);
+    reply.put((byte) SCANLINE_BITS);
+    reply.put((byte) MINIMUM_KEY_CODE);
+    reply.put((byte) MAXIMUM_KEY_CODE);
+    reply.putInt(0);
+    reply.put(VENDOR);
+    final int vendorPadded = VENDOR.length + countPaddingBytes(VENDOR.length);
+    reply.put(new byte[vendorPadded - VENDOR.length]);
+  }
+
+  private static void putPixmapFormats(final ByteBuffer reply) {
+    for (final int[] format : PIXMAP_FORMATS) {
+      reply.put((byte) format[0]);
+      reply.put((byte) format[1]);
+      reply.put((byte) SCANLINE_BITS);
+      reply.put(new byte[PIXMAP_FORMAT_PADDING_BYTES]);
+    }
+  }
+
+  private static void putScreen(final ByteBuffer reply) {
+    reply.putInt(ROOT);
+    reply.putInt(COLORMAP);
+    reply.putInt(WHITE_PIXEL);
+    reply.putInt(BLACK_PIXEL);
+    reply.putInt(NO_INPUT_MASKS);
+    reply.putShort((short) SCREEN_WIDTH);
+    reply.putShort((short) SCREEN_HEIGHT);
+    reply.putShort((short) SCREEN_WIDTH_MILLIMETERS);
+    reply.putShort((short) SCREEN_HEIGHT_MILLIMETERS);
+    reply.putShort((short) INSTALLED_COLORMAPS);
+    reply.putShort((short) INSTALLED_COLORMAPS);
+    reply.putInt(VISUAL);
+    reply.put((byte) NEVER_BACKING_STORE);
+    reply.put((byte) NO_SAVE_UNDERS);
+    reply.put((byte) ROOT_DEPTH);
+    reply.put((byte) DEPTH_COUNT);
+    // depth 24 with one TrueColor visual, then depth 32 without visuals
+    reply.put((byte) ROOT_DEPTH);
+    reply.put((byte) 0);
+    reply.putShort((short) VISUALS_PER_ROOT_DEPTH);
+    reply.putInt(0);
+    reply.putInt(VISUAL);
+    reply.put((byte) TRUE_COLOR);
+    reply.put((byte) BITS_PER_RGB_VALUE);
+    reply.putShort((short) COLORMAP_ENTRIES);
+    reply.putInt(RED_MASK);
+    reply.putInt(GREEN_MASK);
+    reply.putInt(BLUE_MASK);
+    reply.putInt(0);
+    reply.put((byte) VISUAL_LESS_DEPTH);
+    reply.put((byte) 0);
+    reply.putShort((short) 0);
+    reply.putInt(0);
+  }
+
   @VisibleForTesting
   static @Nullable ByteBuffer answer(
     final int opcode,
@@ -706,230 +749,236 @@ final class NullDisplay implements AutoCloseable {
     final Atoms atoms
   ) {
     return switch (opcode) {
-      case INTERN_ATOM -> internAtom(data != 0, request, sequence, order, atoms);
-      case GET_ATOM_NAME -> atomName(request, sequence, order, atoms);
-      // no window has properties, so every property is missing: type None, format 0, nothing after, no value
+      case INTERN_ATOM -> answerInternAtom(data, request, sequence, order, atoms);
+      case GET_ATOM_NAME -> answerGetAtomName(request, sequence, order, atoms);
+      // no window has properties
       case GET_PROPERTY -> reply(sequence, order, 0, 0);
-      // no extension is there: present, major opcode, first event and first error all zero
+      // no extension is there
       case QUERY_EXTENSION -> reply(sequence, order, 0, 0);
       case LIST_EXTENSIONS -> reply(sequence, order, 0, 0);
       // the focus is None, reverting to None
       case GET_INPUT_FOCUS -> reply(sequence, order, 0, 0);
-      case GET_KEYBOARD_MAPPING -> keyboardMapping(request, sequence, order);
+      case GET_KEYBOARD_MAPPING -> answerGetKeyboardMapping(request, sequence, order);
       // one key code per modifier, none of them set
-      case GET_MODIFIER_MAPPING -> reply(sequence, order, 1, 8);
-      case GET_WINDOW_ATTRIBUTES -> windowAttributes(sequence, order);
-      case GET_GEOMETRY -> geometry(sequence, order);
-      case QUERY_TREE -> tree(sequence, order);
-      case QUERY_POINTER -> pointer(sequence, order);
-      default -> unanswered(opcode, sequence, order);
+      case GET_MODIFIER_MAPPING -> reply(sequence, order, KEY_CODES_PER_MODIFIER, MODIFIER_COUNT * KEY_CODES_PER_MODIFIER);
+      case GET_WINDOW_ATTRIBUTES -> answerGetWindowAttributes(sequence, order);
+      case GET_GEOMETRY -> answerGetGeometry(sequence, order);
+      case QUERY_TREE -> answerQueryTree(sequence, order);
+      case QUERY_POINTER -> answerQueryPointer(sequence, order);
+      default -> answerUnsupported(opcode, sequence, order);
     };
   }
 
-  /**
-   * Answers a request this display does not handle: an error if the client waits for a reply, nothing otherwise.
-   */
-  private static @Nullable ByteBuffer unanswered(final int opcode, final int sequence, final ByteOrder order) {
-    if (opcode >= 128) {
+  private static @Nullable ByteBuffer answerUnsupported(final int opcode, final int sequence, final ByteOrder order) {
+    if (opcode >= FIRST_EXTENSION_OPCODE) {
       // an extension, and none was announced
       return error(BAD_REQUEST, opcode, sequence, order, 0);
     }
+
     if (REPLYING.contains(opcode)) {
-      // a core request with a reply that is not answered here would wait forever, so it fails
+      // the client would wait forever for this reply
       return error(BAD_IMPLEMENTATION, opcode, sequence, order, 0);
     }
+
     return null;
   }
 
-  private static ByteBuffer internAtom(
-    final boolean onlyIfExists,
+  private static ByteBuffer answerInternAtom(
+    final int data,
     final ByteBuffer request,
     final int sequence,
     final ByteOrder order,
     final Atoms atoms
   ) {
-    if (request.remaining() < 4) {
+    if (request.remaining() < UNIT_BYTES) {
       return error(BAD_LENGTH, INTERN_ATOM, sequence, order, 0);
     }
-    final int length = request.getShort() & 0xFFFF;
+
+    final int length = request.getShort() & UNSIGNED_SHORT_MASK;
     request.getShort();
+
     if (length > request.remaining()) {
       return error(BAD_LENGTH, INTERN_ATOM, sequence, order, 0);
     }
+
     final byte[] name = new byte[length];
     request.get(name);
     final String text = new String(name, StandardCharsets.ISO_8859_1);
-    // a client that only asks whether an atom exists gets None for a new name, which is not interned
-    final int atom = onlyIfExists ? atoms.find(text) : atoms.intern(text);
-    if (atom == 0 && !onlyIfExists) {
+    final boolean onlyIfExists = data != 0;
+    if (onlyIfExists) {
+      final int known = atoms.find(text);
+      return atomReply(sequence, order, known);
+    }
+
+    final int atom = atoms.intern(text);
+
+    if (atom == NO_ATOM) {
       return error(BAD_ALLOC, INTERN_ATOM, sequence, order, 0);
     }
+
+    return atomReply(sequence, order, atom);
+  }
+
+  private static ByteBuffer atomReply(final int sequence, final ByteOrder order, final int atom) {
     final ByteBuffer reply = reply(sequence, order, 0, 0);
-    reply.putInt(8, atom);
+    reply.putInt(REPLY_BODY_OFFSET, atom);
+
     return reply;
   }
 
-  private static ByteBuffer atomName(final ByteBuffer request, final int sequence, final ByteOrder order, final Atoms atoms) {
-    if (request.remaining() < 4) {
+  private static ByteBuffer answerGetAtomName(final ByteBuffer request, final int sequence, final ByteOrder order, final Atoms atoms) {
+    if (request.remaining() < UNIT_BYTES) {
       return error(BAD_LENGTH, GET_ATOM_NAME, sequence, order, 0);
     }
+
     final int atom = request.getInt();
     final String name = atoms.name(atom);
     if (name == null) {
       return error(BAD_ATOM, GET_ATOM_NAME, sequence, order, atom);
     }
+
     final byte[] bytes = name.getBytes(StandardCharsets.ISO_8859_1);
-    final ByteBuffer reply = reply(sequence, order, 0, bytes.length + pad(bytes.length));
-    reply.putShort(8, (short) bytes.length);
-    reply.put(32, bytes);
+    final ByteBuffer reply = reply(sequence, order, 0, bytes.length + countPaddingBytes(bytes.length));
+    reply.putShort(REPLY_BODY_OFFSET, (short) bytes.length);
+    reply.put(MESSAGE_BYTES, bytes);
+
     return reply;
   }
 
-  private static ByteBuffer keyboardMapping(final ByteBuffer request, final int sequence, final ByteOrder order) {
+  private static ByteBuffer answerGetKeyboardMapping(final ByteBuffer request, final int sequence, final ByteOrder order) {
     // the first key code, the count and two unused bytes
-    if (request.remaining() < 4) {
+    if (request.remaining() < UNIT_BYTES) {
       return error(BAD_LENGTH, GET_KEYBOARD_MAPPING, sequence, order, 0);
     }
+
     request.get();
-    final int count = request.get() & 0xFF;
-    // one key symbol per key code, and every one is NoSymbol
-    return reply(sequence, order, 1, 4 * count);
+    final int count = request.get() & UNSIGNED_BYTE_MASK;
+    // every key symbol is NoSymbol
+    return reply(sequence, order, KEY_SYMBOLS_PER_KEY_CODE, Integer.BYTES * KEY_SYMBOLS_PER_KEY_CODE * count);
   }
 
-  private static ByteBuffer windowAttributes(final int sequence, final ByteOrder order) {
+  private static ByteBuffer answerGetWindowAttributes(final int sequence, final ByteOrder order) {
     // backing store NotUseful, the visual, class InputOutput, gravities, planes, pixel, save under, map installed,
     // map state Unmapped, override redirect, colormap and event masks
-    final ByteBuffer reply = reply(sequence, order, 0, 12);
-    reply.putInt(8, VISUAL);
-    reply.putShort(12, (short) 1);
-    reply.putInt(28, COLORMAP);
+    final ByteBuffer reply = reply(sequence, order, 0, WINDOW_ATTRIBUTES_EXTRA_BYTES);
+    reply.putInt(REPLY_BODY_OFFSET, VISUAL);
+    reply.putShort(WINDOW_CLASS_OFFSET, (short) INPUT_OUTPUT);
+    reply.putInt(WINDOW_COLORMAP_OFFSET, COLORMAP);
+
     return reply;
   }
 
-  private static ByteBuffer geometry(final int sequence, final ByteOrder order) {
+  private static ByteBuffer answerGetGeometry(final int sequence, final ByteOrder order) {
     // the depth in the second byte, then the root, the position, the size and the border width
-    final ByteBuffer reply = reply(sequence, order, 24, 0);
-    reply.putInt(8, ROOT);
-    reply.putShort(16, (short) SCREEN_WIDTH);
-    reply.putShort(18, (short) SCREEN_HEIGHT);
+    final ByteBuffer reply = reply(sequence, order, ROOT_DEPTH, 0);
+    reply.putInt(REPLY_BODY_OFFSET, ROOT);
+    reply.putShort(GEOMETRY_WIDTH_OFFSET, (short) SCREEN_WIDTH);
+    reply.putShort(GEOMETRY_HEIGHT_OFFSET, (short) SCREEN_HEIGHT);
+
     return reply;
   }
 
-  private static ByteBuffer tree(final int sequence, final ByteOrder order) {
+  private static ByteBuffer answerQueryTree(final int sequence, final ByteOrder order) {
     // the root, no parent and no children
     final ByteBuffer reply = reply(sequence, order, 0, 0);
-    reply.putInt(8, ROOT);
+    reply.putInt(REPLY_BODY_OFFSET, ROOT);
+
     return reply;
   }
 
-  private static ByteBuffer pointer(final int sequence, final ByteOrder order) {
+  private static ByteBuffer answerQueryPointer(final int sequence, final ByteOrder order) {
     // on this screen, over the root at the origin, with no button held
-    final ByteBuffer reply = reply(sequence, order, 1, 0);
-    reply.putInt(8, ROOT);
+    final ByteBuffer reply = reply(sequence, order, SAME_SCREEN, 0);
+    reply.putInt(REPLY_BODY_OFFSET, ROOT);
+
     return reply;
   }
 
-  /**
-   * Creates a reply: 32 bytes and the extra bytes, all zero but its header.
-   *
-   * @param sequence the sequence number of the request
-   * @param order    the byte order of the client
-   * @param data     the second byte
-   * @param extra    the bytes after the first 32, a multiple of four
-   * @return the reply, positioned at its start
-   */
   private static ByteBuffer reply(final int sequence, final ByteOrder order, final int data, final int extra) {
-    final ByteBuffer reply = ByteBuffer.allocate(32 + extra).order(order);
-    reply.put(0, (byte) 1);
-    reply.put(1, (byte) data);
-    reply.putShort(2, (short) sequence);
-    reply.putInt(4, extra / 4);
+    final ByteBuffer reply = ByteBuffer.allocate(MESSAGE_BYTES + extra).order(order);
+    reply.put(TYPE_OFFSET, (byte) REPLY);
+    reply.put(DATA_OFFSET, (byte) data);
+    reply.putShort(SEQUENCE_OFFSET, (short) sequence);
+    reply.putInt(LENGTH_OFFSET, extra / UNIT_BYTES);
+
     return reply;
   }
 
   private static ByteBuffer error(final int code, final int opcode, final int sequence, final ByteOrder order, final int value) {
-    final ByteBuffer error = ByteBuffer.allocate(32).order(order);
-    error.put(0, (byte) 0);
-    error.put(1, (byte) code);
-    error.putShort(2, (short) sequence);
-    error.putInt(4, value);
-    error.put(10, (byte) opcode);
+    final ByteBuffer error = ByteBuffer.allocate(MESSAGE_BYTES).order(order);
+    error.put(TYPE_OFFSET, (byte) ERROR);
+    error.put(DATA_OFFSET, (byte) code);
+    error.putShort(SEQUENCE_OFFSET, (short) sequence);
+    error.putInt(ERROR_VALUE_OFFSET, value);
+    error.put(ERROR_OPCODE_OFFSET, (byte) opcode);
+
     return error;
   }
 
-  /**
-   * Closes the display and every connection to it.
-   */
   @Override
   public void close() {
-    closeQuietly(this.server);
+    this.closeQuietly(this.server);
     for (final Socket client : this.clients) {
-      closeQuietly(client);
+      this.closeQuietly(client);
     }
   }
 
-  private static void closeQuietly(final Closeable closeable) {
-    // the helper runs without mcav's other modules, so not HelperSession's, which needs them
+  private void closeQuietly(final Closeable closeable) {
+    // not HelperSession's: the helper runs without MCAV's other modules
     NetworkGuard.closeQuietly(closeable);
   }
 
-  /**
-   * The atoms of a display: the predefined ones, and every name a client interns, up to {@value #MAX_ATOMS} atoms and
-   * {@value #MAX_ATOM_BYTES} bytes of names.
-   */
+  String getDisplay() {
+    final InetAddress address = this.server.getInetAddress();
+    final String host = address.getHostAddress();
+    final int port = this.server.getLocalPort();
+    final int displayNumber = port - X11_BASE_PORT;
+    return "%s:%s".formatted(host, displayNumber);
+  }
+
   static final class Atoms {
 
-    private final Map<String, Integer> ids = new ConcurrentHashMap<>();
-    private final List<String> names = new ArrayList<>();
+    private final Map<String, Integer> ids;
+    private final List<String> names;
+
     private long bytes;
 
     Atoms() {
+      this.ids = new ConcurrentHashMap<>();
+      this.names = new ArrayList<>();
+      this.bytes = 0;
       for (final String name : PREDEFINED_ATOMS) {
         this.intern(name);
       }
     }
 
-    /**
-     * Finds the atom of a name that was interned before.
-     *
-     * @param name the name
-     * @return the atom, or 0 (None) if the name has none
-     */
     synchronized int find(final String name) {
-      return this.ids.getOrDefault(name, 0);
+      return this.ids.getOrDefault(name, NO_ATOM);
     }
 
-    /**
-     * Gets the atom of a name, naming it if it is new.
-     *
-     * @param name the name
-     * @return the atom, or 0 if the display has named as many atoms as it may
-     */
     synchronized int intern(final String name) {
       final Integer known = this.ids.get(name);
       if (known != null) {
         return known;
       }
-      if (this.names.size() >= MAX_ATOMS || this.bytes + name.length() > MAX_ATOM_BYTES) {
-        return 0;
+
+      if (this.names.size() >= MAXIMUM_ATOMS || this.bytes + name.length() > MAXIMUM_ATOM_BYTES) {
+        return NO_ATOM;
       }
+
       this.bytes += name.length();
       this.names.add(name);
       final int atom = this.names.size();
       this.ids.put(name, atom);
+
       return atom;
     }
 
-    /**
-     * Gets the name of an atom.
-     *
-     * @param atom the atom
-     * @return the name, or null if the atom was never named
-     */
     synchronized @Nullable String name(final int atom) {
       if (atom < 1 || atom > this.names.size()) {
         return null;
       }
+
       return this.names.get(atom - 1);
     }
   }

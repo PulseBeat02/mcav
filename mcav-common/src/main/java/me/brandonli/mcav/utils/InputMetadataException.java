@@ -30,7 +30,7 @@ import me.brandonli.mcav.MCAVException;
  *
  * @since 1.0.0
  */
-public class InputMetadataException extends MCAVException {
+public final class InputMetadataException extends MCAVException {
 
   @Serial
   private static final long serialVersionUID = -2964304434518823943L;

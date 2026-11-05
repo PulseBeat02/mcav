@@ -19,6 +19,7 @@ package me.brandonli.mcav.plugin.locale;
 
 import com.google.common.base.Preconditions;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * The languages the messages of the plugin are available in, chosen with the {@code language} option of
@@ -41,21 +42,21 @@ public enum Locale {
    */
   EN_US;
 
-  private static final Map<String, Locale> LOOKUP_TABLE = Map.of("EN_US", EN_US);
+  private static final Map<String, Locale> KEY_LOOKUP = Map.of("EN_US", EN_US);
 
   /**
    * Finds the language for the {@code language} option of {@code config.yml}. Case does not matter, so
    * {@code en_us} and {@code EN_US} both select {@link #EN_US}, whatever the default locale of the server is.
    *
    * @param locale the configured language, such as {@code EN_US}
-   * @return the language, or {@link #EN_US} if the value names no supported language
+   * @return the language, or empty if the value names no supported language
    * @throws NullPointerException if the value is {@code null}
    * @since 1.0.0
    */
-  public static Locale fromString(final String locale) {
+  public static Optional<Locale> fromString(final String locale) {
     Preconditions.checkNotNull(locale, "Locale must not be null!");
 
     final String upperCaseName = locale.toUpperCase(java.util.Locale.ROOT); // fqn: Locale is also declared in this file
-    return LOOKUP_TABLE.getOrDefault(upperCaseName, EN_US);
+    return Optional.ofNullable(KEY_LOOKUP.get(upperCaseName));
   }
 }

@@ -37,6 +37,7 @@ import java.util.UUID;
 import me.brandonli.mcav.bukkit.media.config.MapConfiguration;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2.Settings;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Configuration;
+import me.brandonli.mcav.bukkit.media.mcv2.Mcv2PackServer;
 import me.brandonli.mcav.bukkit.media.result.CompressedMapResult;
 import me.brandonli.mcav.media.player.pipeline.filter.video.FunctionalVideoFilter;
 import me.brandonli.mcav.media.player.pipeline.filter.video.VideoFilter;
@@ -92,6 +93,7 @@ final class VideoMcv2CommandTest {
     final MCAVSandbox plugin = mock(MCAVSandbox.class);
     this.manager = mock(VideoPlayerManager.class);
     this.support = mock(Mcv2Support.class);
+    Mockito.doCallRealMethod().when(this.support).createMcv2Filter(any());
     when(plugin.getVideoPlayerManager()).thenReturn(this.manager);
     when(plugin.getAudioProvider()).thenReturn(mock(AudioProvider.class));
     when(plugin.getMcv2Support()).thenReturn(this.support);
@@ -214,37 +216,45 @@ final class VideoMcv2CommandTest {
 
   private void assertWallConfiguration(final MockedConstruction.Context context) {
     final MapConfiguration wall = (MapConfiguration) context.arguments().getFirst();
-    assertEquals(MAP_ID, wall.getMap());
-    assertEquals(BLOCK_WIDTH, wall.getMapBlockWidth());
-    assertEquals(BLOCK_HEIGHT, wall.getMapBlockHeight());
-    assertEquals(RESOLUTION_WIDTH, wall.getMapWidthResolution());
-    assertEquals(RESOLUTION_HEIGHT, wall.getMapHeightResolution());
-    assertEquals(List.of(this.viewer), List.copyOf(wall.getViewers()));
+    final int mapId = wall.getMap();
+    assertEquals(MAP_ID, mapId);
+    final int mapBlockWidth = wall.getMapBlockWidth();
+    assertEquals(BLOCK_WIDTH, mapBlockWidth);
+    final int mapBlockHeight = wall.getMapBlockHeight();
+    assertEquals(BLOCK_HEIGHT, mapBlockHeight);
+    final int mapWidthResolution = wall.getMapWidthResolution();
+    assertEquals(RESOLUTION_WIDTH, mapWidthResolution);
+    final int mapHeightResolution = wall.getMapHeightResolution();
+    assertEquals(RESOLUTION_HEIGHT, mapHeightResolution);
+    final List<UUID> expectedViewers = List.of(this.viewer);
+    final List<UUID> viewers = List.copyOf(wall.getViewers());
+    assertEquals(expectedViewers, viewers);
   }
 
   @Test
   void shouldTakeTheBacklogLimitOfAMeasurement() {
-    System.setProperty(VideoMcv2Command.BACKLOG_PROPERTY, "65536");
+    final Mcv2Support support = new Mcv2Support(mock(Mcv2PackServer.class));
+    System.setProperty(Mcv2Support.BACKLOG_PROPERTY, "65536");
     try {
-      final long videoMcv2CommandBacklogLimit = VideoMcv2Command.backlogLimit();
+      final long videoMcv2CommandBacklogLimit = support.readBacklogLimit();
       assertEquals(65536, videoMcv2CommandBacklogLimit);
 
-      final int unsentLimit = VideoMcv2Command.unsentLimit();
+      final int unsentLimit = support.readUnsentLimit();
       assertEquals(Mcv2Configuration.DEFAULT_UNSENT_LIMIT, unsentLimit);
 
-      System.setProperty(VideoMcv2Command.BACKLOG_PROPERTY, "none");
+      System.setProperty(Mcv2Support.BACKLOG_PROPERTY, "none");
 
-      final long secondBacklogLimit = VideoMcv2Command.backlogLimit();
+      final long secondBacklogLimit = support.readBacklogLimit();
       assertEquals(Long.MAX_VALUE, secondBacklogLimit);
       // no backpressure at all: no cap on a viewer's unsent bytes either
 
-      final int videoMcv2CommandUnsentLimit = VideoMcv2Command.unsentLimit();
+      final int videoMcv2CommandUnsentLimit = support.readUnsentLimit();
       assertEquals(0, videoMcv2CommandUnsentLimit);
     } finally {
-      System.clearProperty(VideoMcv2Command.BACKLOG_PROPERTY);
+      System.clearProperty(Mcv2Support.BACKLOG_PROPERTY);
     }
 
-    final long backlogLimit = VideoMcv2Command.backlogLimit();
+    final long backlogLimit = support.readBacklogLimit();
     assertEquals(Mcv2Configuration.DEFAULT_BACKLOG_LIMIT, backlogLimit);
   }
 

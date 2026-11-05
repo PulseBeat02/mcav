@@ -200,7 +200,7 @@ class PublishingPluginTest {
     }
 
     private fun readLegalTexts(jar: ZipFile): List<String?> {
-        return listOf(LICENSE_ENTRY, NOTICES_ENTRY).map { name -> this.readEntry(jar, name) }
+        return listOf(LICENSE_ENTRY, NOTICES_ENTRY).map { this.readEntry(jar, it) }
     }
 
     private fun readEntry(jar: ZipFile, name: String): String? {

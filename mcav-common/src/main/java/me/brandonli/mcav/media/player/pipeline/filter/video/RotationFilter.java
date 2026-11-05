@@ -34,7 +34,7 @@ import org.bytedeco.opencv.opencv_core.Mat;
  *
  * @since 1.0.0
  */
-public class RotationFilter extends MatVideoFilter {
+public final class RotationFilter extends MatVideoFilter {
 
   private final int rotateCode;
 
@@ -73,14 +73,15 @@ public class RotationFilter extends MatVideoFilter {
    * Always throws, because a rotation by 90 degrees changes the size of the frame and cannot be done in place;
    * {@link #modifyImage(MatImageBuffer)} rotates instead.
    *
-   * @param mat the matrix of the frame
+   * @param matrix the matrix of the frame
    * @return never returns normally
    * @throws UnsupportedOperationException always
    * @since 1.0.0
    */
   @Override
-  protected boolean modifyMat(final Mat mat) {
-    throw new UnsupportedOperationException("Rotation cannot be done in place!");
+  protected boolean modifyMat(final Mat matrix) {
+    final String message = "Rotation cannot be done in place!";
+    throw new UnsupportedOperationException(message);
   }
 
   /**

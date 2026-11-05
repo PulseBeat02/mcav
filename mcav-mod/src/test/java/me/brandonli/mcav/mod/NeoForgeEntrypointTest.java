@@ -56,7 +56,6 @@ import org.mockito.MockedStatic;
 final class NeoForgeEntrypointTest {
 
   private final IEventBus modBus = mock(IEventBus.class);
-
   private final IEventBus gameBus = mock(IEventBus.class);
 
   @SuppressWarnings("unchecked") // a class literal cannot name Consumer<EventType>
@@ -108,8 +107,9 @@ final class NeoForgeEntrypointTest {
       ticks.accept(new ClientTickEvent.Post());
       final ArgumentCaptor<Mcv2Payload> sent = ArgumentCaptor.forClass(Mcv2Payload.class);
       distributor.verify(() -> ClientPacketDistributor.sendToServer(sent.capture()));
-      final byte[] report = sent.getValue().report();
-      assertArrayEquals(new byte[] { 1, 0, 0, 0 }, report, "no Iris, no shader pack");
+      final byte[] report = sent.getValue().getReport();
+      final byte[] expected = { 1, 0, 0, 0 };
+      assertArrayEquals(expected, report, "no Iris, no shader pack");
 
       loggingOut.accept(logout);
       loggingIn.accept(login);
@@ -144,12 +144,14 @@ final class NeoForgeEntrypointTest {
       verify(mods).getModContainerById("iris");
       verify(this.modBus).addListener(eq(RegisterPayloadHandlersEvent.class), any());
     }
-    final Optional<ShaderDecoder> decoder = ShaderDecoder.current();
-    final Optional<String> version = NeoForgeEntrypoint.irisVersion(mods);
-    assertTrue(decoder.isPresent(), "the decoder the mixins report to");
-    assertEquals(Optional.of("1.11.7+mc26.3"), version);
+    final Optional<ShaderDecoder> decoder = ShaderDecoder.findCurrent();
+    final Optional<String> version = NeoForgeEntrypoint.findIrisVersion(mods);
+    final boolean decoderFound = decoder.isPresent();
+    final Optional<String> expectedVersion = Optional.of("1.11.7+mc26.3");
+    assertTrue(decoderFound, "the decoder the mixins report to");
+    assertEquals(expectedVersion, version);
     doReturn(Optional.empty()).when(mods).getModContainerById("iris");
-    final Optional<String> missingVersion = NeoForgeEntrypoint.irisVersion(mods);
+    final Optional<String> missingVersion = NeoForgeEntrypoint.findIrisVersion(mods);
     assertEquals(Optional.empty(), missingVersion);
   }
 }

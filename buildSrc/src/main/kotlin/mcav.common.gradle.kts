@@ -41,14 +41,14 @@ val unusedJavacvPresets: List<String> = listOf(
 )
 
 configurations.api {
-    dependencies.withType<ModuleDependency>().configureEach {
-        if (group == bytedecoGroup && name == javacvPlatformModule) {
+    dependencies.withType<ModuleDependency>()
+        .matching { it.group == bytedecoGroup && it.name == javacvPlatformModule }
+        .configureEach {
             for (preset in unusedJavacvPresets) {
-                exclude(group = bytedecoGroup, module = preset)
-                exclude(group = bytedecoGroup, module = "$preset$platformSuffix")
+                this.exclude(group = bytedecoGroup, module = preset)
+                this.exclude(group = bytedecoGroup, module = "$preset$platformSuffix")
             }
         }
-    }
 }
 
 val pinGeneratorClass: String = "me.brandonli.mcav.capability.installer.debian.DebianPinGenerator"
@@ -65,7 +65,7 @@ val testSourceSet: SourceSet = sourceSets.test.get()
 
 tasks.register<JavaExec>("generateDebianPins") {
     this.group = "build setup"
-    this.description = "Pins the Debian packages that mcav fetches libraries from to the latest Debian archive and security snapshots"
+    this.description = "Pins the Debian packages that MCAV fetches libraries from to the latest Debian archive and security snapshots"
     this.classpath = testSourceSet.runtimeClasspath
     this.mainClass.set(pinGeneratorClass)
     this.args(installerResources.asFile.path, leftOutIndependentPackages)

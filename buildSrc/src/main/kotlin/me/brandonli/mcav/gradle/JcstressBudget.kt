@@ -21,7 +21,6 @@ package me.brandonli.mcav.gradle
 import java.io.File
 import java.util.zip.ZipEntry
 import java.util.zip.ZipFile
-import org.gradle.api.GradleException
 
 /**
  * Sizes a jcstress run to a time budget.
@@ -59,7 +58,7 @@ object JcstressBudget {
     fun countTests(jar: File, selection: String?): Int {
         val pattern: Regex? = selection?.let { Regex(it) }
         val lines: List<String> = ZipFile(jar).use(this::readTestList)
-        return lines.count { line -> this.isSelectedTest(line, pattern) }
+        return lines.count { this.isSelectedTest(it, pattern) }
     }
 
     private fun readTestList(zip: ZipFile): List<String> {
@@ -92,11 +91,11 @@ object JcstressBudget {
      * @param testCount     the number of tests that the run selects
      * @param cpus          the number of processors that the run may use
      * @return the iteration time in milliseconds
-     * @throws GradleException if [mode] is unknown
+     * @throws IllegalArgumentException if [mode] is unknown
      */
     fun iterationMilliseconds(mode: String, budgetMinutes: Int, testCount: Int, cpus: Int): Long {
         val message: String = "Jcstress mode $mode is unknown!"
-        val preset: Preset = PRESETS[mode] ?: throw GradleException(message)
+        val preset: Preset = PRESETS[mode] ?: throw IllegalArgumentException(message)
         val runs: Long = testCount.toLong() * CONFIGURATIONS * (preset.forks + preset.forks * preset.stressMultiplier)
         val parallelRuns: Int = maxOf(1, cpus / CPUS_PER_RUN)
         val budgetMilliseconds: Long = budgetMinutes * MILLISECONDS_PER_MINUTE

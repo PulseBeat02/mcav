@@ -57,7 +57,7 @@ public final class VmSettings {
    * @param height          the strictly positive output height in pixels
    * @param targetFrameRate the strictly positive requested frame rate in frames per second
    * @return the settings
-   * @throws IllegalArgumentException if a dimension or frame rate is nonpositive
+   * @throws IllegalArgumentException if a dimension or frame rate is not positive
    * @throws MCAVException            if no port in the VNC range can be bound by the probe
    * @since 1.0.0
    */
@@ -74,13 +74,13 @@ public final class VmSettings {
    * @param height          the strictly positive output height in pixels
    * @param targetFrameRate the strictly positive requested frame rate in frames per second
    * @return the settings
-   * @throws IllegalArgumentException if the port is outside 5900 through 65535, or a dimension or frame rate is nonpositive
+   * @throws IllegalArgumentException if the port is outside 5900 through 65535, or a dimension or frame rate is not positive
    * @since 1.0.0
    */
   public static VmSettings of(final int port, final int width, final int height, final int targetFrameRate) {
     Preconditions.checkArgument(
       port >= VmProcess.FIRST_VNC_PORT && port <= MAXIMUM_PORT,
-      "VNC port %s must be between 5900 and 65535!",
+      "VNC port %s must be between 5900 and 65535 inclusive!",
       port
     );
     Preconditions.checkArgument(width > 0 && height > 0, "Frame size %sx%s must be positive!", width, height);

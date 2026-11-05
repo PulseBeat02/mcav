@@ -6,8 +6,8 @@ click it by clicking the wall and type into it through chat.
 ## The allow-list
 
 The Minecraft server is the one that connects, not the players, so a player must never choose where it connects. A
-command can only name a server the operator listed in `vnc.allowed-hosts` of `plugins/MCAV/config.yml`, and none is
-listed by default: until you list one, the command reaches nothing. Write the server's password there, never in the
+command can only name a server you listed in `vnc.allowed-hosts` of `plugins/MCAV/config.yml`, and the default
+lists none: until you list one, the command reaches nothing. Write the server's password there, never in the
 command, since the server log keeps every command; MCAV never writes it to a log, and `/mcav dump` leaves it out.
 
 ```yaml
@@ -38,21 +38,23 @@ disconnects and clears the wall. A VNC desktop has no sound.
 
 ## Clicking and typing
 
-Players with `mcav.vnc.interact` click the desktop by clicking the wall: left and right clicks. `/mcav vnc interact`
-types their chat into it, and a key name such as `Return`, `Escape` or `Left` (an X11 key name) presses that key.
+Players with `mcav.command.vnc.interact` click the desktop by clicking the wall: left and right clicks.
+`/mcav vnc interact` types their chat into it, and a key name such as `Return`, `Escape` or `Left` (an X11 key name)
+presses that key.
 
 ## Permissions
 
 | Permission | Allows |
 |---|---|
 | `mcav.command.vnc.create` | `/mcav vnc create` |
-| `mcav.vnc.interact` | `/mcav vnc interact`, and clicking the desktop's wall |
-| `mcav.vnc.release` | `/mcav vnc release` |
+| `mcav.command.vnc.interact` | `/mcav vnc interact`, and clicking the desktop's wall |
+| `mcav.command.vnc.release` | `/mcav vnc release` |
 
-All three are for operators until granted.
+All three are for operators until you grant them.
 
 ## A hostile VNC server
 
-MCAV checks everything a VNC server sends before its VNC client reads it: every size, length, name, colour map and
-message type, and only the encodings the client supports. A server that sends anything else, or a size that would make
-the client allocate more than it should, is disconnected instead. Still, list only servers you control.
+MCAV checks everything a VNC server sends before its VNC client reads it: every size, length, name, color map and
+message type, and only the encodings the client supports. Instead, MCAV disconnects a server that sends anything else,
+or a size that would make
+the client allocate more than it should. Still, list only servers you control.

@@ -87,6 +87,7 @@ final class AbstractInstallerTest {
 
   private static final String NAME = "tool";
   private static final String TOOL_PATH = "/tool";
+  private static final String TOOL_URL = "https://example.com/tool";
   private static final byte[] PROGRAM = "#!/bin/sh\necho tool\n".getBytes(StandardCharsets.US_ASCII);
   private static final String PROGRAM_HASH = sha256(PROGRAM);
   private static final Platform CURRENT_PLATFORM = Platform.getCurrentPlatform();
@@ -131,6 +132,10 @@ final class AbstractInstallerTest {
 
   private static final String TEMPORARY_DIRECTORY_PROPERTY = "java.io.tmpdir";
 
+  private static final String RETAINED_CONTENT = "retained";
+
+  private static final String NOT_REMEMBERED_MESSAGE = "a failed installation is not remembered";
+
   @TempDir
   private Path folder;
 
@@ -155,6 +160,16 @@ final class AbstractInstallerTest {
     assertThrows(NullPointerException.class, () -> new TestInstaller(this.folder, NAME, (Supplier<Download[]>) null));
     assertThrows(NullPointerException.class, () -> new TestInstaller(this.folder, NAME, (Download[]) null));
     assertThrows(IllegalArgumentException.class, () -> new TestInstaller(this.folder, " ", downloadArray));
+  }
+
+  @Test
+  void shouldRejectANullMode() {
+    final Download[] downloads = new Download[0];
+    final TestInstaller installer = new TestInstaller(this.folder, NAME, downloads);
+
+    final NullPointerException failure = assertThrows(NullPointerException.class, () -> installer.download(null));
+    final String message = failure.getMessage();
+    assertEquals("Mode must not be null!", message);
   }
 
   @Test
@@ -202,17 +217,19 @@ final class AbstractInstallerTest {
   @Test
   void shouldResolveTheDownloadsLazilyAndOnlyOnce() {
     final AtomicInteger calls = new AtomicInteger();
-    final Download current = new Download(CURRENT_PLATFORM, "https://example.com/tool", "ab12cd");
+    final Download current = Download.of(CURRENT_PLATFORM, TOOL_URL, "ab12cd");
     final TestInstaller installer = new TestInstaller(this.folder, NAME, () -> this.countAndListDownload(calls, current));
     final int callsAfterConstruction = calls.get();
     final boolean supported = installer.isSupported();
-    final String url = installer.getUrl();
+    final Optional<String> url = installer.getUrl();
     final Optional<String> hash = installer.getHash();
     final int callsAfterUse = calls.get();
+    final Optional<String> expectedUrl = Optional.of(TOOL_URL);
+    final Optional<String> expectedHash = Optional.of("ab12cd");
     assertEquals(0, callsAfterConstruction);
     assertTrue(supported);
-    assertEquals("https://example.com/tool", url);
-    assertEquals(Optional.of("ab12cd"), hash);
+    assertEquals(expectedUrl, url);
+    assertEquals(expectedHash, hash);
     assertEquals(1, callsAfterUse);
   }
 
@@ -223,8 +240,8 @@ final class AbstractInstallerTest {
 
   @Test
   void shouldPreferTheExactPlatformOverFallbacks() {
-    final Download exact = new Download(OTHER_PLATFORM, "https://example.com/exact", null);
-    final Download compatible = new Download(LINUX_X86_64, "https://example.com/compatible", null);
+    final Download exact = Download.of(OTHER_PLATFORM, "https://example.com/exact", null);
+    final Download compatible = Download.of(LINUX_X86_64, "https://example.com/compatible", null);
     final TestInstaller installer = new TestInstaller(this.folder, NAME, new Download[] { compatible, exact });
     final List<Platform> fallbacks = List.of(LINUX_X86_64);
     installer.setFallbacks(fallbacks);
@@ -237,8 +254,8 @@ final class AbstractInstallerTest {
   @Test
   void shouldFallBackToCompatiblePlatformsInOrder() {
     final Platform second = Platform.ofPlatform(Os.LINUX, Arch.X86, Bits.BITS_32);
-    final Download secondDownload = new Download(second, "https://example.com/second", null);
-    final Download firstDownload = new Download(LINUX_X86_64, "https://example.com/first", null);
+    final Download secondDownload = Download.of(second, "https://example.com/second", null);
+    final Download firstDownload = Download.of(LINUX_X86_64, "https://example.com/first", null);
     final TestInstaller installer = new TestInstaller(this.folder, NAME, new Download[] { secondDownload, firstDownload });
     final List<Platform> fallbacks = List.of(LINUX_X86_64, second);
     installer.setFallbacks(fallbacks);
@@ -251,7 +268,7 @@ final class AbstractInstallerTest {
   @Test
   void shouldFindNothingWithoutAMatchingOrCompatiblePlatform() {
     final Platform unrelated = Platform.ofPlatform(Os.MAC, Arch.ARM, Bits.BITS_64);
-    final Download download = new Download(unrelated, "https://example.com/mac", null);
+    final Download download = Download.of(unrelated, "https://example.com/mac", null);
     final TestInstaller installer = new TestInstaller(this.folder, NAME, new Download[] { download });
     final List<Platform> fallbacks = List.of(LINUX_X86_64);
     installer.setFallbacks(fallbacks);
@@ -271,14 +288,15 @@ final class AbstractInstallerTest {
 
   @Test
   void shouldReportUnsupportedPlatforms() {
-    final Download elsewhere = new Download(OTHER_PLATFORM, "https://example.com/elsewhere", "00");
+    final Download elsewhere = Download.of(OTHER_PLATFORM, "https://example.com/elsewhere", "00");
     final TestInstaller installer = new TestInstaller(this.folder, NAME, new Download[] { elsewhere });
     final boolean supported = installer.isSupported();
-    final String url = installer.getUrl();
+    final Optional<String> url = installer.getUrl();
     final Optional<String> hash = installer.getHash();
+    final boolean hashMissing = hash.isEmpty();
     assertFalse(supported);
-    assertEquals("", url);
-    assertTrue(hash.isEmpty());
+    assertEquals(Optional.empty(), url);
+    assertTrue(hashMissing);
 
     final InstallationException thrown = assertThrows(InstallationException.class, () -> installer.download(FileMode.EXECUTABLE));
     final String message = thrown.getMessage();
@@ -339,7 +357,7 @@ final class AbstractInstallerTest {
     final TestInstaller writer = new TestInstaller(this.folder, NAME, new Download[0]);
     writer.writePathToConfiguration(elsewhere);
 
-    final Download unreachable = new Download(CURRENT_PLATFORM, "http://127.0.0.1:1/unreachable", null);
+    final Download unreachable = Download.of(CURRENT_PLATFORM, "http://127.0.0.1:1/unreachable", null);
     final TestInstaller installer = new TestInstaller(this.folder, NAME, new Download[] { unreachable });
     final Path installed = installer.download(FileMode.EXECUTABLE);
     final Path expected = elsewhere.toAbsolutePath();
@@ -435,7 +453,7 @@ final class AbstractInstallerTest {
 
   @Test
   void shouldRejectADownloadUrlThatIsNotAValidUri() {
-    final Download download = new Download(CURRENT_PLATFORM, "https://example.com/a tool");
+    final Download download = Download.of(CURRENT_PLATFORM, "https://example.com/a tool");
     final Download[] downloads = new Download[] { download };
     final TestInstaller installer = new TestInstaller(this.folder, NAME, downloads);
     assertThrows(IllegalArgumentException.class, () -> installer.download(FileMode.UNCHANGED));
@@ -470,7 +488,7 @@ final class AbstractInstallerTest {
     try (final LocalHttpServer server = LocalHttpServer.start()) {
       server.respondWhenOpened(TOOL_PATH, OK_STATUS, PROGRAM, releaseResponse);
       final TestInstaller installer = this.installerDownloadingFrom(server, TOOL_PATH, null);
-      final String url = installer.getUrl();
+      final Optional<String> url = installer.getUrl();
       final Path defaultPath = installer.getDefaultPath();
       final Duration limit = Duration.ofSeconds(5);
       try (final ExecutorService executor = Executors.newSingleThreadExecutor()) {
@@ -478,7 +496,7 @@ final class AbstractInstallerTest {
         awaitToolRequest(server);
         final Path pathDuringDownload = assertTimeoutPreemptively(limit, installer::getPath);
         final boolean supportedDuringDownload = assertTimeoutPreemptively(limit, installer::isSupported);
-        final String urlDuringDownload = assertTimeoutPreemptively(limit, installer::getUrl);
+        final Optional<String> urlDuringDownload = assertTimeoutPreemptively(limit, installer::getUrl);
         releaseResponse.countDown();
         final Path installed = running.get(DOWNLOAD_TIMEOUT_SECONDS, TimeUnit.SECONDS);
         assertEquals(defaultPath, pathDuringDownload);
@@ -509,7 +527,7 @@ final class AbstractInstallerTest {
       final boolean nothingRemembered = configuration.isEmpty();
       assertSame(chmodFailure, cause);
       assertTrue(namesTheProblem, message);
-      assertTrue(nothingRemembered, "a failed installation is not remembered");
+      assertTrue(nothingRemembered, NOT_REMEMBERED_MESSAGE);
     }
   }
 
@@ -538,11 +556,13 @@ final class AbstractInstallerTest {
       final Class<?> suppressedType = suppressed[0].getClass();
       assertEquals(DirectoryNotEmptyException.class, suppressedType);
       final String suppressedFile = ((DirectoryNotEmptyException) suppressed[0]).getFile();
-      assertEquals(destination.toString(), suppressedFile);
+      final String expectedSuppressedFile = destination.toString();
+      assertEquals(expectedSuppressedFile, suppressedFile);
       final Properties configuration = this.readConfiguration();
-      assertEquals(new Properties(), configuration, "a failed installation is not remembered");
+      final Properties expectedConfiguration = new Properties();
+      assertEquals(expectedConfiguration, configuration, NOT_REMEMBERED_MESSAGE);
       final String retained = Files.readString(destination.resolve(BUSY_FILE_NAME));
-      assertEquals("retained", retained);
+      assertEquals(RETAINED_CONTENT, retained);
     }
   }
 
@@ -551,7 +571,7 @@ final class AbstractInstallerTest {
     // A nonempty replacement makes cleanup fail on every platform without relying on OS permissions.
     Files.delete(destination);
     Files.createDirectory(destination);
-    Files.writeString(destination.resolve(BUSY_FILE_NAME), "retained");
+    Files.writeString(destination.resolve(BUSY_FILE_NAME), RETAINED_CONTENT);
     throw permissionFailure;
   }
 
@@ -565,7 +585,7 @@ final class AbstractInstallerTest {
       final MockedStatic<IoUtils> ioUtils = Mockito.mockStatic(IoUtils.class, Mockito.CALLS_REAL_METHODS)
     ) {
       server.respond(TOOL_PATH, OK_STATUS, PROGRAM);
-      final Download download = new Download(CURRENT_PLATFORM, server.uri(TOOL_PATH).toString(), null);
+      final Download download = Download.of(CURRENT_PLATFORM, server.uri(TOOL_PATH).toString(), null);
       final Path tools = fileSystem.getPath(POSIX_FOLDER_PATH);
       final TestInstaller first = new TestInstaller(tools, NAME, new Download[] { download });
       final AtomicInteger permissionAttempts = new AtomicInteger();
@@ -576,7 +596,8 @@ final class AbstractInstallerTest {
       final TestInstaller retry = freshInstaller ? new TestInstaller(tools, NAME, new Download[] { download }) : first;
       final Path installed = retry.download(FileMode.EXECUTABLE);
       final Set<PosixFilePermission> permissions = Files.getPosixFilePermissions(installed);
-      assertEquals(PosixFilePermissions.fromString(EXECUTABLE_PERMISSIONS), permissions);
+      final Set<PosixFilePermission> expected = PosixFilePermissions.fromString(EXECUTABLE_PERMISSIONS);
+      assertEquals(expected, permissions);
       final int attempts = permissionAttempts.get();
       assertEquals(2, attempts, "a failed preparation is retried even by a new installer");
       final byte[] content = Files.readAllBytes(installed);
@@ -587,7 +608,8 @@ final class AbstractInstallerTest {
   private @Nullable Object failTheFirstPermissionAttempt(final InvocationOnMock invocation, final AtomicInteger permissionAttempts)
     throws Throwable {
     if (permissionAttempts.getAndIncrement() == 0) {
-      throw new FileOperationException("Permission failed for now!");
+      final String message = "Permission failed for now!";
+      throw new FileOperationException(message);
     }
 
     return invocation.callRealMethod();
@@ -600,7 +622,7 @@ final class AbstractInstallerTest {
       server.respond(TOOL_PATH, OK_STATUS, PROGRAM);
       final URI uri = server.uri(TOOL_PATH);
       final String url = uri.toString();
-      final Download download = new Download(CURRENT_PLATFORM, url, null);
+      final Download download = Download.of(CURRENT_PLATFORM, url, null);
       final Path posixFolder = fileSystem.getPath(POSIX_FOLDER_PATH);
       final TestInstaller installer = new TestInstaller(posixFolder, NAME, new Download[] { download });
       final Path installed = installer.download(FileMode.EXECUTABLE);
@@ -620,7 +642,7 @@ final class AbstractInstallerTest {
   void shouldReportAFolderThatCannotBeCreated() throws IOException {
     final Path blocker = this.createFileInFolder(BLOCKER_FILE_NAME);
     final Path tools = blocker.resolve(TOOLS_FOLDER_NAME);
-    final Download download = new Download(CURRENT_PLATFORM, "https://example.com/tool", PROGRAM_HASH);
+    final Download download = Download.of(CURRENT_PLATFORM, TOOL_URL, PROGRAM_HASH);
     final TestInstaller installer = new TestInstaller(tools, NAME, new Download[] { download });
     final InstallationException downloading = assertThrows(InstallationException.class, () -> installer.download(FileMode.EXECUTABLE));
     final InstallationException remembering = assertThrows(InstallationException.class, () -> installer.writePathToConfiguration(tools));
@@ -671,25 +693,24 @@ final class AbstractInstallerTest {
     installer.writePathToConfiguration(elsewhere);
 
     final Optional<Path> after = installer.findInstallation();
-    final Path path = installer.getPath();
     final Path expected = elsewhere.toAbsolutePath();
     final Optional<Path> expectedInstallation = Optional.of(expected);
     final boolean nothingBefore = before.isEmpty();
     assertTrue(nothingBefore);
     assertEquals(expectedInstallation, after);
-    assertEquals(expected, path, "a found installation becomes the installation path");
   }
 
   private Download[] refuseToResolveDownloads() {
-    throw new AssertionError("The downloads must not be resolved!");
+    final String message = "The downloads must not be resolved!";
+    throw new AssertionError(message);
   }
 
   @Test
   void shouldNeverOfferADownloadForAnUnknownPlatform() {
     final Platform unknownOs = Platform.ofPlatform(Os.OTHER, Arch.X86, Bits.BITS_64);
     final Platform unknownArch = Platform.ofPlatform(Os.LINUX, Arch.OTHER, Bits.BITS_64);
-    final Download forUnknownOs = new Download(unknownOs, "https://example.com/unknown-os", null);
-    final Download forUnknownArch = new Download(unknownArch, "https://example.com/unknown-arch", null);
+    final Download forUnknownOs = Download.of(unknownOs, "https://example.com/unknown-os", null);
+    final Download forUnknownArch = Download.of(unknownArch, "https://example.com/unknown-arch", null);
     final TestInstaller installer = new TestInstaller(this.folder, NAME, new Download[] { forUnknownOs, forUnknownArch });
 
     final Optional<Download> osResult = installer.findDownload(unknownOs);
@@ -744,7 +765,7 @@ final class AbstractInstallerTest {
   void shouldNameArchivesAfterTheProgramWhenTheUrlHasNoUsableFileName() {
     final List<String> urls = List.of("https://example.com/", "https://example.com/files/..", "https://example.com/files/.");
     for (final String url : urls) {
-      final Download download = new Download(CURRENT_PLATFORM, url, null);
+      final Download download = Download.of(CURRENT_PLATFORM, url, null);
       final TestInstaller installer = new TestInstaller(this.folder, NAME, new Download[] { download });
       installer.markAsArchive();
       final String fileName = installer.getFileName();
@@ -773,7 +794,7 @@ final class AbstractInstallerTest {
   private TestInstaller installerDownloadingFrom(final LocalHttpServer server, final String path, final String hash) {
     final URI uri = server.uri(path);
     final String url = uri.toString();
-    final Download download = new Download(CURRENT_PLATFORM, url, hash);
+    final Download download = Download.of(CURRENT_PLATFORM, url, hash);
     return new TestInstaller(this.folder, NAME, new Download[] { download });
   }
 

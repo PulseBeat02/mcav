@@ -38,8 +38,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-// Installs the pinned x86-64 QEMU packages from the real archive into a temporary cache and starts the program, which
-// proves its libraries, its TCG module and its firmware folders. Runs only with -Pmcav.networkTests=true.
+// installs the pinned x86-64 QEMU packages from the real archive and starts the program
 final class QemuInstallerReleaseTest {
 
   private static final String USER_HOME = "user.home";
@@ -76,7 +75,8 @@ final class QemuInstallerReleaseTest {
   @Test
   void shouldStartTheInstalledQemu() throws IOException, InterruptedException {
     final Platform current = Platform.getCurrentPlatform();
-    Assumptions.assumeTrue(current.equals(X86_64), "Only a 64-bit x86 Linux machine runs the x86-64 packages!");
+    final boolean onX86Linux = current.equals(X86_64);
+    Assumptions.assumeTrue(onX86Linux, "Only a 64-bit x86 Linux machine runs the x86-64 packages!");
 
     final QemuInstaller installer = new QemuInstaller(this::createPackagesInTemporaryCache, current);
     final QemuProgram program = installer.install(VmPlayer.Architecture.X86_64);

@@ -73,6 +73,185 @@ jobs:
             :mcav-lwjgl:test --rerun --tests '*.GlTextureFilterTest' \
             :mcav-vm:test --rerun --tests '*.QemuVmPlayerTest' --tests '*.VmProcessTest' --tests '*.ExecutableFinderTest'
 
+      - &annotate-failed-test-cases
+        name: Annotate the failed test cases
+        if: failure()
+        shell: java --source 25 {0}
+        run: |
+          import java.io.IOException;
+          import java.nio.file.FileSystems;
+          import java.nio.file.Files;
+          import java.nio.file.Path;
+          import java.nio.file.PathMatcher;
+          import java.nio.file.attribute.BasicFileAttributes;
+          import java.util.ArrayList;
+          import java.util.List;
+          import java.util.Optional;
+          import java.util.stream.Stream;
+          import javax.xml.parsers.DocumentBuilder;
+          import javax.xml.parsers.DocumentBuilderFactory;
+          import javax.xml.parsers.ParserConfigurationException;
+          import org.w3c.dom.Document;
+          import org.w3c.dom.Element;
+          import org.w3c.dom.NodeList;
+          import org.xml.sax.SAXException;
+
+          final class FailedTestAnnotations {
+
+            private static final Path WORKSPACE = Path.of("");
+
+            private static final int RESULT_DEPTH = 5;
+            private static final int PROJECT_INDEX = 0;
+            private static final int BUILD_INDEX = 1;
+            private static final int TASK_INDEX = 3;
+
+            private static final Path RESULTS_DIRECTORY = Path.of("build", "test-results");
+            private static final PathMatcher RESULT_FILE = FileSystems.getDefault().getPathMatcher("glob:TEST-*.xml");
+
+            private static final String FAILURE_TAG = "failure";
+            private static final String CLASS_ATTRIBUTE = "classname";
+            private static final String NAME_ATTRIBUTE = "name";
+            private static final String MESSAGE_ATTRIBUTE = "message";
+            private static final String TYPE_ATTRIBUTE = "type";
+
+            private static final String FRAME_PREFIX = "at ";
+            private static final String SUPPRESSED_PREFIX = "Suppressed: ";
+            private static final String CAUSE_PREFIX = "Caused by: ";
+            private static final String MEMBER_SEPARATOR = ".";
+            private static final String LINE_SEPARATOR = "\n";
+
+            private static final int ANNOTATIONS_PER_STEP = 10;
+
+            void main() throws IOException {
+              final List<Path> files = this.findResultFiles();
+              final List<String> annotations = new ArrayList<>();
+              for (final Path file : files) {
+                final List<String> fileAnnotations = this.annotateFile(file);
+                annotations.addAll(fileAnnotations);
+              }
+
+              this.printAnnotations(files, annotations);
+            }
+
+            private List<Path> findResultFiles() throws IOException {
+              try (final Stream<Path> paths = Files.find(WORKSPACE, RESULT_DEPTH, this::isResultFile)) {
+                return paths.sorted().toList();
+              }
+            }
+
+            private boolean isResultFile(final Path path, final BasicFileAttributes attributes) {
+              if (path.getNameCount() != RESULT_DEPTH) {
+                return false;
+              }
+
+              final Path directory = path.subpath(BUILD_INDEX, TASK_INDEX);
+              final Path fileName = path.getFileName();
+              return directory.equals(RESULTS_DIRECTORY) && RESULT_FILE.matches(fileName);
+            }
+
+            private List<String> annotateFile(final Path file) {
+              try {
+                final DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+                final DocumentBuilder builder = factory.newDocumentBuilder();
+                final Document document = builder.parse(file.toFile());
+                return this.annotateFailures(file, document);
+              } catch (final IOException | ParserConfigurationException | SAXException exception) {
+                final String message = "%s could not be read: %s".formatted(file, exception.getMessage());
+                final String annotation = "::warning title=Unreadable JUnit XML::%s".formatted(this.escapeData(message));
+                return List.of(annotation);
+              }
+            }
+
+            private List<String> annotateFailures(final Path file, final Document document) {
+              final String task = ":%s:%s".formatted(file.getName(PROJECT_INDEX), file.getName(TASK_INDEX));
+              final NodeList failures = document.getElementsByTagName(FAILURE_TAG);
+              final List<String> annotations = new ArrayList<>();
+              for (int i = 0; i < failures.getLength(); i++) {
+                final Element failure = (Element) failures.item(i);
+                final String annotation = this.annotate(task, failure);
+                annotations.add(annotation);
+              }
+
+              return annotations;
+            }
+
+            private String annotate(final String task, final Element failure) {
+              final Element testCase = (Element) failure.getParentNode();
+              final String className = testCase.getAttribute(CLASS_ATTRIBUTE);
+              final String title = "%s %s".formatted(task, className);
+
+              final List<String> lines = new ArrayList<>();
+              lines.add(testCase.getAttribute(NAME_ATTRIBUTE));
+              this.findTestFrame(className, failure).ifPresent(lines::add);
+              lines.add(this.findFirstMessageLine(failure));
+              this.findFirstTraceLine(failure, SUPPRESSED_PREFIX).ifPresent(lines::add);
+              this.findTopLevelCauseLine(failure).ifPresent(lines::add);
+
+              final String message = String.join(LINE_SEPARATOR, lines);
+              return "::error title=%s::%s".formatted(this.escapeProperty(title), this.escapeData(message));
+            }
+
+            private Optional<String> findTestFrame(final String className, final Element failure) {
+              final String prefix = FRAME_PREFIX + className + MEMBER_SEPARATOR;
+              return this.findFirstTraceLine(failure, prefix);
+            }
+
+            private Optional<String> findFirstTraceLine(final Element failure, final String prefix) {
+              final String stackTrace = failure.getTextContent();
+              return stackTrace
+                .lines()
+                .map(String::strip)
+                .filter(line -> line.startsWith(prefix))
+                .findFirst();
+            }
+
+            private String findFirstMessageLine(final Element failure) {
+              final String message = failure.getAttribute(MESSAGE_ATTRIBUTE);
+              final String text = message.isBlank() ? failure.getAttribute(TYPE_ATTRIBUTE) : message;
+              return text.lines().findFirst().orElse("");
+            }
+
+            private Optional<String> findTopLevelCauseLine(final Element failure) {
+              final String stackTrace = failure.getTextContent();
+              // Java indents the causes of suppressed exceptions; the top-level cause starts its line.
+              return stackTrace
+                .lines()
+                .filter(line -> line.startsWith(CAUSE_PREFIX))
+                .findFirst();
+            }
+
+            private void printAnnotations(final List<Path> files, final List<String> annotations) {
+              if (annotations.isEmpty()) {
+                IO.println("::notice title=No failed test case::Read %s JUnit XML files and found no failed test case.".formatted(files.size()));
+                return;
+              }
+
+              if (annotations.size() <= ANNOTATIONS_PER_STEP) {
+                annotations.forEach(IO::println);
+                return;
+              }
+
+              final int shown = ANNOTATIONS_PER_STEP - 1;
+              final int leftOut = annotations.size() - shown;
+              annotations.subList(0, shown).forEach(IO::println);
+              IO.println("::error title=More failed test cases::%s more failed cases are left out: GitHub keeps %s error annotations per step.".formatted(leftOut, ANNOTATIONS_PER_STEP));
+            }
+
+            private String escapeData(final String text) {
+              return text
+                .replace("%", "%25")
+                .replace("\r", "%0D")
+                .replace("\n", "%0A");
+            }
+
+            private String escapeProperty(final String text) {
+              final String data = this.escapeData(text);
+              return data
+                .replace(":", "%3A")
+                .replace(",", "%2C");
+            }
+          }
+
       - name: Upload test reports
         if: failure()
         uses: actions/upload-artifact@v7
@@ -122,6 +301,8 @@ jobs:
       - name: Property tests
         shell: bash
         run: xvfb-run -a -s '-screen 0 1920x1080x24' sh ./gradlew --console=plain propertyTest -Pmcav.networkTests=true
+
+      - *annotate-failed-test-cases
 
   jcstress:
     name: Concurrency tests
@@ -176,6 +357,8 @@ jobs:
         shell: bash
         run: sh ./gradlew --console=plain --no-parallel --continue ${{ matrix.tasks }} -Pfuzz.seconds=60
 
+      - *annotate-failed-test-cases
+
       - name: Upload crash reproducers
         if: failure()
         uses: actions/upload-artifact@v7
@@ -210,6 +393,8 @@ jobs:
         timeout-minutes: 60
         shell: bash
         run: sh ./gradlew --console=plain :mcav-plugin:e2eTest -Pmcav.e2e=true -Pmcav.acceptMinecraftEula=true
+
+      - *annotate-failed-test-cases
 
       - name: Upload test reports
         if: always()

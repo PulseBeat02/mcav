@@ -51,6 +51,8 @@ public final class ThreadedImagePlayer implements ImagePlayer {
 
   private static final long STOP_TIMEOUT_MILLISECONDS = 2_000L;
 
+  private static final long NANOSECONDS_PER_SECOND = TimeUnit.SECONDS.toNanos(1);
+
   private final LongSupplier clock;
   private final LongConsumer park;
   private final VideoAttachableCallback callback;
@@ -120,7 +122,7 @@ public final class ThreadedImagePlayer implements ImagePlayer {
     try {
       this.play(source);
     } catch (final RuntimeException exception) {
-      this.report("Failed to play the frame source", exception);
+      this.report("Failed to play the frame source.", exception);
     } finally {
       this.playing.set(false);
     }
@@ -130,10 +132,9 @@ public final class ThreadedImagePlayer implements ImagePlayer {
     final int width = source.getFrameWidth();
     final int height = source.getFrameHeight();
     final float frameRate = source.getFrameRate();
-    final long secondNanoseconds = TimeUnit.SECONDS.toNanos(1);
-    final long periodNanoseconds = (long) (secondNanoseconds / frameRate);
+    final long periodNanoseconds = (long) (NANOSECONDS_PER_SECOND / frameRate);
     final OriginalVideoMetadata metadata = OriginalVideoMetadata.of(width, height, frameRate);
-    final SampleSupplier supplier = source.supplyFrameSamples();
+    final SampleSupplier supplier = source.getSampleSupplier();
     final FrameLoop loop = new FrameLoop(supplier, width, height, metadata);
     loop.run(periodNanoseconds);
   }
@@ -174,14 +175,14 @@ public final class ThreadedImagePlayer implements ImagePlayer {
       final boolean isWorkerThread = caller.equals(worker);
       if (!isWorkerThread) {
         worker.interrupt();
-        join(worker);
+        this.join(worker);
       }
     }
 
     return true;
   }
 
-  private static void join(final Thread worker) {
+  private void join(final Thread worker) {
     try {
       worker.join(STOP_TIMEOUT_MILLISECONDS);
     } catch (final InterruptedException exception) {
@@ -262,7 +263,8 @@ public final class ThreadedImagePlayer implements ImagePlayer {
     }
 
     private long waitForDeadline(final long deadline) {
-      final long remaining = deadline - ThreadedImagePlayer.this.clock.getAsLong();
+      final long now = ThreadedImagePlayer.this.clock.getAsLong();
+      final long remaining = deadline - now;
       if (remaining > 0) {
         ThreadedImagePlayer.this.park.accept(remaining);
         return deadline;
@@ -278,7 +280,7 @@ public final class ThreadedImagePlayer implements ImagePlayer {
       }
     }
 
-    // Renders one frame. Failures of the source and the filters are reported and skip only this frame.
+    // Failures of the source and the filters are reported and skip only this frame.
     private void renderFrame() {
       try {
         final int[] pixels = this.supplier.getFrameSamples();
@@ -291,7 +293,7 @@ public final class ThreadedImagePlayer implements ImagePlayer {
         final VideoPipelineStep pipeline = ThreadedImagePlayer.this.callback.retrieve();
         pipeline.processAll(filled, this.metadata);
       } catch (final RuntimeException exception) {
-        ThreadedImagePlayer.this.report("Failed to render a frame", exception);
+        ThreadedImagePlayer.this.report("Failed to render a frame.", exception);
       }
     }
 

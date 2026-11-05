@@ -23,12 +23,11 @@
  * unrecognized tokens remain literal and a doubled opening brace escapes a literal brace. The helper does not
  * send input itself; pass the result to the appropriate browser, VNC or VM player.
  *
- * <p>{@link me.brandonli.mcav.utils.interaction.MouseClick} distinguishes click, double-click, hold and release.
- * Coordinate scaling and which actions work while paused depend on the player. Enum values and stateless helpers
- * can be shared across threads; they own no input devices or native resources.
+ * <p>{@link me.brandonli.mcav.utils.interaction.MouseClick} distinguishes left and right clicks, double-clicks, holds
+ * and releases. Coordinate scaling and which actions work while paused depend on the player. Enum values and stateless
+ * helpers can be shared across threads; they own no input devices or native resources.
  *
- * <p>Reference parameters and return values are non-null unless marked {@code @Nullable};
- * nullable values and their meanings are described on the corresponding members.
+ * <p>Reference parameters and return values are non-null unless marked {@code @Nullable}.
  *
  * @since 1.0.0
  */

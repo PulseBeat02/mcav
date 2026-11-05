@@ -24,36 +24,37 @@ import com.code_intelligence.jazzer.junit.FuzzTest;
 import java.util.Locale;
 import org.junit.jupiter.api.Tag;
 
-/**
- * Fuzzes the navigation policy with the addresses a page can make the browser report. It never throws, the page itself
- * only ever goes to an {@code http} or {@code https} address or the empty document, and nothing it allows has a scheme
- * outside the lists {@link NavigationPolicy} documents.
- */
 @Tag("fuzz")
 final class NavigationPolicyFuzzTest {
 
   @FuzzTest(maxDuration = "30s")
-  void allowsOnlyTheDocumentedSchemes(final FuzzedDataProvider data) {
+  void shouldAllowOnlyTheDocumentedSchemes(final FuzzedDataProvider data) {
     final String address = data.consumeRemainingAsString();
     final String lower = address.toLowerCase(Locale.ROOT);
-    if (NavigationPolicy.allowsNavigation(address, true)) {
-      assertTrue(address.equals("about:blank") || lower.startsWith("http:") || lower.startsWith("https:"), address);
+    if (NavigationPolicy.allowsNavigation(address, FrameKind.MAIN)) {
+      final boolean documentedPageScheme = address.equals("about:blank") || lower.startsWith("http:") || lower.startsWith("https:");
+      assertTrue(documentedPageScheme, address);
     }
-    if (NavigationPolicy.allowsNavigation(address, false)) {
+
+    if (NavigationPolicy.allowsNavigation(address, FrameKind.CHILD)) {
       final boolean isAboutPage = address.equals("about:blank") || address.equals("about:srcdoc");
-      assertTrue(isAboutPage || hasScheme(lower, "http", "https", "data", "blob"), address);
+      final boolean documentedFrameScheme = isAboutPage || this.hasScheme(lower, "http", "https", "data", "blob");
+      assertTrue(documentedFrameScheme, address);
     }
+
     if (NavigationPolicy.allowsRequest(address)) {
-      assertTrue(hasScheme(lower, "http", "https", "ws", "wss", "data", "blob"), address);
+      final boolean documentedRequestScheme = this.hasScheme(lower, "http", "https", "ws", "wss", "data", "blob");
+      assertTrue(documentedRequestScheme, address);
     }
   }
 
-  private static boolean hasScheme(final String lower, final String... schemes) {
+  private boolean hasScheme(final String lower, final String... schemes) {
     for (final String scheme : schemes) {
       if (lower.startsWith(scheme + ":")) {
         return true;
       }
     }
+
     return false;
   }
 }

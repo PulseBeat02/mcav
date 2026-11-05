@@ -38,10 +38,12 @@ RGBA_CHANNELS: int = 4
 
 FAILURES_KEY: str = "failures"
 CHECKS_KEY: str = "checks"
+
 CHECK_COUNT: int = 7
 
 MATPLOTLIB_VERSION: str = "3.11.2"
 CHART_FONT: str = "Liberation Sans"
+
 COMMITTED_CHARTS: Path = Path(__file__).resolve().parents[4] / "mcav-docs/images/mcv2"
 CHART_SUFFIX: str = ".png"
 
@@ -67,6 +69,8 @@ class HelpCommandTest(unittest.TestCase):
         )
         for command in commands:
             with self.subTest(command=command):
+                code: str | int | None
+                usage: str
                 code, usage = self.run_help(command)
                 self.assertEqual(0, code)
 
@@ -87,6 +91,8 @@ class HelpCommandTest(unittest.TestCase):
 
 class StripCommandTest(unittest.TestCase):
     def test_should_fail_the_subcommand_when_a_scene_pixel_changes(self) -> None:
+        status: int | None
+        result: Any
         status, result = self.run_command(((160, 90), 0))
         self.assertEqual(1, status)
 
@@ -99,6 +105,8 @@ class StripCommandTest(unittest.TestCase):
         self.assertEqual(CHECK_COUNT, checks)
 
     def test_should_fail_the_subcommand_when_the_second_screen_changes_the_pixels_of_the_first(self) -> None:
+        status: int | None
+        result: Any
         status, result = self.run_command(((854, 480), 1))
         self.assertEqual(1, status)
 
@@ -112,6 +120,8 @@ class StripCommandTest(unittest.TestCase):
         self.assertEqual(CHECK_COUNT, checks)
 
     def test_should_pass_the_subcommand_when_the_scene_is_unchanged(self) -> None:
+        status: int | None
+        result: Any
         status, result = self.run_command(None)
         self.assertEqual(0, status)
 
@@ -150,8 +160,8 @@ class ChartCommandTest(unittest.TestCase):
         for name in ("codecs", "features"):
             with (
                 self.subTest(figure=name),
-                Image.open(COMMITTED_CHARTS / (name + CHART_SUFFIX)) as expected,
-                Image.open(output / (name + CHART_SUFFIX)) as actual,
+                Image.open(COMMITTED_CHARTS / f"{name}{CHART_SUFFIX}") as expected,
+                Image.open(output / f"{name}{CHART_SUFFIX}") as actual,
             ):
                 pixels: numpy.ndarray = numpy.array(actual)
                 numpy.testing.assert_array_equal(numpy.array(expected), pixels)
@@ -166,15 +176,19 @@ class ChartCommandTest(unittest.TestCase):
 
         font_path: str = font_manager.findfont(font_manager.FontProperties(family=mcv2_tools.CHARTS_FONT))
         font: str = font_manager.FontProperties(fname=font_path).get_name()
-        if matplotlib.__version__ != MATPLOTLIB_VERSION or font != CHART_FONT:
-            version: str = matplotlib.__version__
-            needed: str = f"matplotlib {MATPLOTLIB_VERSION} and {CHART_FONT}"
-            message = f"Found matplotlib {version} and font {font}, but the chart pixels need {needed}!"
+        version: str = matplotlib.__version__
+        if version != MATPLOTLIB_VERSION or font != CHART_FONT:
+            installed: str = f"matplotlib {version} and the {font} font"
+            message = f"Found {installed}, but the chart pixels need matplotlib {MATPLOTLIB_VERSION} and the {CHART_FONT} font!"
             self.skipTest(message)
 
 
 def fake_strip_frame(
-    damaged: tuple[tuple[int, int], int] | None, context: SimpleNamespace, screen: tuple[int, int], spirv: None, screen_index: int = 0
+    damaged: tuple[tuple[int, int], int] | None,
+    context: SimpleNamespace,
+    screen: tuple[int, int],
+    classpath: None,
+    screen_index: int = 0
 ) -> tuple[numpy.ndarray, numpy.ndarray, bool]:
     scene: numpy.ndarray = numpy.zeros((screen[1], screen[0], RGBA_CHANNELS), numpy.uint8)
     after: numpy.ndarray = scene.copy()

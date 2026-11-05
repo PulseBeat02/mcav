@@ -20,29 +20,49 @@ package me.brandonli.mcav.browser;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.HexFormat;
 import java.util.List;
+import java.util.Objects;
 import java.util.StringJoiner;
+import org.checkerframework.checker.initialization.qual.UnderInitialization;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
-/**
- * Everything the browser helper process needs to know, handed to it as one line on its standard input, so none of it
- * shows up in the process list: the session token, the socket to connect to, the installed CEF, the profile folder,
- * the page and its size, the security profile with the hosts the guard refuses, and whether Chromium is confined and
- * which server folder it may not read then.
- */
+// Handed to the helper as one line on its standard input, so none of it shows up in the process list.
 final class HelperConfiguration {
 
-  /**
-   * The highest frame rate a browser may paint at, mcav's limit: CEF sets none above its minimum of 1.
-   */
-  static final int MAX_FRAME_RATE = 60;
+  private static final int KEEP_TRAILING_EMPTY_PARTS = -1;
+
+  // MCAV's limit: CEF sets none above its minimum of 1
+  static final int MAXIMUM_FRAME_RATE = 60;
+  private static final int MAXIMUM_FRAME_INTERVAL = 1000;
 
   private static final String SEPARATOR = ":";
   private static final int FIELDS = 15;
+
   private static final String HOST_SEPARATOR = ",";
-  private static final int MAX_LINE_CHARACTERS = 1024 * 1024;
-  private static final int MAX_FRAME_INTERVAL = 1000;
+
+  private static final int MAXIMUM_LINE_CHARACTERS = 1024 * 1024;
+
+  private static final int TOKEN_FIELD = 0;
+  private static final int SOCKET_FIELD = 1;
+  private static final int NATIVES_FIELD = 2;
+  private static final int PROFILE_FIELD = 3;
+  private static final int URL_FIELD = 4;
+  private static final int WIDTH_FIELD = 5;
+  private static final int HEIGHT_FIELD = 6;
+  private static final int FRAME_INTERVAL_FIELD = 7;
+  private static final int FRAME_RATE_FIELD = 8;
+  private static final int JAVA_SCRIPT_JIT_FIELD = 9;
+  private static final int PRIVATE_NETWORKS_FIELD = 10;
+  private static final int AUTOPLAY_FIELD = 11;
+  private static final int CONFINED_FIELD = 12;
+  private static final int SERVER_FOLDER_FIELD = 13;
+  private static final int REFUSED_HOSTS_FIELD = 14;
+
+  private static final String TRUE_TEXT = "true";
+  private static final String FALSE_TEXT = "false";
 
   private final byte[] token;
   private final Path socket;
@@ -60,26 +80,6 @@ final class HelperConfiguration {
   private final Path serverFolder;
   private final List<String> refusedHosts;
 
-  /**
-   * Constructs a configuration and checks every value.
-   *
-   * @param token                 the session token, {@link HelperProtocol#TOKEN_BYTES} bytes
-   * @param socket                the socket the helper connects to, an absolute path
-   * @param natives               the folder CEF is installed in, an absolute path
-   * @param profile               the folder the browser keeps its profile in, an absolute path
-   * @param url                   the page to open, an absolute {@code http} or {@code https} address
-   * @param width                 the width of the page in pixels
-   * @param height                the height of the page in pixels
-   * @param frameInterval         send every n-th painted frame
-   * @param frameRate             how many frames per second CEF paints at most
-   * @param allowsJavaScriptJit   true to let V8 compile JavaScript to machine code
-   * @param allowsPrivateNetworks true to let the page reach loopback, private and link-local addresses
-   * @param allowsAutoplay        true to let the page play sound before anyone clicked or typed into it
-   * @param confined              true to confine Chromium where the helper can, see {@link ChromiumConfinement}
-   * @param serverFolder          the folder of the server, which a confined Chromium may not read, an absolute path
-   * @param refusedHosts          names or addresses of this machine the guard refuses, see {@link BrowserOptions}
-   * @throws IllegalArgumentException if a value is out of range
-   */
   HelperConfiguration(
     final byte[] token,
     final Path socket,
@@ -97,19 +97,21 @@ final class HelperConfiguration {
     final Path serverFolder,
     final List<String> refusedHosts
   ) {
-    requireThat(token.length == HelperProtocol.TOKEN_BYTES, "The token must have " + HelperProtocol.TOKEN_BYTES + " bytes");
-    requireAbsolute(socket, "socket");
-    requireAbsolute(natives, "natives");
-    requireAbsolute(profile, "profile");
-    requireAbsolute(serverFolder, "server folder");
+    requireThat(token.length == HelperProtocol.TOKEN_BYTES, "The token must have %s bytes!".formatted(HelperProtocol.TOKEN_BYTES));
+    this.requireAbsolute(socket, "socket");
+    this.requireAbsolute(natives, "natives");
+    this.requireAbsolute(profile, "profile");
+    this.requireAbsolute(serverFolder, "server folder");
     for (final String host : refusedHosts) {
-      requireThat(isHost(host), "Not a host name or address: " + host);
+      requireThat(isHost(host), "Host %s is not a host name or address!".formatted(host));
     }
-    requireThat(NavigationPolicy.isWebAddress(url), "The page must be an absolute http or https address: " + url);
-    requireRange(width, 1, HelperProtocol.MAX_SIDE, "width");
-    requireRange(height, 1, HelperProtocol.MAX_SIDE, "height");
-    requireRange(frameInterval, 1, MAX_FRAME_INTERVAL, "frame interval");
-    requireRange(frameRate, 1, MAX_FRAME_RATE, "frame rate");
+
+    requireThat(NavigationPolicy.isWebAddress(url), "Page %s must be an absolute http or https address!".formatted(url));
+    this.requireRange(width, 1, HelperProtocol.MAXIMUM_SIDE, "width");
+    this.requireRange(height, 1, HelperProtocol.MAXIMUM_SIDE, "height");
+    this.requireRange(frameInterval, 1, MAXIMUM_FRAME_INTERVAL, "frame interval");
+    this.requireRange(frameRate, 1, MAXIMUM_FRAME_RATE, "frame rate");
+
     this.token = token.clone();
     this.socket = socket;
     this.natives = natives;
@@ -127,16 +129,11 @@ final class HelperConfiguration {
     this.refusedHosts = List.copyOf(refusedHosts);
   }
 
-  /**
-   * Writes the configuration as the line the helper reads: every value in a fixed order, each Base64-encoded as UTF-8
-   * and separated by colons, which Base64 never contains.
-   *
-   * @return the line, without a line break
-   */
+  // Base64 never contains the colons that separate the values
   String toLine() {
-    final HexFormat hex = HexFormat.of();
+    final HexFormat hexadecimal = HexFormat.of();
     final List<String> values = List.of(
-      hex.formatHex(this.token),
+      hexadecimal.formatHex(this.token),
       this.socket.toString(),
       this.natives.toString(),
       this.profile.toString(),
@@ -158,42 +155,41 @@ final class HelperConfiguration {
       final byte[] bytes = value.getBytes(StandardCharsets.UTF_8);
       line.add(encoder.encodeToString(bytes));
     }
+
     return line.toString();
   }
 
-  /**
-   * Reads the line written by {@link #toLine()}.
-   *
-   * @param line the line
-   * @return the configuration
-   * @throws IllegalArgumentException if the line is not a complete, valid configuration
-   */
   static HelperConfiguration fromLine(final String line) {
-    requireThat(line.length() <= MAX_LINE_CHARACTERS, "The configuration line is too long");
-    final String[] parts = line.split(SEPARATOR, -1);
-    requireThat(parts.length == FIELDS, "The configuration has " + parts.length + " values instead of " + FIELDS);
+    requireThat(line.length() <= MAXIMUM_LINE_CHARACTERS, "The configuration line is too long!");
+
+    final String[] parts = line.split(SEPARATOR, KEEP_TRAILING_EMPTY_PARTS);
+    requireThat(parts.length == FIELDS, "The configuration has %s values instead of %s values!".formatted(parts.length, FIELDS));
+
     final Base64.Decoder decoder = Base64.getDecoder();
     final String[] values = new String[parts.length];
     for (int index = 0; index < parts.length; index++) {
       final byte[] bytes = decoder.decode(parts[index]);
       values[index] = new String(bytes, StandardCharsets.UTF_8);
     }
-    final HexFormat hex = HexFormat.of();
-    final byte[] token = hex.parseHex(values[0]);
-    final Path socket = Path.of(values[1]);
-    final Path natives = Path.of(values[2]);
-    final Path profile = Path.of(values[3]);
-    final URI url = URI.create(values[4]);
-    final int width = Integer.parseInt(values[5]);
-    final int height = Integer.parseInt(values[6]);
-    final int frameInterval = Integer.parseInt(values[7]);
-    final int frameRate = Integer.parseInt(values[8]);
-    final boolean allowsJavaScriptJit = parseBoolean(values[9]);
-    final boolean allowsPrivateNetworks = parseBoolean(values[10]);
-    final boolean allowsAutoplay = parseBoolean(values[11]);
-    final boolean confined = parseBoolean(values[12]);
-    final Path serverFolder = Path.of(values[13]);
-    final List<String> refusedHosts = values[14].isEmpty() ? List.of() : List.of(values[14].split(HOST_SEPARATOR, -1));
+
+    final HexFormat hexadecimal = HexFormat.of();
+    final byte[] token = hexadecimal.parseHex(values[TOKEN_FIELD]);
+    final Path socket = Path.of(values[SOCKET_FIELD]);
+    final Path natives = Path.of(values[NATIVES_FIELD]);
+    final Path profile = Path.of(values[PROFILE_FIELD]);
+    final URI url = URI.create(values[URL_FIELD]);
+    final int width = Integer.parseInt(values[WIDTH_FIELD]);
+    final int height = Integer.parseInt(values[HEIGHT_FIELD]);
+    final int frameInterval = Integer.parseInt(values[FRAME_INTERVAL_FIELD]);
+    final int frameRate = Integer.parseInt(values[FRAME_RATE_FIELD]);
+    final boolean allowsJavaScriptJit = parseBoolean(values[JAVA_SCRIPT_JIT_FIELD]);
+    final boolean allowsPrivateNetworks = parseBoolean(values[PRIVATE_NETWORKS_FIELD]);
+    final boolean allowsAutoplay = parseBoolean(values[AUTOPLAY_FIELD]);
+    final boolean confined = parseBoolean(values[CONFINED_FIELD]);
+    final Path serverFolder = Path.of(values[SERVER_FOLDER_FIELD]);
+    final List<String> refusedHosts = values[REFUSED_HOSTS_FIELD].isEmpty()
+      ? List.of()
+      : List.of(values[REFUSED_HOSTS_FIELD].split(HOST_SEPARATOR, KEEP_TRAILING_EMPTY_PARTS));
     return new HelperConfiguration(
       token,
       socket,
@@ -213,29 +209,30 @@ final class HelperConfiguration {
     );
   }
 
-  /**
-   * Checks whether a text can be a host name or an address: not empty, and without a comma or a space.
-   *
-   * @param host the text
-   * @return true if it can be
-   */
   static boolean isHost(final String host) {
-    return !host.isEmpty() && host.chars().noneMatch(character -> character == ',' || Character.isWhitespace(character));
+    return !host.isEmpty() && !host.contains(HOST_SEPARATOR) && host.chars().noneMatch(Character::isWhitespace);
   }
 
   private static boolean parseBoolean(final String value) {
-    requireThat(value.equals("true") || value.equals("false"), "Not a boolean: " + value);
+    requireThat(value.equals(TRUE_TEXT) || value.equals(FALSE_TEXT), "Value %s is not a boolean!".formatted(value));
+
     return Boolean.parseBoolean(value);
   }
 
-  private static void requireAbsolute(final Path path, final String name) {
-    requireThat(path.isAbsolute(), "The " + name + " path must be absolute: " + path);
+  private void requireAbsolute(@UnderInitialization HelperConfiguration this, final Path path, final String name) {
+    requireThat(path.isAbsolute(), "The %s path %s must be absolute!".formatted(name, path));
   }
 
-  private static void requireRange(final int value, final int minimum, final int maximum, final String name) {
+  private void requireRange(
+    @UnderInitialization HelperConfiguration this,
+    final int value,
+    final int minimum,
+    final int maximum,
+    final String name
+  ) {
     requireThat(
       value >= minimum && value <= maximum,
-      "The " + name + " must be between " + minimum + " and " + maximum + " but was " + value
+      "The %s %s must be between %s and %s inclusive!".formatted(name, value, minimum, maximum)
     );
   }
 
@@ -303,5 +300,78 @@ final class HelperConfiguration {
 
   List<String> getRefusedHosts() {
     return this.refusedHosts;
+  }
+
+  @Override
+  public boolean equals(final @Nullable Object other) {
+    if (this == other) {
+      return true;
+    }
+
+    if (!(other instanceof final HelperConfiguration configuration)) {
+      return false;
+    }
+
+    return (
+      Arrays.equals(this.token, configuration.token) &&
+      this.socket.equals(configuration.socket) &&
+      this.natives.equals(configuration.natives) &&
+      this.profile.equals(configuration.profile) &&
+      this.url.equals(configuration.url) &&
+      this.width == configuration.width &&
+      this.height == configuration.height &&
+      this.frameInterval == configuration.frameInterval &&
+      this.frameRate == configuration.frameRate &&
+      this.allowsJavaScriptJit == configuration.allowsJavaScriptJit &&
+      this.allowsPrivateNetworks == configuration.allowsPrivateNetworks &&
+      this.allowsAutoplay == configuration.allowsAutoplay &&
+      this.confined == configuration.confined &&
+      this.serverFolder.equals(configuration.serverFolder) &&
+      this.refusedHosts.equals(configuration.refusedHosts)
+    );
+  }
+
+  @Override
+  public int hashCode() {
+    final int tokenHashCode = Arrays.hashCode(this.token);
+    return Objects.hash(
+      tokenHashCode,
+      this.socket,
+      this.natives,
+      this.profile,
+      this.url,
+      this.width,
+      this.height,
+      this.frameInterval,
+      this.frameRate,
+      this.allowsJavaScriptJit,
+      this.allowsPrivateNetworks,
+      this.allowsAutoplay,
+      this.confined,
+      this.serverFolder,
+      this.refusedHosts
+    );
+  }
+
+  @Override
+  public String toString() {
+    // the helper process has no Guava on its class path
+    // the token is a secret, so it stays out
+    return "HelperConfiguration{socket=%s, natives=%s, profile=%s, url=%s, width=%s, height=%s, frameInterval=%s, frameRate=%s, javaScriptJit=%s, privateNetworks=%s, autoplay=%s, confined=%s, serverFolder=%s, refusedHosts=%s}".formatted(
+      this.socket,
+      this.natives,
+      this.profile,
+      this.url,
+      this.width,
+      this.height,
+      this.frameInterval,
+      this.frameRate,
+      this.allowsJavaScriptJit,
+      this.allowsPrivateNetworks,
+      this.allowsAutoplay,
+      this.confined,
+      this.serverFolder,
+      this.refusedHosts
+    );
   }
 }

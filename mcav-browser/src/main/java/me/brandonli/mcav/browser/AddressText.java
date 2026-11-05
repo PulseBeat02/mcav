@@ -17,76 +17,71 @@
  */
 package me.brandonli.mcav.browser;
 
-/**
- * Writes an address of the browser the way the log of the server shows it. Addresses come from pages, which choose
- * them freely, and from the operator, and their user name and password, their query and their fragment often carry
- * secrets, such as the signature of a link or the code of a login; the log, which {@code /mcav dump} may publish, gets
- * the scheme, the host and the path only. An address without a host, such as a {@code data:} address, which holds its
- * content, is shown by its scheme only.
- */
+// The user name, password, query and fragment of an address often carry secrets, and /mcav dump may publish the log,
+// so it shows the scheme, host and path only, and an address without a host only its scheme.
 final class AddressText {
 
-  /**
-   * What stands in place of a hidden part.
-   */
   static final String HIDDEN = "<hidden>";
 
+  private static final char SCHEME_END = ':';
+  private static final char USER_INFO_END = '@';
+
+  private static final String SCHEME_SYMBOLS = "+.-";
+
   private static final String AUTHORITY_START = "://";
+  private static final String AUTHORITY_ENDS = "/?#";
+  private static final String PATH_ENDS = "?#";
 
   private AddressText() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
-  /**
-   * Describes an address for the log.
-   *
-   * @param address the address, as the browser or the operator wrote it
-   * @return the scheme, the host and the path, with the user name and password, the query and the fragment hidden
-   */
   static String describe(final String address) {
-    final int colon = address.indexOf(':');
+    final int colon = address.indexOf(SCHEME_END);
     if (colon <= 0 || !isScheme(address, colon)) {
       return HIDDEN;
     }
+
     if (!address.startsWith(AUTHORITY_START, colon)) {
       return address.substring(0, colon + 1) + HIDDEN;
     }
+
     final int authorityStart = colon + AUTHORITY_START.length();
-    final int authorityEnd = indexOfAny(address, authorityStart, "/?#");
-    final int user = address.lastIndexOf('@', authorityEnd - 1);
+    final int authorityEnd = indexOfAny(address, authorityStart, AUTHORITY_ENDS);
+    final int user = address.lastIndexOf(USER_INFO_END, authorityEnd - 1);
     final StringBuilder text = new StringBuilder(address.length() + HIDDEN.length());
     text.append(address, 0, authorityStart);
+
     if (user >= authorityStart) {
-      text.append(HIDDEN).append('@');
+      text.append(HIDDEN).append(USER_INFO_END);
     }
+
     final int hostStart = Math.max(authorityStart, user + 1);
-    final int pathEnd = indexOfAny(address, authorityEnd, "?#");
+    final int pathEnd = indexOfAny(address, authorityEnd, PATH_ENDS);
     text.append(address, hostStart, pathEnd);
+
     if (pathEnd < address.length()) {
       text.append(address.charAt(pathEnd)).append(HIDDEN);
     }
+
     return text.toString();
   }
 
-  /**
-   * Checks whether the text before a colon is a scheme: a letter, then letters, digits, {@code +}, {@code .} and
-   * {@code -} (RFC 3986).
-   *
-   * @param address the address
-   * @param colon   the index of its first colon, at least 1
-   * @return true if the text before the colon is a scheme
-   */
+  // a letter, then letters, digits, +, . and - (RFC 3986)
   private static boolean isScheme(final String address, final int colon) {
     if (!isLetter(address.charAt(0))) {
       return false;
     }
+
     for (int index = 1; index < colon; index++) {
       final char character = address.charAt(index);
       final boolean isDigit = character >= '0' && character <= '9';
-      if (!isLetter(character) && !isDigit && character != '+' && character != '.' && character != '-') {
+      if (!isLetter(character) && !isDigit && SCHEME_SYMBOLS.indexOf(character) < 0) {
         return false;
       }
     }
+
     return true;
   }
 
@@ -100,6 +95,7 @@ final class AddressText {
         return index;
       }
     }
+
     return text.length();
   }
 }

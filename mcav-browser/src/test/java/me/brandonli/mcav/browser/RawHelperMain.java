@@ -19,7 +19,6 @@ package me.brandonli.mcav.browser;
 
 import java.io.BufferedReader;
 import java.io.DataOutputStream;
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.UncheckedIOException;
@@ -28,236 +27,268 @@ import java.net.UnixDomainSocketAddress;
 import java.nio.channels.Channels;
 import java.nio.channels.SocketChannel;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 
-/**
- * A misbehaving browser helper for tests of the server's session: it reads the configuration like the real helper,
- * connects, and then does what the path of the page says:
- *
- * <ul>
- *   <li>{@code /wrong-token}: introduces itself with another token;</li>
- *   <li>{@code /wrong-version}: introduces itself with another protocol version;</li>
- *   <li>{@code /no-hello}: sends a notice first;</li>
- *   <li>{@code /server-message}: introduces itself, is ready and loaded, then sends a close, which only the server
- *   sends;</li>
- *   <li>{@code /wrong-page}: introduces itself and sends a frame of a page of another size;</li>
- *   <li>{@code /oversized}: introduces itself and sends a region larger than the page of the session;</li>
- *   <li>{@code /stall}: shows the page but never reads what the server sends;</li>
- *   <li>{@code /stubborn}: shows the page and ignores the end of its standard input for two minutes;</li>
- *   <li>{@code /frame-first}: sends a frame before it introduces itself;</li>
- *   <li>{@code /hang-up}: shows the page, then closes the connection but keeps running;</li>
- *   <li>{@code /exit}: exits before it connects;</li>
- *   <li>{@code /silent}: never connects, and exits when its standard input ends;</li>
- *   <li>{@code /stubborn-child}: like {@code /stubborn}, and starts a process of its own once its standard input
- *   ended, which runs for a minute;</li>
- *   <li>{@code /child}: shows the page and starts a process of its own at once, which runs for a minute;</li>
- *   <li>{@code /chatty}: writes far more output than a pipe holds before it connects, then shows the page;</li>
- *   <li>{@code /full-page}: shows the page with one region as large as the page;</li>
- *   <li>{@code /exit-later}: shows the page and exits with code 5 half a second later;</li>
- *   <li>{@code /deaf}: shows the page and shuts down the reading side of its connection;</li>
- *   <li>{@code /silent-stubborn}: never connects and ignores the end of its standard input for two minutes;</li>
- *   <li>{@code /noisy}: shows the page, sends {@value #NOISY_LOAD_ERRORS} load errors of addresses with a secret in
- *   their query and {@value #NOISY_NOTICES} notices at once, as a page can make a helper do, one more notice a moment
- *   later, and then one frame of sound.</li>
- * </ul>
- *
- * <p>It then waits until its standard input ends.
- */
+// A misbehaving browser helper for the session tests: the path of the page picks the misbehavior.
 public final class RawHelperMain {
 
-  /**
-   * The last line {@code /chatty} writes.
-   */
+  private static final int EARLY_EXIT_CODE = 4;
+  private static final int LATE_EXIT_CODE = 5;
+
+  private static final String READY_TEXT = "raw";
+
+  private static final int CHATTY_LINE_CHARACTERS = 1023;
+  private static final int CHATTY_LINES = 256;
+
+  private static final int LOAD_ERROR_CODE = -2;
+
+  private static final long CHILD_DELAY_MILLISECONDS = 2_000L;
+  private static final long STUBBORN_MINUTES = 2L;
+  private static final long PAUSE_MILLISECONDS = 500L;
+
+  private static final String NEVER_OPENING_GATE = "never-opens";
+
+  private static final String CLASS_PATH_PROPERTY = "java.class.path";
+  private static final String TEMPORARY_DIRECTORY_PROPERTY = "java.io.tmpdir";
+
+  static final String EXIT_PATH = "/exit";
+  static final String SILENT_PATH = "/silent";
+  static final String SILENT_STUBBORN_PATH = "/silent-stubborn";
+  static final String WRONG_TOKEN_PATH = "/wrong-token";
+  static final String WRONG_VERSION_PATH = "/wrong-version";
+  static final String NO_HELLO_PATH = "/no-hello";
+  static final String SERVER_MESSAGE_PATH = "/server-message";
+  static final String STALL_PATH = "/stall";
+  static final String STUBBORN_PATH = "/stubborn";
+  static final String STUBBORN_CHILD_PATH = "/stubborn-child";
+  static final String HANG_UP_PATH = "/hang-up";
+  static final String CHILD_PATH = "/child";
+  static final String OUTPUT_CHILD_PATH = "/output-child";
+  static final String CHATTY_PATH = "/chatty";
+  static final String EXIT_LATER_PATH = "/exit-later";
+  static final String DEAF_PATH = "/deaf";
+  static final String NOISY_PATH = "/noisy";
+  static final String FULL_PAGE_PATH = "/full-page";
+  static final String FRAME_FIRST_PATH = "/frame-first";
+  static final String WRONG_PAGE_PATH = "/wrong-page";
+  static final String OVERSIZED_PATH = "/oversized";
+
   static final String CHATTY_END = "the chatty helper is done";
 
-  /**
-   * How many notices {@code /noisy} sends.
-   */
   static final int NOISY_NOTICES = 500;
-
-  /**
-   * How many load errors {@code /noisy} sends.
-   */
   static final int NOISY_LOAD_ERRORS = 50;
 
   private RawHelperMain() {}
 
-  /**
-   * Runs the misbehaving helper.
-   *
-   * @param args ignored
-   * @throws IOException if the connection fails
-   */
   public static void main(final String[] args) throws IOException {
     final BufferedReader input = new BufferedReader(new InputStreamReader(System.in, StandardCharsets.UTF_8));
     final HelperConfiguration configuration = HelperConfiguration.fromLine(input.readLine());
-    if (configuration.getUrl().getPath().equals("/exit")) {
-      System.exit(4);
+    if (configuration.getUrl().getPath().equals(EXIT_PATH)) {
+      System.exit(EARLY_EXIT_CODE);
     }
-    if (configuration.getUrl().getPath().equals("/silent")) {
-      while (input.read() >= 0) {}
+
+    if (configuration.getUrl().getPath().equals(SILENT_PATH)) {
+      awaitTheEnd(input);
       System.exit(0);
     }
-    if (configuration.getUrl().getPath().equals("/silent-stubborn")) {
-      waitTwoMinutes();
+
+    if (configuration.getUrl().getPath().equals(SILENT_STUBBORN_PATH)) {
+      exitAfterTwoMinutes();
     }
+
     final SocketChannel channel = SocketChannel.open(StandardProtocolFamily.UNIX);
     channel.connect(UnixDomainSocketAddress.of(configuration.getSocket()));
-    final DataOutputStream out = new DataOutputStream(Channels.newOutputStream(channel));
+    final DataOutputStream output = new DataOutputStream(Channels.newOutputStream(channel));
     final String path = configuration.getUrl().getPath();
     final byte[] token = configuration.getToken();
     switch (path) {
-      case "/wrong-token" -> {
+      case WRONG_TOKEN_PATH -> {
         token[0] ^= 1;
-        HelperProtocol.writeHello(out, token);
+        HelperProtocol.writeHello(output, token);
       }
-      case "/wrong-version" -> {
-        out.writeByte(HelperProtocol.HELLO);
-        out.writeInt(HelperProtocol.TOKEN_BYTES + 2);
-        out.write(token);
-        out.writeShort(HelperProtocol.VERSION + 1);
+      case WRONG_VERSION_PATH -> {
+        output.writeByte(HelperProtocol.HELLO);
+        output.writeInt(HelperProtocol.TOKEN_BYTES + 2);
+        output.write(token);
+        output.writeShort(HelperProtocol.VERSION + 1);
       }
-      case "/no-hello" -> HelperProtocol.writeText(out, HelperProtocol.NOTICE, "hi");
-      case "/server-message" -> {
-        HelperProtocol.writeHello(out, token);
-        HelperProtocol.writeText(out, HelperProtocol.READY, "raw");
-        HelperProtocol.writeFrame(out, new FrameRegion(configuration.getWidth(), configuration.getHeight(), 0, 0, 1, 1, new byte[4]));
-        HelperProtocol.writeLoading(out, false);
-        out.flush();
+      case NO_HELLO_PATH -> HelperProtocol.writeText(output, HelperProtocol.NOTICE, "hi");
+      case SERVER_MESSAGE_PATH -> {
+        writeStartedSession(output, token, configuration);
+        output.flush();
         sleep();
-        HelperProtocol.writeClose(out);
+        HelperProtocol.writeClose(output);
       }
-      case "/stall", "/stubborn", "/stubborn-child", "/hang-up", "/child", "/chatty", "/exit-later", "/deaf" -> {
-        HelperProtocol.writeHello(out, token);
-        HelperProtocol.writeText(out, HelperProtocol.READY, "raw");
-        HelperProtocol.writeFrame(out, new FrameRegion(configuration.getWidth(), configuration.getHeight(), 0, 0, 1, 1, new byte[4]));
-        HelperProtocol.writeLoading(out, false);
-        out.flush();
-        if (path.equals("/hang-up")) {
-          channel.close();
-        }
-        if (path.equals("/deaf")) {
-          channel.shutdownInput();
-        }
-        if (path.equals("/chatty")) {
-          // a pipe holds 64 KiB on Linux: unless the server reads the output, this helper blocks here
-          final String line = "x".repeat(1023);
-          for (int count = 0; count < 256; count++) {
-            System.out.println(line);
-          }
-          System.out.println(CHATTY_END);
-          System.out.flush();
-        }
-        if (path.equals("/exit-later")) {
-          sleep();
-          System.exit(5);
-        }
-        if (path.equals("/child")) {
-          startChild();
-        }
-        if (path.equals("/stubborn-child")) {
-          startChildWhenTheInputEnds(input);
-        }
-        if (path.equals("/stubborn") || path.equals("/stubborn-child")) {
-          waitTwoMinutes();
-        }
+      case
+        STALL_PATH,
+        STUBBORN_PATH,
+        STUBBORN_CHILD_PATH,
+        HANG_UP_PATH,
+        CHILD_PATH,
+        OUTPUT_CHILD_PATH,
+        CHATTY_PATH,
+        EXIT_LATER_PATH,
+        DEAF_PATH -> {
+        writeStartedSession(output, token, configuration);
+        output.flush();
+        misbehaveAfterStarting(path, channel, input);
       }
-      case "/noisy" -> {
-        HelperProtocol.writeHello(out, token);
-        HelperProtocol.writeText(out, HelperProtocol.READY, "raw");
-        HelperProtocol.writeFrame(out, new FrameRegion(configuration.getWidth(), configuration.getHeight(), 0, 0, 1, 1, new byte[4]));
-        HelperProtocol.writeLoading(out, false);
-        for (int count = 0; count < NOISY_LOAD_ERRORS; count++) {
-          HelperProtocol.writeLoadError(out, -2, "noise", "https://example.com/noise/" + count + "?token=secret");
-        }
-        for (int count = 0; count < NOISY_NOTICES; count++) {
-          HelperProtocol.writeText(out, HelperProtocol.NOTICE, "noise " + count);
-        }
-        out.flush();
+      case NOISY_PATH -> {
+        writeStartedSession(output, token, configuration);
+        writeNoise(output);
+        output.flush();
         sleep();
         sleep();
         sleep();
-        HelperProtocol.writeText(out, HelperProtocol.NOTICE, "noise after a pause");
-        HelperProtocol.writeAudio(out, new byte[HelperProtocol.AUDIO_FRAME_BYTES], HelperProtocol.AUDIO_FRAME_BYTES);
+        HelperProtocol.writeText(output, HelperProtocol.NOTICE, "noise after a pause");
+        HelperProtocol.writeAudio(output, new byte[HelperProtocol.AUDIO_FRAME_BYTES], HelperProtocol.AUDIO_FRAME_BYTES);
       }
-      case "/full-page" -> {
-        HelperProtocol.writeHello(out, token);
-        HelperProtocol.writeText(out, HelperProtocol.READY, "raw");
+      case FULL_PAGE_PATH -> {
+        HelperProtocol.writeHello(output, token);
+        HelperProtocol.writeText(output, HelperProtocol.READY, READY_TEXT);
         final int width = configuration.getWidth();
         final int height = configuration.getHeight();
-        final byte[] pixels = new byte[width * height * 4];
+        final byte[] pixels = new byte[width * height * HelperProtocol.PIXEL_BYTES];
         Arrays.fill(pixels, (byte) 7);
-        HelperProtocol.writeFrame(out, new FrameRegion(width, height, 0, 0, width, height, pixels));
-        HelperProtocol.writeLoading(out, false);
+        HelperProtocol.writeFrame(output, new FrameRegion(width, height, 0, 0, width, height, pixels));
+        HelperProtocol.writeLoading(output, false);
       }
-      case "/frame-first" -> HelperProtocol.writeFrame(
-        out,
-        new FrameRegion(configuration.getWidth(), configuration.getHeight(), 0, 0, 1, 1, new byte[4])
+      case FRAME_FIRST_PATH -> HelperProtocol.writeFrame(
+        output,
+        new FrameRegion(configuration.getWidth(), configuration.getHeight(), 0, 0, 1, 1, new byte[HelperProtocol.PIXEL_BYTES])
       );
-      case "/wrong-page" -> {
-        HelperProtocol.writeHello(out, token);
-        HelperProtocol.writeFrame(out, new FrameRegion(configuration.getWidth() + 1, configuration.getHeight(), 0, 0, 1, 1, new byte[4]));
+      case WRONG_PAGE_PATH -> {
+        HelperProtocol.writeHello(output, token);
+        HelperProtocol.writeFrame(
+          output,
+          new FrameRegion(configuration.getWidth() + 1, configuration.getHeight(), 0, 0, 1, 1, new byte[HelperProtocol.PIXEL_BYTES])
+        );
       }
-      case "/oversized" -> {
-        HelperProtocol.writeHello(out, token);
+      case OVERSIZED_PATH -> {
+        HelperProtocol.writeHello(output, token);
         final int width = configuration.getWidth() + 1;
         final int height = configuration.getHeight();
-        HelperProtocol.writeFrame(out, new FrameRegion(width, height, 0, 0, width, height, new byte[width * height * 4]));
+        HelperProtocol.writeFrame(
+          output,
+          new FrameRegion(width, height, 0, 0, width, height, new byte[width * height * HelperProtocol.PIXEL_BYTES])
+        );
       }
-      default -> throw new IllegalArgumentException("Unknown scenario " + path);
+      default -> {
+        final String message = "Scenario %s is unknown!".formatted(path);
+        throw new IllegalArgumentException(message);
+      }
     }
-    out.flush();
-    while (input.read() >= 0) {}
+
+    output.flush();
+    awaitTheEnd(input);
     channel.close();
   }
 
-  /**
-   * Starts a process of this helper two seconds after its standard input ended, while the server waits for the helper
-   * to stop: a JVM that waits for a gate that never opens, for a minute.
-   *
-   * @param input the standard input
-   */
-  private static void startChildWhenTheInputEnds(final BufferedReader input) {
-    final Thread watcher = new Thread(() -> {
-      try {
-        awaitTheEnd(input);
-        Thread.sleep(2_000L);
-        startChild();
-      } catch (final IOException exception) {
-        throw new UncheckedIOException(exception);
-      } catch (final InterruptedException exception) {
-        Thread.currentThread().interrupt();
+  private static void writeStartedSession(final DataOutputStream output, final byte[] token, final HelperConfiguration configuration)
+    throws IOException {
+    HelperProtocol.writeHello(output, token);
+    HelperProtocol.writeText(output, HelperProtocol.READY, READY_TEXT);
+    HelperProtocol.writeFrame(
+      output,
+      new FrameRegion(configuration.getWidth(), configuration.getHeight(), 0, 0, 1, 1, new byte[HelperProtocol.PIXEL_BYTES])
+    );
+    HelperProtocol.writeLoading(output, false);
+  }
+
+  private static void misbehaveAfterStarting(final String path, final SocketChannel channel, final BufferedReader input)
+    throws IOException {
+    if (path.equals(HANG_UP_PATH)) {
+      channel.close();
+    }
+
+    if (path.equals(DEAF_PATH)) {
+      channel.shutdownInput();
+    }
+
+    if (path.equals(CHATTY_PATH)) {
+      // more than a pipe holds (64 KiB on Linux): blocks unless the server reads the output
+      final String line = "x".repeat(CHATTY_LINE_CHARACTERS);
+      for (int count = 0; count < CHATTY_LINES; count++) {
+        System.out.println(line);
       }
-    });
+      System.out.println(CHATTY_END);
+      System.out.flush();
+    }
+
+    if (path.equals(EXIT_LATER_PATH)) {
+      sleep();
+      System.exit(LATE_EXIT_CODE);
+    }
+
+    if (path.equals(CHILD_PATH)) {
+      startChild(ProcessBuilder.Redirect.DISCARD);
+    }
+
+    if (path.equals(OUTPUT_CHILD_PATH)) {
+      startChild(ProcessBuilder.Redirect.INHERIT);
+    }
+
+    if (path.equals(STUBBORN_CHILD_PATH)) {
+      startChildWhenTheInputEnds(input);
+    }
+
+    if (path.equals(STUBBORN_PATH) || path.equals(STUBBORN_CHILD_PATH)) {
+      exitAfterTwoMinutes();
+    }
+  }
+
+  private static void writeNoise(final DataOutputStream output) throws IOException {
+    for (int count = 0; count < NOISY_LOAD_ERRORS; count++) {
+      HelperProtocol.writeLoadError(output, LOAD_ERROR_CODE, "noise", "https://example.com/noise/%s?token=secret".formatted(count));
+    }
+
+    for (int count = 0; count < NOISY_NOTICES; count++) {
+      HelperProtocol.writeText(output, HelperProtocol.NOTICE, "noise %s".formatted(count));
+    }
+  }
+
+  // the child starts while the server waits for this helper to stop
+  private static void startChildWhenTheInputEnds(final BufferedReader input) {
+    final Thread watcher = new Thread(() -> startChildAfterTheEnd(input));
     watcher.setDaemon(true);
     watcher.start();
   }
 
-  /**
-   * Starts a process of this helper: a JVM that waits for a gate that never opens, for a minute.
-   *
-   * @throws IOException if the process cannot be started
-   */
-  private static void startChild() throws IOException {
+  private static void startChildAfterTheEnd(final BufferedReader input) {
+    try {
+      awaitTheEnd(input);
+      Thread.sleep(CHILD_DELAY_MILLISECONDS);
+      startChild(ProcessBuilder.Redirect.DISCARD);
+    } catch (final IOException exception) {
+      throw new UncheckedIOException(exception);
+    } catch (final InterruptedException exception) {
+      final Thread current = Thread.currentThread();
+      current.interrupt();
+
+      final String message = "The start of the child helper was interrupted!";
+      throw new IllegalStateException(message, exception);
+    }
+  }
+
+  private static void startChild(final ProcessBuilder.Redirect output) throws IOException {
     final String program = ProcessHandle.current().info().command().orElse("java");
-    final String classPath = System.getProperty("java.class.path");
-    final String gate = System.getProperty("java.io.tmpdir") + File.separator + "never-opens";
-    new ProcessBuilder(program, "-D" + GatedHelperMain.GATE_PROPERTY + "=" + gate, "-cp", classPath, GatedHelperMain.class.getName())
+    final String classPath = System.getProperty(CLASS_PATH_PROPERTY);
+    final String gate = Path.of(System.getProperty(TEMPORARY_DIRECTORY_PROPERTY), NEVER_OPENING_GATE).toString();
+    new ProcessBuilder(program, "-D%s=%s".formatted(GatedHelperMain.GATE_PROPERTY, gate), "-cp", classPath, GatedHelperMain.class.getName())
       .redirectErrorStream(true)
-      .redirectOutput(ProcessBuilder.Redirect.DISCARD)
+      .redirectOutput(output)
       .start();
   }
 
-  /**
-   * Keeps running for two minutes, whatever happens to the standard input: long enough for any test that kills this
-   * helper, and short enough that a test runner killed meanwhile leaves no helper behind for long.
-   */
-  private static void waitTwoMinutes() {
-    final long deadline = System.nanoTime() + TimeUnit.MINUTES.toNanos(2);
+  // outlasts any test that kills this helper, but leaves no orphan behind for long
+  private static void exitAfterTwoMinutes() {
+    final long deadline = System.nanoTime() + TimeUnit.MINUTES.toNanos(STUBBORN_MINUTES);
     while (System.nanoTime() < deadline) {
       sleep();
     }
+
     System.exit(0);
   }
 
@@ -267,9 +298,13 @@ public final class RawHelperMain {
 
   private static void sleep() {
     try {
-      Thread.sleep(500L);
+      Thread.sleep(PAUSE_MILLISECONDS);
     } catch (final InterruptedException exception) {
-      Thread.currentThread().interrupt();
+      final Thread current = Thread.currentThread();
+      current.interrupt();
+
+      final String message = "The helper was interrupted!";
+      throw new IllegalStateException(message, exception);
     }
   }
 }

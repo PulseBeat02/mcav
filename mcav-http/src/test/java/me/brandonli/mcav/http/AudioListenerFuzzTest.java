@@ -46,10 +46,10 @@ import org.springframework.web.socket.WebSocketSession;
 @Tag("fuzz")
 final class AudioListenerFuzzTest {
 
-  private static final long WAIT_SECONDS = 10;
+  private static final long WAIT_SECONDS = 10L;
 
   private static final int MAXIMUM_LIMIT_BYTES = 4096;
-  private static final long MAXIMUM_SEND_TIME_LIMIT_MILLISECONDS = 10_000;
+  private static final long MAXIMUM_SEND_TIME_LIMIT_MILLISECONDS = 10_000L;
   private static final int MAXIMUM_OPERATIONS = 40;
   private static final int MAXIMUM_CHUNK_TO_LIMIT_RATIO = 2;
   private static final long MAXIMUM_CLOCK_STEP_NANOSECONDS = 20_000_000_000L;

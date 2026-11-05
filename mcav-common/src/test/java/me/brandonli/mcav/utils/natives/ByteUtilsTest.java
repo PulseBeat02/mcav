@@ -32,6 +32,8 @@ import org.junit.jupiter.api.Test;
 
 final class ByteUtilsTest {
 
+  private static final String SOURCE_UNCONSUMED_MESSAGE = "the source must not be consumed";
+
   private static byte[] remainingBytes(final ByteBuffer buffer) {
     final ByteBuffer view = buffer.duplicate();
     final int remaining = view.remaining();
@@ -47,9 +49,10 @@ final class ByteUtilsTest {
     final ByteOrder order = converted.order();
     final byte[] bytes = remainingBytes(converted);
     final int position = samples.position();
+    final byte[] expected = new byte[] { 0x02, 0x01, 0x04, 0x03 };
     assertEquals(ByteOrder.LITTLE_ENDIAN, order);
-    assertArrayEquals(new byte[] { 0x02, 0x01, 0x04, 0x03 }, bytes);
-    assertEquals(0, position, "the source must not be consumed");
+    assertArrayEquals(expected, bytes);
+    assertEquals(0, position, SOURCE_UNCONSUMED_MESSAGE);
   }
 
   @Test
@@ -61,10 +64,11 @@ final class ByteUtilsTest {
     final int stored = converted.getInt(0);
     final ByteOrder order = converted.order();
     final byte[] bytes = remainingBytes(converted);
+    final byte[] expected = new byte[] { 0x00, 0x00, (byte) 0x80, 0x3F };
     assertEquals(Float.BYTES, remaining);
     assertEquals(bits, stored);
     assertEquals(ByteOrder.LITTLE_ENDIAN, order);
-    assertArrayEquals(new byte[] { 0x00, 0x00, (byte) 0x80, 0x3F }, bytes, "1.0f is 0x3F800000, lowest byte first");
+    assertArrayEquals(expected, bytes, "1.0f is 0x3F800000, lowest byte first");
   }
 
   @Test
@@ -73,7 +77,8 @@ final class ByteUtilsTest {
     bigEndian.order(ByteOrder.BIG_ENDIAN);
     final ByteBuffer converted = ByteUtils.toLittleEndian(bigEndian);
     final byte[] bytes = remainingBytes(converted);
-    assertArrayEquals(new byte[] { 0x02, 0x01, 0x03 }, bytes, "pairs are swapped and a trailing odd byte is kept");
+    final byte[] expected = new byte[] { 0x02, 0x01, 0x03 };
+    assertArrayEquals(expected, bytes, "pairs are swapped and a trailing odd byte is kept");
   }
 
   @Test
@@ -82,7 +87,8 @@ final class ByteUtilsTest {
     littleEndian.order(ByteOrder.LITTLE_ENDIAN);
     final ByteBuffer converted = ByteUtils.toLittleEndian(littleEndian);
     final byte[] bytes = remainingBytes(converted);
-    assertArrayEquals(new byte[] { 0x01, 0x02 }, bytes);
+    final byte[] expected = new byte[] { 0x01, 0x02 };
+    assertArrayEquals(expected, bytes);
   }
 
   @Test
@@ -95,13 +101,17 @@ final class ByteUtilsTest {
     final int position = littleEndian.position();
     assertEquals(ByteOrder.BIG_ENDIAN, order);
     assertEquals(0x0102, sample);
-    assertEquals(0, position, "the source must not be consumed");
+    assertEquals(0, position, SOURCE_UNCONSUMED_MESSAGE);
   }
 
   @Test
   void shouldRejectUnsupportedBuffers() {
     final IntBuffer integers = IntBuffer.allocate(1);
     assertThrows(PlayerException.class, () -> ByteUtils.toLittleEndian(integers));
+  }
+
+  @Test
+  void shouldRejectNullBuffers() {
     assertThrows(NullPointerException.class, () -> ByteUtils.toLittleEndian(null));
     assertThrows(NullPointerException.class, () -> ByteUtils.toBigEndian(null));
   }
@@ -121,7 +131,8 @@ final class ByteUtilsTest {
     final byte[] bytes = remainingBytes(converted);
     final int position = bigEndian.position();
     final int limit = bigEndian.limit();
-    assertArrayEquals(new byte[] { 0x02, 0x01, 0x04, 0x03 }, bytes);
+    final byte[] expected = new byte[] { 0x02, 0x01, 0x04, 0x03 };
+    assertArrayEquals(expected, bytes);
     assertEquals(1, position);
     assertEquals(5, limit);
   }

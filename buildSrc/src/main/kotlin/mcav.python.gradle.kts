@@ -28,8 +28,10 @@ import me.brandonli.mcav.gradle.libs
 val uvTool: String = "uv"
 val pythonAlias: String = "python"
 val pythonPackageAliasPrefix: String = "python-"
+val clangFormatPackage: String = "clang-format"
+val modernglPackage: String = "moderngl"
 val pythonPackages: List<String> =
-    listOf("clang-format", "jupyter-book", "matplotlib", "moderngl", "numpy", "pillow", "pytest", "pytest-xdist", "sphinx-design")
+    listOf(clangFormatPackage, "jupyter-book", "matplotlib", modernglPackage, "numpy", "pillow", "pytest", "pytest-xdist", "sphinx-design")
 
 val uvReleasesUrl: String = "https://github.com/astral-sh/uv/releases/download"
 val zipExtension: String = ".zip"
@@ -49,11 +51,14 @@ val pinnedUvVersion: String = CatalogUtils.versionOf(libs, uvTool)
 val pinnedPythonVersion: String = CatalogUtils.versionOf(libs, pythonAlias)
 val pinnedPackages: Map<String, String> = pythonPackages.associateWith { CatalogUtils.versionOf(libs, "$pythonPackageAliasPrefix$it") }
 val packageMarkers: Map<String, String> = mapOf(
-    "clang-format" to "sys_platform != 'win32' or platform_machine != 'ARM64'",
-    "moderngl" to "platform_machine != 'aarch64' and platform_machine != 'ARM64'"
+    clangFormatPackage to "sys_platform != 'win32' or platform_machine != 'ARM64'",
+    modernglPackage to "platform_machine != 'aarch64' and platform_machine != 'ARM64'"
 )
-val uvArchive: String = "$uvTool-$uvTarget" + if (host.isWindows) zipExtension else gzipTarExtension
-val uvPath: String = if (host.isWindows) windowsUvExecutable else "$uvTool-$uvTarget/$uvTool"
+val uvFolder: String = "$uvTool-$uvTarget"
+val uvArchiveExtension: String = if (host.isWindows) zipExtension else gzipTarExtension
+val uvArchive: String = "$uvFolder$uvArchiveExtension"
+val uvPath: String = if (host.isWindows) windowsUvExecutable else "$uvFolder/$uvTool"
+
 val downloadUv: TaskProvider<DownloadToolArchive> = tasks.register<DownloadToolArchive>("downloadUv") {
     this.group = "build setup"
     this.description = "Downloads the pinned uv and verifies its SHA-256"
@@ -62,6 +67,7 @@ val downloadUv: TaskProvider<DownloadToolArchive> = tasks.register<DownloadToolA
     this.executablePath = uvPath
     this.installationDirectory = layout.buildDirectory.dir("$uvToolsPath/$pinnedUvVersion")
 }
+
 val selectedUv: Provider<RegularFile> = Tools.selectTool(project, uvTool, downloadUv.flatMap { it.installationDirectory.file(uvPath) })
 val requirementsLock: RegularFile = layout.projectDirectory.file(requirementsLockPath)
 val pythonInstallation: Provider<Directory> = layout.buildDirectory.dir("$pythonToolsPath/$pinnedPythonVersion")
@@ -82,7 +88,8 @@ val lockRequirements: TaskProvider<LockPythonRequirements> = tasks.register<Lock
     this.installationDirectory = pythonInstallation
     this.cacheDirectory = uvCache
 }
-tasks.register<PythonEnvironment>("installPythonEnvironment") {
+
+tasks.register<PythonEnvironment>(PythonEnvironment.TASK_NAME) {
     this.group = "build setup"
     this.description = "Installs the pinned Python and the hash-locked packages of requirements.lock"
     this.mustRunAfter(lockRequirements)

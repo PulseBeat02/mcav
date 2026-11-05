@@ -31,7 +31,7 @@ import org.bytedeco.opencv.opencv_core.Scalar;
  *
  * @since 1.0.0
  */
-public class TextFilter extends MatVideoFilter {
+public final class TextFilter extends MatVideoFilter {
 
   /**
    * The default font, a plain sans-serif font.
@@ -55,7 +55,7 @@ public class TextFilter extends MatVideoFilter {
    * @param font     the font, one of the {@code FONT_HERSHEY_} constants of {@link opencv_imgproc}
    * @param scale    the size of the text relative to the base size of the font, which must be positive
    * @param color    the blue, green, and red components of the color, normally 0 to 255; the non-null array is copied
-   * @throws IllegalArgumentException if {@code scale} is nonpositive or NaN
+   * @throws IllegalArgumentException if {@code scale} is not positive or is NaN
    * @throws NullPointerException     if {@code text} or {@code color} is null
    * @since 1.0.0
    */
@@ -73,13 +73,13 @@ public class TextFilter extends MatVideoFilter {
   /**
    * Draws the text onto the frame in place. Parts of the text outside of the frame are cut off.
    *
-   * @param mat the 8-bit BGR matrix of the frame
+   * @param matrix the 8-bit BGR matrix of the frame
    * @return true, because the frame may have changed
    * @since 1.0.0
    */
   @Override
-  protected boolean modifyMat(final Mat mat) {
-    opencv_imgproc.putText(mat, this.text, this.position, this.font, this.scale, this.color);
+  protected boolean modifyMat(final Mat matrix) {
+    opencv_imgproc.putText(matrix, this.text, this.position, this.font, this.scale, this.color);
 
     return true;
   }

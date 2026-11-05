@@ -36,6 +36,7 @@ fixed at the next start.
 | Linux            | x86-64, ARM64           | Nothing to install: no X server, no Xvfb, no packages; see below.            |
 | Windows          | x86-64, ARM64           | ARM64 is supported by the build but untested.                                |
 | macOS            | x86-64, ARM64 (Apple)   |                                                                              |
+| FreeBSD          | Any                     | Not available: jcefmaven publishes no FreeBSD build.                         |
 
 `BrowserPlayer.isSupported()` tells whether there is a CEF build for the machine. On any other platform, and on 32-bit
 systems, `start` fails with a `BrowserUnavailableException` that names the platform, and nothing is downloaded; so
@@ -83,7 +84,7 @@ of the page and its frames (at most 4096 pixels per side), and how many painted 
 `BrowserPlayer.create()` uses the default options; `BrowserPlayer.create(BrowserOptions)` takes others.
 
 The example opens a page, clicks into it, and types a search. The `display` filter is yours and shows the frames;
-release the returned browser when you are done with the page. `start` throws a `PlayerException` if the page cannot
+release the returned browser when you are done with the page. `start` throws a `BrowserException` if the page cannot
 be shown.
 
 ```java
@@ -100,6 +101,7 @@ be shown.
     callback.attach(videoPipelineStep);
 
     browser.start(source);
+
     final int clickX = 640;
     final int clickY = 360;
     final String enterKey = "Enter";
@@ -148,7 +150,6 @@ a page can do instead:
   `BrowserOptions.builder().confinement(false)` turns it off, for a page that needs something it hides. As Chromium
   binds a socket in the folder of the session, the temporary folder of the server (`java.io.tmpdir`) may have at most
   47 characters on Linux; a browser in a longer one is refused with that reason.
-
 - Only `http` and `https` pages are shown, besides the empty `about:blank`; frames may also hold `data:` and `blob:`
   documents. `file:`, `chrome:` and other addresses are refused, and so is handing an address to another program.
 - By default, pages reach public addresses of the internet only. Every connection goes through a guard in the helper
@@ -176,7 +177,6 @@ a page can do instead:
   folder names the server that made it, so a folder a killed server left behind is deleted when the browser module
   starts again. On Linux and macOS only folders of the user running the server are deleted, as other users of the
   machine share the temporary folder.
-
 - The sound of the page reaches the helper through a DevTools binding that the page could call too, before MCAV's
   script takes it away; the helper takes only exact calls with whole frames of sound, at most two seconds of sound per
   second, and passes none of it on before a press of a mouse button or a key on the page that plays it, unless
@@ -189,12 +189,15 @@ a page can do instead:
 ## Sound
 
 The sound a page plays through Web Audio and its audio and video elements arrives at the audio pipeline of the player,
-as 16-bit little-endian stereo samples at 48 kHz, like the sound of every MCAV player:
+as 16-bit little-endian stereo samples at 48 kHz, like the sound of every MCAV player. The `speakers` filter is
+yours and plays the sound:
 
 ```java
-  final AudioPipelineStep audioPipeline = AudioPipelineStep.of(speakers);
-  final AudioAttachableCallback audio = browser.getAudioAttachableCallback();
-  audio.attach(audioPipeline);
+  public void attachSpeakers(final BrowserPlayer browser, final AudioFilter speakers) {
+    final AudioPipelineStep audioPipeline = AudioPipelineStep.of(speakers);
+    final AudioAttachableCallback audio = browser.getAudioAttachableCallback();
+    audio.attach(audioPipeline);
+  }
 ```
 
 JCEF has no way to hand over Chromium's own audio, so a script that MCAV adds to every document before the page's own

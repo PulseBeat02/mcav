@@ -49,8 +49,8 @@ final class SourceDetectionHelperTest {
     final Path file = this.directory.resolve(VIDEO_FILE_NAME);
     Files.createFile(file);
     final SourceDetectionHelper helper = new SourceDetectionHelper();
-    final String raw = file.toString();
-    final Optional<Source> detected = helper.detectSource(raw);
+    final String resource = file.toString();
+    final Optional<Source> detected = helper.detectSource(resource);
     final Source source = detected.orElseThrow();
     final FileSource fileSource = assertInstanceOf(FileSource.class, source);
     final Path path = fileSource.getPath();
@@ -132,12 +132,12 @@ final class SourceDetectionHelperTest {
     }
 
     @Override
-    public boolean isDetectedSource(final String raw) {
+    public boolean isDetectedSource(final String resource) {
       return this.acceptance == Acceptance.ACCEPTS;
     }
 
     @Override
-    public Source createSource(final String raw) {
+    public Source createSource(final String resource) {
       return this.source;
     }
 

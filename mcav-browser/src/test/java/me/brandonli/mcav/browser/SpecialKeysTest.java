@@ -29,55 +29,70 @@ import java.io.Reader;
 import java.io.StringReader;
 import java.util.Set;
 import me.brandonli.mcav.browser.testing.UtilityClassAssertions;
-import me.brandonli.mcav.media.player.PlayerException;
 import org.junit.jupiter.api.Test;
 
 class SpecialKeysTest {
 
+  private static final String EMPTY_LIST_MESSAGE = "The key list resource mcav/browser/keybinds.json is empty!";
+
   @Test
-  void theW3cKeyNamesArePressed() {
+  void shouldPressTheW3cKeyNames() {
     for (final String key : new String[] { "Enter", "Backspace", "ArrowLeft", "PageDown", " ", "F12", "MediaPlayPause" }) {
-      assertTrue(SpecialKeys.isSpecialKey(key), key);
+      final boolean namedKeySpecial = SpecialKeys.isSpecialKey(key);
+      assertTrue(namedKeySpecial, key);
     }
-    assertFalse(SpecialKeys.isSpecialKey("enter"));
-    assertFalse(SpecialKeys.isSpecialKey("hello"));
+
+    final boolean lowerCaseEnterSpecial = SpecialKeys.isSpecialKey("enter");
+    assertFalse(lowerCaseEnterSpecial);
+
+    final boolean plainWordSpecial = SpecialKeys.isSpecialKey("hello");
+    assertFalse(plainWordSpecial);
     assertThrows(NullPointerException.class, () -> SpecialKeys.isSpecialKey(null));
   }
 
   @Test
-  void theListIsReadFromJsonIntoAnUnmodifiableSet() {
+  void shouldReadTheListFromJsonIntoAnUnmodifiableSet() {
     final Set<String> keys = SpecialKeys.parse(new StringReader("[\"A\", \"B\", \"A\"]"));
-    assertEquals(Set.of("A", "B"), keys);
+    final Set<String> expectedKeys = Set.of("A", "B");
+    assertEquals(expectedKeys, keys);
     assertThrows(UnsupportedOperationException.class, keys::clear);
   }
 
   @Test
-  void anEmptyListIsRefused() {
-    final PlayerException failure = assertThrows(PlayerException.class, () -> SpecialKeys.parse(new StringReader("")));
-    assertEquals("The key list resource mcav/browser/keybinds.json is empty", failure.getMessage());
+  void shouldRefuseAnEmptyList() {
+    final BrowserException failure = assertThrows(BrowserException.class, () -> SpecialKeys.parse(new StringReader("")));
+    final String message = failure.getMessage();
+    assertEquals(EMPTY_LIST_MESSAGE, message);
   }
 
   @Test
-  void anEmptyJsonListIsRefused() {
-    final PlayerException failure = assertThrows(PlayerException.class, () -> SpecialKeys.parse(new StringReader("[]")));
-    assertEquals("The key list resource mcav/browser/keybinds.json is empty", failure.getMessage());
+  void shouldRefuseAnEmptyJsonList() {
+    final BrowserException failure = assertThrows(BrowserException.class, () -> SpecialKeys.parse(new StringReader("[]")));
+    final String message = failure.getMessage();
+    assertEquals(EMPTY_LIST_MESSAGE, message);
   }
 
   @Test
-  void aListThatCannotBeClosedIsRefused() {
+  void shouldRefuseAListThatCannotBeClosed() {
     final Reader throwing = new FilterReader(new StringReader("[\"A\"]")) {
       @Override
       public void close() throws IOException {
-        throw new IOException("disk gone");
+        final String message = "The disk is gone!";
+        throw new IOException(message);
       }
     };
-    final PlayerException failure = assertThrows(PlayerException.class, () -> SpecialKeys.parse(throwing));
-    assertEquals("Failed to read the key list resource: disk gone", failure.getMessage());
-    assertInstanceOf(IOException.class, failure.getCause());
+    final BrowserException failure = assertThrows(BrowserException.class, () -> SpecialKeys.parse(throwing));
+    final String message = failure.getMessage();
+    assertEquals("The key list resource mcav/browser/keybinds.json could not be read!", message);
+
+    final Throwable cause = failure.getCause();
+    final IOException diskFailure = assertInstanceOf(IOException.class, cause);
+    final String reason = diskFailure.getMessage();
+    assertEquals("The disk is gone!", reason);
   }
 
   @Test
-  void theKeysAreNotInstantiable() {
+  void shouldNotInstantiateTheKeys() {
     UtilityClassAssertions.assertNotInstantiable(SpecialKeys.class);
   }
 }

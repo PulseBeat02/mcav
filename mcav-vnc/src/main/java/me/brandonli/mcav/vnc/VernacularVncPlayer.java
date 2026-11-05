@@ -17,6 +17,8 @@
  */
 package me.brandonli.mcav.vnc;
 
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.shinyhut.vernacular.client.VernacularClient;
@@ -27,7 +29,6 @@ import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.Socket;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.concurrent.CompletableFuture;
@@ -73,6 +74,11 @@ public final class VernacularVncPlayer implements VncPlayer {
   private static final int LEFT_BUTTON = 1;
   private static final int RIGHT_BUTTON = 3;
 
+  private static final boolean PRESSED = true;
+  private static final boolean RELEASED = false;
+
+  private static final boolean DO_NOT_INTERRUPT = false;
+
   private static final long IDLE_PARK_NANOSECONDS = TimeUnit.MILLISECONDS.toNanos(10);
 
   private static final long STOP_TIMEOUT_MILLISECONDS = 2_000L;
@@ -109,7 +115,7 @@ public final class VernacularVncPlayer implements VncPlayer {
     this(clientFactory, socketFactory, IDLE_PARK_NANOSECONDS);
   }
 
-  // Constructs a player with a replaceable idle wait so wake-up behavior can be tested without timing races.
+  // Creates a player with a replaceable idle wait so wake-up behavior can be tested without timing races.
   @VisibleForTesting
   VernacularVncPlayer(
     final Function<VernacularConfig, VernacularClient> clientFactory,
@@ -168,6 +174,7 @@ public final class VernacularVncPlayer implements VncPlayer {
 
       this.resetForNewSession(source);
       this.launchSession(source);
+
       return true;
     } finally {
       this.lock.unlock();
@@ -225,15 +232,14 @@ public final class VernacularVncPlayer implements VncPlayer {
     final AtomicBoolean expired = new AtomicBoolean();
     this.runHandshake(source, vncClient, socket, expired);
 
-    // the client reports handshake failures, such as a rejected password, to the error listener and returns; a
-    // failure that arrives after this point is a failure of the running session
+    // the client reports handshake failures to the error listener; later failures belong to the running session
     final com.shinyhut.vernacular.client.exceptions.@Nullable VncException failure = created.finishStartup();
     if (failure != null) {
       vncClient.stop();
       this.closeQuietly(socket);
 
       final String reason = failure.getMessage();
-      final String message = this.startFailure(source, expired, reason);
+      final String message = this.startFailureMessage(source, expired, reason);
       throw new VncException(message, failure);
     }
 
@@ -254,10 +260,10 @@ public final class VernacularVncPlayer implements VncPlayer {
       this.closeQuietly(socket);
 
       final String reason = exception.getMessage();
-      final String message = this.startFailure(source, expired, reason);
+      final String message = this.startFailureMessage(source, expired, reason);
       throw new VncException(message, exception);
     } finally {
-      deadline.cancel(false);
+      deadline.cancel(DO_NOT_INTERRUPT);
     }
   }
 
@@ -267,14 +273,16 @@ public final class VernacularVncPlayer implements VncPlayer {
     worker.start();
   }
 
-  // marked before the close: the handshake can fail on the closed socket before the close returns, and the cancel
-  // after the handshake can win against a deadline whose close is still running
+  /*
+   * marked before the close: the handshake can fail on the closed socket before the close returns, and the cancel
+   * after the handshake can win against a deadline whose close is still running
+   */
   private void expireHandshake(final Socket socket, final AtomicBoolean expired) {
     expired.set(true);
     this.closeQuietly(socket);
   }
 
-  private String startFailure(final VncSource source, final AtomicBoolean expired, final @Nullable String message) {
+  private String startFailureMessage(final VncSource source, final AtomicBoolean expired, final @Nullable String reason) {
     final String resource = source.getResource();
     if (expired.get()) {
       return "VNC session with %s could not start because the server did not finish the handshake within %s ms!".formatted(
@@ -283,11 +291,13 @@ public final class VernacularVncPlayer implements VncPlayer {
       );
     }
 
-    return "VNC session with %s could not start because of \"%s\"!".formatted(resource, message);
+    return "Because of \"%s\", VNC session with %s could not start!".formatted(reason, resource);
   }
 
-  // the client connects on its own thread and would only report failures later, so the socket is opened here; the
-  // client reads through a guard, because it trusts the lengths a server sends
+  /*
+   * the client connects on its own thread and would report failures late, so the socket is opened here; the client
+   * reads through a guard because it trusts the lengths a server sends
+   */
   private Socket connect(final VncSource source) {
     final String host = source.getHost();
     final int port = source.getPort();
@@ -302,7 +312,7 @@ public final class VernacularVncPlayer implements VncPlayer {
 
       final String reason = exception.getMessage();
       final String resource = source.getResource();
-      final String message = "VNC server %s could not be reached because of \"%s\"!".formatted(resource, reason);
+      final String message = "Because of \"%s\", VNC server %s could not be reached!".formatted(reason, resource);
       throw new VncException(message, exception);
     }
   }
@@ -346,8 +356,7 @@ public final class VernacularVncPlayer implements VncPlayer {
     }
 
     synchronized (this.frameLock) {
-      // A callback from a previous client may finish after stop() returns. Check and publish under the same lock
-      // as session replacement, so that callback cannot overwrite the new session's dimensions or pending frame.
+      // a stale callback may run after stop(), so check and publish under the lock that replaces sessions
       if (this.session != owner || !owner.acceptsFrames()) {
         return;
       }
@@ -356,6 +365,7 @@ public final class VernacularVncPlayer implements VncPlayer {
       final int height = frame.getHeight();
       this.remoteWidth = width;
       this.remoteHeight = height;
+
       final boolean pausedNow = this.paused.get();
       if (pausedNow) {
         return;
@@ -375,7 +385,7 @@ public final class VernacularVncPlayer implements VncPlayer {
 
     final boolean wasAlive = failed.end();
     if (wasAlive) {
-      this.report("The VNC connection failed", error);
+      this.report("The VNC connection failed.", error);
     }
   }
 
@@ -397,7 +407,7 @@ public final class VernacularVncPlayer implements VncPlayer {
         metadata = OriginalVideoMetadata.of(width, height, frameRate);
       }
 
-      final OriginalVideoMetadata current = Objects.requireNonNull(metadata, "Metadata must exist with the filter!");
+      final OriginalVideoMetadata current = requireNonNull(metadata, "Metadata must exist with the filter!");
       this.deliverWhileAlive(owner, frame, resizeFilter, current);
     }
   }
@@ -442,10 +452,9 @@ public final class VernacularVncPlayer implements VncPlayer {
       final VideoPipelineStep pipeline = this.videoCallback.retrieve();
       pipeline.processAll(image, metadata);
     } catch (final RuntimeException | Error exception) {
-      // a frame runs user filters and native OpenCV code, which can fail with any Error, such as an AssertionError or
-      // a LinkageError; only errors of the virtual machine are thrown, every other failure is reported
+      // user filters and native OpenCV code can throw any Error; only fatal ones are rethrown, the rest are reported
       ThrowableUtils.throwIfFatal(exception);
-      this.report("Failed to process a VNC frame", exception);
+      this.report("Failed to process a VNC frame.", exception);
     }
   }
 
@@ -459,8 +468,7 @@ public final class VernacularVncPlayer implements VncPlayer {
     return current != null && current.isAlive();
   }
 
-  // Checks whether a screen update is waiting for the render thread. Pausing and starting a session drop the update
-  // that is waiting, so that a frame of a paused or of an ended session is never shown. Visible for testing.
+  // Pausing and starting a session drop the waiting update, so no frame of a paused or ended session is shown.
   @VisibleForTesting
   boolean hasPendingFrame() {
     final BufferedImage pending = this.latestFrame.get();
@@ -568,7 +576,7 @@ public final class VernacularVncPlayer implements VncPlayer {
     try {
       vncClient.stop();
     } catch (final RuntimeException exception) {
-      this.report("Failed to close the VNC connection", exception);
+      this.report("Failed to close the VNC connection.", exception);
     }
 
     if (interrupted) {
@@ -666,8 +674,8 @@ public final class VernacularVncPlayer implements VncPlayer {
       case LEFT -> () -> vncClient.click(LEFT_BUTTON);
       case RIGHT -> () -> vncClient.click(RIGHT_BUTTON);
       case DOUBLE -> () -> this.doubleClick(vncClient);
-      case HOLD -> () -> vncClient.updateMouseButton(LEFT_BUTTON, true);
-      case RELEASE -> () -> vncClient.updateMouseButton(LEFT_BUTTON, false);
+      case HOLD -> () -> vncClient.updateMouseButton(LEFT_BUTTON, PRESSED);
+      case RELEASE -> () -> vncClient.updateMouseButton(LEFT_BUTTON, RELEASED);
     };
   }
 
@@ -699,19 +707,17 @@ public final class VernacularVncPlayer implements VncPlayer {
       return;
     }
 
-    final OptionalInt symbol = KeySymbols.lookup(text);
-    this.forward(() -> this.typeKey(vncClient, symbol, text));
+    this.forward(() -> this.typeKey(vncClient, text));
   }
 
-  private void typeKey(final VernacularClient vncClient, final OptionalInt symbol, final String text) {
-    if (symbol.isEmpty()) {
-      vncClient.type(text);
-      return;
-    }
+  private void typeKey(final VernacularClient vncClient, final String text) {
+    final OptionalInt symbol = KeySymbols.lookup(text);
+    symbol.ifPresentOrElse(code -> this.pressKey(vncClient, code), () -> vncClient.type(text));
+  }
 
-    final int code = symbol.getAsInt();
-    vncClient.updateKey(code, true);
-    vncClient.updateKey(code, false);
+  private void pressKey(final VernacularClient vncClient, final int code) {
+    vncClient.updateKey(code, PRESSED);
+    vncClient.updateKey(code, RELEASED);
   }
 
   private @Nullable VernacularClient getConnectedClient() {
@@ -729,13 +735,13 @@ public final class VernacularVncPlayer implements VncPlayer {
     } catch (final RuntimeException exception) {
       final boolean active = this.isActive();
       if (active) {
-        this.report("Failed to forward input to the VNC server", exception);
+        this.report("Failed to forward input to the VNC server.", exception);
       }
     }
   }
 
   private int[] translateCoordinates(final int frameX, final int frameY) {
-    final VncSource current = Objects.requireNonNull(this.source, "Source must be set while connected!");
+    final VncSource current = requireNonNull(this.source, "Source must be set while connected!");
     final int targetWidth = this.remoteWidth;
     final int targetHeight = this.remoteHeight;
 
@@ -792,11 +798,11 @@ public final class VernacularVncPlayer implements VncPlayer {
   @Override
   public void setExceptionHandler(final BiConsumer<String, Throwable> exceptionHandler) {
     Preconditions.checkNotNull(exceptionHandler, "Exception handler must not be null!");
+
     this.exceptionHandler.setExceptionHandler(exceptionHandler);
   }
 
-  // The state of one connection. Errors the client reports while the handshake runs fail the start; the hand-over from
-  // the handshake to the running session is atomic, so no error falls between the two.
+  // One connection's state; handshake errors fail the start, and the hand-over to the running session is atomic.
   private static final class Session {
 
     private final AtomicBoolean alive;

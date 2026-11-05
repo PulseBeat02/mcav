@@ -43,7 +43,7 @@ public interface PipelineStep<DataType, MetadataType, StepType extends PipelineS
   Optional<StepType> next();
 
   /**
-   * Checks whether this is the last step of the chain.
+   * Returns whether this is the last step of the chain.
    *
    * @return true if no step follows
    * @since 1.0.0
@@ -54,7 +54,7 @@ public interface PipelineStep<DataType, MetadataType, StepType extends PipelineS
   }
 
   /**
-   * Checks whether this step is the empty pipeline, the {@code NO_OP} step of {@link AudioPipelineStep} or
+   * Returns whether this step is the empty pipeline, the {@code NO_OP} step of {@link AudioPipelineStep} or
    * {@link VideoPipelineStep}, which does nothing. Players skip preparing frames and samples for the empty pipeline,
    * because no filter would read them.
    *

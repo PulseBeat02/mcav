@@ -38,21 +38,22 @@ import org.slf4j.LoggerFactory;
 public final class MCAVVoiceChatPlugin implements VoicechatPlugin {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(MCAVVoiceChatPlugin.class);
-  private static final String READY = "Simple Voice Chat audio is ready.";
+
   private static final String PLUGIN_ID = "mcav";
 
-  private final MCAVSandbox sandbox;
+  private final MCAVSandbox plugin;
 
   /**
-   * Constructs the voice chat plugin.
+   * Creates the voice chat plugin.
    *
-   * @param sandbox the plugin whose library receives the voice chat server API
+   * @param plugin the plugin whose library receives the voice chat server API
+   * @throws NullPointerException if {@code plugin} is null
    * @since 1.0.0
    */
-  public MCAVVoiceChatPlugin(final MCAVSandbox sandbox) {
-    Preconditions.checkNotNull(sandbox, "Plugin must not be null!");
+  public MCAVVoiceChatPlugin(final MCAVSandbox plugin) {
+    Preconditions.checkNotNull(plugin, "Plugin must not be null!");
 
-    this.sandbox = sandbox;
+    this.plugin = plugin;
   }
 
   /**
@@ -60,17 +61,18 @@ public final class MCAVVoiceChatPlugin implements VoicechatPlugin {
    * started on the server, where the API it passes is always a {@link VoicechatServerApi}.
    *
    * @param api the voice chat API
+   * @throws NullPointerException if {@code api} is null
    * @since 1.0.0
    */
   @Override
   public void initialize(final VoicechatApi api) {
     Preconditions.checkNotNull(api, "Voice chat API must not be null!");
 
-    final MCAVApi library = this.sandbox.getMCAV();
+    final MCAVApi library = this.plugin.getMCAV();
     final SvcModule module = library.getModule(SvcModule.class);
     final VoicechatServerApi serverApi = (VoicechatServerApi) api;
     module.inject(serverApi);
-    LOGGER.info(READY);
+    LOGGER.info("Simple Voice Chat audio is ready.");
   }
 
   /**

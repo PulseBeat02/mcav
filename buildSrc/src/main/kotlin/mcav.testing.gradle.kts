@@ -31,20 +31,22 @@ val junitBomAlias: String = "junit-bom"
 val testingBundleAlias: String = "testing"
 val junitLauncherAlias: String = "junit-platform-launcher"
 val byteBuddyAgentAlias: String = "byte-buddy-agent"
+
 val javaAgentConfiguration: String = "javaAgent"
 val javaAgentOption: String = "-javaagent:"
 
 val networkTestsProperty: String = "mcav.networkTests"
-val syncMeasurementProperty: String = "mcav.syncMeasurement"
-val testJavaHomeProperty: String = "mcav.testJavaHome"
+val syncMeasurementProperty: String = "mcav.sync_measurement"
+val testJavaHomeProperty: String = "mcav.test_java_home"
 val propertyTriesProperty: String = "property.tries"
-val propertySmokeTriesProperty: String = "property.smokeTries"
+val propertySmokeTriesProperty: String = "property.smoke_tries"
 val fuzzSecondsProperty: String = "fuzz.seconds"
 val disabledValue: String = "false"
 val defaultPropertyTries: String = "200"
 val defaultPropertySmokeTries: String = "10"
 
 val quietMachineService: String = "quietMachine"
+
 val testHeapSize: String = "2g"
 val fuzzHeapSize: String = "1g"
 val processorsPerFork: Int = 2
@@ -81,6 +83,7 @@ val javaAgent: NamedDomainObjectProvider<Configuration> = configurations.registe
 dependencies {
     testImplementation(platform(CatalogUtils.libraryOf(libs, junitBomAlias)))
     testImplementation(CatalogUtils.bundleOf(libs, testingBundleAlias))
+
     testRuntimeOnly(CatalogUtils.libraryOf(libs, junitLauncherAlias))
 
     javaAgent(CatalogUtils.libraryOf(libs, byteBuddyAgentAlias))
@@ -94,6 +97,9 @@ val propertyTries: String = providers.gradleProperty(propertyTriesProperty).getO
 val propertySmokeTries: String = providers.gradleProperty(propertySmokeTriesProperty).getOrElse(defaultPropertySmokeTries)
 val fuzzSeconds: Int = providers.gradleProperty(fuzzSecondsProperty).map { it.toInt() }.getOrElse(0)
 val testSourceSet: SourceSet = sourceSets.test.get()
+val host: HostPlatform = HostPlatform.current()
+val processorCount: Int = Runtime.getRuntime().availableProcessors()
+val parallelForks: Int = (processorCount / processorsPerFork).coerceAtLeast(1)
 val quietMachine: Provider<ExclusiveResource> = gradle.sharedServices.registerIfAbsent(quietMachineService, ExclusiveResource::class) {
     maxParallelUsages = 1
 }
@@ -102,6 +108,7 @@ tasks.withType<Test>().configureEach {
     this.useJUnitPlatform()
     this.failOnNoDiscoveredTests = false
     this.maxHeapSize = testHeapSize
+    // keep the JDK quiet about native access, agents attached at run time, the appended boot class path and sun.misc.Unsafe
     this.jvmArgs(
         "--enable-native-access=ALL-UNNAMED",
         "-XX:+EnableDynamicAgentLoading",
@@ -119,10 +126,10 @@ tasks.withType<Test>().configureEach {
     this.systemProperty(syncMeasurementProperty, syncMeasurement)
 
     if (testJavaHome.isPresent) {
-        this.executable = HostPlatform.current().javaExecutable(testJavaHome.get())
+        this.executable = host.javaExecutable(testJavaHome.get())
     }
 
-    this.systemProperty(jqwikDatabaseProperty, "$jqwikDatabasePath-$name")
+    this.systemProperty(jqwikDatabaseProperty, "$jqwikDatabasePath-${this.name}")
     this.systemProperty(jqwikFailuresProperty, previousSeed)
 
     if (measuresSync) {
@@ -135,7 +142,7 @@ tasks.test {
         this.excludeTags(fuzzTag)
     }
     this.systemProperty(jqwikTriesProperty, propertySmokeTries)
-    this.maxParallelForks = if (measuresSync) 1 else (Runtime.getRuntime().availableProcessors() / processorsPerFork).coerceAtLeast(1)
+    this.maxParallelForks = if (measuresSync) 1 else parallelForks
     this.systemProperty(jqwikDatabaseProperty, noDatabase)
 }
 
@@ -165,8 +172,8 @@ tasks.withType<Test>().matching { it.name in fuzzTaskNames }.configureEach {
     this.inputs.files(fuzzInputs)
         .withPropertyName("fuzzInputs")
         .withPathSensitivity(PathSensitivity.RELATIVE)
-    this.outputs.dir(layout.buildDirectory.dir("$jazzerPath/$name")).withPropertyName("jazzerDirectory")
-    this.systemProperty(jazzerBaseDirectoryProperty, "$jazzerBaseDirectoryPath/$name")
+    this.outputs.dir(layout.buildDirectory.dir("$jazzerPath/${this.name}")).withPropertyName("jazzerDirectory")
+    this.systemProperty(jazzerBaseDirectoryProperty, "$jazzerBaseDirectoryPath/${this.name}")
     this.systemProperty(testTemplateTimeoutProperty, replayTimeout)
     this.maxHeapSize = fuzzHeapSize
 }
@@ -188,7 +195,7 @@ val fuzzTasks: List<TaskProvider<Test>> = fuzzTargets.map { target ->
 
 val fuzzTest: TaskProvider<Test> = tasks.register<Test>(fuzzTestName) {
     this.group = "verification"
-    this.description = "Replays the committed fuzz inputs of this module, and fuzzes every fuzz test method with -Pfuzz.seconds=<n>"
+    this.description = "Replays the committed fuzz inputs of this module, and fuzzes every fuzz test method with -P$fuzzSecondsProperty=<n>"
     this.dependsOn(fuzzTasks)
 }
 

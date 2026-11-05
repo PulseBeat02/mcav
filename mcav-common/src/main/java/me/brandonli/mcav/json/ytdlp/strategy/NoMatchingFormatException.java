@@ -30,12 +30,16 @@ import me.brandonli.mcav.MCAVException;
  *
  * @since 1.0.0
  */
-public class NoMatchingFormatException extends MCAVException {
+public final class NoMatchingFormatException extends MCAVException {
 
   @Serial
   private static final long serialVersionUID = -8093712854432123795L;
 
   NoMatchingFormatException(final String message) {
     super(message);
+  }
+
+  NoMatchingFormatException(final String message, final Throwable cause) {
+    super(message, cause);
   }
 }

@@ -56,7 +56,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 
-final class JukeBoxListenerTest {
+final class JukeboxListenerTest {
 
   private static final String IMAGE_FILE_NAME = "alpine.iso";
   private static final String ISO_FOLDER_NAME = "iso";
@@ -71,7 +71,7 @@ final class JukeBoxListenerTest {
   private Path folder;
 
   private MCAVSandbox sandbox;
-  private JukeBoxListener listener;
+  private JukeboxListener listener;
   private Path isoFolder;
   private Player player;
 
@@ -80,7 +80,7 @@ final class JukeBoxListenerTest {
     TestServer.reset();
     this.sandbox = mock(MCAVSandbox.class);
     when(this.sandbox.getDataPath()).thenReturn(this.folder);
-    this.listener = new JukeBoxListener(this.sandbox);
+    this.listener = new JukeboxListener(this.sandbox);
     this.isoFolder = this.folder.resolve(ISO_FOLDER_NAME);
     this.player = mock(Player.class);
     when(this.player.getName()).thenReturn("Steve");
@@ -95,7 +95,7 @@ final class JukeBoxListenerTest {
   @Test
   void shouldRegisterItselfWhenStarted() {
     this.listener.start();
-    final PluginManager pluginManager = TestServer.pluginManager();
+    final PluginManager pluginManager = TestServer.getPluginManager();
     verify(pluginManager).registerEvents(this.listener, this.sandbox);
   }
 
@@ -197,12 +197,12 @@ final class JukeBoxListenerTest {
   }
 
   private RegisteredListener registered() throws NoSuchMethodException {
-    final EventHandler handler = JukeBoxListener.class
+    final EventHandler handler = JukeboxListener.class
       .getMethod("onJukeboxInteract", PlayerInteractEvent.class)
       .getAnnotation(EventHandler.class);
     return new RegisteredListener(
       this.listener,
-      (listener, event) -> ((JukeBoxListener) listener).onJukeboxInteract((PlayerInteractEvent) event),
+      (listener, event) -> ((JukeboxListener) listener).onJukeboxInteract((PlayerInteractEvent) event),
       handler.priority(),
       this.sandbox,
       false
@@ -263,7 +263,7 @@ final class JukeBoxListenerTest {
 
   @Test
   void shouldRefuseNullArguments() {
-    assertThrows(NullPointerException.class, () -> new JukeBoxListener(null));
+    assertThrows(NullPointerException.class, () -> new JukeboxListener(null));
     assertThrows(NullPointerException.class, () -> this.listener.onJukeboxInteract(null));
   }
 

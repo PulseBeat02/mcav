@@ -66,7 +66,7 @@ import org.springframework.web.socket.WebSocketSession;
 
 final class SpringHttpResultTest {
 
-  private static final long TIMEOUT_MILLISECONDS = 10_000;
+  private static final long TIMEOUT_MILLISECONDS = 10_000L;
 
   private static final int LAST_CHUNK_VALUE = 20;
 
@@ -81,12 +81,21 @@ final class SpringHttpResultTest {
   private static final String BUNDLED_PAGE_LOCATION = "classpath:/mcav/http/website/";
   private static final String PATH_SEPARATOR = "/";
 
+  private static final String EXISTING_DIRECTORY_NAME = "out";
+  private static final String MISSING_DIRECTORY_NAME = "missing";
+
+  private static final String FILE_NAME = "clip.mp4";
+
   private static final String SESSION_ID = "listener";
   private static final String BROKEN_SESSION_ID = "broken";
 
+  private static final String BROKEN_PIPE_MESSAGE = "broken pipe!";
+
   private static final int SAMPLE_BYTES = 4;
 
-  private static final long SLOW_CLOSE_MILLISECONDS = 200;
+  private static final long SLOW_CLOSE_MILLISECONDS = 200L;
+
+  private static final String READ_ONLY_FILTER_MESSAGE = "the filter only reads the sample, so it reports no change";
 
   @TempDir
   private Path directory;
@@ -151,7 +160,7 @@ final class SpringHttpResultTest {
     final String bundled = http.staticLocation(null);
     assertEquals(BUNDLED_PAGE_LOCATION, bundled);
 
-    final Path existing = this.directory.resolve("out");
+    final Path existing = this.directory.resolve(EXISTING_DIRECTORY_NAME);
     Files.createDirectory(existing);
     final String existingLocation = http.staticLocation(existing);
     final URI existingUri = existing.toUri();
@@ -160,11 +169,12 @@ final class SpringHttpResultTest {
     assertEquals(existingText, existingLocation);
     assertTrue(endsWithASlash);
 
-    final Path missing = this.directory.resolve("missing");
+    final Path missing = this.directory.resolve(MISSING_DIRECTORY_NAME);
     final String missingLocation = http.staticLocation(missing);
     final URI missingUri = missing.toUri();
     final String missingText = missingUri.toString();
-    assertEquals(missingText + PATH_SEPARATOR, missingLocation);
+    final String expectedMissingLocation = "%s%s".formatted(missingText, PATH_SEPARATOR);
+    assertEquals(expectedMissingLocation, missingLocation);
   }
 
   @Test
@@ -263,7 +273,7 @@ final class SpringHttpResultTest {
     final ByteBuffer samples = ByteBuffer.allocate(SAMPLE_BYTES);
     final boolean changed = http.applyFilter(samples, this.metadata);
     final int count = http.getListenerCount();
-    assertFalse(changed, "the filter only reads the sample, so it reports no change");
+    assertFalse(changed, READ_ONLY_FILTER_MESSAGE);
     assertEquals(0, count);
   }
 
@@ -292,7 +302,7 @@ final class SpringHttpResultTest {
     samples.position(2);
     final boolean changed = http.applyFilter(samples, this.metadata);
     final int position = samples.position();
-    assertFalse(changed, "the filter only reads the sample, so it reports no change");
+    assertFalse(changed, READ_ONLY_FILTER_MESSAGE);
     assertEquals(2, position);
 
     final byte[] expected = { 1, 2, 3, 4 };
@@ -485,7 +495,7 @@ final class SpringHttpResultTest {
     final ByteBuffer samples = ByteBuffer.allocate(SAMPLE_BYTES);
     final boolean changed = http.applyFilter(samples, this.metadata);
     final int count = http.getListenerCount();
-    assertFalse(changed, "the filter only reads the sample, so it reports no change");
+    assertFalse(changed, READ_ONLY_FILTER_MESSAGE);
     assertEquals(0, count);
     WebSocketSessionUtils.verifyClosed(closed, CloseStatus.SESSION_NOT_RELIABLE);
   }
@@ -496,7 +506,7 @@ final class SpringHttpResultTest {
     final WebSocketSession broken = Mockito.mock(WebSocketSession.class);
     Mockito.when(broken.getId()).thenReturn(BROKEN_SESSION_ID);
     Mockito.when(broken.isOpen()).thenReturn(true);
-    Mockito.doThrow(new IOException("broken pipe!")).when(broken).sendMessage(ArgumentMatchers.any());
+    Mockito.doThrow(new IOException(BROKEN_PIPE_MESSAGE)).when(broken).sendMessage(ArgumentMatchers.any());
     http.addListener(broken);
     final ByteBuffer samples = ByteBuffer.allocate(SAMPLE_BYTES);
     http.applyFilter(samples, this.metadata);
@@ -542,7 +552,7 @@ final class SpringHttpResultTest {
     final boolean ready = replaced.await(TIMEOUT_MILLISECONDS, TimeUnit.MILLISECONDS);
     assertTrue(ready);
 
-    throw new IOException("broken pipe!");
+    throw new IOException(BROKEN_PIPE_MESSAGE);
   }
 
   @Test
@@ -551,14 +561,14 @@ final class SpringHttpResultTest {
     final MediaInformation initial = http.getCurrentMedia();
     assertSame(MediaInformation.EMPTY, initial);
 
-    final UrlParseDump dump = UrlParseDumpUtils.completeDump();
+    final UrlParseDump dump = UrlParseDumpUtils.createCompleteDump();
     http.setCurrentMedia(dump);
     final MediaInformation fromDump = http.getCurrentMedia();
     final Map<String, Object> json = fromDump.toJson();
     final Object title = json.get("title");
     assertEquals("Song", title);
 
-    final MediaInformation titled = MediaInformation.titled("clip.mp4");
+    final MediaInformation titled = MediaInformation.titled(FILE_NAME);
     http.setCurrentMedia(titled);
     final MediaInformation current = http.getCurrentMedia();
     assertSame(titled, current);

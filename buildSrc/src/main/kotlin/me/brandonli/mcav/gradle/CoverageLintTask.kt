@@ -39,14 +39,6 @@ import org.gradle.api.tasks.TaskAction
  */
 abstract class CoverageLintTask : DefaultTask() {
 
-    private companion object {
-
-        const val FILTERED: String =
-            "Skipped coverageLint of {}, since the tests ran with a filter and the report covers only part of the code."
-        const val GAP: String = "{}"
-        const val STALE_EXCEPTION: String = "{}: warning: '{} | {}' matches no uncovered line, so remove it."
-    }
-
     /**
      * The JaCoCo XML report of the module's tests.
      */
@@ -84,11 +76,15 @@ abstract class CoverageLintTask : DefaultTask() {
      *
      * @throws GradleException          if a line is not fully covered or an exception is stale
      * @throws IllegalArgumentException if an entry of the exceptions file is malformed
+     * @throws org.xml.sax.SAXException if the JaCoCo report is not well-formed XML
      */
     @TaskAction
     fun lint(): Unit {
         if (this.testsFiltered.get()) {
-            this.logger.warn(FILTERED, this.projectPath.get())
+            this.logger.warn(
+                "Skipped coverageLint of {}, since the tests ran with a filter and the report covers only part of the code.",
+                this.projectPath.get()
+            )
             return
         }
 
@@ -97,10 +93,19 @@ abstract class CoverageLintTask : DefaultTask() {
         val reportFile: File = this.report.singleFile
         val sources: File = this.sourceDirectory.get().asFile
         val gaps: List<String> = CoverageReport.findGaps(reportFile, sources, exceptions)
-        gaps.forEach { gap -> this.logger.error(GAP, gap) }
+        for (gap in gaps) {
+            this.logger.error("{}", gap)
+        }
 
         val staleExceptions: List<CoverageException> = exceptions.filterNot { it.used }
-        staleExceptions.forEach { exception -> this.logger.error(STALE_EXCEPTION, exceptionFile, exception.path, exception.sourceLine) }
+        for (staleException in staleExceptions) {
+            this.logger.error(
+                "{}: error: '{} | {}' matches no uncovered line, so remove it.",
+                exceptionFile,
+                staleException.path,
+                staleException.sourceLine
+            )
+        }
 
         if (gaps.isNotEmpty() || staleExceptions.isNotEmpty()) {
             val message: String =

@@ -66,8 +66,8 @@ public abstract class MatVideoFilter implements VideoFilter {
   public boolean applyFilter(final ImageBuffer samples, final OriginalVideoMetadata metadata) {
     Preconditions.checkNotNull(samples, "Samples must not be null!");
 
-    if (samples instanceof final MatImageBuffer matBuffer) {
-      return this.modifyImage(matBuffer);
+    if (samples instanceof final MatImageBuffer matrixBuffer) {
+      return this.modifyImage(matrixBuffer);
     }
 
     return this.applyToTemporaryMat(samples);
@@ -85,10 +85,10 @@ public abstract class MatVideoFilter implements VideoFilter {
     // that starts past zero into one that is too long, and the image buffer below then rejects it.
     final ByteBuffer pixels = data.slice();
     try (final ImageBuffer temporary = ImageBuffer.bytes(pixels, width, height)) {
-      final MatImageBuffer temporaryMat = (MatImageBuffer) temporary;
-      final boolean modified = this.modifyImage(temporaryMat);
+      final MatImageBuffer temporaryMatrixBuffer = (MatImageBuffer) temporary;
+      final boolean modified = this.modifyImage(temporaryMatrixBuffer);
       if (modified) {
-        writeBack(temporaryMat, samples);
+        writeBack(temporaryMatrixBuffer, samples);
       }
 
       return modified;
@@ -106,18 +106,18 @@ public abstract class MatVideoFilter implements VideoFilter {
   // overlay, beyond the lifetime of the buffer it came from. Images that are not backed by OpenCV are converted through
   // a temporary buffer, which is released before this method returns.
   static Mat copyToMat(final ImageBuffer image) {
-    if (image instanceof final MatImageBuffer matBuffer) {
-      final Mat mat = matBuffer.getMat();
-      return mat.clone();
+    if (image instanceof final MatImageBuffer matrixBuffer) {
+      final Mat matrix = matrixBuffer.getMat();
+      return matrix.clone();
     }
 
     final int width = image.getWidth();
     final int height = image.getHeight();
     final int[] pixels = image.getPixels();
     try (final ImageBuffer converted = ImageBuffer.buffer(pixels, width, height)) {
-      final MatImageBuffer convertedMat = (MatImageBuffer) converted;
-      final Mat mat = convertedMat.getMat();
-      return mat.clone();
+      final MatImageBuffer convertedMatrixBuffer = (MatImageBuffer) converted;
+      final Mat matrix = convertedMatrixBuffer.getMat();
+      return matrix.clone();
     }
   }
 
@@ -130,8 +130,8 @@ public abstract class MatVideoFilter implements VideoFilter {
    * @since 1.0.0
    */
   protected boolean modifyImage(final MatImageBuffer image) {
-    final Mat mat = image.getMat();
-    final boolean modified = this.modifyMat(mat);
+    final Mat matrix = image.getMat();
+    final boolean modified = this.modifyMat(matrix);
     if (modified) {
       image.invalidateCache();
     }
@@ -143,9 +143,9 @@ public abstract class MatVideoFilter implements VideoFilter {
    * Applies the filter in place to the 8-bit BGR matrix of a frame. The matrix must keep its size and type;
    * filters that cannot do that override {@link #modifyImage(MatImageBuffer)} instead.
    *
-   * @param mat the matrix of the frame
+   * @param matrix the matrix of the frame
    * @return true if the matrix was modified, false if it was left untouched
    * @since 1.0.0
    */
-  protected abstract boolean modifyMat(final Mat mat);
+  protected abstract boolean modifyMat(final Mat matrix);
 }

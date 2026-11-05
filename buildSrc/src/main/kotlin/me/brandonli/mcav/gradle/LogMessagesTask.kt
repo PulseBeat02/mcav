@@ -25,12 +25,6 @@ import java.io.File
  */
 abstract class LogMessagesTask : JavaLintTask() {
 
-    private companion object {
-
-        const val CONCATENATED_MESSAGE: String =
-            "{}:{}: error: the message of {} joins strings with +; use SLF4J placeholders for the arguments instead."
-    }
-
     /**
      * Finds the concatenating log calls in [files] with [LogMessages] and reports each one to [reportViolation].
      *
@@ -41,7 +35,7 @@ abstract class LogMessagesTask : JavaLintTask() {
         for (file in files) {
             val source: String = file.readText()
             val messages: List<ConcatenatedLogMessage> = LogMessages.find(source)
-            messages.forEach { found -> reportViolation(file, found.line, listOf(found.call)) }
+            messages.forEach { reportViolation(file, it.line, listOf(it.call)) }
         }
     }
 
@@ -51,7 +45,7 @@ abstract class LogMessagesTask : JavaLintTask() {
      * @return the template
      */
     override fun diagnosticMessage(): String {
-        return CONCATENATED_MESSAGE
+        return "{}:{}: error: the message of {} joins strings with +; use SLF4J placeholders for the arguments instead."
     }
 
     /**

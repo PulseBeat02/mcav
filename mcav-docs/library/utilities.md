@@ -7,9 +7,9 @@ extra module.
 
 Every player hands its audio pipeline signed 16-bit little-endian PCM at 48 kHz with two interleaved channels,
 whatever the source format is (see `AudioFilter.SAMPLE_RATE`, `AudioFilter.CHANNELS` and `AudioFilter.FRAME_SIZE`).
-The audio helpers below take exactly that buffer, so the `samples` of an `AudioPipelineStep.of((samples, metadata) ->
-...)` filter can be passed to them directly. They read the buffer without changing its position, so the next steps
-of the pipeline still see every sample.
+The audio helpers below take exactly that buffer, so you can pass them the `samples` of an
+`AudioPipelineStep.of((samples, metadata) -> ...)` filter directly. They read the buffer without changing its
+position, so the next steps of the pipeline still see every sample.
 
 ```{note}
 A filter returns whether it changed the samples. The filters on this page only read them, so they return `false`;
@@ -37,7 +37,7 @@ The example below plays a file through the speakers of your computer in mono, ex
 it, which checks the downmix without a Minecraft server:
 
 ```java
-  public void playInMono() throws LineUnavailableException {
+  public void playInMono() {
     final MCAVApi api = MCAV.api();
     api.install();
 
@@ -47,18 +47,35 @@ it, which checks the downmix without a Minecraft server:
     final boolean signed = true;
     final boolean bigEndian = false;
     final AudioFormat format = new AudioFormat(sampleRate, sampleBits, monoChannels, signed, bigEndian);
-    final SourceDataLine line = AudioSystem.getSourceDataLine(format);
-    line.open(format);
+    final SourceDataLine line = this.openAudioLine(format);
     line.start();
 
     final AudioPipelineStep pipeline = AudioPipelineStep.of((samples, metadata) -> this.writeMono(line, samples));
     final VideoPlayerMultiplexer player = VideoPlayer.ffmpeg();
     final AudioAttachableCallback audio = player.getAudioAttachableCallback();
     audio.attach(pipeline);
+
     final String fileName = "video.mp4";
     final Path path = Path.of(fileName);
     final FileSource source = FileSource.path(path);
     player.start(source);
+
+    // ... once playback has ended
+    player.release();
+    line.drain();
+    line.close();
+  }
+
+  private SourceDataLine openAudioLine(final AudioFormat format) {
+    try {
+      final SourceDataLine line = AudioSystem.getSourceDataLine(format);
+      line.open(format);
+
+      return line;
+    } catch (final LineUnavailableException exception) {
+      final String message = "Could not open the audio output line!";
+      throw new IllegalStateException(message, exception);
+    }
   }
 
   private boolean writeMono(final SourceDataLine line, final ByteBuffer samples) {
@@ -83,7 +100,7 @@ counts, and sample formats with FFmpeg's libswresample, which is bundled with MC
 something other than the 48 kHz stereo audio of the pipeline, such as a speech recognizer at 16 kHz mono, a telephony
 bridge at 8 kHz, or an engine that mixes floating point samples.
 
-There are two factories. Both return a new resampler that the caller must close:
+There are two factories. Both return a new resampler that you must close:
 
 | Factory                                                                                                  | Input                                                   |
 |----------------------------------------------------------------------------------------------------------|---------------------------------------------------------|
@@ -92,29 +109,29 @@ There are two factories. Both return a new resampler that the caller must close:
 
 Sample rates are in hertz and must be positive, and channel counts must be between 1 and
 `AudioResampler.MAXIMUM_CHANNELS`, which is 8, the number of channels of a 7.1 layout. Otherwise the factories throw an
-`IllegalArgumentException`; a `null` format throws a `NullPointerException`, and an `IllegalStateException` is thrown
-if FFmpeg cannot set up the conversion. Channel counts map to FFmpeg's default layouts (mono, stereo, 2.1, quad, 5.0,
-5.1, 6.1, and 7.1). FFmpeg rematrixes channels according to their speaker positions; surround downmixing uses
-weighted contributions rather than an equal average of every channel.
+`IllegalArgumentException`; a `null` format throws a `NullPointerException`, and they throw an `MCAVException` if FFmpeg
+cannot set up the conversion. Channel counts map to FFmpeg's default layouts (mono, stereo, 2.1, quad, 5.0, 5.1, 6.1,
+and 7.1). FFmpeg rematrixes channels according to their speaker positions; surround downmixing uses weighted
+contributions rather than an equal average of every channel.
 
 The resampler has three methods:
 
 - `resample(ByteBuffer)` converts the samples between the position and the limit of the buffer without changing the
-  buffer, so the buffer of an audio pipeline can be passed directly. It returns the converted interleaved samples as a
+  buffer, so you can pass the buffer of an audio pipeline directly. It returns the converted interleaved samples as a
   `byte[]`, which can be empty. A trailing incomplete frame is ignored.
-- `flush()` returns the samples that earlier calls held back, then resets the resampler, so it can be reused for a new
+- `flush()` returns the samples that earlier calls held back, then resets the resampler, so you can reuse it for a new
   stream that does not continue the previous one. Changing the sample rate needs a few samples of look-ahead, so
   every call to `resample` holds back a short tail and emits it with the next call; the output of a single call can be
   slightly shorter than the rate ratio suggests, while the output of the whole stream is not. Call `flush()` at the end
   of a stream to get that tail.
 - `close()` frees the native resampling context. Samples still held back are discarded, so call `flush()` first to
-  keep them. Closing a closed resampler does nothing. `AudioResampler` implements `AutoCloseable`, so it can be used
+  keep them. Closing a closed resampler does nothing. `AudioResampler` implements `AutoCloseable`, so you can use it
   in a try-with-resources statement.
 
-After `close()`, `resample` and `flush` throw an `IllegalStateException`, which they also throw if FFmpeg fails to
-convert, drain, or reset. `isClosed()` tells whether the resampler has been closed, and `getInputSampleRate()`,
-`getInputChannels()`, `getInputFormat()`, `getOutputSampleRate()`, `getOutputChannels()`, and `getOutputFormat()`
-return the formats it was created with.
+After `close()`, `resample` and `flush` throw an `IllegalStateException`, and they throw an `MCAVException` if FFmpeg
+fails to convert, drain, or reset. `isClosed()` tells whether the resampler has been closed, and `getInputSampleRate()`,
+`getInputChannels()`, `getInputFormat()`, `getOutputSampleRate()`, `getOutputChannels()`, and `getOutputFormat()` return
+the formats it was created with.
 
 ```{warning}
 A resampler keeps state between calls and is not thread-safe: use it from one thread at a time. A filter of an audio
@@ -126,7 +143,7 @@ The example below converts the audio of a file to 16 kHz mono, the format of mos
 through the speakers of your computer, so you can hear the result:
 
 ```java
-  public void playAsSpeech() throws LineUnavailableException {
+  public void playAsSpeech() {
     final MCAVApi api = MCAV.api();
     api.install();
 
@@ -136,8 +153,7 @@ through the speakers of your computer, so you can hear the result:
     final boolean signed = true;
     final boolean bigEndian = false;
     final AudioFormat speechFormat = new AudioFormat(speechRate, sampleBits, monoChannels, signed, bigEndian);
-    final SourceDataLine line = AudioSystem.getSourceDataLine(speechFormat);
-    line.open(speechFormat);
+    final SourceDataLine line = this.openAudioLine(speechFormat);
     line.start();
 
     final AudioResampler resampler = AudioResampler.fromPipelineFormat(speechRate, monoChannels, SampleFormat.SIGNED_16_BIT);
@@ -145,18 +161,33 @@ through the speakers of your computer, so you can hear the result:
     final VideoPlayerMultiplexer player = VideoPlayer.ffmpeg();
     final AudioAttachableCallback audio = player.getAudioAttachableCallback();
     audio.attach(pipeline);
+
     final String fileName = "video.mp4";
     final Path path = Path.of(fileName);
     final FileSource source = FileSource.path(path);
     player.start(source);
-    // ... once playback has ended
 
+    // ... once playback has ended
     player.release();
+
     final byte[] remaining = resampler.flush();
     line.write(remaining, 0, remaining.length);
+
     resampler.close();
     line.drain();
     line.close();
+  }
+
+  private SourceDataLine openAudioLine(final AudioFormat format) {
+    try {
+      final SourceDataLine line = AudioSystem.getSourceDataLine(format);
+      line.open(format);
+
+      return line;
+    } catch (final LineUnavailableException exception) {
+      final String message = "Could not open the audio output line!";
+      throw new IllegalStateException(message, exception);
+    }
   }
 
   private boolean writeSpeech(final AudioResampler resampler, final SourceDataLine line, final ByteBuffer samples) {
@@ -199,8 +230,9 @@ into 48 kHz stereo floating point samples:
 
 `SampleFormat` is the encoding of a single sample. Every format is packed (interleaved): the samples of all channels
 of one frame follow each other, so a stereo stream is laid out as `left, right, left, right, ...`. Samples are stored in
-the native byte order of the platform, which is little-endian on every platform MCAV runs on (x86 and ARM), so the
-little-endian audio of the pipeline can be passed to `resample` as it is. Floating point formats use the nominal range
+the native byte order of the platform, which is little-endian on every platform MCAV runs on (x86 and ARM), so
+you can pass the little-endian audio of the pipeline to `resample` as it is. Floating point formats use the nominal
+range
 `-1.0` to `1.0`.
 
 | Constant         | Encoding                                                      | Bytes per sample |
@@ -218,8 +250,8 @@ packed `avutil.AV_SAMPLE_FMT_*` constant, for use with the FFmpeg bindings of Ja
 ## Extracting audio
 
 `AudioExtractor` in `me.brandonli.mcav.utils.ffmpeg` extracts the audio track of media into a standalone audio file
-with the FFmpeg program bundled with MCAV. The audio is written as stereo Ogg Vorbis, a compact and royalty-free format
-that is played by Minecraft resource packs, web browsers, game engines, and most media players. The
+with the FFmpeg program bundled with MCAV. It writes the audio as stereo Ogg Vorbis, a compact and royalty-free format
+that Minecraft resource packs, web browsers, game engines, and most media players play. The
 [audio resource packs](../bukkit/resourcepack.md) of the Bukkit module use it.
 
 `AudioExtractor.extractOggVorbis(Source)` transcodes the audio of the source, such as a file or a URL, to stereo Ogg
@@ -233,19 +265,20 @@ threads that must stay responsive, such as the main thread of a Minecraft server
 | Exception                     | Meaning                                                                                                   |
 |-------------------------------|-----------------------------------------------------------------------------------------------------------|
 | `NullPointerException`        | The source is `null`.                                                                                     |
-| `ProcessException`            | FFmpeg cannot be started, its output cannot be read, the thread was interrupted while waiting for it, or FFmpeg exited with a non-zero exit code, for example because the source does not exist, cannot be decoded, or has no audio track. |
+| `ProcessException`            | FFmpeg cannot be started, its output cannot be read, the thread is interrupted while waiting for it, or FFmpeg exits with a non-zero exit code, for example because the source does not exist, cannot be decoded, or has no audio track. |
 | `FileOperationException`      | The cache folder cannot be created.                                                                       |
 | `UnsatisfiedLinkError`        | The bundled FFmpeg is not available for this platform.                                                    |
 
 None of them is checked. `ProcessException` and `FileOperationException` extend `MCAVException`, the unchecked base of
 every MCAV failure, so `catch (MCAVException exception)` catches both. Catch
 `ProcessException` (in `me.brandonli.mcav.utils.runtime`) explicitly if you want to handle a source that FFmpeg cannot
-convert:
+convert. The `service` executor is yours: create it once and shut it down when your plugin stops:
 
 ```java
-  public void extractAudioInBackground() {
-    final ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
-    executor.execute(this::extractAudio);
+  private static final Logger LOGGER = LoggerFactory.getLogger(MyPlugin.class);
+
+  public void extractAudioInBackground(final ExecutorService service) {
+    final CompletableFuture<Void> _ = CompletableFuture.runAsync(this::extractAudio, service);
   }
 
   private void extractAudio() {
@@ -265,7 +298,7 @@ convert:
 
 `NetworkUtils` in `me.brandonli.mcav.utils.http` answers two questions: what the public address of this machine is,
 and whether a URL can still be downloaded. Every method blocks for at most a few seconds per request, so call them off
-threads that must stay responsive. They never throw because of network failures; a failure is reported as an empty
+threads that must stay responsive. They never throw because of network failures; they report a failure as an empty
 result or `false` instead. If the calling thread is interrupted while waiting, the method gives up and the interrupt
 flag of the thread stays set.
 
@@ -282,7 +315,7 @@ flag of the thread stays set.
   not an absolute `http` or `https` URI with a host, when the server cannot be reached, or when the thread is
   interrupted, and throws a `NullPointerException` if the URI is `null`.
 
-Both lookups return an empty optional if the service cannot be reached, fails, or answers with anything but an IP
+Both lookups return an empty `Optional` if the service cannot be reached, fails, or answers with anything but an IP
 address. The results are not cached, so every call sends a request.
 
 A typical use is telling players where to reach a server that runs next to your plugin, such as the
@@ -316,9 +349,11 @@ thread of your own, and must keep running after a failure without hiding the fai
 as usual:
 
 ```java
-  private void renderFrameSafely() {
+  private static final Logger LOGGER = LoggerFactory.getLogger(MyPlugin.class);
+
+  private void renderFrameSafely(final Runnable renderer) {
     try {
-      this.renderFrame();
+      renderer.run();
     } catch (final RuntimeException | Error exception) {
       ThrowableUtils.throwIfFatal(exception);
       LOGGER.error("Rendering a frame failed, skipping it.", exception);

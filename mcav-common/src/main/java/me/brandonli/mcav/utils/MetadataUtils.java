@@ -39,8 +39,11 @@ public final class MetadataUtils {
 
   private static final String UNKNOWN_CODEC = "unknown";
 
+  private static final String SOURCE_NULL_MESSAGE = "Source must not be null!";
+
   private MetadataUtils() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   /**
@@ -54,7 +57,7 @@ public final class MetadataUtils {
    * @since 1.0.0
    */
   public static OriginalVideoMetadata parseVideoMetadata(final Source source) {
-    Preconditions.checkNotNull(source, "Source must not be null!");
+    Preconditions.checkNotNull(source, SOURCE_NULL_MESSAGE);
 
     final String resource = source.getResource();
     try (final FFmpegFrameGrabber grabber = new FFmpegFrameGrabber(resource)) {
@@ -62,7 +65,7 @@ public final class MetadataUtils {
       return readVideoMetadata(grabber, resource);
     } catch (final FrameGrabber.Exception exception) {
       final String reason = exception.getMessage();
-      final String message = "Video metadata of %s could not be read because of \"%s\"!".formatted(resource, reason);
+      final String message = "Because of \"%s\", the video metadata of %s could not be read!".formatted(reason, resource);
       throw new InputMetadataException(message, exception);
     }
   }
@@ -71,7 +74,7 @@ public final class MetadataUtils {
     throws FrameGrabber.Exception {
     final int declaredWidth = grabber.getImageWidth();
     final double declaredFrameRate = grabber.getFrameRate();
-    final boolean declared = bothPositive(declaredWidth, declaredFrameRate);
+    final boolean declared = areBothPositive(declaredWidth, declaredFrameRate);
     if (!declared) {
       probe(grabber);
     }
@@ -80,7 +83,7 @@ public final class MetadataUtils {
     final int height = grabber.getImageHeight();
     final int bitrate = grabber.getVideoBitrate();
     final double frameRate = grabber.getFrameRate();
-    final boolean hasVideo = bothPositive(width, height);
+    final boolean hasVideo = areBothPositive(width, height);
     if (!hasVideo) {
       final String message = "Source %s has no video track!".formatted(resource);
       throw new InputMetadataException(message);
@@ -99,7 +102,7 @@ public final class MetadataUtils {
    * @since 1.0.0
    */
   public static OriginalAudioMetadata parseAudioMetadata(final Source source) {
-    Preconditions.checkNotNull(source, "Source must not be null!");
+    Preconditions.checkNotNull(source, SOURCE_NULL_MESSAGE);
 
     final String resource = source.getResource();
     try (final FFmpegFrameGrabber grabber = new FFmpegFrameGrabber(resource)) {
@@ -107,7 +110,7 @@ public final class MetadataUtils {
       return readAudioMetadata(grabber, resource);
     } catch (final FrameGrabber.Exception exception) {
       final String reason = exception.getMessage();
-      final String message = "Audio metadata of %s could not be read because of \"%s\"!".formatted(resource, reason);
+      final String message = "Because of \"%s\", the audio metadata of %s could not be read!".formatted(reason, resource);
       throw new InputMetadataException(message, exception);
     }
   }
@@ -116,7 +119,7 @@ public final class MetadataUtils {
     throws FrameGrabber.Exception {
     final int declaredSampleRate = grabber.getSampleRate();
     final int declaredChannels = grabber.getAudioChannels();
-    final boolean declared = bothPositive(declaredSampleRate, declaredChannels);
+    final boolean declared = areBothPositive(declaredSampleRate, declaredChannels);
     if (!declared) {
       probe(grabber);
     }
@@ -126,7 +129,7 @@ public final class MetadataUtils {
     final int sampleRate = grabber.getSampleRate();
     final int channels = grabber.getAudioChannels();
     final int format = grabber.getSampleFormat();
-    final boolean hasAudio = bothPositive(sampleRate, channels);
+    final boolean hasAudio = areBothPositive(sampleRate, channels);
     if (!hasAudio) {
       final String message = "Source %s has no audio track!".formatted(resource);
       throw new InputMetadataException(message);
@@ -136,7 +139,7 @@ public final class MetadataUtils {
     return OriginalAudioMetadata.of(codecName, bitrate, sampleRate, channels, format);
   }
 
-  private static boolean bothPositive(final double first, final double second) {
+  private static boolean areBothPositive(final double first, final double second) {
     final double smaller = Math.min(first, second);
     return smaller > 0;
   }

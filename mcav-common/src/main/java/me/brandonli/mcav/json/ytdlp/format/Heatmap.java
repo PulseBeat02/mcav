@@ -111,7 +111,7 @@ public final class Heatmap {
   }
 
   /**
-   * Returns a hash code built from the start time, the end time and the value of this heatmap section.
+   * Returns a hash code built from the start time, the end time and the value of this heat map entry.
    *
    * @return the hash code
    * @since 1.0.0
@@ -122,7 +122,7 @@ public final class Heatmap {
   }
 
   /**
-   * Returns a debugging representation with the start time, the end time and the value of this heatmap section.
+   * Returns a debugging representation with the start time, the end time and the value of this heat map entry.
    *
    * @return the representation
    * @since 1.0.0

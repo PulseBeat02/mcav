@@ -124,7 +124,7 @@ final class CaptureDevicesTest {
       CaptureDevices.Device.of(0, "Integrated Camera"),
       CaptureDevices.Device.of(2, "OBS Virtual Camera"),
       CaptureDevices.Device.of(10, UNNAMED_VIDEO_FOLDER_NAME),
-      CaptureDevices.Device.of(11, "x".repeat(CaptureDevices.MAXIMUM_NAME))
+      CaptureDevices.Device.of(11, "x".repeat(CaptureDevices.MAXIMUM_NAME_LENGTH))
     );
     assertEquals(expected, devices);
   }
@@ -175,7 +175,7 @@ final class CaptureDevicesTest {
   void shouldOpenADeviceWhenItsGrabberStartsAndCloseItAgain() throws IOException {
     final FrameGrabber grabber = mock(FrameGrabber.class);
 
-    final boolean opened = CaptureDevices.opens(_ -> grabber, 0);
+    final boolean opened = CaptureDevices.canOpen(_ -> grabber, 0);
     assertTrue(opened);
 
     verify(grabber).start();
@@ -184,7 +184,7 @@ final class CaptureDevicesTest {
 
   @Test
   void shouldNotOpenANumberWithoutADevice() {
-    final boolean opened = CaptureDevices.opens(63);
+    final boolean opened = CaptureDevices.canOpen(63);
     assertFalse(opened);
   }
 
@@ -233,7 +233,7 @@ final class CaptureDevicesTest {
       final CaptureDevices.Device device = devices.getFirst();
       assertEquals(expected, device);
 
-      final boolean captureDevicesOpened = CaptureDevices.opens(5);
+      final boolean captureDevicesOpened = CaptureDevices.canOpen(5);
       assertTrue(captureDevicesOpened);
 
       final List<OpenCVFrameGrabber> opened = grabbers.constructed();
@@ -254,7 +254,8 @@ final class CaptureDevicesTest {
 
     final CaptureDevices.Device expected = devices.get(1);
     final Optional<CaptureDevices.Device> found = CaptureDevices.find(devices, "12");
-    assertEquals(Optional.of(expected), found);
+    final Optional<CaptureDevices.Device> expectedDevice = Optional.of(expected);
+    assertEquals(expectedDevice, found);
 
     final Optional<CaptureDevices.Device> captureDevicesFound = CaptureDevices.find(devices, "012");
     assertEquals(Optional.empty(), captureDevicesFound);

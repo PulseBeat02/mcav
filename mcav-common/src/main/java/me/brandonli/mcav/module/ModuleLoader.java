@@ -50,40 +50,19 @@ public final class ModuleLoader {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(ModuleLoader.class);
 
+  private static final String MODULE_CLASS_NULL_MESSAGE = "Module class must not be null!";
+
   private final Map<Class<?>, MCAVModule> modules;
   private final List<MCAVModule> startOrder;
 
   /**
-   * Constructs a new loader without any modules. {@link me.brandonli.mcav.MCAV} creates one for you.
+   * Creates a loader without any modules. {@link me.brandonli.mcav.MCAV} creates one for you.
    *
    * @since 1.0.0
    */
   public ModuleLoader() {
     this.modules = new ConcurrentHashMap<>();
     this.startOrder = new ArrayList<>();
-  }
-
-  /**
-   * Returns a started module.
-   *
-   * @param moduleClass  the class of the module
-   * @param <ModuleType> the type of the module
-   * @return the module
-   * @throws ModuleException      if no module of that class was started
-   * @throws NullPointerException if {@code moduleClass} is null
-   * @since 1.0.0
-   */
-  public <ModuleType extends MCAVModule> ModuleType getModule(final Class<ModuleType> moduleClass) {
-    Preconditions.checkNotNull(moduleClass, "Module class must not be null!");
-
-    final MCAVModule module = this.modules.get(moduleClass);
-    if (module == null) {
-      final String name = moduleClass.getSimpleName();
-      final String message = "Module %s is not installed!".formatted(name);
-      throw new ModuleException(message);
-    }
-
-    return moduleClass.cast(module);
   }
 
   /**
@@ -104,11 +83,11 @@ public final class ModuleLoader {
     Preconditions.checkNotNull(moduleClasses, "Module classes must not be null!");
 
     for (final Class<?> moduleClass : moduleClasses) {
-      Preconditions.checkNotNull(moduleClass, "Module class must not be null!");
+      Preconditions.checkNotNull(moduleClass, MODULE_CLASS_NULL_MESSAGE);
       final boolean isModule = MCAVModule.class.isAssignableFrom(moduleClass);
       if (!isModule) {
         final String name = moduleClass.getSimpleName();
-        final String message = "%s does not implement MCAVModule!".formatted(name);
+        final String message = "Class %s does not implement MCAVModule!".formatted(name);
         throw new ModuleException(message);
       }
     }
@@ -120,39 +99,39 @@ public final class ModuleLoader {
       if (alreadyLoaded) {
         continue;
       }
-      final MCAVModule module = createModule(moduleClass, lookup, constructorType);
-      startModule(module);
+      final MCAVModule module = this.createModule(moduleClass, lookup, constructorType);
+      this.startModule(module);
       this.modules.put(moduleClass, module);
       this.startOrder.add(module);
     }
   }
 
-  private static void startModule(final MCAVModule module) {
+  private void startModule(final MCAVModule module) {
     final String moduleName = module.getModuleName();
     LOGGER.info("Module {} is starting.", moduleName);
     try {
       module.start();
     } catch (final ModuleException exception) {
-      stopAfterFailedStart(module, moduleName, exception);
+      this.stopAfterFailedStart(module, moduleName, exception);
       throw exception;
     } catch (final RuntimeException | Error exception) {
       ThrowableUtils.throwIfFatal(exception);
       final String reason = exception.getMessage();
       final String message = "Module %s failed with \"%s\" while starting!".formatted(moduleName, reason);
       final ModuleException failure = new ModuleException(message, exception);
-      stopAfterFailedStart(module, moduleName, failure);
+      this.stopAfterFailedStart(module, moduleName, failure);
       throw failure;
     }
   }
 
-  // Stops a module whose start failed, so whatever it acquired before failing is released. A failure to stop is logged
-  // and attached to the start failure instead of replacing it.
-  private static void stopAfterFailedStart(final MCAVModule module, final String moduleName, final ModuleException startFailure) {
+  private void stopAfterFailedStart(final MCAVModule module, final String moduleName, final ModuleException startFailure) {
     try {
       module.stop();
     } catch (final RuntimeException | Error exception) {
       ThrowableUtils.throwIfFatal(exception);
       LOGGER.error("Module {} failed to stop after it failed to start.", moduleName, exception);
+
+      // addSuppressed rejects self-suppression.
       final Equivalence<Object> identity = Equivalence.identity();
       if (!identity.equivalent(exception, startFailure)) {
         startFailure.addSuppressed(exception);
@@ -160,7 +139,7 @@ public final class ModuleLoader {
     }
   }
 
-  private static MCAVModule createModule(final Class<?> moduleClass, final MethodHandles.Lookup lookup, final MethodType constructorType) {
+  private MCAVModule createModule(final Class<?> moduleClass, final MethodHandles.Lookup lookup, final MethodType constructorType) {
     try {
       final MethodHandles.Lookup privateLookup = MethodHandles.privateLookupIn(moduleClass, lookup);
       final MethodHandle constructor = privateLookup.findConstructor(moduleClass, constructorType);
@@ -197,6 +176,29 @@ public final class ModuleLoader {
 
     this.startOrder.clear();
     this.modules.clear();
+  }
+
+  /**
+   * Returns a started module.
+   *
+   * @param moduleClass  the class of the module
+   * @param <ModuleType> the type of the module
+   * @return the module
+   * @throws ModuleException      if no module of that class was started
+   * @throws NullPointerException if {@code moduleClass} is null
+   * @since 1.0.0
+   */
+  public <ModuleType extends MCAVModule> ModuleType getModule(final Class<ModuleType> moduleClass) {
+    Preconditions.checkNotNull(moduleClass, MODULE_CLASS_NULL_MESSAGE);
+
+    final MCAVModule module = this.modules.get(moduleClass);
+    if (module == null) {
+      final String name = moduleClass.getSimpleName();
+      final String message = "Module %s is not installed!".formatted(name);
+      throw new ModuleException(message);
+    }
+
+    return moduleClass.cast(module);
   }
 
   /**

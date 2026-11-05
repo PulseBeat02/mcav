@@ -199,7 +199,7 @@ class ModuleClassesTest {
 
     private fun jar(name: String, vararg classes: String): File {
         val file: File = this.folder.resolve(name).toFile()
-        ZipOutputStream(file.outputStream()).use { zip -> this.writeEntries(zip, classes) }
+        ZipOutputStream(file.outputStream()).use { this.writeEntries(it, classes) }
 
         return file
     }

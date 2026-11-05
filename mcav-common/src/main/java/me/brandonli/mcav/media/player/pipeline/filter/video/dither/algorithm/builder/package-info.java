@@ -19,12 +19,14 @@
  * Configures dithering algorithms through mutable fluent builders.
  *
  * <p>Factories on {@link me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.DitherAlgorithm}
- * provide defaults for each algorithm family. Set a palette and family-specific parameters, then build a new
- * algorithm. Builders are not thread-safe and keep their configuration after building. Palette instances remain
- * shared; building a temporal algorithm creates fresh history for one player.
+ * return an {@link ErrorDiffusionDitherBuilder}, {@link RandomDitherBuilder}, {@link OrderedDitherBuilder} or
+ * {@link NearestDitherBuilder}, each a {@link DitherAlgorithmBuilder} with the defaults of its algorithm family. Set
+ * a palette and family-specific parameters, then build a new algorithm. Builders are not thread-safe and keep their
+ * configuration after building. Palette instances remain shared; building a temporal algorithm creates fresh history
+ * for one player.
  *
  * <p>Setters validate inputs immediately, including temporal settings even when another algorithm is selected.
- * The error threshold is a nonnegative sum of absolute RGB channel errors, and strengths are unitless factors.
+ * The error threshold is a sum of absolute RGB channel errors and must not be negative; strengths are unitless factors.
  * Builders and algorithms have no explicit resource-close operation; caller-supplied pools remain caller-owned.
  *
  * <p>Reference parameters and return values are non-null unless marked {@code @Nullable};

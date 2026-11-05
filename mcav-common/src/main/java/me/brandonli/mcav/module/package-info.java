@@ -16,7 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 /**
- * Defines optional mcav integrations and their startup/shutdown lifecycle.
+ * Defines optional MCAV integrations and their startup/shutdown lifecycle.
  *
  * <p>Pass {@link me.brandonli.mcav.module.MCAVModule} implementation classes to
  * {@link me.brandonli.mcav.MCAVApi#install(Class[])}. {@link me.brandonli.mcav.module.ModuleLoader} constructs
@@ -28,8 +28,7 @@
  * from other threads. Module registration does not imply ownership of every player or server created through
  * that module; each backend documents which resources its caller must release.
  *
- * <p>Reference parameters and return values are non-null unless marked {@code @Nullable};
- * nullable values and their meanings are described on the corresponding members.
+ * <p>Reference parameters and return values are non-null unless marked {@code @Nullable}.
  *
  * @since 1.0.0
  */

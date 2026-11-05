@@ -29,7 +29,7 @@ import me.brandonli.mcav.MCAVException;
  *
  * @since 1.0.0
  */
-public class PaletteLoadingException extends MCAVException {
+public final class PaletteLoadingException extends MCAVException {
 
   @Serial
   private static final long serialVersionUID = 3449385531808176439L;

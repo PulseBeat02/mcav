@@ -43,8 +43,8 @@ LATER_CAPTURE_TIME: int = 210
 
 FIRST_FRAME_LATENCY: int = 200
 
-LATENCY_KEY_PREFIX: str = "glass_to_glass_ms_"
-MEAN_LATENCY_KEY: str = LATENCY_KEY_PREFIX + "mean"
+LATENCY_KEY_PREFIX: str = "glass_to_glass_milliseconds_"
+MEAN_LATENCY_KEY: str = f"{LATENCY_KEY_PREFIX}mean"
 
 
 class LatencyTest(unittest.TestCase):
@@ -53,8 +53,8 @@ class LatencyTest(unittest.TestCase):
         displayed: float | int = result["displayed"]
         self.assertEqual(1, displayed)
 
-        for statistic in ("mean", "p50", "p95", "max"):
-            glass_to_glass: float | int = result[LATENCY_KEY_PREFIX + statistic]
+        for statistic in ("mean", "p50", "p95", "maximum"):
+            glass_to_glass: float | int = result[f"{LATENCY_KEY_PREFIX}{statistic}"]
             self.assertEqual(FIRST_FRAME_LATENCY, glass_to_glass)
 
     def test_should_not_replace_the_displayed_frame_with_an_unsent_occurrence(self) -> None:
@@ -80,9 +80,14 @@ class LatencyTest(unittest.TestCase):
             arguments: list[str] = [PROGRAM, RECORDING_PATH, CAPTURE_PATH, "--json", str(output)]
             events: list[dict[str, bool | float | int] | dict[str, bool | int]] = [event(0, 0, FIRST_SENT), later]
             captures: list[tuple[int, int]] = [(CAPTURE_TIME, FRAME_NUMBER), (LATER_CAPTURE_TIME, FRAME_NUMBER)]
-            with patch.object(sys, "argv", arguments), patch.object(mcv2_tools, "latency_events", return_value=events),\
-                    patch.object(mcv2_tools, "latency_captures", return_value=captures), redirect_stdout(StringIO()):
+            with (
+                patch.object(sys, "argv", arguments),
+                patch.object(mcv2_tools, "latency_events", return_value=events),
+                patch.object(mcv2_tools, "latency_captures", return_value=captures),
+                redirect_stdout(StringIO()),
+            ):
                 mcv2_tools.latency_main()
+
             return json.loads(output.read_text())
 
 

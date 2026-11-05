@@ -21,7 +21,7 @@ import java.util.Vector;
 import java.util.function.Consumer;
 import org.cef.browser.CefBrowser;
 import org.cef.browser.CefFrame;
-import org.cef.browser.McavOffscreenBrowser;
+import org.cef.browser.MCAVOffscreenBrowser;
 import org.cef.callback.CefAuthCallback;
 import org.cef.callback.CefBeforeDownloadCallback;
 import org.cef.callback.CefCallback;
@@ -43,24 +43,8 @@ import org.cef.handler.CefResourceRequestHandlerAdapter;
 import org.cef.misc.BoolRef;
 import org.cef.network.CefRequest;
 
-/**
- * What the browser allows the web content it shows to do. The content is untrusted and runs without the Chromium
- * sandbox, so the browser keeps everything else away from it:
- *
- * <ul>
- *   <li>navigation only to {@code http} and {@code https} pages, and requests only to the web schemes
- *   ({@link NavigationPolicy});</li>
- *   <li>no new windows: a popup or a link opened in a new tab is opened in place instead, if its address is allowed;</li>
- *   <li>no downloads, no file choosers, no context menu, no external programs for unknown schemes;</li>
- *   <li>JavaScript dialogs are dismissed at once ({@code alert} confirmed, {@code confirm} and {@code prompt}
- *   cancelled), and leaving a page is always allowed;</li>
- *   <li>no credentials for authentication prompts, and requests with certificate errors fail.</li>
- * </ul>
- *
- * <p>Everything refused is reported as a notice, and a crashed renderer as a failure. Load state and load errors of
- * the page are reported too. The addresses in these reports are those of {@link AddressText}, without the parts that
- * may hold secrets.
- */
+// What the untrusted page may do: it runs without the Chromium sandbox, so everything but web navigation is refused and
+// reported as a notice. Reported addresses go through AddressText, without the parts that may hold secrets.
 final class ContentPolicy
   implements
     CefLifeSpanHandler,
@@ -77,13 +61,6 @@ final class ContentPolicy
   private final Consumer<CefBrowser> created;
   private final CefResourceRequestHandler resourcePolicy;
 
-  /**
-   * Constructs the policy.
-   *
-   * @param events        receives what happens
-   * @param engineVersion the version of CEF, reported when the browser was created
-   * @param created       prepares the browser once it exists, before it loads the page
-   */
   ContentPolicy(final HelperEvents events, final String engineVersion, final Consumer<CefBrowser> created) {
     this.events = events;
     this.engineVersion = engineVersion;
@@ -91,63 +68,45 @@ final class ContentPolicy
     this.resourcePolicy = new ResourcePolicy(events);
   }
 
-  /**
-   * Opens the address of a popup in place, if it may be shown, instead of opening a window.
-   *
-   * @return true, so no popup opens
-   */
+  // opens the address of the popup in place, if it may be shown
   @Override
   public boolean onBeforePopup(final CefBrowser browser, final CefFrame frame, final String targetUrl, final String targetFrameName) {
     this.openInPlace(browser, targetUrl);
+
     return true;
   }
 
   private void openInPlace(final CefBrowser browser, final String targetUrl) {
-    final boolean allowed = NavigationPolicy.allowsNavigation(targetUrl, true);
+    final boolean allowed = NavigationPolicy.allowsNavigation(targetUrl, FrameKind.MAIN);
     if (allowed) {
       browser.loadURL(targetUrl);
-      this.events.onNotice("Opened a new window in place: " + AddressText.describe(targetUrl));
+
+      final String address = AddressText.describe(targetUrl);
+      this.events.onNotice("Opened the new window %s in place.".formatted(address));
     } else {
-      this.events.onNotice("Refused a new window: " + AddressText.describe(targetUrl));
+      final String address = AddressText.describe(targetUrl);
+      this.events.onNotice("The new window %s was refused.".formatted(address));
     }
   }
 
-  /**
-   * Prepares the new browser, before it loads the page, and reports that it was created.
-   */
   @Override
   public void onAfterCreated(final CefBrowser browser) {
     this.created.accept(browser);
     this.events.onReady(this.engineVersion);
   }
 
-  /**
-   * Does nothing; the browser has no parent window.
-   */
   @Override
   public void onAfterParentChanged(final CefBrowser browser) {}
 
-  /**
-   * Lets the browser decide, which closes it only when the helper allowed it; a page cannot close its browser.
-   *
-   * @return false if the close goes ahead
-   */
+  // a page cannot close its browser; only the helper can
   @Override
   public boolean doClose(final CefBrowser browser) {
     return browser.doClose();
   }
 
-  /**
-   * Does nothing; the client cleans up after the browser.
-   */
   @Override
   public void onBeforeClose(final CefBrowser browser) {}
 
-  /**
-   * Cancels a navigation of the page to an address it may not show, or of a frame to one frames may not show.
-   *
-   * @return true to cancel the navigation
-   */
   @Override
   public boolean onBeforeBrowse(
     final CefBrowser browser,
@@ -158,31 +117,26 @@ final class ContentPolicy
   ) {
     final String url = request.getURL();
     final boolean mainFrame = frame.isMain();
-    final boolean allowed = NavigationPolicy.allowsNavigation(url, mainFrame);
+    final FrameKind kind = mainFrame ? FrameKind.MAIN : FrameKind.CHILD;
+    final boolean allowed = NavigationPolicy.allowsNavigation(url, kind);
     if (!allowed) {
-      this.events.onNotice("Refused a navigation to " + AddressText.describe(url));
+      final String address = AddressText.describe(url);
+      this.events.onNotice("The navigation to %s was refused.".formatted(address));
     }
+
     return !allowed;
   }
 
-  /**
-   * Opens a link meant for a new tab in place, if a click or a key opened it and its address may be shown.
-   *
-   * @return true, so no tab opens
-   */
+  // in place, as popups are
   @Override
   public boolean onOpenURLFromTab(final CefBrowser browser, final CefFrame frame, final String targetUrl, final boolean isUserGesture) {
     if (isUserGesture) {
       this.openInPlace(browser, targetUrl);
     }
+
     return true;
   }
 
-  /**
-   * Gets the policy of every request.
-   *
-   * @return the resource policy
-   */
   @Override
   public CefResourceRequestHandler getResourceRequestHandler(
     final CefBrowser browser,
@@ -196,11 +150,6 @@ final class ContentPolicy
     return this.resourcePolicy;
   }
 
-  /**
-   * Refuses to answer an authentication prompt, which fails the request.
-   *
-   * @return false
-   */
   @Override
   public boolean getAuthCredentials(
     final CefBrowser browser,
@@ -212,29 +161,25 @@ final class ContentPolicy
     final String scheme,
     final CefAuthCallback callback
   ) {
-    this.events.onNotice("Refused to log in to " + host);
+    this.events.onNotice("The login to %s was refused.".formatted(host));
+
     return false;
   }
 
-  /**
-   * Fails a request whose certificate is not valid, as a browser without a user must.
-   *
-   * @return false
-   */
+  // no user can accept a bad certificate
   @Override
   public boolean onCertificateError(
     final CefBrowser browser,
-    final CefLoadHandler.ErrorCode certError,
+    final CefLoadHandler.ErrorCode certificateError,
     final String requestUrl,
     final CefCallback callback
   ) {
-    this.events.onNotice("Refused an invalid certificate of " + AddressText.describe(requestUrl));
+    final String address = AddressText.describe(requestUrl);
+    this.events.onNotice("The invalid certificate of %s was refused.".formatted(address));
+
     return false;
   }
 
-  /**
-   * Reports that the renderer of the page ended, which leaves nothing to show.
-   */
   @Override
   public void onRenderProcessTerminated(
     final CefBrowser browser,
@@ -242,14 +187,9 @@ final class ContentPolicy
     final int errorCode,
     final String errorString
   ) {
-    this.events.onFailure("The renderer of the page ended: " + status + " (" + errorCode + ")");
+    this.events.onFailure("Status %s (error code %s) ended the renderer of the page".formatted(status, errorCode));
   }
 
-  /**
-   * Dismisses a JavaScript dialog at once: an alert is confirmed, a confirmation and a prompt are cancelled.
-   *
-   * @return true, as the dialog was handled
-   */
   @Override
   public boolean onJSDialog(
     final CefBrowser browser,
@@ -262,15 +202,13 @@ final class ContentPolicy
   ) {
     final boolean isAlert = dialogType == CefJSDialogHandler.JSDialogType.JSDIALOGTYPE_ALERT;
     callback.Continue(isAlert, "");
-    this.events.onNotice("Dismissed a JavaScript dialog of " + AddressText.describe(originUrl));
+
+    final String address = AddressText.describe(originUrl);
+    this.events.onNotice("A JavaScript dialog of %s was dismissed.".formatted(address));
+
     return true;
   }
 
-  /**
-   * Allows leaving a page that asks whether to leave it.
-   *
-   * @return true, as the dialog was handled
-   */
   @Override
   public boolean onBeforeUnloadDialog(
     final CefBrowser browser,
@@ -279,26 +217,16 @@ final class ContentPolicy
     final CefJSDialogCallback callback
   ) {
     callback.Continue(true, "");
+
     return true;
   }
 
-  /**
-   * Does nothing; no dialog is ever shown.
-   */
   @Override
   public void onResetDialogState(final CefBrowser browser) {}
 
-  /**
-   * Does nothing; no dialog is ever shown.
-   */
   @Override
   public void onDialogClosed(final CefBrowser browser) {}
 
-  /**
-   * Refuses a download, which an off-screen browser cancels by default, and paints the view again.
-   *
-   * @return false for the default handling, which cancels the download
-   */
   @Override
   public boolean onBeforeDownload(
     final CefBrowser browser,
@@ -306,28 +234,21 @@ final class ContentPolicy
     final String suggestedName,
     final CefBeforeDownloadCallback callback
   ) {
-    this.events.onNotice("Refused a download of " + suggestedName);
-    // on macOS the view of a page that starts a download while it loads stays white after the refusal, until the page
-    // changes
-    if (browser instanceof final McavOffscreenBrowser offscreen) {
+    this.events.onNotice("The download of %s was refused.".formatted(suggestedName));
+
+    // on macOS a page that starts a download while it loads stays white after the refusal until it changes
+    if (browser instanceof final MCAVOffscreenBrowser offscreen) {
       offscreen.repaint();
     }
+
     return false;
   }
 
-  /**
-   * Cancels a download that started anyway.
-   */
   @Override
   public void onDownloadUpdated(final CefBrowser browser, final CefDownloadItem downloadItem, final CefDownloadItemCallback callback) {
     callback.cancel();
   }
 
-  /**
-   * Cancels a file chooser, so a page can neither read nor pick a file of the server.
-   *
-   * @return true, as the dialog was handled
-   */
   @Override
   public boolean onFileDialog(
     final CefBrowser browser,
@@ -340,48 +261,36 @@ final class ContentPolicy
     final CefFileDialogCallback callback
   ) {
     callback.Cancel();
-    this.events.onNotice("Refused a file chooser");
+    this.events.onNotice("Refused a file chooser.");
+
     return true;
   }
 
-  /**
-   * Removes every entry of the context menu, which could otherwise open developer tools or save files.
-   */
+  // the menu could open developer tools or save files
   @Override
   public void onBeforeContextMenu(
     final CefBrowser browser,
     final CefFrame frame,
-    final CefContextMenuParams params,
+    final CefContextMenuParams parameters,
     final CefMenuModel model
   ) {
     model.clear();
   }
 
-  /**
-   * Runs no command, as the menu is empty.
-   *
-   * @return false
-   */
   @Override
   public boolean onContextMenuCommand(
     final CefBrowser browser,
     final CefFrame frame,
-    final CefContextMenuParams params,
+    final CefContextMenuParams parameters,
     final int commandId,
     final int eventFlags
   ) {
     return false;
   }
 
-  /**
-   * Does nothing, as the menu is empty.
-   */
   @Override
   public void onContextMenuDismissed(final CefBrowser browser, final CefFrame frame) {}
 
-  /**
-   * Reports whether the page is loading.
-   */
   @Override
   public void onLoadingStateChange(final CefBrowser browser, final boolean isLoading, final boolean canGoBack, final boolean canGoForward) {
     final String url = browser.getURL();
@@ -390,11 +299,7 @@ final class ContentPolicy
     }
   }
 
-  /**
-   * Reports that a new page starts to load in the main frame, so its sound waits for a press on it. The load state is
-   * reported by {@link #onLoadingStateChange}; a frame inside the page, and a navigation within the same document,
-   * start no new page.
-   */
+  // the sound of a new page waits for a press on it; frames and same-document navigations start no new page
   @Override
   public void onLoadStart(final CefBrowser browser, final CefFrame frame, final CefRequest.TransitionType transitionType) {
     if (frame.isMain()) {
@@ -402,16 +307,10 @@ final class ContentPolicy
     }
   }
 
-  /**
-   * Does nothing; the load state is reported by {@link #onLoadingStateChange}.
-   */
   @Override
   public void onLoadEnd(final CefBrowser browser, final CefFrame frame, final int httpStatusCode) {}
 
-  /**
-   * Reports that the page failed to load. Failures of frames inside the page are left to the page, and so is an
-   * aborted load, which is a navigation that another one replaced or that the policy refused, as it reports itself.
-   */
+  // failures of frames are the page's own; an aborted load was replaced or refused, which reports itself
   @Override
   public void onLoadError(
     final CefBrowser browser,
@@ -427,9 +326,6 @@ final class ContentPolicy
     }
   }
 
-  /**
-   * The policy of every request: only the web schemes, and never an external program.
-   */
   private static final class ResourcePolicy extends CefResourceRequestHandlerAdapter {
 
     private final HelperEvents events;
@@ -438,24 +334,18 @@ final class ContentPolicy
       this.events = events;
     }
 
-    /**
-     * Cancels a request to a scheme a page may not load.
-     *
-     * @return true to cancel the request
-     */
     @Override
     public boolean onBeforeResourceLoad(final CefBrowser browser, final CefFrame frame, final CefRequest request) {
       final String url = request.getURL();
       final boolean allowed = NavigationPolicy.allowsRequest(url);
       if (!allowed) {
-        this.events.onNotice("Refused a request to " + AddressText.describe(url));
+        final String address = AddressText.describe(url);
+        this.events.onNotice("The request to %s was refused.".formatted(address));
       }
+
       return !allowed;
     }
 
-    /**
-     * Never hands an unknown scheme to a program of the operating system.
-     */
     @Override
     public void onProtocolExecution(
       final CefBrowser browser,
@@ -464,8 +354,10 @@ final class ContentPolicy
       final BoolRef allowOsExecution
     ) {
       allowOsExecution.set(false);
+
       final String url = request.getURL();
-      this.events.onNotice("Refused to open " + AddressText.describe(url) + " with another program");
+      final String address = AddressText.describe(url);
+      this.events.onNotice("Opening %s with another program was refused.".formatted(address));
     }
   }
 }

@@ -62,16 +62,16 @@ public interface ImageBuffer extends Image {
    * Wraps an OpenCV matrix. The matrix is converted to 8-bit BGR if it uses another layout, and the buffer takes
    * ownership of it.
    *
-   * @param mat the non-null, nonempty matrix with 1, 3 or 4 channels; ownership transfers on success
+   * @param matrix the non-null, nonempty matrix with 1, 3 or 4 channels; ownership transfers on success
    * @return the image buffer
    * @throws IllegalArgumentException if the matrix is empty or has a channel count other than 1, 3 or 4
-   * @throws NullPointerException     if {@code mat} is null
+   * @throws NullPointerException     if {@code matrix} is null
    * @since 1.0.0
    */
-  static ImageBuffer mat(final Mat mat) {
-    Preconditions.checkNotNull(mat, "Mat must not be null!");
+  static ImageBuffer mat(final Mat matrix) {
+    Preconditions.checkNotNull(matrix, "Mat must not be null!");
 
-    return new MatImageBuffer(mat);
+    return new MatImageBuffer(matrix);
   }
 
   /**
@@ -82,7 +82,7 @@ public interface ImageBuffer extends Image {
    * @param width  the width in pixels
    * @param height the height in pixels
    * @return the image buffer
-   * @throws IllegalArgumentException if dimensions are nonpositive, the packed BGR size exceeds
+   * @throws IllegalArgumentException if a dimension is not positive, the packed BGR size exceeds
    *                                  {@link Integer#MAX_VALUE}, or the byte count differs from that size
    * @throws NullPointerException     if {@code data} is null
    * @since 1.0.0
@@ -102,7 +102,7 @@ public interface ImageBuffer extends Image {
    * @param width  the width in pixels
    * @param height the height in pixels
    * @return the image buffer
-   * @throws IllegalArgumentException if dimensions are nonpositive, the packed BGR size exceeds
+   * @throws IllegalArgumentException if a dimension is not positive, the packed BGR size exceeds
    *                                  {@link Integer#MAX_VALUE}, or the byte count differs from that size
    * @throws NullPointerException     if {@code data} is null
    * @since 1.0.0
@@ -119,7 +119,7 @@ public interface ImageBuffer extends Image {
    * @param bytes the encoded image
    * @return the image buffer
    * @throws IllegalArgumentException if the bytes are not a supported image format, or their header declares more pixels
-   *                                  than the system property {@code mcav.image.maxPixels} allows (8192 by 8192 if it
+   *                                  than the system property {@code mcav.image.maximum_pixels} allows (8192 by 8192 if it
    *                                  is not set)
    * @throws NullPointerException     if {@code bytes} is null
    * @since 1.0.0
@@ -147,15 +147,15 @@ public interface ImageBuffer extends Image {
   }
 
   /**
-   * Downloads and decodes an image from a URL.
+   * Downloads and decodes an image from a URI.
    *
-   * @param source the URL of the image
+   * @param source the URI of the image
    * @return the image buffer
-   * @throws DownloadException       if the image cannot be downloaded, including when it is larger than
+   * @throws DownloadException        if the image cannot be downloaded, including when it is larger than
    *                                  {@link me.brandonli.mcav.utils.IoUtils#MAXIMUM_IMAGE_BYTES}
    * @throws FileOperationException   if the downloaded image cannot be moved into the cache folder
    * @throws IllegalArgumentException if the file is not a supported image format, or its header declares more
-   *                                  pixels than the system property {@code mcav.image.maxPixels} allows
+   *                                  pixels than the system property {@code mcav.image.maximum_pixels} allows
    * @throws NullPointerException     if {@code source} is null
    * @since 1.0.0
    */
@@ -171,7 +171,7 @@ public interface ImageBuffer extends Image {
    * @param source the image file
    * @return the image buffer
    * @throws IllegalArgumentException if the file does not exist or is not a supported image format, or its header
-   *                                  declares more pixels than the system property {@code mcav.image.maxPixels} allows
+   *                                  declares more pixels than the system property {@code mcav.image.maximum_pixels} allows
    * @throws NullPointerException     if {@code source} is null
    * @since 1.0.0
    */
@@ -190,7 +190,7 @@ public interface ImageBuffer extends Image {
    * @param width  the width in pixels
    * @param height the height in pixels
    * @return the image buffer
-   * @throws IllegalArgumentException if dimensions are nonpositive, the packed BGR size exceeds
+   * @throws IllegalArgumentException if a dimension is not positive, the packed BGR size exceeds
    *                                  {@link Integer#MAX_VALUE}, or the pixel count differs from the dimensions
    * @throws NullPointerException     if {@code data} is null
    * @since 1.0.0
@@ -226,6 +226,90 @@ public interface ImageBuffer extends Image {
    * @since 1.0.0
    */
   BufferedImage toBufferedImage();
+
+  /**
+   * Copies every pixel into a new array of packed ARGB integers, laid out row by row. Unlike {@link #getPixels()},
+   * the returned array belongs to the caller: it may be modified and kept, and it never changes when the image
+   * changes. Every call allocates and fills a new array, so prefer {@link #getPixels()} in code that only reads
+   * the pixels once per frame.
+   *
+   * @return a new array with the pixels of the image
+   * @throws IllegalStateException if the image was released
+   * @since 1.0.0
+   */
+  default int[] copyPixels() {
+    final int[] shared = this.getPixels();
+    return shared.clone();
+  }
+
+  /**
+   * Replaces the pixels of the image with raw 8-bit BGR pixels, reusing the native memory when the dimensions did
+   * not change. The bytes are copied from the current position of the buffer to its limit. Dimensions must be
+   * positive and their packed BGR representation must fit within {@link Integer#MAX_VALUE} bytes. The source
+   * position and limit are unchanged.
+   *
+   * @param data   the pixels, exactly {@code width * height * 3} bytes remaining
+   * @param width  the new width in pixels
+   * @param height the new height in pixels
+   * @throws NullPointerException     if {@code data} is null
+   * @throws IllegalArgumentException if a dimension is not positive, the packed BGR size exceeds
+   *                                  {@link Integer#MAX_VALUE}, or the input count differs from the dimensions
+   * @throws IllegalStateException    if the image was released
+   * @since 1.0.0
+   */
+  void updateData(final ByteBuffer data, final int width, final int height);
+
+  /**
+   * Replaces the pixels of the image with packed ARGB pixels, reusing the native memory when the dimensions did
+   * not change. The alpha channel is discarded. Dimensions must be positive and the resulting packed BGR
+   * representation must fit within {@link Integer#MAX_VALUE} bytes.
+   *
+   * @param pixels the pixels, exactly {@code width * height} integers laid out row by row
+   * @param width  the new width in pixels
+   * @param height the new height in pixels
+   * @throws NullPointerException     if {@code pixels} is null
+   * @throws IllegalArgumentException if a dimension is not positive, the packed BGR size exceeds
+   *                                  {@link Integer#MAX_VALUE}, or the input count differs from the dimensions
+   * @throws IllegalStateException    if the image was released
+   * @since 1.0.0
+   */
+  void updateArgb(final int[] pixels, final int width, final int height);
+
+  /**
+   * Discards the cached ARGB pixel array, so the next call to {@link #getPixels()} reads the image again. Video
+   * filters call this after modifying the image through {@link #getData()} or through OpenCV directly.
+   *
+   * @since 1.0.0
+   */
+  void invalidateCache();
+
+  /**
+   * Creates a deep copy of this image that is independent of it.
+   *
+   * @return a new image buffer with the same pixels
+   * @throws IllegalStateException if the image was released
+   * @since 1.0.0
+   */
+  ImageBuffer copy();
+
+  /**
+   * Releases the native memory of the image. Calling this method more than once has no effect, and every other
+   * operation accessing native pixels or dimensions throws {@link IllegalStateException} afterward.
+   * {@link #invalidateCache()} remains harmless. Previously returned native views must no longer be used.
+   *
+   * @since 1.0.0
+   */
+  void release();
+
+  /**
+   * Releases the native memory of the image, see {@link #release()}.
+   *
+   * @since 1.0.0
+   */
+  @Override
+  default void close() {
+    this.release();
+  }
 
   /**
    * Replaces the content of this buffer with a Java image, resizing the buffer if necessary.
@@ -285,21 +369,6 @@ public interface ImageBuffer extends Image {
   int[] getPixels();
 
   /**
-   * Copies every pixel into a new array of packed ARGB integers, laid out row by row. Unlike {@link #getPixels()},
-   * the returned array belongs to the caller: it may be modified and kept, and it never changes when the image
-   * changes. Every call allocates and fills a new array, so prefer {@link #getPixels()} in code that only reads
-   * the pixels once per frame.
-   *
-   * @return a new array with the pixels of the image
-   * @throws IllegalStateException if the image was released
-   * @since 1.0.0
-   */
-  default int[] copyPixels() {
-    final int[] shared = this.getPixels();
-    return shared.clone();
-  }
-
-  /**
    * Returns a read-only view of the shared pixels of {@link #getPixels()}, as packed ARGB integers laid out row by row.
    * The view does not copy the pixels, so it costs almost nothing, and every attempt to write through it throws a
    * {@link java.nio.ReadOnlyBufferException}. Hand it to code that must not be able to corrupt the shared array.
@@ -354,73 +423,4 @@ public interface ImageBuffer extends Image {
    * @since 1.0.0
    */
   ByteBuffer getData();
-
-  /**
-   * Replaces the pixels of the image with raw 8-bit BGR pixels, reusing the native memory when the dimensions did
-   * not change. The bytes are copied from the current position of the buffer to its limit. Dimensions must be
-   * positive and their packed BGR representation must fit within {@link Integer#MAX_VALUE} bytes. The source
-   * position and limit are unchanged.
-   *
-   * @param data   the pixels, exactly {@code width * height * 3} bytes remaining
-   * @param width  the new width in pixels
-   * @param height the new height in pixels
-   * @throws NullPointerException     if {@code data} is null
-   * @throws IllegalArgumentException if dimensions are nonpositive, the packed BGR size exceeds
-   *                                  {@link Integer#MAX_VALUE}, or the input count differs from the dimensions
-   * @throws IllegalStateException    if the image was released
-   * @since 1.0.0
-   */
-  void updateData(final ByteBuffer data, final int width, final int height);
-
-  /**
-   * Replaces the pixels of the image with packed ARGB pixels, reusing the native memory when the dimensions did
-   * not change. The alpha channel is discarded. Dimensions must be positive and the resulting packed BGR
-   * representation must fit within {@link Integer#MAX_VALUE} bytes.
-   *
-   * @param pixels the pixels, exactly {@code width * height} integers laid out row by row
-   * @param width  the new width in pixels
-   * @param height the new height in pixels
-   * @throws NullPointerException     if {@code pixels} is null
-   * @throws IllegalArgumentException if dimensions are nonpositive, the packed BGR size exceeds
-   *                                  {@link Integer#MAX_VALUE}, or the input count differs from the dimensions
-   * @throws IllegalStateException    if the image was released
-   * @since 1.0.0
-   */
-  void updateArgb(final int[] pixels, final int width, final int height);
-
-  /**
-   * Discards the cached ARGB pixel array, so the next call to {@link #getPixels()} reads the image again. Video
-   * filters call this after modifying the image through {@link #getData()} or through OpenCV directly.
-   *
-   * @since 1.0.0
-   */
-  void invalidateCache();
-
-  /**
-   * Creates a deep copy of this image that is independent of it.
-   *
-   * @return a new image buffer with the same pixels
-   * @throws IllegalStateException if the image was released
-   * @since 1.0.0
-   */
-  ImageBuffer copy();
-
-  /**
-   * Releases the native memory of the image. Calling this method more than once has no effect, and every other
-   * operation accessing native pixels or dimensions throws {@link IllegalStateException} afterward.
-   * {@link #invalidateCache()} remains harmless. Previously returned native views must no longer be used.
-   *
-   * @since 1.0.0
-   */
-  void release();
-
-  /**
-   * Releases the native memory of the image, see {@link #release()}.
-   *
-   * @since 1.0.0
-   */
-  @Override
-  default void close() {
-    this.release();
-  }
 }

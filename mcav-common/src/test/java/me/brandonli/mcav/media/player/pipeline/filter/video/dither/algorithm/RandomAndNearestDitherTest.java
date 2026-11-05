@@ -69,6 +69,10 @@ final class RandomAndNearestDitherTest {
   private static final int BLACK = 0xFF000000;
   private static final int WHITE = 0xFFFFFFFF;
 
+  private static final String IMAGE_NULL_MESSAGE = "Image must not be null!";
+
+  private static final String CHAINING_MESSAGE = "the builder returns itself for chaining";
+
   private static byte[] dither(final DitherAlgorithm algorithm, final int[] pixels, final int width) {
     final int height = pixels.length / width;
     try (final ImageBuffer image = ImageBuffer.buffer(pixels, width, height)) {
@@ -107,7 +111,7 @@ final class RandomAndNearestDitherTest {
     assertArrayEquals(firstIndices, secondIndices);
 
     final boolean halfWhite = ratio > 0.4 && ratio < 0.6;
-    assertTrue(halfWhite, "ratio " + ratio);
+    assertTrue(halfWhite, "ratio %s".formatted(ratio));
   }
 
   @Test
@@ -131,7 +135,7 @@ final class RandomAndNearestDitherTest {
     final RandomDither defaults = defaultBuilder.build();
     final DitherPalette palette = built.getPalette();
     final DitherPalette defaultPalette = defaults.getPalette();
-    assertSame(builder, weighted, "the builder returns itself for chaining");
+    assertSame(builder, weighted, CHAINING_MESSAGE);
     assertSame(builder, configured);
     assertSame(DitherTestImages.BLACK_WHITE, palette);
     assertSame(DitherPalette.DEFAULT_MAP_PALETTE, defaultPalette);
@@ -153,7 +157,7 @@ final class RandomAndNearestDitherTest {
     final UniformNoiseDither random = new UniformNoiseDither(DitherTestImages.BLACK_WHITE, 0);
     final NullPointerException missingImage = assertThrows(NullPointerException.class, () -> random.ditherIntoBytes(null));
     final String message = missingImage.getMessage();
-    assertEquals("Image must not be null!", message);
+    assertEquals(IMAGE_NULL_MESSAGE, message);
   }
 
   @Test
@@ -241,7 +245,7 @@ final class RandomAndNearestDitherTest {
   }
 
   @Test
-  void shouldSplitAtMidGrayWhenNearestDithering() {
+  void shouldSplitAtMiddleGrayWhenNearestDithering() {
     final int[] pixels = DitherTestImages.gradient(WIDE_IMAGE_WIDTH, WIDE_IMAGE_HEIGHT);
     final NearestDither nearest = new ColorMapNearestDither(DitherTestImages.BLACK_WHITE);
     final byte[] indices = dither(nearest, pixels, WIDE_IMAGE_WIDTH);
@@ -317,10 +321,10 @@ final class RandomAndNearestDitherTest {
     final NullPointerException missingImage = assertThrows(NullPointerException.class, () -> nearest.ditherIntoBytes(null));
     final NullPointerException missingParallelImage = assertThrows(NullPointerException.class, () -> nearest.ditherIntoBytes(null, pool));
     final String message = missingImage.getMessage();
-    assertEquals("Image must not be null!", message);
+    assertEquals(IMAGE_NULL_MESSAGE, message);
 
     final String parallelMessage = missingParallelImage.getMessage();
-    assertEquals("Image must not be null!", parallelMessage);
+    assertEquals(IMAGE_NULL_MESSAGE, parallelMessage);
   }
 
   @Test
@@ -332,8 +336,9 @@ final class RandomAndNearestDitherTest {
     nearest.dither(pixels, 2);
     final NearestDither defaults = DitherAlgorithm.nearestColor();
     final DitherPalette defaultPalette = defaults.getPalette();
-    assertSame(builder, configured, "the builder returns itself for chaining");
-    assertArrayEquals(new int[] { BLACK, WHITE }, pixels);
+    final int[] expected = new int[] { BLACK, WHITE };
+    assertSame(builder, configured, CHAINING_MESSAGE);
+    assertArrayEquals(expected, pixels);
     assertSame(DitherPalette.DEFAULT_MAP_PALETTE, defaultPalette);
     assertThrows(NullPointerException.class, () -> builder.withPalette(null));
   }
@@ -444,7 +449,8 @@ final class RandomAndNearestDitherTest {
     final int[] pixels = { 0xFF7D7D7D };
     random.dither(pixels, 1);
     verify(provider, times(3)).nextInt(-3, 4);
-    assertArrayEquals(new int[] { WHITE }, pixels, "125 plus the largest noise of 3 reaches the white half");
+    final int[] expected = new int[] { WHITE };
+    assertArrayEquals(expected, pixels, "125 plus the largest noise of 3 reaches the white half");
   }
 
   @Test

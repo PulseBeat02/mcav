@@ -44,7 +44,7 @@ public final class DefaultUriSource implements UriSource {
   /**
    * Returns the URI this source was created with.
    *
-   * @return the URL
+   * @return the URI
    * @since 1.0.0
    */
   @Override
@@ -53,10 +53,10 @@ public final class DefaultUriSource implements UriSource {
   }
 
   /**
-   * Checks whether the URL points directly at a media file, judged by its file extension when this source was created, rather than at a web
-   * page that has to be resolved first.
+   * Returns whether the URI points directly at a media file, judged by its file extension when this source was created, rather than at
+   * a web page that has to be resolved first.
    *
-   * @return true if the URL looks like a direct media link
+   * @return true if the URI looks like a direct media link
    * @since 1.0.0
    */
   @Override
@@ -65,7 +65,7 @@ public final class DefaultUriSource implements UriSource {
   }
 
   /**
-   * Returns whether {@code other} is an URI source with the same URI.
+   * Returns whether {@code other} is a URI source with the same URI.
    *
    * @param other the object to compare with
    * @return whether both match

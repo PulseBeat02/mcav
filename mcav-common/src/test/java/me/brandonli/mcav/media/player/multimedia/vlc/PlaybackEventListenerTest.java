@@ -188,7 +188,7 @@ final class PlaybackEventListenerTest {
     assertTrue(opened);
 
     final boolean quick = elapsed < QUICK_MILLISECONDS;
-    assertTrue(quick, "no waiting once playing, took " + elapsed);
+    assertTrue(quick, "no waiting once playing, took %s".formatted(elapsed));
     assertTrue(noErrors);
   }
 
@@ -204,14 +204,14 @@ final class PlaybackEventListenerTest {
     this.listener.error(this.mediaPlayer);
     final long elapsed = this.awaitMilliseconds(TIMEOUT_MILLISECONDS);
     final boolean opened = this.listener.awaitOpened(TIMEOUT_MILLISECONDS);
-    final List<String> expectedMessages = List.of("VLC playback of movie.mkv failed");
+    final List<String> expectedMessages = List.of("VLC playback of movie.mkv failed.");
     final Throwable error = this.errors.getFirst();
     final PlayerException exception = assertInstanceOf(PlayerException.class, error);
     final String reason = exception.getMessage();
     assertFalse(opened);
 
     final boolean quick = elapsed < QUICK_MILLISECONDS;
-    assertTrue(quick, "no waiting after an error, took " + elapsed);
+    assertTrue(quick, "no waiting after an error, took %s".formatted(elapsed));
     assertEquals(expectedMessages, this.messages);
     assertEquals("Media movie.mkv could not be played by VLC!", reason);
   }
@@ -242,10 +242,10 @@ final class PlaybackEventListenerTest {
     assertTrue(opened, "VLC may still open slow streams; later failures are reported");
 
     final boolean waitedTheTimeout = elapsed >= 90L;
-    assertTrue(waitedTheTimeout, "waited only " + elapsed);
+    assertTrue(waitedTheTimeout, "waited only %s".formatted(elapsed));
 
     final boolean waitedNotMuchLonger = elapsed < 2_000L;
-    assertTrue(waitedNotMuchLonger, "waited " + elapsed);
+    assertTrue(waitedNotMuchLonger, "waited %s".formatted(elapsed));
   }
 
   @Test

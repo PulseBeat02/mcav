@@ -38,29 +38,36 @@ import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-/**
- * Proves that a server needs no JVM option for the browser: {@link NoFlagsServerMain} runs in a child JVM started with
- * {@code -Djava.awt.headless=true} and nothing else, the class path given through the {@code CLASSPATH} variable, and
- * without {@code DISPLAY} or {@code WAYLAND_DISPLAY}, like a headless Minecraft server. No X server can be found on
- * its {@code PATH} either, as on a stock server: the browser must need none. It streams a local page, checks the
- * pixels of a frame, and disables and enables mcav in between.
- */
+// Runs NoFlagsServerMain like a stock headless Minecraft server: only -Djava.awt.headless=true, the class path in
+// CLASSPATH, no DISPLAY or WAYLAND_DISPLAY, and no X server on the PATH.
 @Tag("cef")
 class NoFlagsServerTest {
 
+  private static final String WITH_X_FOLDER = "with-x";
+  private static final String WINDOWS_JAVA_EXECUTABLE = "java.exe";
+  private static final String JAVA_EXECUTABLE = "java";
+  private static final String JAVA_BIN_FOLDER = "bin";
+  private static final String PLAIN_FOLDER = "plain";
+  private static final String X_SERVER_EXECUTABLE = "Xvfb";
+
+  private static final String JAVA_HOME_PROPERTY = "java.home";
+  private static final String OS_NAME_PROPERTY = "os.name";
+  private static final String CLASS_PATH_PROPERTY = "java.class.path";
+
   private static final long TIMEOUT_MINUTES = 15L;
+
   private static final List<String> X_SERVERS = List.of("Xvfb", "Xorg", "X", "Xwayland");
 
   @Test
-  void aHeadlessServerWithoutJvmOptionsStreamsAPageAndSurvivesADisableAndEnable() throws Exception {
+  void shouldStreamAPageOnAHeadlessServerWithoutJvmOptionsAndSurviveADisableAndEnable() throws Exception {
     try (final TestPages pages = TestPages.start()) {
-      final String executable = System.getProperty("os.name").startsWith("Windows") ? "java.exe" : "java";
-      final Path java = Path.of(System.getProperty("java.home"), "bin", executable);
+      final String executable = System.getProperty(OS_NAME_PROPERTY).startsWith("Windows") ? WINDOWS_JAVA_EXECUTABLE : JAVA_EXECUTABLE;
+      final Path java = Path.of(System.getProperty(JAVA_HOME_PROPERTY), JAVA_BIN_FOLDER, executable);
       final List<String> command = List.of(
         java.toString(),
-        "-Djava.awt.headless=true",
+        NoFlagsServerMain.HEADLESS_OPTION,
         NoFlagsServerMain.class.getName(),
-        pages.uri("/main").toString()
+        pages.uri(TestPages.MAIN_PATH).toString()
       );
       final ProcessBuilder builder = new ProcessBuilder(command);
       final Map<String, String> environment = builder.environment();
@@ -68,14 +75,14 @@ class NoFlagsServerTest {
       environment.remove("WAYLAND_DISPLAY");
       environment.remove("JAVA_TOOL_OPTIONS");
       environment.remove("JDK_JAVA_OPTIONS");
-      environment.put("CLASSPATH", System.getProperty("java.class.path"));
-      final String path = withoutXServers(environment.getOrDefault("PATH", ""));
+      environment.put("CLASSPATH", System.getProperty(CLASS_PATH_PROPERTY));
+      final String path = this.withoutXServers(environment.getOrDefault("PATH", ""));
       environment.put("PATH", path);
       System.out.println("PATH of the server: " + path);
       builder.redirectErrorStream(true);
       final Process process = builder.start();
       final ByteArrayOutputStream output = new ByteArrayOutputStream();
-      final Thread drain = new Thread(() -> copy(process.getInputStream(), output), "no-flags-output");
+      final Thread drain = new Thread(() -> this.copy(process.getInputStream(), output), "no-flags-output");
       drain.start();
       final boolean exited = process.waitFor(TIMEOUT_MINUTES, TimeUnit.MINUTES);
       if (!exited) {
@@ -85,36 +92,40 @@ class NoFlagsServerTest {
       final String text = output.toString(StandardCharsets.UTF_8);
       System.out.println(text);
       assertTrue(exited, "the server JVM finished in time");
-      assertEquals(0, process.exitValue(), text);
-      assertTrue(text.contains(NoFlagsServerMain.PASSED), text);
-      assertTrue(text.contains("round 2: disabled, no browser process left"), text);
+
+      final int exitCode = process.exitValue();
+      assertEquals(0, exitCode, text);
+
+      final boolean reportsPassed = text.contains(NoFlagsServerMain.PASSED);
+      assertTrue(reportsPassed, text);
+
+      final boolean reportsTheSecondRound = text.contains("round 2: disabled, no browser process left");
+      assertTrue(reportsTheSecondRound, text);
     }
   }
 
   @Test
-  void thePathOfTheServerLeavesOutEveryFolderWithAnXServer(@TempDir final Path folder) throws IOException {
-    final Path withX = Files.createDirectories(folder.resolve("with-x"));
-    final Path plain = Files.createDirectories(folder.resolve("plain"));
-    final Path server = Files.createFile(withX.resolve("Xvfb"));
-    assertTrue(server.toFile().setExecutable(true), "the fake X server is executable");
+  void shouldLeaveEveryFolderWithAnXServerOutOfThePathOfTheServer(@TempDir final Path folder) throws IOException {
+    final Path withX = Files.createDirectories(folder.resolve(WITH_X_FOLDER));
+    final Path plain = Files.createDirectories(folder.resolve(PLAIN_FOLDER));
+    final Path server = Files.createFile(withX.resolve(X_SERVER_EXECUTABLE));
+    final boolean madeExecutable = server.toFile().setExecutable(true);
+    assertTrue(madeExecutable, "the fake X server is executable");
+
     final String path = String.join(File.pathSeparator, withX.toString(), "", plain.toString());
-    assertEquals(plain.toString(), withoutXServers(path));
+    final String filteredPath = this.withoutXServers(path);
+    final String expectedFilteredPath = plain.toString();
+    assertEquals(expectedFilteredPath, filteredPath);
   }
 
-  /**
-   * Removes the folders that hold an X server from a {@code PATH}, and its empty entries.
-   *
-   * @param path the {@code PATH}
-   * @return the {@code PATH} without them
-   */
-  private static String withoutXServers(final String path) {
+  private String withoutXServers(final String path) {
     return Arrays.stream(path.split(File.pathSeparator))
       .filter(entry -> !entry.isEmpty())
       .filter(entry -> X_SERVERS.stream().noneMatch(name -> Files.isExecutable(Path.of(entry, name))))
       .collect(Collectors.joining(File.pathSeparator));
   }
 
-  private static void copy(final InputStream input, final ByteArrayOutputStream output) {
+  private void copy(final InputStream input, final ByteArrayOutputStream output) {
     try (input) {
       input.transferTo(output);
     } catch (final IOException exception) {

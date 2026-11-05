@@ -43,6 +43,8 @@ final class QemuHardwareValuesFuzzTest {
 
   private static final String PROPERTY_SEPARATOR = ",";
 
+  private static final int KEEP_TRAILING_EMPTY_PARTS = -1;
+
   @FuzzTest(maxDuration = "30s")
   void shouldNameNoFileOrRefuseEveryTypedValue(final byte[] input) {
     if (input.length == 0) {
@@ -58,15 +60,15 @@ final class QemuHardwareValuesFuzzTest {
     }
 
     final boolean matches = value.indexOf('/') >= 0 || value.indexOf('\\') >= 0;
-    assertFalse(matches, () -> "-" + option + " accepted a path: " + value);
+    assertFalse(matches, () -> "-%s accepted a path: %s".formatted(option, value));
 
-    for (final String part : value.split(PROPERTY_SEPARATOR, -1)) {
+    for (final String part : value.split(PROPERTY_SEPARATOR, KEEP_TRAILING_EMPTY_PARTS)) {
       final int equals = part.indexOf('=');
       if (equals > 0) {
         final String property = part.substring(0, equals);
 
         final boolean contained = FILE_PROPERTIES.contains(property);
-        assertFalse(contained, () -> "-" + option + " accepted the property " + property + " in " + value);
+        assertFalse(contained, () -> "-%s accepted the property %s in %s".formatted(option, property, value));
       }
     }
   }

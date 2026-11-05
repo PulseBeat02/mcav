@@ -38,7 +38,7 @@ import org.junit.jupiter.api.Test;
 
 final class OrderedDitherTest {
 
-  private static final int MID_GRAY = 0xFF808080;
+  private static final int MIDDLE_GRAY = 0xFF808080;
 
   private static final int GRADIENT_WIDTH = 64;
   private static final int TALL_GRADIENT_HEIGHT = 80;
@@ -58,12 +58,12 @@ final class OrderedDitherTest {
     final int levels
   ) {
     final int[][] matrix = thresholds.toArray();
-    assertEquals(rows, matrix.length, name + " rows");
+    assertEquals(rows, matrix.length, "%s rows".formatted(name));
 
     int minimum = Integer.MAX_VALUE;
     final Map<Integer, Integer> counts = new HashMap<>();
     for (final int[] row : matrix) {
-      assertEquals(columns, row.length, name + " columns");
+      assertEquals(columns, row.length, "%s columns".formatted(name));
       for (final int value : row) {
         minimum = Math.min(minimum, value);
         counts.merge(value, 1, Integer::sum);
@@ -72,12 +72,12 @@ final class OrderedDitherTest {
 
     final int repetitions = (rows * columns) / levels;
     final int distinct = counts.size();
-    assertEquals(levels, distinct, name + " levels");
+    assertEquals(levels, distinct, "%s levels".formatted(name));
 
     for (int level = 0; level < levels; level++) {
       final int value = minimum + level;
       final int count = counts.getOrDefault(value, 0);
-      assertEquals(repetitions, count, name + " occurrences of " + value);
+      assertEquals(repetitions, count, "%s occurrences of %s".formatted(name, value));
     }
   }
 
@@ -93,18 +93,18 @@ final class OrderedDitherTest {
     return configured.build();
   }
 
-  private static byte[] ditherMidGray(final BayerDither dither, final int width, final int height) {
+  private static byte[] ditherMiddleGray(final BayerDither dither, final int width, final int height) {
     final int[] gray = new int[width * height];
-    Arrays.fill(gray, MID_GRAY);
+    Arrays.fill(gray, MIDDLE_GRAY);
     try (final ImageBuffer grayImage = ImageBuffer.buffer(gray, width, height)) {
       return dither.ditherIntoBytes(grayImage);
     }
   }
 
   @Test
-  void shouldTurnMidGrayIntoAPatternOfHalfBlackHalfWhite() {
+  void shouldTurnMiddleGrayIntoAPatternOfHalfBlackHalfWhite() {
     final OrderedDither dither = blackWhite4x4();
-    final byte[] indices = ditherMidGray(dither, 64, 64);
+    final byte[] indices = ditherMiddleGray(dither, 64, 64);
     final double ratio = DitherTestImages.whiteRatio(indices);
     assertEquals(0.5, ratio, "every 4x4 tile of mid-gray is half black and half white");
   }
@@ -195,7 +195,8 @@ final class OrderedDitherTest {
     final int[] colors = DitherTestImages.BLACK_WHITE.getPalette();
     for (int index = 0; index < inPlace.length; index++) {
       final int ditheredColor = inPlace[index];
-      assertEquals(colors[indices[index]], ditheredColor);
+      final int expected = colors[indices[index]];
+      assertEquals(expected, ditheredColor);
     }
   }
 
@@ -212,7 +213,7 @@ final class OrderedDitherTest {
     final OrderedDitherBuilder builder = DitherAlgorithm.ordered();
     final OrderedDitherBuilder blackWhite = builder.withPalette(DitherTestImages.BLACK_WHITE);
     final BayerDither dither = blackWhite.build();
-    final byte[] indices = ditherMidGray(dither, 8, 8);
+    final byte[] indices = ditherMiddleGray(dither, 8, 8);
     final byte[] expected = new byte[64];
     for (int row = 0; row < 8; row++) {
       for (int column = 0; column < 8; column++) {
@@ -279,13 +280,16 @@ final class OrderedDitherTest {
     final float[][] doubledMatrix = doubled.getMatrix();
     final float strength = doubled.getStrength();
     final float[] firstRow = matrix[0];
-    assertArrayEquals(new float[] { -0.375f, 0.125f }, firstRow);
+    final float[] expectedFirstRow = new float[] { -0.375f, 0.125f };
+    assertArrayEquals(expectedFirstRow, firstRow);
 
     final float[] secondRow = matrix[1];
-    assertArrayEquals(new float[] { 0.375f, -0.125f }, secondRow);
+    final float[] expectedSecondRow = new float[] { 0.375f, -0.125f };
+    assertArrayEquals(expectedSecondRow, secondRow);
 
     final float[] doubledFirstRow = doubledMatrix[0];
-    assertArrayEquals(new float[] { -0.75f, 0.25f }, doubledFirstRow);
+    final float[] expectedDoubledFirstRow = new float[] { -0.75f, 0.25f };
+    assertArrayEquals(expectedDoubledFirstRow, doubledFirstRow);
     assertEquals(2.0f, strength);
   }
 
@@ -295,7 +299,8 @@ final class OrderedDitherTest {
     final PixelMapper mapper = PixelMapper.ofPixelMapper(thresholds, UNIT_STRENGTH);
     final float[][] matrix = mapper.getMatrix();
     final float[] firstRow = matrix[0];
-    assertArrayEquals(new float[] { -0.5f, 0x1.0p-33f, 0.5f }, firstRow);
+    final float[] expected = new float[] { -0.5f, 0x1.0p-33f, 0.5f };
+    assertArrayEquals(expected, firstRow);
   }
 
   @Test
@@ -303,10 +308,11 @@ final class OrderedDitherTest {
     final PixelMapper strong = PixelMapper.ofPixelMapper(BayerDither.NORMAL_2X2, 1e30f);
     final OrderedDither dither = new OrderedDither(DitherPalette.colors(0x000000, 0xFFFFFF), strong);
     final int[] gray = new int[SMALL_IMAGE_WIDTH * SMALL_IMAGE_HEIGHT];
-    Arrays.fill(gray, MID_GRAY);
+    Arrays.fill(gray, MIDDLE_GRAY);
     try (final ImageBuffer image = ImageBuffer.buffer(gray, SMALL_IMAGE_WIDTH, SMALL_IMAGE_HEIGHT)) {
       final byte[] indices = dither.ditherIntoBytes(image);
-      assertArrayEquals(new byte[] { 0, 1, 1, 0 }, indices, "a positive offset brightens to white, a negative one darkens to black");
+      final byte[] expected = new byte[] { 0, 1, 1, 0 };
+      assertArrayEquals(expected, indices, "a positive offset brightens to white, a negative one darkens to black");
     }
   }
 
@@ -327,7 +333,8 @@ final class OrderedDitherTest {
     // negative zero; the tolerance compares the numbers rather than the sign of a zero
     final float exactly = 0.0f;
     final float[] firstRow = matrix[0];
-    assertArrayEquals(new float[] { 0.0f, 0.0f }, firstRow, exactly, "and flattens every threshold of the pattern");
+    final float[] expected = new float[] { 0.0f, 0.0f };
+    assertArrayEquals(expected, firstRow, exactly, "and flattens every threshold of the pattern");
   }
 
   @Test
@@ -357,10 +364,12 @@ final class OrderedDitherTest {
       }
     }
 
-    assertArrayEquals(new int[][] { { 0 } }, one);
+    final int[][] expectedOne = new int[][] { { 0 } };
+    assertArrayEquals(expectedOne, one);
 
     final int[] firstRowOfFour = four[0];
-    assertArrayEquals(new int[] { 0, 8, 2, 10 }, firstRowOfFour);
+    final int[] expectedFirstRowOfFour = new int[] { 0, 8, 2, 10 };
+    assertArrayEquals(expectedFirstRowOfFour, firstRowOfFour);
 
     for (final boolean wasSeen : seen) {
       assertTrue(wasSeen, "every threshold appears exactly once");
@@ -377,7 +386,8 @@ final class OrderedDitherTest {
     final int[] pixels = { 0xFF5A5A5A, 0xFF5A5A5A, 0xFF5A5A5A, 0xFF5A5A5A };
     try (final ImageBuffer image = ImageBuffer.buffer(pixels, SMALL_IMAGE_WIDTH, SMALL_IMAGE_HEIGHT)) {
       final byte[] actual = dither.ditherIntoBytes(image);
-      assertArrayEquals(new byte[] { 0, 0, 1, 0 }, actual);
+      final byte[] expected = new byte[] { 0, 0, 1, 0 };
+      assertArrayEquals(expected, actual);
     }
   }
 
@@ -389,7 +399,8 @@ final class OrderedDitherTest {
     Arrays.fill(pixels, 0xFF6E6E6E);
     try (final ImageBuffer image = ImageBuffer.buffer(pixels, SMALL_IMAGE_WIDTH, SMALL_IMAGE_HEIGHT)) {
       final byte[] indices = dither.ditherIntoBytes(image);
-      assertArrayEquals(new byte[] { 0, 1, 1, 0 }, indices);
+      final byte[] expected = new byte[] { 0, 1, 1, 0 };
+      assertArrayEquals(expected, indices);
     }
   }
 
@@ -407,13 +418,16 @@ final class OrderedDitherTest {
     final ThresholdMatrix generatedEight = oneBasedBayerMatrix(8);
 
     final int[][] normalTwo = BayerDither.NORMAL_2X2.toArray();
-    assertArrayEquals(generatedTwo.toArray(), normalTwo, "NORMAL_2X2");
+    final int[][] expectedNormalTwo = generatedTwo.toArray();
+    assertArrayEquals(expectedNormalTwo, normalTwo, "NORMAL_2X2");
 
     final int[][] normalFour = BayerDither.NORMAL_4X4.toArray();
-    assertArrayEquals(generatedFour.toArray(), normalFour, "NORMAL_4X4");
+    final int[][] expectedNormalFour = generatedFour.toArray();
+    assertArrayEquals(expectedNormalFour, normalFour, "NORMAL_4X4");
 
     final int[][] normalEight = BayerDither.NORMAL_8X8.toArray();
-    assertArrayEquals(generatedEight.toArray(), normalEight, "NORMAL_8X8");
+    final int[][] expectedNormalEight = generatedEight.toArray();
+    assertArrayEquals(expectedNormalEight, normalEight, "NORMAL_8X8");
   }
 
   @Test

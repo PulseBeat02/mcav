@@ -68,7 +68,9 @@ import org.mockito.stubbing.Stubber;
 final class VlcInstallerTest {
 
   private static final String ZIP_NAME = "vlc-3.0.24-win64.zip";
-  private static final String ZIP_PATH = "/" + ZIP_NAME;
+  private static final String ZIP_PATH = "/%s".formatted(ZIP_NAME);
+  private static final String ZIP_EXTENSION = ".zip";
+  private static final String DISK_IMAGE_EXTENSION = ".dmg";
   private static final String[] ZIP_ENTRIES = { "vlc-3.0.24/libvlc.dll", "vlc-3.0.24/libvlccore.dll", "vlc-3.0.24/plugins/x.dll" };
 
   private static final String VLC_DIRECTORY = "vlc";
@@ -116,7 +118,8 @@ final class VlcInstallerTest {
   private static final String PINNED_APPIMAGES = "https://github.com/ivan-hc/VLC-appimage/releases/download/";
 
   private static Download[] noDownloadExpected() {
-    throw new AssertionError("The downloads must not be resolved!");
+    final String message = "The downloads must not be resolved!";
+    throw new AssertionError(message);
   }
 
   private static Download[] noDownloads() {
@@ -156,16 +159,17 @@ final class VlcInstallerTest {
     final VlcInstaller installer = VlcInstaller.create(this.folder);
     final Platform platform = Platform.getCurrentPlatform();
     final Os operatingSystem = platform.getOs();
-    final String url = installer.getUrl();
+    final Optional<String> optionalUrl = installer.getUrl();
 
     final String expectedPrefix = switch (operatingSystem) {
       case WINDOWS, MAC -> "https://download.videolan.org/pub/videolan/vlc/";
       case LINUX -> "https://github.com/ivan-hc/VLC-appimage/";
-      default -> "";
+      case FREEBSD, OTHER -> "";
     };
     if (expectedPrefix.isEmpty()) {
-      assertEquals("", url);
+      assertEquals(Optional.empty(), optionalUrl);
     } else {
+      final String url = optionalUrl.orElseThrow();
       final boolean expectedHost = url.startsWith(expectedPrefix);
       assertTrue(expectedHost, url);
     }
@@ -175,8 +179,8 @@ final class VlcInstallerTest {
       try (final MockedStatic<Platform> platforms = Mockito.mockStatic(Platform.class, Mockito.CALLS_REAL_METHODS)) {
         platforms.when(Platform::getCurrentPlatform).thenReturn(unavailable);
         final VlcInstaller missing = VlcInstaller.create(this.folder);
-        final String missingUrl = missing.getUrl();
-        assertEquals("", missingUrl, "an unsupported platform has no download URL");
+        final Optional<String> missingUrl = missing.getUrl();
+        assertEquals(Optional.empty(), missingUrl, "an unsupported platform has no download URL");
 
         final boolean supported = missing.isSupported();
         assertFalse(supported);
@@ -192,23 +196,24 @@ final class VlcInstallerTest {
   @Test
   void shouldUseTheInstallationStrategyOfEachOperatingSystem() {
     final VlcInstaller installer = VlcInstaller.create(this.folder);
-    final InstallationStrategy windowsStrategy = VlcInstaller.createStrategy(installer, Os.WINDOWS);
-    final InstallationStrategy macStrategy = VlcInstaller.createStrategy(installer, Os.MAC);
-    final InstallationStrategy linuxStrategy = VlcInstaller.createStrategy(installer, Os.LINUX);
+    final InstallationStrategy windowsStrategy = installer.createStrategy(Os.WINDOWS);
+    final InstallationStrategy macStrategy = installer.createStrategy(Os.MAC);
+    final InstallationStrategy linuxStrategy = installer.createStrategy(Os.LINUX);
     assertInstanceOf(WindowsInstallationStrategy.class, windowsStrategy);
     assertInstanceOf(OsxInstallationStrategy.class, macStrategy);
     assertInstanceOf(LinuxInstallationStrategy.class, linuxStrategy);
-    assertThrows(UnsupportedOperatingSystemException.class, () -> VlcInstaller.createStrategy(installer, Os.FREEBSD));
-    assertThrows(UnsupportedOperatingSystemException.class, () -> VlcInstaller.createStrategy(installer, Os.OTHER));
+    assertThrows(UnsupportedOperatingSystemException.class, () -> installer.createStrategy(Os.FREEBSD));
+    assertThrows(UnsupportedOperatingSystemException.class, () -> installer.createStrategy(Os.OTHER));
   }
 
   @Test
   void shouldKnowWhichOperatingSystemsItCanInstallOn() {
-    final boolean installsOnMac = VlcInstaller.hasStrategy(Os.MAC);
-    final boolean installsOnWindows = VlcInstaller.hasStrategy(Os.WINDOWS);
-    final boolean installsOnLinux = VlcInstaller.hasStrategy(Os.LINUX);
-    final boolean freeBsd = VlcInstaller.hasStrategy(Os.FREEBSD);
-    final boolean installsOnOther = VlcInstaller.hasStrategy(Os.OTHER);
+    final VlcInstaller installer = VlcInstaller.create(this.folder);
+    final boolean installsOnMac = installer.hasStrategy(Os.MAC);
+    final boolean installsOnWindows = installer.hasStrategy(Os.WINDOWS);
+    final boolean installsOnLinux = installer.hasStrategy(Os.LINUX);
+    final boolean freeBsd = installer.hasStrategy(Os.FREEBSD);
+    final boolean installsOnOther = installer.hasStrategy(Os.OTHER);
     assertTrue(installsOnMac);
     assertTrue(installsOnWindows);
     assertTrue(installsOnLinux);
@@ -245,7 +250,7 @@ final class VlcInstallerTest {
   @Test
   void shouldBeSupportedWithoutAnInstallationWhenThisPlatformHasADownload() {
     final Platform current = Platform.getCurrentPlatform();
-    final Download download = new Download(current, "https://example.invalid/vlc.zip");
+    final Download download = Download.of(current, "https://example.invalid/vlc.zip");
     final VlcInstaller installer = new VlcInstaller(this.folder, () -> new Download[] { download });
     final boolean supported = installer.isSupported();
     assertTrue(supported);
@@ -289,7 +294,8 @@ final class VlcInstallerTest {
   void shouldLeaveFilesNamedLikeOldInstallationsAlone() throws IOException {
     final Path file = this.folder.resolve(JUNEST_DIRECTORY);
     Files.writeString(file, "not a directory");
-    VlcInstaller.removeLegacyInstallations(this.folder);
+    final VlcInstaller installer = VlcInstaller.create(this.folder);
+    installer.removeLegacyInstallations(this.folder);
     final String content = Files.readString(file);
     assertEquals("not a directory", content);
   }
@@ -305,7 +311,8 @@ final class VlcInstallerTest {
     final boolean linksCreated = createSymbolicLink(appLink, outside) && createSymbolicLink(innerLink, outside);
     Assumptions.assumeTrue(linksCreated, "Symbolic links cannot be created here!");
 
-    VlcInstaller.removeLegacyInstallations(this.folder);
+    final VlcInstaller installer = VlcInstaller.create(this.folder);
+    installer.removeLegacyInstallations(this.folder);
     final boolean keptExists = Files.exists(kept);
     final boolean appLinkExists = Files.exists(appLink, LinkOption.NOFOLLOW_LINKS);
     final boolean junestExists = Files.exists(junest, LinkOption.NOFOLLOW_LINKS);
@@ -321,8 +328,9 @@ final class VlcInstallerTest {
     final Path app = createTree(this.folder, APP_DIRECTORY);
     final Path locked = app.resolve(TREE_FILE);
     final File lockedFile = locked.toFile();
+    final VlcInstaller installer = VlcInstaller.create(this.folder);
     try (final RandomAccessFile open = new RandomAccessFile(lockedFile, "r")) {
-      VlcInstaller.removeLegacyInstallations(this.folder);
+      installer.removeLegacyInstallations(this.folder);
       final long length = open.length();
       final boolean lockedExists = Files.exists(locked);
       final boolean hasContent = length > 0;
@@ -336,10 +344,11 @@ final class VlcInstallerTest {
     final Path junest = createTree(this.folder, JUNEST_DIRECTORY);
     final Path app = createTree(this.folder, APP_DIRECTORY);
     final FileOperationException refused = new FileOperationException("The old installation is in use!");
+    final VlcInstaller installer = VlcInstaller.create(this.folder);
     try (final MockedStatic<IoUtils> ioUtils = Mockito.mockStatic(IoUtils.class)) {
       ioUtils.when(() -> IoUtils.deleteRecursively(junest)).thenThrow(refused);
       ioUtils.when(() -> IoUtils.deleteRecursively(app)).thenCallRealMethod();
-      VlcInstaller.removeLegacyInstallations(this.folder);
+      installer.removeLegacyInstallations(this.folder);
     }
 
     final boolean junestExists = Files.isDirectory(junest);
@@ -438,11 +447,12 @@ final class VlcInstallerTest {
     final Path legacy = createTree(this.folder, APP_DIRECTORY);
     final Set<PosixFilePermission> original = Files.getPosixFilePermissions(legacy);
     final Set<PosixFilePermission> readOnly = Set.of(PosixFilePermission.OWNER_READ, PosixFilePermission.OWNER_EXECUTE);
+    final VlcInstaller installer = VlcInstaller.create(this.folder);
     try {
       Files.setPosixFilePermissions(legacy, readOnly);
       final boolean writable = Files.isWritable(legacy);
       Assumptions.assumeFalse(writable, "A privileged process can bypass the fixture's directory permissions!");
-      VlcInstaller.removeLegacyInstallations(this.folder);
+      installer.removeLegacyInstallations(this.folder);
       final boolean legacyRemains = Files.isDirectory(legacy);
       assertTrue(legacyRemains, "failed cleanup is reported and leaves the undeletable directory in place");
     } finally {
@@ -457,10 +467,11 @@ final class VlcInstallerTest {
       platforms.when(Platform::getCurrentPlatform).thenReturn(platform);
       final VlcInstaller installer = VlcInstaller.create(this.folder);
       final boolean supported = installer.isSupported();
-      final String url = installer.getUrl();
+      final Optional<String> optionalUrl = installer.getUrl();
+      final String url = optionalUrl.orElseThrow();
       final Optional<String> hash = installer.getHash();
       final Os operatingSystem = platform.getOs();
-      final String extension = operatingSystem == Os.WINDOWS ? ".zip" : ".dmg";
+      final String extension = operatingSystem == Os.WINDOWS ? ZIP_EXTENSION : DISK_IMAGE_EXTENSION;
       final boolean expectedExtension = url.endsWith(extension);
       assertTrue(supported);
       assertTrue(expectedExtension, url);
@@ -481,7 +492,7 @@ final class VlcInstallerTest {
   @Test
   void shouldBundleVerifiedDownloadsOfTheAdvertisedVersion() {
     final Download[] downloads = IoUtils.readDownloadsFromJsonResource(VLC_DOWNLOADS_RESOURCE);
-    final String versionDirectory = "/" + VlcInstaller.VERSION + "/";
+    final String versionDirectory = "/%s/".formatted(VlcInstaller.VERSION);
     final boolean anyDownloads = downloads.length > 0;
     assertTrue(anyDownloads);
 
@@ -498,21 +509,22 @@ final class VlcInstallerTest {
   }
 
   private static void assertSha256(final Optional<String> optionalHash, final String url) {
-    assertTrue(optionalHash.isPresent(), url);
+    final boolean hashFound = optionalHash.isPresent();
+    assertTrue(hashFound, url);
 
     final String hash = optionalHash.orElseThrow();
     final int length = hash.length();
     assertEquals(64, length, url);
 
     final boolean hexadecimal = SHA256_PATTERN.matcher(hash).matches();
-    assertTrue(hexadecimal, "a SHA-256 digest must be hexadecimal: " + url);
+    assertTrue(hexadecimal, "a SHA-256 digest must be hexadecimal: %s".formatted(url));
   }
 
   private VlcInstaller installerDownloadingFrom(final LocalHttpServer server) {
     final URI uri = server.uri(ZIP_PATH);
     final String url = uri.toString();
     final Platform current = Platform.getCurrentPlatform();
-    final Download download = new Download(current, url);
+    final Download download = Download.of(current, url);
     return new VlcInstaller(this.folder, () -> new Download[] { download });
   }
 
@@ -550,7 +562,8 @@ final class VlcInstallerTest {
 
   private Path createInstalledLibrary() throws IOException {
     final Os operatingSystem = OsUtils.getOs();
-    final boolean installable = VlcInstaller.hasStrategy(operatingSystem);
+    final VlcInstaller installer = VlcInstaller.create(this.folder);
+    final boolean installable = installer.hasStrategy(operatingSystem);
     final String message = "Operating system %s does not support installing VLC automatically!".formatted(operatingSystem);
     Assumptions.assumeTrue(installable, message);
     final Path installDirectory = this.folder.resolve(VLC_DIRECTORY);

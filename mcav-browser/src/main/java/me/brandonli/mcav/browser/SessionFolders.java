@@ -21,6 +21,7 @@ import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.DirectoryStream;
+import java.nio.file.FileSystem;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
@@ -30,161 +31,158 @@ import java.time.Instant;
 import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.LongFunction;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * Records which server made the folder of a browser session, so that a later start of the browser module removes the
- * folders a killed server left behind.
- *
- * <p>The folder of a session holds the page's profile, its cookies and cache among them; a server that is killed (a
- * SIGKILL, a crash, the out-of-memory killer) cannot remove it. Each folder therefore gets a file with the process id
- * and the start instant of its server, and {@link #removeStale(Path)} removes every folder whose server is gone, while
- * the process with the recorded id is not the one that made it (another start instant, or no process at all). A folder
- * without the file, made by an earlier version or still being made, is left alone, and so is, on a file system with
- * POSIX permissions, a folder of another user: in a temporary folder every user shares, another user may make a folder
- * of that name, with a record, and swap what is inside it for a link while it is deleted.
- */
+// Records the server of each session folder, so a later start removes the folders a killed server left behind.
+// Folders of other users stay: in a shared temporary folder, another user could swap their contents for a link.
 final class SessionFolders {
 
-  /**
-   * The start of the name of every folder of a session.
-   */
   static final String PREFIX = "mcavb-";
 
-  /**
-   * How many random letters and digits follow the prefix. The name is short, as the sockets in the folder may have
-   * paths of at most 107 characters.
-   */
+  // short: the sockets in the folder have paths of at most 107 characters
   static final int RANDOM_CHARACTERS = 8;
 
   private static final String ALPHABET = "abcdefghijklmnopqrstuvwxyz0123456789";
   private static final SecureRandom RANDOM = new SecureRandom();
 
-  /**
-   * The file in the folder of a session that names its server.
-   */
   static final String OWNER_FILE = "server";
 
   private static final Logger LOGGER = LoggerFactory.getLogger(SessionFolders.class);
-  private static final String REMOVED = "Removed the folder {} of a browser whose server ended without releasing it";
-  private static final String NOT_RECORDED = "The folder of the browser session {} names no server; if this server is killed, it stays";
-  private static final String NOT_LISTED = "The folders of browser sessions in {} could not be listed: {}";
+
+  private static final String NOT_RECORDED = "The folder of the browser session {} names no server; if this server is killed, it stays.";
+
+  private static final String RECORD_SEPARATOR = "\n";
+  private static final int RECORD_LINES = 2;
+
+  private static final String ANY_NAME = "*";
+
+  private static final String POSIX_ATTRIBUTE_VIEW = "posix";
 
   private final ProcessHandle owner;
   private final LongFunction<Optional<ProcessHandle>> lookup;
 
-  /**
-   * Creates the records of this server.
-   *
-   * @return the records
-   */
-  static SessionFolders ofThisServer() {
-    return new SessionFolders(ProcessHandle.current(), ProcessHandle::of);
-  }
-
-  /**
-   * Creates records.
-   *
-   * @param owner  the server that makes folders, this JVM outside of tests
-   * @param lookup finds a running process by its id
-   */
   @VisibleForTesting
   SessionFolders(final ProcessHandle owner, final LongFunction<Optional<ProcessHandle>> lookup) {
     this.owner = owner;
     this.lookup = lookup;
   }
 
-  /**
-   * Draws the name of a new folder: the prefix and random letters and digits.
-   *
-   * @return the name
-   */
+  static SessionFolders ofThisServer() {
+    return new SessionFolders(ProcessHandle.current(), ProcessHandle::of);
+  }
+
   static String newName() {
     final StringBuilder name = new StringBuilder(PREFIX);
     for (int index = 0; index < RANDOM_CHARACTERS; index++) {
-      name.append(ALPHABET.charAt(RANDOM.nextInt(ALPHABET.length())));
+      final int alphabetIndex = RANDOM.nextInt(ALPHABET.length());
+      final char character = ALPHABET.charAt(alphabetIndex);
+      name.append(character);
     }
+
     return name.toString();
   }
 
-  /**
-   * Names the server in a new folder. A server whose start instant the system does not report could not be told from
-   * a later process with its id, so its folders name nothing, and neither does one whose file cannot be written.
-   *
-   * @param folder the new folder of a session
-   */
+  // a server of unknown start could not be told apart from a later process with its id
   void record(final Path folder) {
-    final Optional<Instant> started = this.owner.info().startInstant();
-    if (started.isEmpty()) {
+    final ProcessHandle.Info information = this.owner.info();
+    final @Nullable Instant started = information.startInstant().orElse(null);
+    if (started == null) {
       LOGGER.debug(NOT_RECORDED, folder);
       return;
     }
-    final String record = this.owner.pid() + "\n" + started.get() + "\n";
+
+    final long processId = this.owner.pid();
+    final String record = "%s%s%s%s".formatted(processId, RECORD_SEPARATOR, started, RECORD_SEPARATOR);
     try {
-      Files.writeString(folder.resolve(OWNER_FILE), record, StandardCharsets.US_ASCII);
+      final Path recordFile = folder.resolve(OWNER_FILE);
+      Files.writeString(recordFile, record, StandardCharsets.US_ASCII);
     } catch (final IOException exception) {
       LOGGER.debug(NOT_RECORDED, folder, exception);
     }
   }
 
-  /**
-   * Removes every folder of a session in a temporary folder whose server is gone.
-   *
-   * @param temporary the temporary folder
-   * @return how many folders were removed
-   */
   int removeStale(final Path temporary) {
     int removed = 0;
-    try (final DirectoryStream<Path> folders = Files.newDirectoryStream(temporary, PREFIX + "*")) {
-      for (final Path folder : folders) {
-        if (this.isStale(folder)) {
-          HelperSession.deleteFolder(folder);
-          LOGGER.info(REMOVED, folder);
-          removed++;
-        }
-      }
+    try (final DirectoryStream<Path> folders = Files.newDirectoryStream(temporary, PREFIX + ANY_NAME)) {
+      removed = this.removeStaleFolders(folders);
     } catch (final IOException exception) {
-      LOGGER.warn(NOT_LISTED, temporary, exception.toString());
+      LOGGER.warn("The folders of browser sessions in {} could not be listed, so stale ones stay.", temporary, exception);
     }
+
+    return removed;
+  }
+
+  private int removeStaleFolders(final DirectoryStream<Path> folders) {
+    int removed = 0;
+    for (final Path folder : folders) {
+      if (!this.isStale(folder)) {
+        continue;
+      }
+      HelperSession.deleteFolder(folder);
+      LOGGER.debug("Removed the folder {} of a browser whose server ended without releasing it.", folder);
+      removed++;
+    }
+
     return removed;
   }
 
   private boolean isStale(final Path folder) {
+    final List<String> lines = this.readRecord(folder);
+    if (lines.size() != RECORD_LINES) {
+      return false;
+    }
+
+    return this.isRecordedServerGone(lines);
+  }
+
+  private List<String> readRecord(final Path folder) {
     final Path record = folder.resolve(OWNER_FILE);
     final List<String> lines;
     try {
       final boolean own = this.isOwnFolder(folder);
       if (!own || !Files.isRegularFile(record)) {
-        return false;
+        return List.of();
       }
+
       lines = Files.readAllLines(record, StandardCharsets.US_ASCII);
     } catch (final IOException exception) {
-      return false;
+      return List.of();
     }
-    if (lines.size() != 2) {
-      return false;
-    }
-    final long pid;
+
+    return lines;
+  }
+
+  private boolean isRecordedServerGone(final List<String> lines) {
+    final long processId;
     final Instant started;
     try {
-      pid = Long.parseLong(lines.get(0));
+      processId = Long.parseLong(lines.get(0));
       started = Instant.parse(lines.get(1));
     } catch (final NumberFormatException | DateTimeParseException exception) {
       return false;
     }
-    final Optional<ProcessHandle> server = this.lookup.apply(pid);
-    return server.isEmpty() || !server.get().info().startInstant().equals(Optional.of(started));
+
+    final Optional<ProcessHandle> server = this.lookup.apply(processId);
+    final Optional<Instant> serverStart = server.map(ProcessHandle::info).flatMap(ProcessHandle.Info::startInstant);
+    return !serverStart.equals(Optional.of(started));
   }
 
   private boolean isOwnFolder(final Path folder) throws IOException {
-    final boolean posix = folder.getFileSystem().supportedFileAttributeViews().contains("posix");
+    final FileSystem fileSystem = folder.getFileSystem();
+    final Set<String> views = fileSystem.supportedFileAttributeViews();
+    final boolean posix = views.contains(POSIX_ATTRIBUTE_VIEW);
     if (!posix) {
       return true;
     }
-    final Optional<String> user = this.owner.info().user();
+
+    final ProcessHandle.Info information = this.owner.info();
+    final Optional<String> user = information.user();
     final UserPrincipal folderOwner = Files.getOwner(folder, LinkOption.NOFOLLOW_LINKS);
-    return user.isPresent() && user.get().equals(folderOwner.getName());
+    final String folderOwnerName = folderOwner.getName();
+    return user.equals(Optional.of(folderOwnerName));
   }
 }

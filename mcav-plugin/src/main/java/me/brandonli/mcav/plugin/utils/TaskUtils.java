@@ -32,18 +32,20 @@ import org.slf4j.LoggerFactory;
  * Hands work from worker threads over to the main thread of the server, and reacts to work that finishes in the
  * background.
  *
+ * <p>This class is stateless and thread-safe.
+ *
  * @since 1.0.0
  */
 public final class TaskUtils {
 
+  private static final String PLUGIN_NULL_MESSAGE = "Plugin must not be null!";
+  private static final String TASK_NULL_MESSAGE = "Task must not be null!";
+
   private static final Logger LOGGER = LoggerFactory.getLogger(TaskUtils.class);
 
-  private static final String TASK_DROPPED = "Dropped a task for the main thread because the plugin is disabled.";
-
-  private static final String CALLBACK_FAILED = "A callback of a background task failed.";
-
   private TaskUtils() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   /**
@@ -53,11 +55,12 @@ public final class TaskUtils {
    * @param task   the task to run on the main thread
    * @return the task that schedules it; it drops the task when the plugin is disabled, see
    * {@link #runOnMainThread(MCAVSandbox, Runnable)}
+   * @throws NullPointerException if an argument is null
    * @since 1.0.0
    */
   public static Runnable createMainThreadHandover(final MCAVSandbox plugin, final Runnable task) {
-    Preconditions.checkNotNull(plugin, "Plugin must not be null!");
-    Preconditions.checkNotNull(task, "Task must not be null!");
+    Preconditions.checkNotNull(plugin, PLUGIN_NULL_MESSAGE);
+    Preconditions.checkNotNull(task, TASK_NULL_MESSAGE);
 
     return () -> runOnMainThread(plugin, task);
   }
@@ -69,11 +72,12 @@ public final class TaskUtils {
    * @param plugin the plugin that owns the task
    * @param task   the task to run on the main thread
    * @return true if the task was scheduled, false if it was dropped because the plugin is disabled
+   * @throws NullPointerException if an argument is null
    * @since 1.0.0
    */
   public static boolean runOnMainThread(final MCAVSandbox plugin, final Runnable task) {
-    Preconditions.checkNotNull(plugin, "Plugin must not be null!");
-    Preconditions.checkNotNull(task, "Task must not be null!");
+    Preconditions.checkNotNull(plugin, PLUGIN_NULL_MESSAGE);
+    Preconditions.checkNotNull(task, TASK_NULL_MESSAGE);
 
     final BukkitScheduler scheduler = Bukkit.getScheduler();
     try {
@@ -81,7 +85,8 @@ public final class TaskUtils {
 
       return true;
     } catch (final IllegalPluginAccessException exception) {
-      LOGGER.warn(TASK_DROPPED, exception);
+      LOGGER.warn("Dropped a task for the main thread because the plugin is disabled.", exception);
+
       return false;
     }
   }
@@ -98,6 +103,7 @@ public final class TaskUtils {
    * @param callback     receives the result, which is null if the future failed, and the failure, which is null if the
    *                     future succeeded
    * @param <ResultType> the type of the result
+   * @throws NullPointerException if {@code future} is null
    * @since 1.0.0
    */
   public static <ResultType> void whenComplete(
@@ -122,7 +128,7 @@ public final class TaskUtils {
   }
 
   private static @Nullable Void logCallbackFailure(final Throwable failure) {
-    LOGGER.error(CALLBACK_FAILED, failure);
+    LOGGER.error("A callback of a background task failed.", failure);
 
     return null;
   }

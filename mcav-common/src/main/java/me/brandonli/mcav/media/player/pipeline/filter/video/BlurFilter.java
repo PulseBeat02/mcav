@@ -32,7 +32,7 @@ import org.bytedeco.opencv.opencv_core.Size;
  *
  * @since 1.0.0
  */
-public class BlurFilter extends MatVideoFilter {
+public final class BlurFilter extends MatVideoFilter {
 
   private final BlurType type;
   private final Size size;
@@ -50,7 +50,7 @@ public class BlurFilter extends MatVideoFilter {
    *                   from the kernel size
    * @param sigmaY     the vertical standard deviation, only used by {@link BlurType#GAUSSIAN}; 0 uses the
    *                   horizontal value
-   * @throws IllegalArgumentException if the kernel is nonpositive, even for a non-normal blur,
+   * @throws IllegalArgumentException if the kernel is not positive or is even for a non-normal blur,
    *                                  or a sigma is negative or NaN
    * @throws NullPointerException     if {@code type} is null
    * @since 1.0.0
@@ -77,7 +77,7 @@ public class BlurFilter extends MatVideoFilter {
    * @param kernelSize the size of the blur kernel, which must be positive, and odd for every type but
    *                   {@link BlurType#NORMAL}
    * @throws NullPointerException     if {@code type} is null
-   * @throws IllegalArgumentException if the kernel is nonpositive or even for a non-normal blur
+   * @throws IllegalArgumentException if the kernel is not positive or is even for a non-normal blur
    * @since 1.0.0
    */
   public BlurFilter(final BlurType type, final int kernelSize) {
@@ -87,40 +87,48 @@ public class BlurFilter extends MatVideoFilter {
   /**
    * Blurs the frame in place with the algorithm of this filter.
    *
-   * @param mat the 8-bit BGR matrix of the frame
+   * @param matrix the 8-bit BGR matrix of the frame
    * @return true, because the frame may have changed
    * @since 1.0.0
    */
   @Override
-  protected boolean modifyMat(final Mat mat) {
+  protected boolean modifyMat(final Mat matrix) {
     return switch (this.type) {
-      case NORMAL -> this.normalBlur(mat);
-      case MEDIAN -> this.medianBlur(mat);
-      case GAUSSIAN -> this.gaussianBlur(mat);
-      case STACK -> this.stackBlur(mat);
+      case NORMAL -> this.normalBlur(matrix);
+      case MEDIAN -> this.medianBlur(matrix);
+      case GAUSSIAN -> this.gaussianBlur(matrix);
+      case STACK -> this.stackBlur(matrix);
     };
   }
 
-  private boolean normalBlur(final Mat mat) {
-    opencv_imgproc.blur(mat, mat, this.size);
+  private boolean normalBlur(final Mat matrix) {
+    opencv_imgproc.blur(matrix, matrix, this.size);
 
     return true;
   }
 
-  private boolean medianBlur(final Mat mat) {
-    opencv_imgproc.medianBlur(mat, mat, this.kernelSize);
+  private boolean medianBlur(final Mat matrix) {
+    opencv_imgproc.medianBlur(matrix, matrix, this.kernelSize);
 
     return true;
   }
 
-  private boolean gaussianBlur(final Mat mat) {
-    opencv_imgproc.GaussianBlur(mat, mat, this.size, this.sigmaX, this.sigmaY, opencv_core.BORDER_DEFAULT, opencv_core.ALGO_HINT_DEFAULT);
+  private boolean gaussianBlur(final Mat matrix) {
+    opencv_imgproc.GaussianBlur(
+      matrix,
+      matrix,
+      this.size,
+      this.sigmaX,
+      this.sigmaY,
+      opencv_core.BORDER_DEFAULT,
+      opencv_core.ALGO_HINT_DEFAULT
+    );
 
     return true;
   }
 
-  private boolean stackBlur(final Mat mat) {
-    opencv_imgproc.stackBlur(mat, mat, this.size);
+  private boolean stackBlur(final Mat matrix) {
+    opencv_imgproc.stackBlur(matrix, matrix, this.size);
 
     return true;
   }

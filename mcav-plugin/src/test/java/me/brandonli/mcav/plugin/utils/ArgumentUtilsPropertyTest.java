@@ -102,7 +102,7 @@ final class ArgumentUtilsPropertyTest {
     final int height = size.getSecond();
     final boolean widthInBounds = width >= 1 && width <= maximum;
     final boolean heightInBounds = height >= 1 && height <= maximum;
-    assertTrue(widthInBounds && heightInBounds, () -> "'" + typed + "' became " + width + "x" + height);
+    assertTrue(widthInBounds && heightInBounds, () -> "'%s' became %sx%s".formatted(typed, width, height));
   }
 
   @Property(seed = SEED)
@@ -145,7 +145,7 @@ final class ArgumentUtilsPropertyTest {
     final long maps = (long) width * height;
     final long clearBytes = maps * MAP_PACKET_BYTES;
 
-    assertTrue(maps <= BUNDLE_LIMIT, () -> width + "x" + height + " maps do not fit one bundle");
-    assertTrue(clearBytes <= BUNDLE_LIMIT * MAP_PACKET_BYTES, () -> "clearing " + width + "x" + height + " sends " + clearBytes + " bytes");
+    assertTrue(maps <= BUNDLE_LIMIT, () -> "%sx%s maps do not fit one bundle".formatted(width, height));
+    assertTrue(clearBytes <= BUNDLE_LIMIT * MAP_PACKET_BYTES, () -> "clearing %sx%s sends %s bytes".formatted(width, height, clearBytes));
   }
 }

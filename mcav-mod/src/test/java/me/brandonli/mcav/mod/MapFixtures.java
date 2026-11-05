@@ -19,7 +19,7 @@ package me.brandonli.mcav.mod;
 
 import java.util.Arrays;
 
-// MCV2 maps as the server draws them; symbol s is map colour s + 4
+// MCV2 maps as the server draws them
 final class MapFixtures {
 
   // "MCP1", version 1 and six bits, in six-bit symbols
@@ -28,45 +28,62 @@ final class MapFixtures {
   static final int[] ANCHOR_SIGNATURE = { 21, 3, 58, 44, 9, 37, 60, 17 };
 
   private static final int SYMBOL_BITS = 6;
-
   private static final int SYMBOL_MASK = 63;
 
+  private static final int FIRST_SYMBOL_COLOR = 4;
+
+  private static final int STREAM_BIT = 64;
+  private static final int STREAM_BIT_COUNT = 32;
+
+  private static final int NUMBER_BIT = 128;
+  private static final int NUMBER_BIT_COUNT = 16;
+
+  private static final int ANCHOR_SYMBOLS = 16;
+
+  private static final int FIRST_FIELD = 8;
+
+  private static final int CHECKSUM = 15;
+
   private MapFixtures() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   // the symbols, and symbol 0 after them
-  static byte[] colours(final int[] symbols) {
-    final byte[] colours = new byte[Mcv2Maps.COLOURS];
-    Arrays.fill(colours, (byte) 4);
+  static byte[] colors(final int[] symbols) {
+    final byte[] colors = new byte[Mcv2Maps.COLORS];
+    Arrays.fill(colors, (byte) FIRST_SYMBOL_COLOR);
     for (int index = 0; index < symbols.length; index++) {
-      colours[index] = (byte) (symbols[index] + 4);
+      colors[index] = (byte) (symbols[index] + FIRST_SYMBOL_COLOR);
     }
-    return colours;
+
+    return colors;
   }
 
-  // the prefix, the stream id at bit 64, the number at bit 128, and filler
+  // the prefix, the stream id, the number, and filler
   static int[] pageSymbols(final long stream, final int number) {
-    final int[] symbols = new int[Mcv2Maps.COLOURS];
+    final int[] symbols = new int[Mcv2Maps.COLORS];
     for (int index = 0; index < symbols.length; index++) {
       symbols[index] = (index * 7 + 3) & SYMBOL_MASK;
     }
+
     System.arraycopy(PAGE_PREFIX, 0, symbols, 0, PAGE_PREFIX.length);
-    writeBits(symbols, 64, 32, stream);
-    writeBits(symbols, 128, 16, number);
+    writeBits(symbols, STREAM_BIT, STREAM_BIT_COUNT, stream);
+    writeBits(symbols, NUMBER_BIT, NUMBER_BIT_COUNT, number);
     return symbols;
   }
 
   // the signature, the fields, the low and high six bits of the stream, the checksum
   static int[] anchorSymbols(final int column, final int row, final int columns, final int rows, final int facing, final int stream) {
     final int[] fields = { column, row, columns, rows, facing, stream & SYMBOL_MASK, (stream >> SYMBOL_BITS) & SYMBOL_MASK };
-    final int[] symbols = Arrays.copyOf(ANCHOR_SIGNATURE, 16);
+    final int[] symbols = Arrays.copyOf(ANCHOR_SIGNATURE, ANCHOR_SYMBOLS);
     int sum = 0;
     for (int index = 0; index < fields.length; index++) {
-      symbols[8 + index] = fields[index];
+      symbols[FIRST_FIELD + index] = fields[index];
       sum += fields[index];
     }
-    symbols[15] = sum & SYMBOL_MASK;
+
+    symbols[CHECKSUM] = sum & SYMBOL_MASK;
     return symbols;
   }
 
@@ -80,8 +97,8 @@ final class MapFixtures {
     }
   }
 
-  static byte[] withFlippedBits(final byte[] colours, final byte[] masks) {
-    final byte[] flipped = colours.clone();
+  static byte[] withFlippedBits(final byte[] colors, final byte[] masks) {
+    final byte[] flipped = colors.clone();
     for (int index = 0; index < masks.length; index++) {
       flipped[index] ^= masks[index];
     }

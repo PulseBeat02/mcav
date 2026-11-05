@@ -44,23 +44,30 @@ public final class VlcPlayerExample {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(VlcPlayerExample.class);
 
-  private static final String PLAYBACK_FAILED = "Playback failed in {}";
+  private static final int WIDTH = 960;
+  private static final int HEIGHT = 540;
 
-  private VlcPlayerExample() {}
+  private VlcPlayerExample() {
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
+  }
 
   static void main() throws InterruptedException {
     try (final ExampleResources resources = new ExampleResources()) {
       final MCAVApi api = MCAV.api();
       resources.add(api::release);
       api.install();
+
       final CompletableFuture<Boolean> ready = api.whenCapabilityReady(Capability.VLC);
       final boolean available = ready.join();
       if (!available) {
-        throw new IllegalStateException("VLC is unavailable!");
+        final String message = "VLC is unavailable!";
+        throw new IllegalStateException(message);
       }
 
-      final SwingVideoWindow window = SwingVideoWindow.open("VLC Player", 960, 540);
+      final SwingVideoWindow window = SwingVideoWindow.open("VLC Player", WIDTH, HEIGHT);
       resources.add(window::close);
+
       final DirectAudioOutput speakers = new DirectAudioOutput();
       resources.add(speakers::release);
       speakers.start();
@@ -82,20 +89,25 @@ public final class VlcPlayerExample {
 
       final VideoPlayerMultiplexer player = VideoPlayer.vlc();
       resources.add(player::release);
-      player.setExceptionHandler((context, throwable) -> LOGGER.error(PLAYBACK_FAILED, context, throwable));
+      player.setExceptionHandler((context, throwable) -> LOGGER.error("Playback in {} failed.", context, throwable));
+
       final AudioAttachableCallback audioCallback = player.getAudioAttachableCallback();
       audioCallback.attach(audioPipeline);
+
       final VideoAttachableCallback videoCallback = player.getVideoAttachableCallback();
       videoCallback.attach(videoPipeline);
+
       final DimensionAttachableCallback dimensionCallback = player.getDimensionAttachableCallback();
-      final Dimension dimension = new Dimension(960, 540);
+      final Dimension dimension = new Dimension(WIDTH, HEIGHT);
       dimensionCallback.attach(dimension);
 
       final URI uri = URI.create("https://download.blender.org/peach/bigbuckbunny_movies/big_buck_bunny_1080p_h264.mov");
       final UriSource source = UriSource.uri(uri);
       final boolean started = player.start(source);
+
       if (!started) {
-        throw new IllegalStateException("Playback could not start!");
+        final String message = "Playback could not start!";
+        throw new IllegalStateException(message);
       }
 
       window.awaitClosed();

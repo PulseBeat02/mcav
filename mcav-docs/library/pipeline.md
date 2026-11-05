@@ -12,7 +12,7 @@ in order for every frame or chunk of samples.
 Example of a pipeline from video players.
 ```
 
-Create pipelines with `PipelineBuilder`. Filters run in the order they are added; the `display` filter is yours and
+Create pipelines with `PipelineBuilder`. Filters run in the order you add them; the `display` filter is yours and
 shows the frames:
 
 ```java
@@ -38,6 +38,8 @@ the next step either way; filters that work on a copy use the result to skip cop
 below only reads the frame, so it returns `false`; pass it to a pipeline as `this::logSize`:
 
 ```java
+  private static final Logger LOGGER = LoggerFactory.getLogger(MyPlugin.class);
+
   private boolean logSize(final ImageBuffer image, final OriginalVideoMetadata metadata) {
     final int width = image.getWidth();
     final int height = image.getHeight();
@@ -49,7 +51,7 @@ below only reads the frame, so it returns `false`; pass it to a pipeline as `thi
 
 ```{note}
 Filters run on the threads of the player, one frame at a time. A filter that takes long lowers the frame rate of the
-whole pipeline, so hand expensive or blocking work to another thread. Frames are modified in place; copy an
+whole pipeline, so hand expensive or blocking work to another thread. Filters modify frames in place; copy an
 `ImageBuffer` with `copy()` if you want to keep it after the filter returns. The array of `getPixels()` is shared and
 read-only; see [reading pixels](image.md#reading-pixels).
 ```

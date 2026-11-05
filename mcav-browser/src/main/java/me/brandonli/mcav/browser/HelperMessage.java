@@ -19,13 +19,10 @@ package me.brandonli.mcav.browser;
 
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-/**
- * A message read by {@link HelperProtocol}: its type and the values of that type. Values a type does not carry are
- * empty, zero or null.
- */
+// Values a type does not carry are empty, zero or null.
 final class HelperMessage {
 
-  private static final byte[] NO_TOKEN = new byte[0];
+  private static final byte[] NO_BYTES = new byte[0];
 
   private final int type;
   private final byte[] token;
@@ -45,7 +42,7 @@ final class HelperMessage {
     final @Nullable FrameRegion region,
     final @Nullable MouseInput mouse
   ) {
-    this(type, token, number, text, url, region, mouse, NO_TOKEN);
+    this(type, token, number, text, url, region, mouse, NO_BYTES);
   }
 
   private HelperMessage(
@@ -68,14 +65,8 @@ final class HelperMessage {
     this.samples = samples;
   }
 
-  /**
-   * Creates sound of the page.
-   *
-   * @param samples the samples, 16-bit little-endian stereo at 48 kHz, which the message owns
-   * @return the message
-   */
   static HelperMessage audio(final byte[] samples) {
-    return new HelperMessage(HelperProtocol.AUDIO, NO_TOKEN, 0, "", "", null, null, samples);
+    return new HelperMessage(HelperProtocol.AUDIO, NO_BYTES, 0, "", "", null, null, samples);
   }
 
   static HelperMessage hello(final byte[] token, final int version) {
@@ -83,113 +74,85 @@ final class HelperMessage {
   }
 
   static HelperMessage text(final int type, final String text) {
-    return new HelperMessage(type, NO_TOKEN, 0, text, "", null, null);
+    return new HelperMessage(type, NO_BYTES, 0, text, "", null, null);
   }
 
   static HelperMessage loading(final boolean loading) {
-    return new HelperMessage(HelperProtocol.LOADING, NO_TOKEN, loading ? 1 : 0, "", "", null, null);
+    return new HelperMessage(
+      HelperProtocol.LOADING,
+      NO_BYTES,
+      loading ? HelperProtocol.LOADING_STARTED : HelperProtocol.LOADING_FINISHED,
+      "",
+      "",
+      null,
+      null
+    );
   }
 
   static HelperMessage loadError(final int code, final String text, final String url) {
-    return new HelperMessage(HelperProtocol.LOAD_ERROR, NO_TOKEN, code, text, url, null, null);
+    return new HelperMessage(HelperProtocol.LOAD_ERROR, NO_BYTES, code, text, url, null, null);
   }
 
   static HelperMessage frame(final FrameRegion region) {
-    return new HelperMessage(HelperProtocol.FRAME, NO_TOKEN, 0, "", "", region, null);
+    return new HelperMessage(HelperProtocol.FRAME, NO_BYTES, 0, "", "", region, null);
   }
 
   static HelperMessage mouse(final MouseInput input) {
-    return new HelperMessage(HelperProtocol.MOUSE, NO_TOKEN, 0, "", "", null, input);
+    return new HelperMessage(HelperProtocol.MOUSE, NO_BYTES, 0, "", "", null, input);
   }
 
   static HelperMessage key(final int action, final String value) {
-    return new HelperMessage(HelperProtocol.KEY, NO_TOKEN, action, value, "", null, null);
+    return new HelperMessage(HelperProtocol.KEY, NO_BYTES, action, value, "", null, null);
   }
 
   static HelperMessage close() {
-    return new HelperMessage(HelperProtocol.CLOSE, NO_TOKEN, 0, "", "", null, null);
+    return new HelperMessage(HelperProtocol.CLOSE, NO_BYTES, 0, "", "", null, null);
   }
 
-  /**
-   * Gets the type of the message, one of the message constants of {@link HelperProtocol}.
-   *
-   * @return the type
-   */
-  int getType() {
-    return this.type;
+  FrameRegion getRegion() {
+    final FrameRegion current = this.region;
+    if (current == null) {
+      final String message = "Message type %s carries no frame!".formatted(this.type);
+      throw new IllegalStateException(message);
+    }
+
+    return current;
   }
 
-  /**
-   * Gets the session token of a {@link HelperProtocol#HELLO}.
-   *
-   * @return the token, or an empty array for other types
-   */
+  MouseInput getMouse() {
+    final MouseInput current = this.mouse;
+    if (current == null) {
+      final String message = "Message type %s carries no mouse input!".formatted(this.type);
+      throw new IllegalStateException(message);
+    }
+
+    return current;
+  }
+
   byte[] getToken() {
     return this.token.clone();
   }
 
-  /**
-   * Gets the number of the message: the protocol version of a hello, 1 or 0 for loading, the error code of a load
-   * error, or the action of a key message.
-   *
-   * @return the number, or 0 for types without one
-   */
+  int getType() {
+    return this.type;
+  }
+
+  // the protocol version of a hello, 1 or 0 for loading, the code of a load error, or the action of a key
   int getNumber() {
     return this.number;
   }
 
-  /**
-   * Gets the string of the message: the CEF version, the notice, the failure, the error text, or the key name or text.
-   *
-   * @return the string, or an empty string for types without one
-   */
+  // the CEF version, a notice, a failure, an error text, or a key name or text
   String getText() {
     return this.text;
   }
 
-  /**
-   * Gets the address of a load error.
-   *
-   * @return the address, or an empty string for other types
-   */
   String getUrl() {
     return this.url;
   }
 
-  /**
-   * Gets the region of a frame.
-   *
-   * @return the region
-   * @throws IllegalStateException if the message is not a frame
-   */
-  FrameRegion getRegion() {
-    final FrameRegion current = this.region;
-    if (current == null) {
-      throw new IllegalStateException("Message type " + this.type + " carries no frame");
-    }
-    return current;
-  }
-
-  /**
-   * Gets the samples of sound, which the receiver owns: they are not copied.
-   *
-   * @return the samples, or an empty array for other types
-   */
+  // not copied: the receiver owns them
   byte[] getSamples() {
     return this.samples;
-  }
-
-  /**
-   * Gets the event of mouse input.
-   *
-   * @return the event
-   * @throws IllegalStateException if the message is not mouse input
-   */
-  MouseInput getMouse() {
-    final MouseInput current = this.mouse;
-    if (current == null) {
-      throw new IllegalStateException("Message type " + this.type + " carries no mouse input");
-    }
-    return current;
   }
 }

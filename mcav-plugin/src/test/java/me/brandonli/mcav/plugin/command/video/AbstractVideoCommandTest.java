@@ -34,6 +34,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.google.common.util.concurrent.MoreExecutors;
+import com.google.gson.Gson;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Files;
@@ -113,6 +114,10 @@ import org.mockito.invocation.InvocationOnMock;
 final class AbstractVideoCommandTest {
 
   private static final String WEB_PAGE = "https://www.youtube.com/watch?v=abc";
+  private static final String VIDEO_STREAM = "https://cdn.example.com/video";
+  private static final String AUDIO_STREAM = "https://cdn.example.com/audio";
+  private static final String PAGE_VIDEO_FILE = "http://127.0.0.1:8872/clip.mp4";
+  private static final String PAGE_AUDIO_FILE = "http://127.0.0.1:8872/clip.m4a";
 
   private static final String VIDEO_RESOLUTION = "640x360";
   private static final int VIDEO_WIDTH = 640;
@@ -132,6 +137,10 @@ final class AbstractVideoCommandTest {
   private static final String VIDEO_FILE_NAME = "clip.mp4";
   private static final String MISSING_FILE_NAME = "missing.mp4";
   private static final String WEBM_VIDEO_FILE_NAME = "clip.webm";
+
+  private static final String NATIVE_START_FAILURE_MESSAGE = "native start!";
+
+  private static final String FATAL_FAILURE_MESSAGE = "fatal sentinel!";
 
   @TempDir
   private Path folder;
@@ -166,7 +175,7 @@ final class AbstractVideoCommandTest {
     this.provider = mock(AudioProvider.class);
     when(plugin.getVideoPlayerManager()).thenReturn(this.manager);
     when(plugin.getAudioProvider()).thenReturn(this.provider);
-    when(this.manager.getStatus()).thenReturn(this.status);
+    when(this.manager.getStarting()).thenReturn(this.status);
     when(this.manager.getService()).thenReturn(this.directExecutor);
     when(this.manager.isCurrent(ArgumentMatchers.anyLong())).thenReturn(true);
     when(this.manager.startNative(any(BooleanSupplier.class))).thenAnswer(this::runStart);
@@ -235,10 +244,12 @@ final class AbstractVideoCommandTest {
     final UrlParseDump dump = this.verifyPlayedWithDump(AudioArgument.NONE);
 
     final Optional<String> title = dump.getTitle();
-    assertEquals(Optional.of(VIDEO_FILE_NAME), title);
+    final Optional<String> expectedTitle = Optional.of(VIDEO_FILE_NAME);
+    assertEquals(expectedTitle, title);
 
     final Optional<String> description = dump.getDescription();
-    assertEquals(Optional.of("Video from a file"), description);
+    final Optional<String> expectedDescription = Optional.of("Video from a file");
+    assertEquals(expectedDescription, description);
 
     this.assertOutputsAttached();
     final Source source = this.verifyStartedWithOneSource();
@@ -363,10 +374,12 @@ final class AbstractVideoCommandTest {
     final UrlParseDump dump = this.verifyPlayedWithDump(AudioArgument.NONE);
 
     final Optional<String> title = dump.getTitle();
-    assertEquals(Optional.of("video=Camera"), title);
+    final Optional<String> expectedTitle = Optional.of("video=Camera");
+    assertEquals(expectedTitle, title);
 
     final Optional<String> description = dump.getDescription();
-    assertEquals(Optional.of("FFmpeg input dshow"), description);
+    final Optional<String> expectedDescription = Optional.of("FFmpeg input dshow");
+    assertEquals(expectedDescription, description);
 
     final Source source = this.verifyStartedWithOneSource();
     final FfmpegDirectSource input = assertInstanceOf(FfmpegDirectSource.class, source);
@@ -463,7 +476,7 @@ final class AbstractVideoCommandTest {
     );
 
     final Component refused = Message.FILTERS_INVALID.build(
-      "Filter sharpen does not exist, use one of " + String.join(LIST_SEPARATOR, FilterChain.NAMES) + " instead!"
+      "Filter sharpen does not exist, use one of %s instead!".formatted(String.join(LIST_SEPARATOR, FilterChain.NAMES))
     );
     this.assertSenderReceived(refused);
     this.assertNotStarting();
@@ -479,10 +492,12 @@ final class AbstractVideoCommandTest {
     final UrlParseDump dump = this.verifyPlayedWithDump(AudioArgument.NONE);
 
     final Optional<String> title = dump.getTitle();
-    assertEquals(Optional.of("Device 2"), title);
+    final Optional<String> expectedTitle = Optional.of("Device 2");
+    assertEquals(expectedTitle, title);
 
     final Optional<String> description = dump.getDescription();
-    assertEquals(Optional.of("Video from a capture device"), description);
+    final Optional<String> expectedDescription = Optional.of("Video from a capture device");
+    assertEquals(expectedDescription, description);
 
     final Source source = this.verifyStartedWithOneSource();
     final DeviceSource device = assertInstanceOf(DeviceSource.class, source);
@@ -497,7 +512,7 @@ final class AbstractVideoCommandTest {
     this.play(PlayerArgument.FFMPEG, AudioArgument.NONE, WEB_PAGE, "--yt-dlp{exec=anything}");
 
     final String supported = String.join(LIST_SEPARATOR, VideoFlagsParser.supportedOptions());
-    final String reason = "yt-dlp option exec is not supported, use one of " + supported + " instead!";
+    final String reason = "yt-dlp option exec is not supported, use one of %s instead!".formatted(supported);
     final Component refused = Message.UNSUPPORTED_FLAGS.build(reason);
     this.assertSenderReceived(refused);
     Mockito.verifyNoInteractions(this.viewer);
@@ -513,10 +528,12 @@ final class AbstractVideoCommandTest {
     final UrlParseDump dump = this.verifyPlayedWithDump(AudioArgument.NONE);
 
     final Optional<String> title = dump.getTitle();
-    assertEquals(Optional.of(WEBM_VIDEO_FILE_NAME), title);
+    final Optional<String> expectedTitle = Optional.of(WEBM_VIDEO_FILE_NAME);
+    assertEquals(expectedTitle, title);
 
     final Optional<String> description = dump.getDescription();
-    assertEquals(Optional.of("Video from a URL"), description);
+    final Optional<String> expectedDescription = Optional.of("Video from a URL");
+    assertEquals(expectedDescription, description);
 
     final Source source = this.verifyStartedWithOneSource();
     final UriSource uri = assertInstanceOf(UriSource.class, source);
@@ -531,18 +548,13 @@ final class AbstractVideoCommandTest {
   void shouldResolveWebPagesWithYtdlpAndPlayTheirStreams() throws IOException {
     final UrlParseDump resolved = UrlParseDump.of("A video");
     when(this.parser.parse(any(UriSource.class), eq(FORMAT_OPTION), eq(BEST_FORMAT))).thenReturn(resolved);
-    final URI videoStream = URI.create("https://cdn.example.com/video");
-    final URI audioStream = URI.create("https://cdn.example.com/audio");
+    final URI videoStream = URI.create(VIDEO_STREAM);
+    final URI audioStream = URI.create(AUDIO_STREAM);
     final UriSource videoStreamSource = UriSource.uri(videoStream);
     final UriSource audioStreamSource = UriSource.uri(audioStream);
     final StrategySelector strategies = this.mockStrategies(resolved, videoStreamSource, audioStreamSource);
 
-    try (final MockedStatic<StrategySelector> selectors = Mockito.mockStatic(StrategySelector.class)) {
-      selectors
-        .when(() -> StrategySelector.of(FormatStrategy.BEST_QUALITY_AUDIO, FormatStrategy.BEST_QUALITY_VIDEO))
-        .thenReturn(strategies);
-      this.play(PlayerArgument.FFMPEG, AudioArgument.NONE, WEB_PAGE, "--yt-dlp{format=best}");
-    }
+    this.playWebPage(strategies, "--yt-dlp{format=best}");
 
     this.assertResolvedTheWebPage();
     final UrlParseDump dump = this.verifyPlayedWithDump(AudioArgument.NONE);
@@ -558,11 +570,22 @@ final class AbstractVideoCommandTest {
     final Format audio = mock(Format.class);
     when(video.toUriSource()).thenReturn(videoSource);
     when(audio.toUriSource()).thenReturn(audioSource);
+    final FormatStrategy audioStrategy = mock(FormatStrategy.class);
+    when(audioStrategy.select(resolved)).thenReturn(Optional.of(audio));
     final StrategySelector strategies = mock(StrategySelector.class);
     when(strategies.getVideoSource(resolved)).thenReturn(video);
-    when(strategies.getAudioSource(resolved)).thenReturn(audio);
+    when(strategies.getAudioStrategy()).thenReturn(audioStrategy);
 
     return strategies;
+  }
+
+  private void playWebPage(final StrategySelector strategies, final String options) {
+    try (final MockedStatic<StrategySelector> selectors = Mockito.mockStatic(StrategySelector.class)) {
+      selectors
+        .when(() -> StrategySelector.of(FormatStrategy.BEST_QUALITY_AUDIO, FormatStrategy.BEST_QUALITY_VIDEO))
+        .thenReturn(strategies);
+      this.play(PlayerArgument.FFMPEG, AudioArgument.NONE, WEB_PAGE, options);
+    }
   }
 
   private void assertResolvedTheWebPage() throws IOException {
@@ -600,18 +623,101 @@ final class AbstractVideoCommandTest {
     final UriSource audioStreamSource = UriSource.uri(URI.create(audioStream));
     final StrategySelector strategies = this.mockStrategies(resolved, videoStreamSource, audioStreamSource);
 
-    try (final MockedStatic<StrategySelector> selectors = Mockito.mockStatic(StrategySelector.class)) {
-      selectors
-        .when(() -> StrategySelector.of(FormatStrategy.BEST_QUALITY_AUDIO, FormatStrategy.BEST_QUALITY_VIDEO))
-        .thenReturn(strategies);
-      this.play(PlayerArgument.FFMPEG, AudioArgument.NONE, WEB_PAGE, "");
-    }
+    this.playWebPage(strategies, "");
 
     final Component error = Message.VIDEO_START_ERROR.build();
     this.assertSenderReceived(error);
     verify(this.player, never()).start(any(), any());
     verify(this.manager, never()).setPlayer(any());
     this.assertNotStarting();
+  }
+
+  @Test
+  void shouldPlayAPageWhoseOnlyStreamIsTheVideoFile() {
+    final String videoFile = this.createVideoFormat(PAGE_VIDEO_FILE);
+    this.resolveWebPageTo(videoFile);
+
+    this.play(PlayerArgument.FFMPEG, AudioArgument.NONE, WEB_PAGE, "");
+
+    final URI file = URI.create(PAGE_VIDEO_FILE);
+    this.assertStartedWithStreamsAt(file, file);
+
+    final Component started = Message.START_VIDEO.build();
+    this.assertSenderReceived(started);
+  }
+
+  @Test
+  void shouldTakeTheAudioFromTheVideoStreamWhenThePageHasNoSeparateAudio() {
+    final String videoFile = this.createVideoFormat(PAGE_VIDEO_FILE);
+    this.resolveWebPageTo(videoFile);
+
+    this.play(PlayerArgument.FFMPEG, AudioArgument.SIMPLE_VOICE_CHAT, WEB_PAGE, "");
+
+    final URI file = URI.create(PAGE_VIDEO_FILE);
+    this.assertStartedWithStreamsAt(file, file);
+  }
+
+  @Test
+  void shouldKeepTheBestSeparateAudioStreamWhenThePageHasOne() {
+    final String videoOnly = this.createVideoFormat(PAGE_VIDEO_FILE);
+    final String audioOnly = this.createAudioFormat(PAGE_AUDIO_FILE);
+    this.resolveWebPageTo(videoOnly, audioOnly);
+
+    this.play(PlayerArgument.FFMPEG, AudioArgument.SIMPLE_VOICE_CHAT, WEB_PAGE, "");
+
+    final URI video = URI.create(PAGE_VIDEO_FILE);
+    final URI audio = URI.create(PAGE_AUDIO_FILE);
+    this.assertStartedWithStreamsAt(video, audio);
+  }
+
+  @ParameterizedTest
+  @CsvSource({ "file:///srv/media/clip.mp4, file", "rtsp://127.0.0.1:8554/clip, rtsp" })
+  void shouldRefuseANonWebVideoStreamOfAPage(final String videoStream, final String scheme) {
+    final String videoFile = this.createVideoFormat(videoStream);
+    this.resolveWebPageTo(videoFile);
+
+    final String output;
+    try (final StandardErrorCapture errors = StandardErrorCapture.start()) {
+      this.play(PlayerArgument.FFMPEG, AudioArgument.NONE, WEB_PAGE, "");
+      output = errors.getOutput();
+    }
+
+    final Component error = Message.VIDEO_START_ERROR.build();
+    this.assertSenderReceived(error);
+    verify(this.player, never()).start(any(), any());
+
+    final String refusal = "whose scheme %s is not http or https!".formatted(scheme);
+    final boolean refused = output.contains(refusal);
+    assertTrue(refused, output);
+  }
+
+  private String createVideoFormat(final String url) {
+    return "{\"url\": \"%s\", \"video_ext\": \"mp4\", \"audio_ext\": \"none\"}".formatted(url);
+  }
+
+  private String createAudioFormat(final String url) {
+    return "{\"url\": \"%s\", \"video_ext\": \"none\", \"audio_ext\": \"m4a\"}".formatted(url);
+  }
+
+  private void resolveWebPageTo(final String... formats) {
+    final String formatList = String.join(LIST_SEPARATOR, formats);
+    final String json = "{\"formats\": [%s]}".formatted(formatList);
+    final Gson gson = GsonProvider.getSimple();
+    final UrlParseDump resolved = gson.fromJson(json, UrlParseDump.class);
+    when(this.parser.parse(any(UriSource.class))).thenReturn(resolved);
+  }
+
+  private void assertStartedWithStreamsAt(final URI expectedVideo, final URI expectedAudio) {
+    final ArgumentCaptor<UriSource> videoSources = ArgumentCaptor.forClass(UriSource.class);
+    final ArgumentCaptor<UriSource> audioSources = ArgumentCaptor.forClass(UriSource.class);
+    verify(this.player).start(videoSources.capture(), audioSources.capture());
+
+    final UriSource videoSource = videoSources.getValue();
+    final UriSource audioSource = audioSources.getValue();
+    final URI video = videoSource.getUri();
+    final URI audio = audioSource.getUri();
+    assertEquals(expectedVideo, video);
+    assertEquals(expectedAudio, audio);
   }
 
   @Test
@@ -663,7 +769,8 @@ final class AbstractVideoCommandTest {
   private @Nullable Object cancelOnSecondCheck(final AtomicInteger checks, final AtomicBoolean cancelled) {
     if (checks.incrementAndGet() == 2) {
       cancelled.set(true);
-      throw new CancellationException("released during resolution!");
+      final String message = "released during resolution!";
+      throw new CancellationException(message);
     }
 
     return null;
@@ -703,6 +810,26 @@ final class AbstractVideoCommandTest {
     final String mrl = file.toString();
 
     this.play(PlayerArgument.FFMPEG, AudioArgument.NONE, mrl, "");
+
+    verify(this.manager, times(2)).clearCurrentVideo();
+
+    final Component error = Message.UNSUPPORTED_MRL.build();
+    this.assertSenderReceived(error);
+    verify(this.manager, never()).getHologramLocation();
+  }
+
+  @Test
+  void shouldReleaseAPlayerThatRefusesToStartTheStreamsOfAWebPage() {
+    when(this.player.start(any(), any())).thenReturn(false);
+    final UrlParseDump resolved = UrlParseDump.of("A video the player refuses");
+    when(this.parser.parse(any(UriSource.class))).thenReturn(resolved);
+    final URI videoStream = URI.create(VIDEO_STREAM);
+    final URI audioStream = URI.create(AUDIO_STREAM);
+    final UriSource videoStreamSource = UriSource.uri(videoStream);
+    final UriSource audioStreamSource = UriSource.uri(audioStream);
+    final StrategySelector strategies = this.mockStrategies(resolved, videoStreamSource, audioStreamSource);
+
+    this.playWebPage(strategies, "");
 
     verify(this.manager, times(2)).clearCurrentVideo();
 
@@ -925,7 +1052,7 @@ final class AbstractVideoCommandTest {
 
   @Test
   void shouldUnlockWithoutReportingWhenThePluginWasDisabledMeanwhile() throws IOException {
-    final BukkitScheduler scheduler = TestServer.scheduler();
+    final BukkitScheduler scheduler = TestServer.getScheduler();
     when(scheduler.runTask(any(Plugin.class), any(Runnable.class))).thenThrow(new IllegalPluginAccessException("disabled!"));
     final Path file = this.createVideoFile();
     final String mrl = file.toString();
@@ -1009,7 +1136,7 @@ final class AbstractVideoCommandTest {
   void shouldPreserveStartupFailureWhenClearingPartialOutputsAlsoFails() throws IOException {
     final Path file = this.createVideoFile();
     final String mrl = file.toString();
-    final IllegalStateException failure = new IllegalStateException("native start!");
+    final IllegalStateException failure = new IllegalStateException(NATIVE_START_FAILURE_MESSAGE);
     final IllegalArgumentException cleanup = new IllegalArgumentException("clear outputs!");
     when(this.player.start(any())).thenThrow(failure);
     Mockito.doNothing().doThrow(cleanup).when(this.manager).clearCurrentVideo();
@@ -1068,7 +1195,7 @@ final class AbstractVideoCommandTest {
 
   @Test
   void shouldPropagateFatalPlayVideoFailureWithoutResettingStartingStatus() {
-    final OutOfMemoryError fatal = new OutOfMemoryError("fatal sentinel!");
+    final OutOfMemoryError fatal = new OutOfMemoryError(FATAL_FAILURE_MESSAGE);
     when(this.manager.getService()).thenThrow(fatal);
 
     final OutOfMemoryError thrown = assertThrows(OutOfMemoryError.class, () ->
@@ -1082,7 +1209,7 @@ final class AbstractVideoCommandTest {
 
   @Test
   void shouldReportFatalPlayerStartFailureWithoutRecoverableCleanup() throws IOException {
-    final OutOfMemoryError fatal = new OutOfMemoryError("fatal sentinel!");
+    final OutOfMemoryError fatal = new OutOfMemoryError(FATAL_FAILURE_MESSAGE);
     when(this.player.start(any())).thenThrow(fatal);
     final Path file = this.createVideoFile();
     final String mrl = file.toString();
@@ -1094,8 +1221,8 @@ final class AbstractVideoCommandTest {
   void shouldReportFatalCleanupFailureWithoutSuppressingItOntoTheStartFailure() throws IOException {
     final Path file = this.createVideoFile();
     final String mrl = file.toString();
-    final IllegalStateException failure = new IllegalStateException("native start!");
-    final OutOfMemoryError fatal = new OutOfMemoryError("fatal sentinel!");
+    final IllegalStateException failure = new IllegalStateException(NATIVE_START_FAILURE_MESSAGE);
+    final OutOfMemoryError fatal = new OutOfMemoryError(FATAL_FAILURE_MESSAGE);
     when(this.player.start(any())).thenThrow(failure);
     Mockito.doNothing().doThrow(fatal).when(this.manager).clearCurrentVideo();
     this.playAndRequireFatalReport(mrl);
@@ -1109,7 +1236,7 @@ final class AbstractVideoCommandTest {
     final String mrl = file.toString();
     final Location location = mock(Location.class);
     when(this.manager.getHologramLocation()).thenReturn(Optional.of(location));
-    final OutOfMemoryError fatal = new OutOfMemoryError("fatal sentinel!");
+    final OutOfMemoryError fatal = new OutOfMemoryError(FATAL_FAILURE_MESSAGE);
     Mockito.doThrow(fatal).when(this.hologram).start();
     this.playAndRequireFatalReport(mrl);
     verify(this.hologram, never()).kill();
@@ -1237,6 +1364,7 @@ final class AbstractVideoCommandTest {
   private static final class RecordingCommand extends AbstractVideoCommand {
 
     private final VideoPipelineStep pipeline;
+
     private final List<Pair<Integer, Integer>> resolutions;
     private final List<VideoConfigurationProvider> providers;
 

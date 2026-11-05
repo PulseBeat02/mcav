@@ -30,7 +30,7 @@ enum ShaderPack {
     this.code = (byte) code;
   }
 
-  byte code() {
+  byte getCode() {
     return this.code;
   }
 }

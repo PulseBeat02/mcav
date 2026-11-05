@@ -31,7 +31,7 @@ import me.brandonli.mcav.MCAVException;
  *
  * @since 1.0.0
  */
-public class ProcessException extends MCAVException {
+public final class ProcessException extends MCAVException {
 
   @Serial
   private static final long serialVersionUID = -9183271875521286701L;

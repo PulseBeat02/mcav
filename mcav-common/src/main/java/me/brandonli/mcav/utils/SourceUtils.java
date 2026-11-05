@@ -43,7 +43,14 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 public final class SourceUtils {
 
+  private static final String RAW_NULL_MESSAGE = "Raw must not be null!";
+
   private static final String GIF_EXTENSION = "gif";
+
+  private static final char UNIX_SEPARATOR = '/';
+  private static final char WINDOWS_SEPARATOR = '\\';
+
+  private static final char EXTENSION_SEPARATOR = '.';
 
   private static final Set<String> MEDIA_EXTENSIONS = Set.of(
     "mp4",
@@ -97,11 +104,12 @@ public final class SourceUtils {
   );
 
   private SourceUtils() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   /**
-   * Checks whether a source points at a GIF, judging by the file extension of its path or URL.
+   * Returns whether a source points at a GIF, judging by the file extension of its path or URL.
    *
    * @param source the source
    * @return true if the path or URL ends with {@code .gif}
@@ -131,7 +139,7 @@ public final class SourceUtils {
   }
 
   /**
-   * Checks whether a string is a URL with both a scheme and a host, such as {@code https://example.com/a.mp4}.
+   * Returns whether a string is a URL with both a scheme and a host, such as {@code https://example.com/a.mp4}.
    *
    * @param raw the string
    * @return true if the string is such a URL
@@ -139,7 +147,7 @@ public final class SourceUtils {
    * @since 1.0.0
    */
   public static boolean isUri(final String raw) {
-    Preconditions.checkNotNull(raw, "Raw must not be null!");
+    Preconditions.checkNotNull(raw, RAW_NULL_MESSAGE);
 
     try {
       final URI uri = URI.create(raw);
@@ -152,7 +160,7 @@ public final class SourceUtils {
   }
 
   /**
-   * Checks whether a URL points directly at a media file, judging by a well-known media extension at the end of
+   * Returns whether a URL points directly at a media file, judging by a well-known media extension at the end of
    * its path. URLs of web pages such as YouTube videos are not direct and have to be resolved with yt-dlp.
    *
    * <p>Unlike the other methods of this class, this one accepts null, because it is typically asked about an optional
@@ -182,7 +190,7 @@ public final class SourceUtils {
   }
 
   /**
-   * Checks whether a string is the path of an existing file or directory.
+   * Returns whether a string is the path of an existing file or directory.
    *
    * @param raw the string
    * @return true if the path exists
@@ -190,7 +198,7 @@ public final class SourceUtils {
    * @since 1.0.0
    */
   public static boolean isPath(final String raw) {
-    Preconditions.checkNotNull(raw, "Raw must not be null!");
+    Preconditions.checkNotNull(raw, RAW_NULL_MESSAGE);
 
     try {
       final Path path = Path.of(raw);
@@ -210,15 +218,15 @@ public final class SourceUtils {
    * @throws NullPointerException  if {@code url} is null
    * @since 1.0.0
    */
-  public static boolean isDynamicStream(final String url) {
+  public static boolean isLiveStream(final String url) {
     Preconditions.checkNotNull(url, "URL must not be null!");
 
     final YtdlpParser parser = YtdlpParser.simple();
-    return isDynamicStream(url, parser);
+    return isLiveStream(url, parser);
   }
 
   @VisibleForTesting
-  static boolean isDynamicStream(final String url, final YtdlpParser parser) {
+  static boolean isLiveStream(final String url, final YtdlpParser parser) {
     try {
       final URI uri = URI.create(url);
       final UriSource source = UriSource.uri(uri);
@@ -230,10 +238,10 @@ public final class SourceUtils {
   }
 
   private static @Nullable String getExtension(final String path) {
-    final int lastSlash = path.lastIndexOf('/');
-    final int lastBackslash = path.lastIndexOf('\\');
+    final int lastSlash = path.lastIndexOf(UNIX_SEPARATOR);
+    final int lastBackslash = path.lastIndexOf(WINDOWS_SEPARATOR);
     final int lastSeparator = Math.max(lastSlash, lastBackslash);
-    final int lastDot = path.lastIndexOf('.');
+    final int lastDot = path.lastIndexOf(EXTENSION_SEPARATOR);
     final int lastIndex = path.length() - 1;
     final boolean hasExtension = lastDot > lastSeparator && lastDot < lastIndex;
     if (!hasExtension) {

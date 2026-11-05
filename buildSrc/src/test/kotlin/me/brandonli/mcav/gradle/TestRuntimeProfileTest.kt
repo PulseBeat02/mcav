@@ -40,7 +40,7 @@ class TestRuntimeProfileTest {
         test.maxHeapSize = "2g"
         test.jvmArgumentProviders.add(CommandLineArgumentProvider { listOf("-javaagent:coverage.jar") })
         test.systemProperty("mcav.networkTests", "false")
-        test.systemProperty("mcav.syncMeasurement", "false")
+        test.systemProperty("mcav.sync_measurement", "false")
         test.systemProperty("jqwik.database", JQWIK_DATABASE_PATH)
         test.systemProperty("jqwik.failures.after.default", "PREVIOUS_SEED")
         test.systemProperty("jqwik.tries.default", "10")
@@ -49,18 +49,18 @@ class TestRuntimeProfileTest {
         assertEquals(listOf(
             "--enable-native-access=ALL-UNNAMED",
             "-Djqwik.database=build/jqwik-database", "-Djqwik.failures.after.default=PREVIOUS_SEED", "-Djqwik.tries.default=10",
-            "-Dmcav.networkTests=false", "-Dmcav.published.pom=build/pom.xml", "-Dmcav.syncMeasurement=false"
+            "-Dmcav.networkTests=false", "-Dmcav.published.pom=build/pom.xml", "-Dmcav.sync_measurement=false"
         ), arguments)
 
         test.systemProperty("mcav.networkTests", "true")
-        test.systemProperty("mcav.syncMeasurement", "true")
+        test.systemProperty("mcav.sync_measurement", "true")
         test.systemProperty("jqwik.tries.default", "500")
 
         val changedArguments: List<String> = TestRuntimeProfile.forMutation(test)
         assertEquals(listOf(
             "--enable-native-access=ALL-UNNAMED",
             "-Djqwik.database=build/jqwik-database", "-Djqwik.failures.after.default=PREVIOUS_SEED", "-Djqwik.tries.default=500",
-            "-Dmcav.networkTests=true", "-Dmcav.published.pom=build/pom.xml", "-Dmcav.syncMeasurement=true"
+            "-Dmcav.networkTests=true", "-Dmcav.published.pom=build/pom.xml", "-Dmcav.sync_measurement=true"
         ), changedArguments)
     }
 }

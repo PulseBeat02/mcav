@@ -73,7 +73,7 @@ final class FaceDetectionFilterTest {
     final Path target = this.directory.resolve(name);
     final ClassLoader loader = FaceDetectionFilterTest.class.getClassLoader();
     try (final InputStream stream = loader.getResourceAsStream(CASCADE_RESOURCE_DIRECTORY + name)) {
-      assertNotNull(stream, "missing test resource " + name);
+      assertNotNull(stream, "missing test resource %s".formatted(name));
 
       Files.copy(stream, target);
     }
@@ -174,7 +174,8 @@ final class FaceDetectionFilterTest {
       new FaceDetectionFilter(missing, RED)
     );
     final String missingMessage = missingFailure.getMessage();
-    assertEquals("Cascade file " + missing + " does not exist!", missingMessage);
+    final String expected = "Cascade file %s does not exist!".formatted(missing);
+    assertEquals(expected, missingMessage);
     assertThrows(IllegalArgumentException.class, () -> new FaceDetectionFilter(unparsable, RED));
     assertThrows(IllegalArgumentException.class, () -> new FaceDetectionFilter(withoutCascade, RED));
     assertThrows(NullPointerException.class, () -> new FaceDetectionFilter((Path) null, RED));

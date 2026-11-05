@@ -107,6 +107,8 @@ final class PluginDataConfigurationMapperTest {
   private static final String NATIVE_MODE_WARNING_PATTERN = "using auto";
   private static final String ENCODER_BUDGET_WARNING_PATTERN = "using half the processors";
 
+  private static final int KEEP_TRAILING_EMPTY_PARTS = -1;
+
   @TempDir
   private Path folder;
 
@@ -244,7 +246,7 @@ final class PluginDataConfigurationMapperTest {
 
     final String text = logged.toString(StandardCharsets.UTF_8);
 
-    final int matches = text.split(ALLOWED_HOSTS_WARNING_PATTERN, -1).length - 1;
+    final int matches = text.split(ALLOWED_HOSTS_WARNING_PATTERN, KEEP_TRAILING_EMPTY_PARTS).length - 1;
     assertEquals(5, matches, text);
 
     final boolean contained = text.contains("hunter2");
@@ -280,7 +282,7 @@ final class PluginDataConfigurationMapperTest {
 
     final String text = logged.toString(StandardCharsets.UTF_8);
 
-    final int matches = text.split(ALLOWED_HOSTS_WARNING_PATTERN, -1).length - 1;
+    final int matches = text.split(ALLOWED_HOSTS_WARNING_PATTERN, KEEP_TRAILING_EMPTY_PARTS).length - 1;
     assertEquals(1, matches, text);
 
     final boolean contained = text.contains("hidden-secret");
@@ -521,7 +523,8 @@ final class PluginDataConfigurationMapperTest {
     assertFalse(browserConfineChromium);
 
     final List<String> browserRefusedHosts = this.mapper.getBrowserRefusedHosts();
-    assertEquals(List.of("203.0.113.5", REFUSED_HOST_NAME), browserRefusedHosts);
+    final List<String> expectedRefusedHosts = List.of("203.0.113.5", REFUSED_HOST_NAME);
+    assertEquals(expectedRefusedHosts, browserRefusedHosts);
 
     final boolean vmAllowNetwork = this.mapper.isVmAllowNetwork();
     assertTrue(vmAllowNetwork);
@@ -556,7 +559,7 @@ final class PluginDataConfigurationMapperTest {
     "8080.9, 3000",
   })
   void shouldAcceptOnlyValidPorts(final String configured, final int expected) throws IOException {
-    this.writeConfiguration("http-server:\n  port: " + configured + "\n");
+    this.writeConfiguration("http-server:\n  port: %s\n".formatted(configured));
     this.mapper.deserialize();
     final int port = this.mapper.getHttpPort();
     assertEquals(expected, port);
@@ -565,7 +568,7 @@ final class PluginDataConfigurationMapperTest {
   @ParameterizedTest
   @CsvSource({ "0, 0", "1, 1", "256, 256", "-1, 0", "257, 0", "4294967297, 0", "2.5, 0" })
   void shouldAcceptOnlyValidEncoderThreads(final String configured, final int expected) throws IOException {
-    this.writeConfiguration("mcv2:\n  encoder-threads: " + configured + "\n");
+    this.writeConfiguration("mcv2:\n  encoder-threads: %s\n".formatted(configured));
     this.mapper.deserialize();
 
     final int mcv2EncoderThreads = this.mapper.getMcv2EncoderThreads();
@@ -585,18 +588,19 @@ final class PluginDataConfigurationMapperTest {
     }
 
     final List<String> browserRefusedHosts = this.mapper.getBrowserRefusedHosts();
-    assertEquals(List.of(REFUSED_HOST_NAME), browserRefusedHosts);
+    final List<String> expectedRefusedHosts = List.of(REFUSED_HOST_NAME);
+    assertEquals(expectedRefusedHosts, browserRefusedHosts);
 
     final String text = logged.toString(StandardCharsets.UTF_8);
 
-    final int matches = text.split(REFUSED_HOSTS_WARNING_PATTERN, -1).length - 1;
+    final int matches = text.split(REFUSED_HOSTS_WARNING_PATTERN, KEEP_TRAILING_EMPTY_PARTS).length - 1;
     assertEquals(3, matches, text);
   }
 
   @ParameterizedTest
   @CsvSource({ "auto, auto", "off, off", "on, auto", "OFF, auto" })
   void shouldAcceptOnlyTheNativeModes(final String configured, final String expected) throws IOException {
-    this.writeConfiguration("mcv2:\n  native: \"" + configured + "\"\n");
+    this.writeConfiguration("mcv2:\n  native: \"%s\"\n".formatted(configured));
     this.mapper.deserialize();
 
     final String mcv2Native = this.mapper.getMcv2Native();
@@ -606,7 +610,7 @@ final class PluginDataConfigurationMapperTest {
   @ParameterizedTest
   @CsvSource({ "off, off", "false, off", "on, auto", "true, auto" })
   void shouldReadTheNativeModeWrittenWithoutQuotes(final String configured, final String expected) throws IOException {
-    this.writeConfiguration("mcv2:\n  native: " + configured + "\n");
+    this.writeConfiguration("mcv2:\n  native: %s\n".formatted(configured));
     this.mapper.deserialize();
 
     final String mcv2Native = this.mapper.getMcv2Native();
@@ -628,7 +632,7 @@ final class PluginDataConfigurationMapperTest {
     }
     final String text = logged.toString(StandardCharsets.UTF_8);
 
-    final int matches = text.split(NATIVE_MODE_WARNING_PATTERN, -1).length - 1;
+    final int matches = text.split(NATIVE_MODE_WARNING_PATTERN, KEEP_TRAILING_EMPTY_PARTS).length - 1;
     assertEquals(1, matches, text);
   }
 
@@ -649,7 +653,7 @@ final class PluginDataConfigurationMapperTest {
     // the default, 0, is no mistake; -1 is
     final String text = logged.toString(StandardCharsets.UTF_8);
 
-    final int matches = text.split(ENCODER_BUDGET_WARNING_PATTERN, -1).length - 1;
+    final int matches = text.split(ENCODER_BUDGET_WARNING_PATTERN, KEEP_TRAILING_EMPTY_PARTS).length - 1;
     assertEquals(1, matches, text);
   }
 
@@ -661,7 +665,7 @@ final class PluginDataConfigurationMapperTest {
     final PluginException exception = assertThrows(PluginException.class, this.mapper::deserialize);
 
     final String message = exception.getMessage();
-    final boolean mentionsFile = message.startsWith("File " + file + " could not be read (");
+    final boolean mentionsFile = message.endsWith("\", file %s could not be read!".formatted(file));
     assertTrue(mentionsFile, message);
 
     final Throwable cause = exception.getCause();
@@ -675,7 +679,7 @@ final class PluginDataConfigurationMapperTest {
 
     final Path file = this.folder.resolve(CONFIGURATION_FILE_NAME);
     final String message = exception.getMessage();
-    final boolean mentionsFile = message.startsWith("File " + file + " is not valid YAML (");
+    final boolean mentionsFile = message.endsWith("\", file %s is not valid YAML!".formatted(file));
     assertTrue(mentionsFile, message);
 
     final Throwable cause = exception.getCause();

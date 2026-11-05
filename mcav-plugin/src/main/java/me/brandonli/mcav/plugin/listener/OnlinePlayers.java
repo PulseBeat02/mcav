@@ -17,6 +17,7 @@
  */
 package me.brandonli.mcav.plugin.listener;
 
+import com.google.common.base.Preconditions;
 import java.util.Collections;
 import java.util.Set;
 import java.util.UUID;
@@ -30,6 +31,7 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.plugin.Plugin;
+import org.bukkit.plugin.PluginManager;
 
 /**
  * The players online, kept as they join and leave. A screen shown to {@code @a} watches through this set, so a player
@@ -39,12 +41,14 @@ import org.bukkit.plugin.Plugin;
  */
 public final class OnlinePlayers implements Listener {
 
+  private static final String EVENT_NULL_MESSAGE = "Event must not be null!";
+
   private final Set<UUID> online;
 
   private final Set<UUID> view;
 
   /**
-   * Constructs an empty set; {@link #start(Plugin)} fills it.
+   * Creates an empty set; {@link #start(Plugin)} fills it.
    *
    * @since 1.0.0
    */
@@ -57,13 +61,18 @@ public final class OnlinePlayers implements Listener {
    * Starts following the players, from those online now. Call on the main thread.
    *
    * @param plugin the plugin that listens
+   * @throws NullPointerException if {@code plugin} is null
    * @since 1.0.0
    */
   public void start(final Plugin plugin) {
+    Preconditions.checkNotNull(plugin, "Plugin must not be null!");
+
     for (final Player player : Bukkit.getOnlinePlayers()) {
       this.online.add(player.getUniqueId());
     }
-    Bukkit.getPluginManager().registerEvents(this, plugin);
+
+    final PluginManager pluginManager = Bukkit.getPluginManager();
+    pluginManager.registerEvents(this, plugin);
   }
 
   /**
@@ -71,7 +80,7 @@ public final class OnlinePlayers implements Listener {
    *
    * @since 1.0.0
    */
-  public void stop() {
+  public void shutdown() {
     HandlerList.unregisterAll(this);
     this.online.clear();
   }
@@ -80,22 +89,32 @@ public final class OnlinePlayers implements Listener {
    * Counts a player who joins before any other listener hears of it.
    *
    * @param event the join
+   * @throws NullPointerException if {@code event} is null
    * @since 1.0.0
    */
   @EventHandler(priority = EventPriority.LOWEST)
   public void onPlayerJoin(final PlayerJoinEvent event) {
-    this.online.add(event.getPlayer().getUniqueId());
+    Preconditions.checkNotNull(event, EVENT_NULL_MESSAGE);
+
+    final Player player = event.getPlayer();
+    final UUID playerId = player.getUniqueId();
+    this.online.add(playerId);
   }
 
   /**
    * Forgets a player who leaves once every other listener heard of it.
    *
    * @param event the quit
+   * @throws NullPointerException if {@code event} is null
    * @since 1.0.0
    */
   @EventHandler(priority = EventPriority.MONITOR)
   public void onPlayerQuit(final PlayerQuitEvent event) {
-    this.online.remove(event.getPlayer().getUniqueId());
+    Preconditions.checkNotNull(event, EVENT_NULL_MESSAGE);
+
+    final Player player = event.getPlayer();
+    final UUID playerId = player.getUniqueId();
+    this.online.remove(playerId);
   }
 
   /**

@@ -22,27 +22,21 @@ import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 import java.util.function.LongSupplier;
-import org.cef.browser.McavOffscreenBrowser;
+import org.cef.browser.MCAVOffscreenBrowser;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-/**
- * Keeps the picture of a page in the helper process and hands out what changed.
- *
- * <p>CEF paints the page and, separately, popup widgets such as the list of an open drop-down box. The compositor
- * copies each painted rectangle out of CEF's buffer, which is only valid during the paint, into its own copy of the
- * page, and remembers the popup with its position. Changed areas add up to one damaged rectangle, which
- * {@link #takeDamage} copies out, with the popup drawn over the page where it is open. Damage is never dropped, only
- * merged, so the receiver's picture always ends up equal to the page.
- *
- * <p>Damage becomes due to be sent after every n-th paint of the page, or once it waited for the settle delay, so the
- * last change of a page that stops changing is not held back by the frame interval.
- */
-final class PageCompositor implements McavOffscreenBrowser.PaintListener {
+// The paint buffer of CEF is valid only during the paint, so the page is copied; damage is merged, never dropped, so the
+// receiver ends up with the page. A settle delay sends the last change of a page that stops changing.
+final class PageCompositor implements MCAVOffscreenBrowser.PaintListener {
+
+  private static final byte FULL_CHANNEL = (byte) 0xFF;
+
+  private static final long MINIMUM_WAIT_NANOSECONDS = 1L;
 
   private final int width;
   private final int height;
   private final int frameInterval;
-  private final long settleNanos;
+  private final long settleNanoseconds;
   private final LongSupplier clock;
   private final byte[] page;
 
@@ -53,47 +47,32 @@ final class PageCompositor implements McavOffscreenBrowser.PaintListener {
   private @Nullable Rectangle popupBounds;
   private @Nullable Popup shownPopup;
 
-  /**
-   * Constructs a compositor with a white page.
-   *
-   * @param width         the width of the page in pixels
-   * @param height        the height of the page in pixels
-   * @param frameInterval damage is due after this many paints of the page
-   * @param settleMillis  damage is due once it waited this long
-   * @param clock         a monotonic clock in nanoseconds
-   */
-  PageCompositor(final int width, final int height, final int frameInterval, final long settleMillis, final LongSupplier clock) {
+  PageCompositor(final int width, final int height, final int frameInterval, final long settleMilliseconds, final LongSupplier clock) {
     this.width = width;
     this.height = height;
     this.frameInterval = frameInterval;
-    this.settleNanos = TimeUnit.MILLISECONDS.toNanos(settleMillis);
+    this.settleNanoseconds = TimeUnit.MILLISECONDS.toNanos(settleMilliseconds);
     this.clock = clock;
     this.page = new byte[width * height * HelperProtocol.PIXEL_BYTES];
-    Arrays.fill(this.page, (byte) 0xFF);
+    Arrays.fill(this.page, FULL_CHANNEL);
+
+    this.damage = null;
+    this.damageSince = 0L;
+    this.paintsSinceSent = 0;
+    this.closed = false;
+    this.popupBounds = null;
+    this.shownPopup = null;
   }
 
-  /**
-   * Gets the most bytes one region can have.
-   *
-   * @return the size of the whole page in bytes
-   */
-  int getPageBytes() {
-    return this.page.length;
+  synchronized void close() {
+    this.closed = true;
+    this.notifyAll();
   }
 
-  /**
-   * Copies the painted rectangles of the page or of a popup.
-   *
-   * @param isPopup      true if the buffer holds a popup widget
-   * @param dirtyRects the rectangles that changed, relative to the buffer
-   * @param buffer     the pixels, BGRA, row by row
-   * @param bufferWidth  the width of the buffer
-   * @param bufferHeight the height of the buffer
-   */
   @Override
   public synchronized void onPaint(
     final boolean isPopup,
-    final Rectangle[] dirtyRects,
+    final Rectangle[] dirtyRectangles,
     final ByteBuffer buffer,
     final int bufferWidth,
     final int bufferHeight
@@ -102,20 +81,22 @@ final class PageCompositor implements McavOffscreenBrowser.PaintListener {
       this.paintPopup(buffer, bufferWidth, bufferHeight);
       return;
     }
+
     if (bufferWidth != this.width || bufferHeight != this.height) {
       return;
     }
+
     final Rectangle pageBounds = new Rectangle(0, 0, this.width, this.height);
-    for (final Rectangle dirty : dirtyRects) {
+    for (final Rectangle dirty : dirtyRectangles) {
       final Rectangle clipped = dirty.intersection(pageBounds);
       if (clipped.isEmpty()) {
         continue;
       }
-      copyRows(buffer, this.width, clipped, this.page, this.width, clipped.x, clipped.y);
+      this.copyRows(buffer, this.width, clipped, this.page, this.width, clipped.x, clipped.y);
       this.addDamage(clipped);
     }
-    this.paintsSinceSent++;
-    this.notifyAll();
+
+    this.signalPaint();
   }
 
   private void paintPopup(final ByteBuffer buffer, final int bufferWidth, final int bufferHeight) {
@@ -124,35 +105,19 @@ final class PageCompositor implements McavOffscreenBrowser.PaintListener {
     if (bounds == null || bounds.width != bufferWidth || bounds.height != bufferHeight) {
       return;
     }
+
     final int bytes = bufferWidth * bufferHeight * HelperProtocol.PIXEL_BYTES;
     final byte[] pixels = new byte[bytes];
     final ByteBuffer source = buffer.duplicate();
     source.position(0);
     source.get(pixels, 0, bytes);
-    this.shownPopup = new Popup(new Rectangle(bounds), pixels);
+
+    final Rectangle shownBounds = new Rectangle(bounds);
+    this.shownPopup = new Popup(shownBounds, pixels);
     this.addPopupDamage(bounds);
-    this.paintsSinceSent++;
-    this.notifyAll();
+    this.signalPaint();
   }
 
-  /**
-   * Hides the popup that is shown, sending the page under it again as soon as the next paint would be.
-   */
-  private void hidePopup() {
-    final Popup shown = this.shownPopup;
-    if (shown != null) {
-      this.shownPopup = null;
-      this.addPopupDamage(shown.bounds());
-      this.paintsSinceSent++;
-      this.notifyAll();
-    }
-  }
-
-  /**
-   * Shows or hides the popup widget.
-   *
-   * @param isShown true if the popup is shown
-   */
   @Override
   public synchronized void onPopupShow(final boolean isShown) {
     if (!isShown) {
@@ -160,15 +125,20 @@ final class PageCompositor implements McavOffscreenBrowser.PaintListener {
     }
   }
 
-  /**
-   * Remembers where the popup widget is drawn.
-   *
-   * @param bounds the bounds of the popup on the page
-   */
   @Override
   public synchronized void onPopupSize(final Rectangle bounds) {
     this.hidePopup();
     this.popupBounds = new Rectangle(bounds);
+  }
+
+  private void hidePopup() {
+    final Popup shown = this.shownPopup;
+    if (shown != null) {
+      this.shownPopup = null;
+      final Rectangle bounds = shown.bounds();
+      this.addPopupDamage(bounds);
+      this.signalPaint();
+    }
   }
 
   private void addPopupDamage(final Rectangle bounds) {
@@ -189,69 +159,88 @@ final class PageCompositor implements McavOffscreenBrowser.PaintListener {
     }
   }
 
-  /**
-   * Waits until damage is due, then copies the damaged region, with the popup drawn over it, into the buffer.
-   *
-   * @param target        the buffer, at least {@link #getPageBytes()} bytes
-   * @param timeoutMillis how long to wait at most
-   * @return the region, or null if nothing was due in time or the compositor was closed
-   * @throws InterruptedException if the waiting thread is interrupted
-   */
-  synchronized @Nullable FrameRegion takeDamage(final byte[] target, final long timeoutMillis) throws InterruptedException {
-    final long deadline = this.clock.getAsLong() + TimeUnit.MILLISECONDS.toNanos(timeoutMillis);
+  private void signalPaint() {
+    this.paintsSinceSent++;
+    this.notifyAll();
+  }
+
+  synchronized @Nullable FrameRegion takeDamage(final byte[] target, final long timeoutMilliseconds) throws InterruptedException {
+    final long timeoutNanoseconds = TimeUnit.MILLISECONDS.toNanos(timeoutMilliseconds);
+    final long start = this.clock.getAsLong();
+    final long deadline = start + timeoutNanoseconds;
     while (!this.closed) {
       final Rectangle current = this.damage;
       final long now = this.clock.getAsLong();
       if (current != null && this.isDue(now)) {
-        return this.copyDamage(current, target);
+        return this.drainDamage(current, target);
       }
       final long remaining = deadline - now;
       if (remaining <= 0) {
         return null;
       }
-      final long settleLeft = current == null ? remaining : this.damageSince + this.settleNanos - now;
-      final long waitNanos = Math.max(1L, Math.min(remaining, settleLeft));
-      TimeUnit.NANOSECONDS.timedWait(this, waitNanos);
+      final long waitNanoseconds = this.computeWaitNanoseconds(now, remaining);
+      TimeUnit.NANOSECONDS.timedWait(this, waitNanoseconds);
     }
+
     return null;
   }
 
   private boolean isDue(final long now) {
     final boolean enoughPaints = this.paintsSinceSent >= this.frameInterval;
-    final boolean settled = now - this.damageSince >= this.settleNanos;
+    final boolean settled = now - this.damageSince >= this.settleNanoseconds;
     return enoughPaints || settled;
   }
 
-  private FrameRegion copyDamage(final Rectangle area, final byte[] target) {
+  private FrameRegion drainDamage(final Rectangle area, final byte[] target) {
     final ByteBuffer pageBuffer = ByteBuffer.wrap(this.page);
-    copyRows(pageBuffer, this.width, area, target, area.width, 0, 0);
-    final Popup shown = this.shownPopup;
-    if (shown != null) {
-      final Rectangle bounds = shown.bounds();
-      final Rectangle overlap = area.intersection(bounds);
-      if (!overlap.isEmpty()) {
-        final Rectangle inPopup = new Rectangle(overlap.x - bounds.x, overlap.y - bounds.y, overlap.width, overlap.height);
-        final ByteBuffer popupBuffer = ByteBuffer.wrap(shown.pixels());
-        copyRows(popupBuffer, bounds.width, inPopup, target, area.width, overlap.x - area.x, overlap.y - area.y);
-      }
-    }
+    this.copyRows(pageBuffer, this.width, area, target, area.width, 0, 0);
+
+    this.overlayPopup(area, target);
+
     this.damage = null;
     this.paintsSinceSent = 0;
+
     return new FrameRegion(this.width, this.height, area.x, area.y, area.width, area.height, target);
   }
 
-  /**
-   * Copies a rectangle of a BGRA buffer into a BGRA array.
-   *
-   * @param source       the source pixels
-   * @param sourceWidth  the width of the source in pixels
-   * @param area         the rectangle, relative to the source
-   * @param target       the target pixels
-   * @param targetWidth  the width of the target in pixels
-   * @param targetX      where the rectangle starts in the target
-   * @param targetY      where the rectangle starts in the target
-   */
-  private static void copyRows(
+  private long computeWaitNanoseconds(final long now, final long remaining) {
+    final long settleLeft = this.computeSettleLeft(now, remaining);
+    final long untilDue = Math.min(remaining, settleLeft);
+    return Math.max(MINIMUM_WAIT_NANOSECONDS, untilDue);
+  }
+
+  private long computeSettleLeft(final long now, final long remaining) {
+    if (this.damage == null) {
+      return remaining;
+    }
+
+    final long settleDeadline = this.damageSince + this.settleNanoseconds;
+    return settleDeadline - now;
+  }
+
+  private void overlayPopup(final Rectangle area, final byte[] target) {
+    final Popup shown = this.shownPopup;
+    if (shown == null) {
+      return;
+    }
+
+    final Rectangle bounds = shown.bounds();
+    final Rectangle overlap = area.intersection(bounds);
+    if (overlap.isEmpty()) {
+      return;
+    }
+
+    final int popupX = overlap.x - bounds.x;
+    final int popupY = overlap.y - bounds.y;
+    final Rectangle inPopup = new Rectangle(popupX, popupY, overlap.width, overlap.height);
+    final byte[] popupPixels = shown.pixels();
+    final ByteBuffer popupBuffer = ByteBuffer.wrap(popupPixels);
+    final int regionX = overlap.x - area.x;
+    final int regionY = overlap.y - area.y;
+    this.copyRows(popupBuffer, bounds.width, inPopup, target, area.width, regionX, regionY);
+  }
+
+  private void copyRows(
     final ByteBuffer source,
     final int sourceWidth,
     final Rectangle area,
@@ -270,33 +259,11 @@ final class PageCompositor implements McavOffscreenBrowser.PaintListener {
     }
   }
 
-  /**
-   * Wakes a thread waiting in {@link #takeDamage} and makes it return null from now on.
-   */
-  synchronized void close() {
-    this.closed = true;
-    this.notifyAll();
+  int getPageBytes() {
+    return this.page.length;
   }
 
-  /**
-   * A popup widget that is shown: where it is drawn on the page, and its pixels.
-   */
-  private static final class Popup {
-
-    private final Rectangle bounds;
-    private final byte[] pixels;
-
-    Popup(final Rectangle bounds, final byte[] pixels) {
-      this.bounds = bounds;
-      this.pixels = pixels;
-    }
-
-    Rectangle bounds() {
-      return this.bounds;
-    }
-
-    byte[] pixels() {
-      return this.pixels;
-    }
-  }
+  // a private tuple that is never compared or hashed, so its array component needs no deep equality
+  @SuppressWarnings("ArrayRecordComponent")
+  private record Popup(Rectangle bounds, byte[] pixels) {}
 }

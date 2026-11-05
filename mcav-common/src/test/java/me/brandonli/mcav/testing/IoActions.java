@@ -24,7 +24,8 @@ import java.io.UncheckedIOException;
 public final class IoActions {
 
   private IoActions() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   public static void runUnchecked(final IoAction action) {

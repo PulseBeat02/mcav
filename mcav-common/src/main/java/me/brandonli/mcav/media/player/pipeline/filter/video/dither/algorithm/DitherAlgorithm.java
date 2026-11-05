@@ -68,13 +68,13 @@ public interface DitherAlgorithm {
   /**
    * Dithers an image into palette indices, one byte per pixel laid out row by row. The image is not modified.
    *
-   * @param buffer the image to dither
+   * @param image the image to dither
    * @return a new caller-owned array containing the palette index of every pixel; alpha is ignored
-   * @throws NullPointerException  if {@code buffer} is null
+   * @throws NullPointerException  if {@code image} is null
    * @throws IllegalStateException if the image has been released
    * @since 1.0.0
    */
-  byte[] ditherIntoBytes(final ImageBuffer buffer);
+  byte[] ditherIntoBytes(final ImageBuffer image);
 
   /**
    * Dithers pixels in place, replacing every pixel with the ARGB value of a palette color.
@@ -82,7 +82,7 @@ public interface DitherAlgorithm {
    * @param buffer the ARGB pixels laid out row by row, which are replaced with palette colors
    * @param width  the strictly positive width, which must divide the buffer length; an empty buffer is allowed
    * @throws NullPointerException     if {@code buffer} is null
-   * @throws IllegalArgumentException if width is nonpositive or does not divide the buffer length
+   * @throws IllegalArgumentException if width is not positive or does not divide the buffer length
    * @since 1.0.0
    */
   void dither(final int[] buffer, final int width);

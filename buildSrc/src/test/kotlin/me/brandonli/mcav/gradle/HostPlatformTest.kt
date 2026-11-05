@@ -29,6 +29,7 @@ import org.gradle.api.internal.artifacts.dependencies.DefaultMutableVersionConst
 import org.gradle.api.provider.Provider
 import org.gradle.testfixtures.ProjectBuilder
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -41,6 +42,8 @@ class HostPlatformTest {
         const val WINDOWS_NAME: String = "Windows 11"
         const val MACOS_NAME: String = "Mac OS X"
         const val UNKNOWN_NAME: String = "Plan 9"
+
+        const val WINDOWS: String = "windows"
 
         const val AMD64: String = "amd64"
         const val ARM64: String = "arm64"
@@ -73,8 +76,8 @@ class HostPlatformTest {
         val hosts: List<List<String>> = listOf(
             listOf(LINUX_NAME, AMD64, "x86_64", "linux", "x86_64-unknown-linux-musl", LINUX_CLASSIFIER),
             listOf(LINUX_NAME, ARM64, "aarch64", "linux", LINUX_ARM64_TARGET, "natives-linux-arm64"),
-            listOf(WINDOWS_NAME, "x86_64", "x86_64", "windows", WINDOWS_TARGET, WINDOWS_CLASSIFIER),
-            listOf(WINDOWS_NAME, "aarch64", "aarch64", "windows", "aarch64-pc-windows-msvc", "natives-windows-arm64"),
+            listOf(WINDOWS_NAME, "x86_64", "x86_64", WINDOWS, WINDOWS_TARGET, WINDOWS_CLASSIFIER),
+            listOf(WINDOWS_NAME, "aarch64", "aarch64", WINDOWS, "aarch64-pc-windows-msvc", "natives-windows-arm64"),
             listOf(MACOS_NAME, AMD64, "x86_64", "macos", "x86_64-apple-darwin", "natives-macos"),
             listOf(MACOS_NAME, ARM64, "aarch64", "macos", "aarch64-apple-darwin", MACOS_ARM64_CLASSIFIER)
         )
@@ -125,7 +128,7 @@ class HostPlatformTest {
 
             val host: HostPlatform = HostPlatform.normalize("WINDOWS", "AMD64")
             val operatingSystem: String = host.operatingSystem
-            assertEquals("windows", operatingSystem)
+            assertEquals(WINDOWS, operatingSystem)
 
             val windows: Boolean = host.isWindows
             assertTrue(windows)
@@ -194,6 +197,35 @@ class HostPlatformTest {
 
         val classifiers: List<String?> = this.testRuntimeClassifiers(project)
         assertEquals(emptyList<String?>(), classifiers)
+    }
+
+    @Test
+    fun shouldEqualOnlyAPlatformOfTheSameOperatingSystemAndArchitecture(): Unit {
+        val platform: HostPlatform = HostPlatform.normalize(LINUX_NAME, AMD64)
+        val same: HostPlatform = HostPlatform.normalize(LINUX_NAME, AMD64)
+        val otherArchitecture: HostPlatform = HostPlatform.normalize(LINUX_NAME, ARM64)
+        val otherSystem: HostPlatform = HostPlatform.normalize(WINDOWS_NAME, AMD64)
+
+        assertEquals(platform, platform)
+        assertEquals(same, platform)
+
+        val sameHash: Int = same.hashCode()
+        val platformHash: Int = platform.hashCode()
+        assertEquals(sameHash, platformHash)
+
+        val otherHash: Int = otherArchitecture.hashCode()
+        assertNotEquals(otherHash, platformHash)
+
+        assertNotEquals(otherArchitecture, platform)
+        assertNotEquals(otherSystem, platform)
+        assertNotEquals(platform, LINUX_NAME)
+    }
+
+    @Test
+    fun shouldShowTheOperatingSystemAndTheArchitecture(): Unit {
+        val platform: HostPlatform = HostPlatform.normalize(LINUX_NAME, AMD64)
+        val text: String = platform.toString()
+        assertEquals("HostPlatform(operatingSystem=linux, architecture=x86_64)", text)
     }
 
     private fun mappingOf(row: List<String>): List<String?> {

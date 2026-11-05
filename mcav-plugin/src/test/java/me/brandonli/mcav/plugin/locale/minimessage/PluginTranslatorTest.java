@@ -182,7 +182,7 @@ final class PluginTranslatorTest {
     final MiniMessageTranslator custom = new MiniMessageTranslator(strict) {
       @Override
       protected Optional<String> getMiniMessageString(final String key, final Locale locale) {
-        final String message = "<green>" + key;
+        final String message = "<green>%s".formatted(key);
         return Optional.of(message);
       }
 

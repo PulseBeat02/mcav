@@ -47,7 +47,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *
  * <p>A source that goes quiet sends nothing, so its sound would reach the players with every pause cut out. After
  * {@link #quiet()} the output hands over silence in real time instead: every gap from the end of the sound handed over
- * to the next samples due is filled in chunks of {@value #SILENCE_CHUNK_MILLISECONDS} ms, until samples that arrived after the
+ * to the next samples due is filled in chunks of 20 ms, until samples that arrived after the
  * call are due, for {@value #SILENCE_MILLISECONDS} ms at most; a longer pause is not filled, and nothing is filled while the
  * output is paused.
  *
@@ -62,6 +62,9 @@ public final class DelayedAudioOutput implements AutoCloseable {
   private static final String UNSTARTED_THREAD_NAME = "mcav-audio-output-not-started";
 
   private static final int MILLISECONDS_PER_SECOND = 1000;
+  private static final long NANOSECONDS_PER_MILLISECOND = TimeUnit.MILLISECONDS.toNanos(1);
+
+  private static final long MINIMUM_WAIT_NANOSECONDS = 1L;
 
   /**
    * The format of the samples: 16-bit little-endian PCM in the rate and the channels of the audio pipeline.
@@ -194,7 +197,7 @@ public final class DelayedAudioOutput implements AutoCloseable {
     Preconditions.checkArgument(delayMilliseconds >= 0, "Delay %s must not be negative!", delayMilliseconds);
     Preconditions.checkArgument(
       maximumQueuedMilliseconds > delayMilliseconds,
-      "At most %s ms may wait, which leaves no room past the delay of %s ms!",
+      "At most %s ms may wait, but the delay of %s ms leaves no room past it!",
       maximumQueuedMilliseconds,
       delayMilliseconds
     );
@@ -204,6 +207,7 @@ public final class DelayedAudioOutput implements AutoCloseable {
       MAXIMUM_QUEUED_MILLISECONDS,
       maximumQueuedMilliseconds
     );
+
     final DelayedAudioOutput output = new DelayedAudioOutput(
       source,
       delayMilliseconds,
@@ -218,6 +222,7 @@ public final class DelayedAudioOutput implements AutoCloseable {
     thread.setDaemon(true);
     output.thread = thread;
     thread.start();
+
     return output;
   }
 
@@ -302,7 +307,7 @@ public final class DelayedAudioOutput implements AutoCloseable {
       if (next != null && next.due() - now <= 0) {
         return this.takeDue(next, now);
       }
-      final ByteBuffer silence = this.silence(now, next);
+      final ByteBuffer silence = this.takeSilence(now, next);
       if (silence != null) {
         return silence;
       }
@@ -312,7 +317,7 @@ public final class DelayedAudioOutput implements AutoCloseable {
       }
       final long nextDue = next == null ? Long.MAX_VALUE : next.due();
       final long wake = this.silenceLeftNanoseconds > 0 ? Math.min(nextDue, this.streamEnd) : nextDue;
-      TimeUnit.NANOSECONDS.timedWait(this, Math.max(1, wake - now));
+      TimeUnit.NANOSECONDS.timedWait(this, Math.max(MINIMUM_WAIT_NANOSECONDS, wake - now));
     }
 
     return null;
@@ -327,12 +332,12 @@ public final class DelayedAudioOutput implements AutoCloseable {
       this.silenceLeftNanoseconds = 0;
     }
 
-    this.streamEnd = Math.max(this.streamEnd, now) + nanosecondsOf(samples.remaining());
+    this.streamEnd = Math.max(this.streamEnd, now) + this.nanosecondsOf(samples.remaining());
 
     return samples;
   }
 
-  private @Nullable ByteBuffer silence(final long now, final @Nullable Chunk next) {
+  private @Nullable ByteBuffer takeSilence(final long now, final @Nullable Chunk next) {
     if (this.silenceLeftNanoseconds <= 0 || this.streamEnd - now > 0) {
       return null;
     }
@@ -344,7 +349,7 @@ public final class DelayedAudioOutput implements AutoCloseable {
     }
 
     final int bytes =
-      ((int) ((nanoseconds * BYTES_PER_MILLISECOND) / TimeUnit.MILLISECONDS.toNanos(1)) / AudioFilter.FRAME_SIZE) * AudioFilter.FRAME_SIZE;
+      ((int) ((nanoseconds * BYTES_PER_MILLISECOND) / NANOSECONDS_PER_MILLISECOND) / AudioFilter.FRAME_SIZE) * AudioFilter.FRAME_SIZE;
     if (bytes <= 0) {
       if (next == null) {
         this.silenceLeftNanoseconds = 0;
@@ -353,14 +358,14 @@ public final class DelayedAudioOutput implements AutoCloseable {
       return null;
     }
 
-    this.silenceLeftNanoseconds -= nanosecondsOf(bytes);
-    this.streamEnd = start + nanosecondsOf(bytes);
+    this.silenceLeftNanoseconds -= this.nanosecondsOf(bytes);
+    this.streamEnd = start + this.nanosecondsOf(bytes);
 
     return ByteBuffer.allocate(bytes).order(ByteOrder.LITTLE_ENDIAN);
   }
 
-  private static long nanosecondsOf(final int bytes) {
-    return (bytes * TimeUnit.MILLISECONDS.toNanos(1)) / BYTES_PER_MILLISECOND;
+  private long nanosecondsOf(final int bytes) {
+    return (bytes * NANOSECONDS_PER_MILLISECOND) / BYTES_PER_MILLISECOND;
   }
 
   private void deliver() {
@@ -390,7 +395,7 @@ public final class DelayedAudioOutput implements AutoCloseable {
 
   private void report(final Throwable failure) {
     try {
-      this.failures.accept("Failed to process the audio of " + this.source, failure);
+      this.failures.accept("The audio of %s could not be processed.".formatted(this.source), failure);
     } catch (final RuntimeException | Error exception) {
       ThrowableUtils.throwIfFatal(exception);
       // the exception handler is user code too; the sound goes on, and nothing else is left to tell
@@ -399,7 +404,7 @@ public final class DelayedAudioOutput implements AutoCloseable {
 
   /**
    * Stops the thread, dropping the queued samples, and waits for it; a pipeline that holds the thread is waited for
-   * {@value #JOIN_TIMEOUT_MILLISECONDS} ms at most and then interrupted, so it can end on its own. Called from the pipeline
+   * 5000 ms at most and then interrupted, so it can end on its own. Called from the pipeline
    * itself, it does not wait.
    *
    * @since 1.0.0
@@ -412,19 +417,19 @@ public final class DelayedAudioOutput implements AutoCloseable {
       this.notifyAll();
     }
 
-    final Thread current = this.thread;
-    final Thread caller = Thread.currentThread();
-    if (current.equals(caller)) {
+    final Thread outputThread = this.thread;
+    final Thread current = Thread.currentThread();
+    if (outputThread.equals(current)) {
       return;
     }
 
     try {
-      current.join(this.joinTimeoutMilliseconds);
+      outputThread.join(this.joinTimeoutMilliseconds);
     } catch (final InterruptedException exception) {
-      caller.interrupt();
+      current.interrupt();
     }
 
-    current.interrupt();
+    outputThread.interrupt();
   }
 
   @VisibleForTesting
@@ -438,28 +443,5 @@ public final class DelayedAudioOutput implements AutoCloseable {
     return this.thread;
   }
 
-  private static final class Chunk {
-
-    private final ByteBuffer samples;
-    private final long due;
-    private final boolean endsQuiet;
-
-    Chunk(final ByteBuffer samples, final long due, final boolean endsQuiet) {
-      this.samples = samples;
-      this.due = due;
-      this.endsQuiet = endsQuiet;
-    }
-
-    ByteBuffer samples() {
-      return this.samples;
-    }
-
-    long due() {
-      return this.due;
-    }
-
-    boolean endsQuiet() {
-      return this.endsQuiet;
-    }
-  }
+  private record Chunk(ByteBuffer samples, long due, boolean endsQuiet) {}
 }

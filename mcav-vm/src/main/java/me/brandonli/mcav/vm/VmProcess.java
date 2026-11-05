@@ -17,6 +17,8 @@
  */
 package me.brandonli.mcav.vm;
 
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Splitter;
 import com.google.common.util.concurrent.Uninterruptibles;
@@ -57,8 +59,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-// A QEMU process with a VNC display on the local machine. The port must be free before QEMU starts, and QEMU must
-// still run a moment after the port accepts connections, so the player never connects to another server on it.
+// a QEMU process with a VNC display on the local machine
 final class VmProcess {
 
   static final int FIRST_VNC_PORT = 5900;
@@ -247,7 +248,7 @@ final class VmProcess {
   }
 
   void start() {
-    checkModuleOptions(this.configuration);
+    this.checkModuleOptions(this.configuration);
     this.ensurePortIsFree();
 
     final Path folder = this.writePassword();
@@ -266,7 +267,7 @@ final class VmProcess {
       return;
     }
 
-    final String accelerator = detectAccelerator(this.os, this.kvmDevice);
+    final String accelerator = this.detectAccelerator(this.os, this.kvmDevice);
     final boolean software = accelerator.equals(SOFTWARE_ACCELERATOR);
     if (software) {
       this.launch(SOFTWARE_ACCELERATOR, passwordFile);
@@ -286,7 +287,7 @@ final class VmProcess {
       return folder;
     } catch (final IOException exception) {
       final String reason = exception.getMessage();
-      final String message = "Password of the display could not be written because of \"%s\"!".formatted(reason);
+      final String message = "Because of \"%s\", the password of the display could not be written!".formatted(reason);
       throw new VmException(message, exception);
     }
   }
@@ -306,7 +307,7 @@ final class VmProcess {
       this.launch(accelerator, passwordFile);
     } catch (final VmException exception) {
       final String reason = exception.getMessage();
-      final boolean acceleratorProblem = mentionsAccelerator(reason, accelerator);
+      final boolean acceleratorProblem = this.mentionsAccelerator(reason, accelerator);
       if (!acceleratorProblem) {
         throw exception;
       }
@@ -317,7 +318,7 @@ final class VmProcess {
   }
 
   @VisibleForTesting
-  static void checkModuleOptions(final VmConfiguration configuration) {
+  void checkModuleOptions(final VmConfiguration configuration) {
     for (final String option : MODULE_OPTIONS) {
       if (configuration.has(option)) {
         final String message = "Option -%s is set by MCAV itself and must be removed from the configuration!".formatted(option);
@@ -325,7 +326,7 @@ final class VmProcess {
       }
     }
 
-    for (final String machine : machineValues(configuration)) {
+    for (final String machine : this.machineValues(configuration)) {
       if (machine.contains(SPEAKER_PROPERTY)) {
         final String message = "PC speaker is routed by MCAV itself, so pcspk-audiodev must be removed from -machine!";
         throw new IllegalArgumentException(message);
@@ -334,23 +335,23 @@ final class VmProcess {
   }
 
   boolean hasAudio() {
-    final String type = machineType(this.configuration);
-    final boolean pcMachine = isPcMachine(type);
+    final String type = this.machineType(this.configuration);
+    final boolean pcMachine = this.isPcMachine(type);
     return this.architecture == VmPlayer.Architecture.X86_64 && pcMachine;
   }
 
   // QEMU merges every -machine and -M option: a value names the type first or in type=, and the last type wins
   @VisibleForTesting
-  static String machineType(final VmConfiguration configuration) {
+  String machineType(final VmConfiguration configuration) {
     String type = "";
-    for (final String machine : machineValues(configuration)) {
-      type = mergeMachineType(type, machine);
+    for (final String machine : this.machineValues(configuration)) {
+      type = this.mergeMachineType(type, machine);
     }
 
     return type.toLowerCase(Locale.ROOT);
   }
 
-  private static String mergeMachineType(final String earlierType, final String machine) {
+  private String mergeMachineType(final String earlierType, final String machine) {
     String type = earlierType;
     boolean first = true;
     for (final String part : PROPERTY_SPLITTER.split(machine)) {
@@ -365,15 +366,14 @@ final class VmProcess {
     return type;
   }
 
-  private static List<String> machineValues(final VmConfiguration configuration) {
-    // in the order of the arguments QEMU gets: grouped by spelling, -M q35 -machine microvm would read as q35 where QEMU
-    // runs microvm; and by option name, as a scan of every argument would read -name -M -cpu host as the machine -cpu
+  private List<String> machineValues(final VmConfiguration configuration) {
+    // in argument order, as QEMU runs the last machine option, and by option name, as the -M of -name -M is a value
     return configuration.valuesOf(MACHINE_OPTIONS);
   }
 
   // an empty type is the default machine of QEMU, a PC
   @VisibleForTesting
-  static boolean isPcMachine(final String type) {
+  boolean isPcMachine(final String type) {
     return type.isEmpty() || type.equals(PC_MACHINE) || type.equals(Q35_MACHINE) || type.startsWith(PC_VERSION_PREFIX);
   }
 
@@ -385,13 +385,13 @@ final class VmProcess {
       probe.bind(address);
     } catch (final IOException exception) {
       final String reason = exception.getMessage();
-      final String message = "VNC port %s is already in use because of \"%s\"!".formatted(port, reason);
+      final String message = "Because of \"%s\", VNC port %s is already in use!".formatted(reason, port);
       throw new VmException(message, exception);
     }
   }
 
   @VisibleForTesting
-  static boolean mentionsAccelerator(final @Nullable String reason, final String accelerator) {
+  boolean mentionsAccelerator(final @Nullable String reason, final String accelerator) {
     final String message = Objects.requireNonNullElse(reason, "");
     final String lower = message.toLowerCase(Locale.ROOT);
     final boolean namesAccelerator = lower.contains(accelerator);
@@ -402,7 +402,7 @@ final class VmProcess {
   private void launch(final @Nullable String accelerator, final Path passwordFile) {
     final List<String> command = this.buildCommand(accelerator, passwordFile);
     final String rendered = String.join(ARGUMENT_SEPARATOR, command);
-    LOGGER.debug("QEMU is started with the command line {}.", rendered);
+    LOGGER.debug("Command line {} starts QEMU.", rendered);
 
     final Process started = this.startQemu(command);
     this.process = started;
@@ -416,7 +416,7 @@ final class VmProcess {
       return this.launcher.launch(command);
     } catch (final IOException exception) {
       final String reason = exception.getMessage();
-      final String message = "QEMU could not be started because of \"%s\"!".formatted(reason);
+      final String message = "Because of \"%s\", QEMU could not be started!".formatted(reason);
       throw new VmException(message, exception);
     }
   }
@@ -460,8 +460,9 @@ final class VmProcess {
 
   // QEMU merges this -machine option with those of the configuration
   private void routeSpeaker(final List<String> command) {
+    final String speaker = "%s%s%s".formatted(SPEAKER_PROPERTY, PROPERTY_ASSIGNMENT, AUDIO_ID);
     command.add("-machine");
-    command.add(SPEAKER_PROPERTY + PROPERTY_ASSIGNMENT + AUDIO_ID);
+    command.add(speaker);
   }
 
   private void addDefaultOptions(final List<String> command, final Path passwordFile) {
@@ -482,8 +483,7 @@ final class VmProcess {
   }
 
   private void addRestrictedNetwork(final List<String> command) {
-    // QEMU's own default network lets the guest reach every service of the host's loopback address (10.0.2.2 inside
-    // the guest), so a machine that chose no network gets one that reaches neither the host nor the internet
+    // QEMU's default network reaches the host's loopback, so a machine without one gets one reaching neither host nor internet
     final boolean hasNetwork = NETWORK_OPTIONS.stream().anyMatch(this.configuration::has);
     if (!hasNetwork) {
       command.add("-nic");
@@ -522,7 +522,7 @@ final class VmProcess {
     command.add("-audiodev");
     command.add(backend);
 
-    final String type = machineType(this.configuration);
+    final String type = this.machineType(this.configuration);
     final boolean q35 = this.isQ35(type);
     final String card = q35 ? ICH9_SOUND_CARD : SOUND_CARD;
     final String soundCard = "%s,id=%s".formatted(card, SOUND_CARD_ID);
@@ -558,7 +558,7 @@ final class VmProcess {
   }
 
   private Optional<String> findLastUsbProperty() {
-    final List<String> machines = machineValues(this.configuration);
+    final List<String> machines = this.machineValues(this.configuration);
     return machines
       .stream()
       .flatMap(PROPERTY_SPLITTER::splitToStream)
@@ -567,8 +567,9 @@ final class VmProcess {
   }
 
   private boolean hasTablet(final List<String> devices) {
+    final String tabletPrefix = "%s%s".formatted(TABLET_DEVICE, PROPERTY_SEPARATOR);
     for (final String device : devices) {
-      final boolean tablet = device.equals(TABLET_DEVICE) || device.startsWith(TABLET_DEVICE + PROPERTY_SEPARATOR);
+      final boolean tablet = device.equals(TABLET_DEVICE) || device.startsWith(tabletPrefix);
       if (tablet) {
         return true;
       }
@@ -586,7 +587,7 @@ final class VmProcess {
   }
 
   @VisibleForTesting
-  static String detectAccelerator(final Os os, final Path kvmDevice) {
+  String detectAccelerator(final Os os, final Path kvmDevice) {
     return switch (os) {
       case LINUX -> Files.isWritable(kvmDevice) ? KVM_ACCELERATOR : SOFTWARE_ACCELERATOR;
       case WINDOWS -> WHPX_ACCELERATOR;
@@ -640,7 +641,7 @@ final class VmProcess {
       return;
     }
 
-    LOGGER.debug("QEMU printed \"{}\".", line);
+    LOGGER.debug("QEMU printed \"{}\" on its output.", line);
     synchronized (this.outputTail) {
       this.outputTail.addLast(line);
       while (this.outputTail.size() > OUTPUT_TAIL_LINES) {
@@ -658,8 +659,7 @@ final class VmProcess {
       this.checkAlive(started);
       final boolean reachable = this.isReachable(address);
       if (reachable) {
-        // QEMU exits at once when it cannot open its display, so a moment later it must still run, or the
-        // listener belongs to another program
+        // QEMU exits at once when it cannot open its display; if it no longer runs, the listener is another program's
         this.waitBeforeNextAttempt(started);
         this.checkAlive(started);
         return;
@@ -667,10 +667,10 @@ final class VmProcess {
       this.waitBeforeNextAttempt(started);
     }
 
-    final String output = this.getOutputTail();
+    final String headline = "QEMU display on port %s did not become reachable!".formatted(port);
+    final String message = this.appendOutputTail(headline);
     this.shutdown();
 
-    final String message = "QEMU display on port %s did not become reachable, and QEMU printed \"%s\"!".formatted(port, output);
     throw new VmException(message);
   }
 
@@ -682,15 +682,15 @@ final class VmProcess {
 
     final int exitCode = started.exitValue();
     this.awaitOutput();
-    final String output = this.getOutputTail();
     this.process = null;
 
-    final String message = "QEMU exited with code %s, printing \"%s\"!".formatted(exitCode, output);
+    final String headline = "QEMU exited with code %s!".formatted(exitCode);
+    final String message = this.appendOutputTail(headline);
     throw new VmException(message);
   }
 
   private void awaitOutput() {
-    final Thread drain = Objects.requireNonNull(this.drainThread, "Output of QEMU must be drained while QEMU runs!");
+    final Thread drain = requireNonNull(this.drainThread, "Output of QEMU must be drained while QEMU runs!");
     Uninterruptibles.joinUninterruptibly(drain, OUTPUT_TIMEOUT_MILLISECONDS, TimeUnit.MILLISECONDS);
 
     final boolean alive = drain.isAlive();
@@ -723,11 +723,15 @@ final class VmProcess {
     }
   }
 
-  private String getOutputTail() {
-    final String separator = System.lineSeparator();
+  private String appendOutputTail(final String headline) {
+    final List<String> lines = new ArrayList<>();
+    lines.add(headline);
     synchronized (this.outputTail) {
-      return String.join(separator, this.outputTail);
+      lines.addAll(this.outputTail);
     }
+
+    final String separator = System.lineSeparator();
+    return String.join(separator, lines);
   }
 
   boolean isAlive() {
@@ -758,33 +762,33 @@ final class VmProcess {
     }
 
     this.process = null;
-    this.launcher.ended(current);
+    this.launcher.onProcessEnded(current);
   }
 
-  private boolean awaitGracefulExit(final Process current) {
-    final Thread thread = Thread.currentThread();
-    final boolean interrupted = thread.isInterrupted();
+  private boolean awaitGracefulExit(final Process running) {
+    final Thread current = Thread.currentThread();
+    final boolean interrupted = current.isInterrupted();
     if (interrupted) {
       return false;
     }
 
     try {
-      return current.waitFor(STOP_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+      return running.waitFor(STOP_TIMEOUT_SECONDS, TimeUnit.SECONDS);
     } catch (final InterruptedException exception) {
-      thread.interrupt();
+      current.interrupt();
 
       return false;
     }
   }
 
-  private void awaitForcedExit(final Process current) {
+  private void awaitForcedExit(final Process running) {
     final long timeoutNanoseconds = TimeUnit.SECONDS.toNanos(STOP_TIMEOUT_SECONDS);
     final long deadline = System.nanoTime() + timeoutNanoseconds;
     boolean interrupted = Thread.interrupted();
     long remaining = deadline - System.nanoTime();
-    while (current.isAlive() && remaining > 0) {
+    while (running.isAlive() && remaining > 0) {
       try {
-        current.waitFor(remaining, TimeUnit.NANOSECONDS);
+        running.waitFor(remaining, TimeUnit.NANOSECONDS);
       } catch (final InterruptedException exception) {
         interrupted = true;
       }
@@ -792,8 +796,8 @@ final class VmProcess {
     }
 
     if (interrupted) {
-      final Thread thread = Thread.currentThread();
-      thread.interrupt();
+      final Thread current = Thread.currentThread();
+      current.interrupt();
     }
   }
 
@@ -846,7 +850,7 @@ final class VmProcess {
     }
 
     @Override
-    public void ended(final Process process) {
+    public void onProcessEnded(final Process process) {
       final long processId = process.pid();
       this.records.remove(processId);
     }
@@ -855,8 +859,8 @@ final class VmProcess {
   @FunctionalInterface
   interface Launcher {
     // the error output must be merged into the standard output, the only stream that is drained
-    Process launch(List<String> command) throws IOException;
+    Process launch(final List<String> command) throws IOException;
 
-    default void ended(final Process process) {}
+    default void onProcessEnded(final Process process) {}
   }
 }

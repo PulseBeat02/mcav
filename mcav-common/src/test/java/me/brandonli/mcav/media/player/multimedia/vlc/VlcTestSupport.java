@@ -24,43 +24,53 @@ import java.util.Optional;
 import me.brandonli.mcav.MCAVException;
 import me.brandonli.mcav.capability.installer.vlc.DownloadedVlc;
 import me.brandonli.mcav.testing.GeneratedMedia;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.jupiter.api.Assumptions;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 final class VlcTestSupport {
 
-  private static final String UNAVAILABLE = loadVlc();
+  private static final Logger LOGGER = LoggerFactory.getLogger(VlcTestSupport.class);
+
+  private static final @Nullable String UNAVAILABLE_REASON = loadVlc();
 
   private static final String VIDEO_EXTENSION = ".mp4";
-  private static final String SIZE_SEPARATOR = "x";
+
+  private static final int FRAME_RATE = 30;
+  private static final int SAMPLE_RATE = 48_000;
+  private static final String DURATION_SECONDS = "3";
 
   private VlcTestSupport() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   // the VLC of the installation kit, never this machine's, so every host behaves alike
-  private static String loadVlc() {
+  private static @Nullable String loadVlc() {
     try {
       final Optional<Path> directory = DownloadedVlc.load();
       final Optional<String> location = directory.map(Path::toString);
       final String description = location.orElse("the libvlc vlcj loaded earlier");
-      System.out.println("VLC integration tests use " + description);
+      LOGGER.info("VLC integration tests use {}.", description);
       return null;
     } catch (final MCAVException | LinkageError exception) {
-      return "VLC could not be installed or loaded: " + exception;
+      return "Because of \"%s\", VLC could not be installed or loaded!".formatted(exception);
     }
   }
 
   static void assumeVlc() {
-    Assumptions.assumeTrue(UNAVAILABLE == null, UNAVAILABLE);
+    Assumptions.assumeTrue(UNAVAILABLE_REASON == null, UNAVAILABLE_REASON);
   }
 
   static Path solidVideo(final Path directory, final String color, final int width, final int height) {
-    final Path output = directory.resolve(color + "-" + width + SIZE_SEPARATOR + height + VIDEO_EXTENSION);
+    final String fileName = "%s-%sx%s%s".formatted(color, width, height, VIDEO_EXTENSION);
+    final Path output = directory.resolve(fileName);
     return GeneratedMedia.generate(output, temporary -> solidVideoCommand(color, width, height, temporary));
   }
 
   private static List<String> solidVideoCommand(final String color, final int width, final int height, final Path output) {
-    final Path executable = GeneratedMedia.ffmpegPath();
+    final Path executable = GeneratedMedia.getFfmpegPath();
     final String executablePath = executable.toString();
     final String outputPath = output.toString();
     final List<String> arguments = solidVideoArguments(color, width, height, outputPath);
@@ -71,7 +81,8 @@ final class VlcTestSupport {
   }
 
   private static List<String> solidVideoArguments(final String color, final int width, final int height, final String outputPath) {
-    final String colorSource = "color=c=" + color + ":size=" + width + SIZE_SEPARATOR + height + ":rate=30";
+    final String colorSource = "color=c=%s:size=%sx%s:rate=%s".formatted(color, width, height, FRAME_RATE);
+    final String sineSource = "sine=frequency=440:sample_rate=%s".formatted(SAMPLE_RATE);
     return List.of(
       "-hide_banner",
       "-loglevel",
@@ -83,9 +94,9 @@ final class VlcTestSupport {
       "-f",
       "lavfi",
       "-i",
-      "sine=frequency=440:sample_rate=48000",
+      sineSource,
       "-t",
-      "3",
+      DURATION_SECONDS,
       "-c:v",
       "mpeg4",
       "-q:v",

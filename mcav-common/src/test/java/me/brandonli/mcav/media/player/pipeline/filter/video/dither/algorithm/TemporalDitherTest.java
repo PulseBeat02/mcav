@@ -68,6 +68,8 @@ final class TemporalDitherTest {
 
   private static final int PARALLELISM = 4;
 
+  private static final String PURE_RED_MESSAGE = "pure red is red";
+
   private static byte[] ditherSolid(final TemporalDitherAlgorithm dither, final int argb) {
     final int[] pixels = new int[SOLID_FRAME_SIDE * SOLID_FRAME_SIDE];
     Arrays.fill(pixels, argb);
@@ -177,7 +179,7 @@ final class TemporalDitherTest {
     final byte[] exact = ditherSolid(dither, OPAQUE_RED);
     final byte[] darkRed = ditherSolid(dither, DARK_RED);
     final byte[] freshDarkRed = ditherSolid(fresh, DARK_RED);
-    assertAll(exact, RED, "pure red is red");
+    assertAll(exact, RED, PURE_RED_MESSAGE);
     assertAll(freshDarkRed, BLACK, "without a previous frame, a dark red is closest to black");
     assertAll(darkRed, RED, "a drift of exactly the threshold, 0xFF - 0x40 = 191, keeps the previous color");
   }
@@ -189,7 +191,7 @@ final class TemporalDitherTest {
     final byte[] slightlyDarker = ditherSolid(dither, 0xFFF70000);
     final int red = countRed(slightlyDarker);
     final boolean almostAllRed = red > (slightlyDarker.length * 9) / 10;
-    assertTrue(almostAllRed, "almost every pixel stays red, " + red);
+    assertTrue(almostAllRed, "almost every pixel stays red, %s".formatted(red));
 
     final boolean someDarker = red < slightlyDarker.length;
     assertTrue(someDarker, "the kept pixels pass on their error of -8, so a few pixels turn darker");
@@ -215,7 +217,7 @@ final class TemporalDitherTest {
       ditherSolid(dither, OPAQUE_RED);
       final byte[] indices = ditherSolid(dither, drift[0]);
       final String target = Integer.toHexString(drift[0]);
-      assertAll(indices, drift[1], "drifting to " + target);
+      assertAll(indices, drift[1], "drifting to %s".formatted(target));
     }
   }
 
@@ -278,7 +280,7 @@ final class TemporalDitherTest {
     assertTrue(someWhite, "diffused errors produce some white pixels");
 
     final boolean fewerWhite = halfRatio < fullRatio;
-    assertTrue(fewerWhite, "half of the error produces fewer white pixels, " + halfRatio + " < " + fullRatio);
+    assertTrue(fewerWhite, "half of the error produces fewer white pixels, %s < %s".formatted(halfRatio, fullRatio));
     assertEquals(0.5f, strength);
   }
 
@@ -347,7 +349,7 @@ final class TemporalDitherTest {
     try {
       final byte[] red = ditherSolidInParallel(dither, OPAQUE_RED, pool);
       final byte[] darkRed = ditherSolidInParallel(dither, DARK_RED, pool);
-      assertAll(red, RED, "pure red is red");
+      assertAll(red, RED, PURE_RED_MESSAGE);
       assertAll(darkRed, RED, "the parallel path remembers its frame, so a drift of exactly 191 keeps red");
     } finally {
       pool.shutdownNow();
@@ -388,7 +390,7 @@ final class TemporalDitherTest {
     assertEquals(0.0, uniformRatio, "an error of exactly the threshold is not diffused");
 
     final boolean errorLetThrough = diffusedRatio > 0.0;
-    assertTrue(errorLetThrough, "one less lets the same error through, " + diffusedRatio);
+    assertTrue(errorLetThrough, "one less lets the same error through, %s".formatted(diffusedRatio));
   }
 
   @Test

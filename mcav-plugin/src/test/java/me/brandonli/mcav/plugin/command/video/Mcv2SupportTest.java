@@ -105,7 +105,7 @@ final class Mcv2SupportTest {
     when(frame.getLocation()).thenReturn(new Location(this.world, 5.5, 64.5, 7.03));
     when(frame.getFacing()).thenReturn(BlockFace.SOUTH);
     when(this.world.getEntitiesByClass(ItemFrame.class)).thenReturn(List.of(frame));
-    when(TestServer.server().getWorlds()).thenReturn(List.of(this.world));
+    when(TestServer.getServer().getWorlds()).thenReturn(List.of(this.world));
   }
 
   static ItemStack map(final Material material, final boolean hasId, final int id) {
@@ -156,7 +156,7 @@ final class Mcv2SupportTest {
 
   @Test
   void shouldConfigureTheScreenOnTheWallThatHoldsTheMap() {
-    final Mcv2Configuration configuration = this.configure(20).orElseThrow();
+    final Mcv2Configuration configuration = this.configure(MAP_ID).orElseThrow();
 
     final Location expected = new Location(this.world, 5, 64, 7);
     final Location origin = configuration.getOrigin();
@@ -184,7 +184,8 @@ final class Mcv2SupportTest {
     assertEquals(Settings.DEFAULT, settings);
 
     final List<UUID> copy = List.copyOf(configuration.getViewers());
-    assertEquals(List.of(this.viewer), copy);
+    final List<UUID> expectedViewers = List.of(this.viewer);
+    assertEquals(expectedViewers, copy);
 
     final long backlogLimit = configuration.getBacklogLimit();
     assertEquals(Mcv2Configuration.DEFAULT_BACKLOG_LIMIT, backlogLimit);
@@ -217,10 +218,10 @@ final class Mcv2SupportTest {
 
   @Test
   void shouldTakeThePageSlotsAndTheBacklogLimitOfAMeasurement() {
-    System.setProperty(VideoMcv2Command.PAGE_SLOTS_PROPERTY, "8");
-    System.setProperty(VideoMcv2Command.BACKLOG_PROPERTY, "65536");
+    System.setProperty(Mcv2Support.PAGE_SLOTS_PROPERTY, "8");
+    System.setProperty(Mcv2Support.BACKLOG_PROPERTY, "65536");
     try {
-      final Mcv2Configuration limited = this.configure(20).orElseThrow();
+      final Mcv2Configuration limited = this.configure(MAP_ID).orElseThrow();
 
       final int pageSlots = limited.getPageSlots();
       assertEquals(8, pageSlots);
@@ -231,8 +232,8 @@ final class Mcv2SupportTest {
       final int unsentLimit = limited.getUnsentLimit();
       assertEquals(Mcv2Configuration.DEFAULT_UNSENT_LIMIT, unsentLimit);
     } finally {
-      System.clearProperty(VideoMcv2Command.PAGE_SLOTS_PROPERTY);
-      System.clearProperty(VideoMcv2Command.BACKLOG_PROPERTY);
+      System.clearProperty(Mcv2Support.PAGE_SLOTS_PROPERTY);
+      System.clearProperty(Mcv2Support.BACKLOG_PROPERTY);
     }
   }
 
@@ -272,7 +273,7 @@ final class Mcv2SupportTest {
 
   @Test
   void shouldOpenASlotOrTellTheSenderThatEveryOnePlays() {
-    final Mcv2Configuration configuration = this.configure(20).orElseThrow();
+    final Mcv2Configuration configuration = this.configure(MAP_ID).orElseThrow();
     final Mcv2PackServer.Lease lease = mock(Mcv2PackServer.Lease.class);
     when(this.packs.open(configuration)).thenReturn(lease).thenThrow(new IllegalStateException("full!"));
 
@@ -290,7 +291,7 @@ final class Mcv2SupportTest {
 
   @Test
   void shouldCreateTheOutputOfAScreenInItsSlot() {
-    final Mcv2Configuration configuration = this.configure(20).orElseThrow();
+    final Mcv2Configuration configuration = this.configure(MAP_ID).orElseThrow();
     final Mcv2Configuration slotted = configuration.withSlot(SLOT, Mcv2Configuration.DEFAULT_PAGE_MAP + PAGE_MAP_OFFSET, 1234);
     final Mcv2PackServer.Lease lease = mock(Mcv2PackServer.Lease.class);
     when(lease.getConfiguration()).thenReturn(slotted);
@@ -344,7 +345,8 @@ final class Mcv2SupportTest {
         .stream()
         .map(size -> size[0] + DIMENSION_SEPARATOR + size[1])
         .toList();
-      assertEquals(List.of("426x256", "320x192"), list);
+      final List<String> expectedSizes = List.of("426x256", "320x192");
+      assertEquals(expectedSizes, list);
     }
   }
 
@@ -354,7 +356,7 @@ final class Mcv2SupportTest {
 
   @Test
   void shouldRecordTheFramesOfAScreenForAMeasurement() {
-    final Mcv2Configuration configuration = this.configure(20).orElseThrow();
+    final Mcv2Configuration configuration = this.configure(MAP_ID).orElseThrow();
     final Mcv2PackServer.Lease lease = mock(Mcv2PackServer.Lease.class);
     when(lease.getConfiguration()).thenReturn(configuration.withSlot(SLOT, Mcv2Configuration.DEFAULT_PAGE_MAP + PAGE_MAP_OFFSET, 0));
     when(this.packs.open(configuration)).thenReturn(lease);
@@ -373,22 +375,26 @@ final class Mcv2SupportTest {
 
   @Test
   void shouldStepDownToTwoThirdsAndHalfOfTheVideo() {
-    final List<String> described = this.described(Mcv2Support.smallerSizes(1920, 1080));
-    assertEquals(List.of("1280x720", "960x540"), described);
+    final List<String> described = this.described(this.support.computeSmallerSizes(1920, 1080));
+    final List<String> expectedSizes = List.of("1280x720", "960x540");
+    assertEquals(expectedSizes, described);
 
-    final List<String> secondDescribed = this.described(Mcv2Support.smallerSizes(VIDEO_HEIGHT, 216));
-    assertEquals(List.of("256x144", "192x108"), secondDescribed);
+    final List<String> secondDescribed = this.described(this.support.computeSmallerSizes(VIDEO_HEIGHT, 216));
+    final List<String> expectedSecondSizes = List.of("256x144", "192x108");
+    assertEquals(expectedSecondSizes, secondDescribed);
     // a size under 128 by 72 is left out
 
-    final List<String> thirdDescribed = this.described(Mcv2Support.smallerSizes(240, 120));
-    assertEquals(List.of("160x80"), thirdDescribed);
+    final List<String> thirdDescribed = this.described(this.support.computeSmallerSizes(240, 120));
+    final List<String> expectedThirdSizes = List.of("160x80");
+    assertEquals(expectedThirdSizes, thirdDescribed);
 
-    final List<String> fourthDescribed = this.described(Mcv2Support.smallerSizes(200, 100));
+    final List<String> fourthDescribed = this.described(this.support.computeSmallerSizes(200, 100));
     assertEquals(List.of(), fourthDescribed);
     // exactly 128 by 72 is kept
 
-    final List<String> fifthDescribed = this.described(Mcv2Support.smallerSizes(192, 108));
-    assertEquals(List.of("128x72"), fifthDescribed);
+    final List<String> fifthDescribed = this.described(this.support.computeSmallerSizes(192, 108));
+    final List<String> expectedFifthSizes = List.of("128x72");
+    assertEquals(expectedFifthSizes, fifthDescribed);
   }
 
   private List<String> described(final List<int[]> sizes) {
@@ -432,7 +438,9 @@ final class Mcv2SupportTest {
   }
 
   private void assertPackFolder(final MockedConstruction.Context context) {
-    assertEquals(this.folder.resolve(MCV2_FOLDER_NAME).resolve(PACK_FOLDER_NAME), context.arguments().getFirst());
+    final Path expected = this.folder.resolve(MCV2_FOLDER_NAME).resolve(PACK_FOLDER_NAME);
+    final Object packFolder = context.arguments().getFirst();
+    assertEquals(expected, packFolder);
   }
 
   @Test
@@ -443,11 +451,11 @@ final class Mcv2SupportTest {
         this.recordDebugView(context, debugViews)
       )
     ) {
-      System.setProperty(Mcv2Support.DEBUG_VIEW, "true");
+      System.setProperty(Mcv2Support.DEBUG_VIEW_PROPERTY, "true");
       try {
         final Mcv2Support _ = new Mcv2Support(this.folder, PackHosting::injector);
       } finally {
-        System.clearProperty(Mcv2Support.DEBUG_VIEW);
+        System.clearProperty(Mcv2Support.DEBUG_VIEW_PROPERTY);
       }
       final Mcv2Support _ = new Mcv2Support(this.folder, PackHosting::injector);
     }

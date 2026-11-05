@@ -18,8 +18,10 @@
 package me.brandonli.mcav.browser;
 
 import com.google.common.annotations.VisibleForTesting;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.LongSupplier;
@@ -27,66 +29,58 @@ import java.util.regex.Pattern;
 import org.cef.browser.CefDevToolsClient;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-/**
- * The sound of the page. JCEF hands over no audio of CEF (it has no audio handler), so the page hands it over itself:
- * {@link #SCRIPT} runs in every document before the page's own scripts and plays whatever the document plays through
- * Web Audio and its audio and video elements in one 48 kHz stereo context, whose samples it sends as Base64 of 16-bit
- * little-endian PCM through a DevTools binding. The DevTools client reports every call of the binding as an event,
- * which this listener turns into samples for the server. Every frame of the page that plays sound has a context of its
- * own; the sound of one of them passes at a time, and another may take over after {@value #QUIET_MILLIS} ms of quiet.
- *
- * <p>Every byte of an event comes from the page, which can also call the binding itself before the script takes it
- * away, so an event is only taken when it is exactly a call of the binding with at most
- * {@link HelperProtocol#MAX_AUDIO_BYTES} of whole frames, and never more than {@value #BUDGET_SECONDS_PER_SECOND}
- * seconds of sound per second pass on; the page could play that sound anyway. Sound of frames that run in another
- * process (those of another site), of media from another site that does not allow it (CORS), of protected media, and
- * of Web Audio contexts of subclasses the page defines is not captured.
- */
+// The sound of the page: JCEF hands over no CEF audio, so SCRIPT sends what each document plays through a DevTools
+// binding. The page can call the binding too, so only exact calls of whole frames within a budget pass. Not captured:
+// out-of-process frames, cross-origin media without CORS, protected media, and Web Audio subclasses the page defines.
 final class PageAudio implements CefDevToolsClient.EventListener {
 
-  /**
-   * The name of the binding, which the script takes away from the page.
-   */
   static final String BINDING = "__mcavAudio";
 
-  /**
-   * The event of a call of a binding.
-   */
   static final String BINDING_EVENT = "Runtime.bindingCalled";
 
-  /**
-   * The script that hands the sound of a document to the binding: it mixes what the top document and the frames of its
-   * origin play into one 48 kHz stereo Web Audio context, whose tap sends 16-bit little-endian PCM, and outputs silence.
-   */
+  private static final int SAMPLE_RATE = 48_000;
+
   static final String SCRIPT = """
-  // mcav: hands what a document plays to the browser helper, see PageAudio.java. Runs in every document before the
-  // page's own scripts. Without a sound card every Web Audio context and media element runs on a clock of its own, and
-  // sound carried between them stutters, so a document has one context: every AudioContext the page makes is the same
-  // one, at 48 kHz, and its audio and video elements play into it. A tap on it sends 16-bit little-endian PCM through
-  // the DevTools binding, and nothing reaches the speakers of the server: the tap outputs silence.
+  // MCAV: hands what a document plays to the browser helper, see PageAudio.java. Without a sound card every context runs
+  // on its own clock, so the document gets one 48 kHz context; its tap sends PCM and outputs silence.
   (() => {
-    'use strict';
-    // the helper places the script again when it could not tell whether the first time worked; once is enough
-    const PLACED = Symbol.for('mcav.audio');
+    "use strict";
+    // the helper may place the script twice; once is enough
+    const PLACED = Symbol.for("mcav.audio");
+    const INSTALLED = Symbol.for("mcav.audio.installed");
+
+    const BINDING = "%s";
+
+    const SAMPLE_RATE = %s;
+    const CHUNK = 2048;
+    const QUIET_SECONDS = 2;
+    const FRAME_BYTES = 4;
+    const SAMPLE_BYTES = 2;
+
+    const NEGATIVE_SAMPLE_SCALE = 32768;
+    const POSITIVE_SAMPLE_SCALE = 32767;
+
+    const LITTLE_ENDIAN = true;
+    const TEXT_SLICE_BYTES = 0x2000;
+    const CHANNELS = 2;
+    // a pause after sound is sent as two seconds of silence, so the server keeps its time; longer pauses are not sent
+    const QUIET_CHUNKS = Math.ceil((QUIET_SECONDS * SAMPLE_RATE) / CHUNK);
+
+    const GESTURES = ["pointerdown", "mousedown", "keydown", "touchend"];
+
     if (Object.prototype.hasOwnProperty.call(globalThis, PLACED)) {
       return;
     }
+
     Object.defineProperty(globalThis, PLACED, { value: true });
-    const BINDING = '__mcavAudio';
-    const INSTALLED = Symbol.for('mcav.audio.installed');
-    const RATE = 48000;
-    const CHUNK = 2048;
-    // a pause after sound is sent as silence for two seconds, so the server keeps the time of the sound; a longer one,
-    // and silence before any sound, is not sent
-    const QUIET_CHUNKS = Math.ceil((2 * RATE) / CHUNK);
-    const GESTURES = ['pointerdown', 'mousedown', 'keydown', 'touchend'];
-    if (typeof AudioContext !== 'function' || globalThis[INSTALLED] === true) {
+
+    if (typeof AudioContext !== "function" || globalThis[INSTALLED] === true) {
       return;
     }
+
     Object.defineProperty(globalThis, INSTALLED, { value: true });
 
-    // the page runs after this script and may replace any of these; the originals are kept, so a page cannot reach the
-    // tap through a method it wrapped
+    // originals, so a page cannot reach the tap through a method it wrapped
     const getter = (type, name) => Object.getOwnPropertyDescriptor(type.prototype, name).get;
     const NativeAudioContext = AudioContext;
     const nativeCreateGain = BaseAudioContext.prototype.createGain;
@@ -94,12 +88,12 @@ final class PageAudio implements CefDevToolsClient.EventListener {
     const nativeResume = AudioContext.prototype.resume;
     const nativeAddEventListener = EventTarget.prototype.addEventListener;
     const nativeGetChannelData = AudioBuffer.prototype.getChannelData;
-    const destinationOf = getter(BaseAudioContext, 'destination');
-    const stateOf = getter(BaseAudioContext, 'state');
-    const gainOf = getter(GainNode, 'gain');
-    const setValue = Object.getOwnPropertyDescriptor(AudioParam.prototype, 'value').set;
-    const inputBufferOf = getter(AudioProcessingEvent, 'inputBuffer');
-    const channelsOf = getter(AudioBuffer, 'numberOfChannels');
+    const destinationOf = getter(BaseAudioContext, "destination");
+    const stateOf = getter(BaseAudioContext, "state");
+    const gainOf = getter(GainNode, "gain");
+    const setValue = Object.getOwnPropertyDescriptor(AudioParam.prototype, "value").set;
+    const inputBufferOf = getter(AudioProcessingEvent, "inputBuffer");
+    const channelsOf = getter(AudioBuffer, "numberOfChannels");
     const NativeElementSource = MediaElementAudioSourceNode;
     const nativeConnect = AudioNode.prototype.connect;
     const nativeDisconnect = AudioNode.prototype.disconnect;
@@ -109,118 +103,157 @@ final class PageAudio implements CefDevToolsClient.EventListener {
     const fromCharCode = String.fromCharCode;
     const construct = Reflect.construct;
 
-    let send = null;
+    let send;
     let quietChunks = QUIET_CHUNKS;
-    const findSend = () => {
-      if (send === null && typeof globalThis[BINDING] === 'function') {
+    const takeBinding = () => {
+      if (send === undefined && typeof globalThis[BINDING] === "function") {
         send = globalThis[BINDING];
         // the page cannot send through it once it is taken
         delete globalThis[BINDING];
       }
+
       return send;
     };
-    findSend();
 
-    const toSample = (value) => {
-      const clamped = value > 1 ? 1 : value < -1 ? -1 : value || 0;
-      return Math.round(clamped < 0 ? clamped * 32768 : clamped * 32767);
+    takeBinding();
+
+    const toSample = value => {
+      const clamped = Math.min(Math.max(value || 0, -1), 1);
+      const scale = clamped < 0 ? NEGATIVE_SAMPLE_SCALE : POSITIVE_SAMPLE_SCALE;
+      return Math.round(clamped * scale);
     };
 
-    const deliver = (buffer) => {
-      const deliverTo = findSend();
-      if (deliverTo === null) {
-        return;
-      }
+    const encodeFrames = buffer => {
       const left = nativeGetChannelData.call(buffer, 0);
       const right = channelsOf.call(buffer) > 1 ? nativeGetChannelData.call(buffer, 1) : left;
-      const bytes = new Uint8Array(left.length * 4);
+      const bytes = new Uint8Array(left.length * FRAME_BYTES);
       const view = new DataView(bytes.buffer);
       let loud = false;
+
       for (let frame = 0; frame < left.length; frame++) {
         const first = toSample(left[frame]);
         const second = toSample(right[frame]);
-        view.setInt16(frame * 4, first, true);
-        view.setInt16(frame * 4 + 2, second, true);
+        view.setInt16(frame * FRAME_BYTES, first, LITTLE_ENDIAN);
+        view.setInt16(frame * FRAME_BYTES + SAMPLE_BYTES, second, LITTLE_ENDIAN);
         loud = loud || first !== 0 || second !== 0;
       }
-      if (loud) {
-        quietChunks = 0;
-      } else if (quietChunks >= QUIET_CHUNKS) {
+
+      return { bytes, loud };
+    };
+
+    const isQuietTooLong = loud => {
+      return !loud && quietChunks >= QUIET_CHUNKS;
+    };
+
+    const toBinaryText = bytes => {
+      let text = "";
+
+      for (let start = 0; start < bytes.length; start += TEXT_SLICE_BYTES) {
+        text += fromCharCode.apply(null, bytes.subarray(start, start + TEXT_SLICE_BYTES));
+      }
+
+      return text;
+    };
+
+    const deliver = buffer => {
+      const deliverTo = takeBinding();
+      if (deliverTo === undefined) {
         return;
-      } else {
-        quietChunks++;
       }
-      let text = '';
-      for (let start = 0; start < bytes.length; start += 0x2000) {
-        text += fromCharCode.apply(null, bytes.subarray(start, start + 0x2000));
+
+      const { bytes, loud } = encodeFrames(buffer);
+      if (isQuietTooLong(loud)) {
+        return;
       }
+
+      quietChunks = loud ? 0 : quietChunks + 1;
+
+      const text = toBinaryText(bytes);
       deliverTo(toBase64(text));
     };
 
     // the one context of the document, made again should the page close it
-    let mixer = null;
+    let mixer;
     const createMixer = () => {
-      const context = construct(NativeAudioContext, [{ sampleRate: RATE }], NativeAudioContext);
+      const context = construct(NativeAudioContext, [{ sampleRate: SAMPLE_RATE }], NativeAudioContext);
       const bus = nativeCreateGain.call(context);
-      const tap = nativeCreateScriptProcessor.call(context, CHUNK, 2, 2);
+      const tap = nativeCreateScriptProcessor.call(context, CHUNK, CHANNELS, CHANNELS);
       const silence = nativeCreateGain.call(context);
       setValue.call(gainOf.call(silence), 0);
       nativeConnect.call(bus, tap);
       nativeConnect.call(tap, silence);
       nativeConnect.call(silence, destinationOf.call(context));
-      nativeAddEventListener.call(tap, 'audioprocess', (event) => deliver(inputBufferOf.call(event)));
+      nativeAddEventListener.call(tap, "audioprocess", event => deliver(inputBufferOf.call(event)));
+
       return { context, bus };
     };
+
     const mixerOf = () => {
-      if (mixer === null || stateOf.call(mixer.context) === 'closed') {
+      if (mixer === undefined || stateOf.call(mixer.context) === "closed") {
         mixer = createMixer();
       }
+
       return mixer;
     };
-    // before the first click on the screen a page may not play sound; the click lets the context play
+
+    // the next gesture tries again
+    const ignoreFailure = () => {
+    };
+
+    // a page may play sound only after the first click on the screen
     const resume = () => {
-      if (mixer !== null && stateOf.call(mixer.context) === 'suspended') {
-        nativeResume.call(mixer.context).catch(() => {});
+      if (mixer !== undefined && stateOf.call(mixer.context) === "suspended") {
+        nativeResume.call(mixer.context).catch(ignoreFailure);
       }
     };
+
     for (const type of GESTURES) {
       addEventListener(type, resume, { capture: true, passive: true });
     }
 
-    const SharedAudioContext = new Proxy(NativeAudioContext, {
-      construct(target, args, newTarget) {
-        if (newTarget !== SharedAudioContext) {
-          // a subclass gets a context of its own, whose sound is not captured
-          return construct(target, args, newTarget);
-        }
-        return mixerOf().context;
-      },
-    });
+    const constructSharedContext = (target, argumentsList, newTarget) => {
+      if (newTarget !== SharedAudioContext) {
+        // a subclass gets a context of its own, whose sound is not captured
+        return construct(target, argumentsList, newTarget);
+      }
+
+      return mixerOf().context;
+    };
+
+    const SharedAudioContext = new Proxy(NativeAudioContext, { construct: constructSharedContext });
     globalThis.AudioContext = SharedAudioContext;
 
     // whatever the page connects to the destination also reaches the tap
-    const isOutput = (target) => mixer !== null && target === destinationOf.call(mixer.context);
-    AudioNode.prototype.connect = function connect(target, ...rest) {
+    const isOutput = target => mixer !== undefined && target === destinationOf.call(mixer.context);
+    const connect = function connect(target, ...rest) {
       const result = nativeConnect.call(this, target, ...rest);
+
       if (isOutput(target)) {
         nativeConnect.call(this, mixer.bus, rest.length > 0 ? rest[0] : 0);
       }
-      return result;
-    };
-    AudioNode.prototype.disconnect = function disconnect(...args) {
-      const result = nativeDisconnect.apply(this, args);
-      if (isOutput(args[0])) {
-        try {
-          nativeDisconnect.call(this, mixer.bus);
-        } catch (error) {
-          // it was not connected to the tap
-        }
-      }
+
       return result;
     };
 
-    // an element plays into the context once it plays; should the page ask for its source, it gets the same node, now
-    // without the way to the tap, which its own graph takes over
+    AudioNode.prototype.connect = connect;
+
+    const disconnect = function disconnect(...callArguments) {
+      const result = nativeDisconnect.apply(this, callArguments);
+
+      if (isOutput(callArguments[0])) {
+        try {
+          nativeDisconnect.call(this, mixer.bus);
+        } catch (exception) {
+          // it was not connected to the tap
+        }
+      }
+
+      return result;
+    };
+
+    AudioNode.prototype.disconnect = disconnect;
+
+    // an element plays into the context once it plays; a page asking for its source gets that node, cut from the tap
     const sources = new WeakMap();
     const sourceOf = (context, element, byPage) => {
       const known = sources.get(element);
@@ -229,256 +262,293 @@ final class PageAudio implements CefDevToolsClient.EventListener {
           known.byPage = true;
           nativeDisconnect.call(known.node);
         }
+
         return known.node;
       }
+
       const node = nativeCreateElementSource.call(context, element);
       sources.set(element, { node, byPage });
+
       if (!byPage) {
         nativeConnect.call(node, mixerOf().bus);
       }
+
       return node;
     };
-    NativeAudioContext.prototype.createMediaElementSource = function createMediaElementSource(element) {
+
+    const createMediaElementSource = function createMediaElementSource(element) {
       return sourceOf(this, element, true);
     };
-    const SharedElementSource = new Proxy(NativeElementSource, {
-      construct(target, args, newTarget) {
-        const options = args[1];
-        const element = options !== null && typeof options === 'object' ? options.mediaElement : undefined;
-        if (newTarget === SharedElementSource && element instanceof HTMLMediaElement) {
-          return sourceOf(args[0], element, true);
-        }
-        return construct(target, args, newTarget);
-      },
-    });
+
+    NativeAudioContext.prototype.createMediaElementSource = createMediaElementSource;
+
+    const constructElementSource = (target, argumentsList, newTarget) => {
+      const options = argumentsList[1];
+      const element = options !== null && typeof options === "object" ? options.mediaElement : undefined;
+      if (newTarget === SharedElementSource && element instanceof HTMLMediaElement) {
+        return sourceOf(argumentsList[0], element, true);
+      }
+
+      return construct(target, argumentsList, newTarget);
+    };
+
+    const SharedElementSource = new Proxy(NativeElementSource, { construct: constructElementSource });
     globalThis.MediaElementAudioSourceNode = SharedElementSource;
-    const capture = (element) => {
+
+    const capture = element => {
       if (sources.has(element)) {
         return;
       }
+
       try {
         sourceOf(mixerOf().context, element, false);
-      } catch (error) {
-        // the element plays as without mcav
+      } catch (exception) {
+        // the element plays as without MCAV
       }
     };
-    HTMLMediaElement.prototype.play = function play(...args) {
-      capture(this);
-      return nativePlay.apply(this, args);
-    };
-    addEventListener(
-      'play',
-      (event) => {
-        if (event.target instanceof HTMLMediaElement) {
-          capture(event.target);
-        }
-      },
-      true
-    );
-  })();
-  """;
 
-  /**
-   * How many seconds of sound pass on per second at most, and at once after a quiet time.
-   */
+    const play = function play(...callArguments) {
+      capture(this);
+
+      return nativePlay.apply(this, callArguments);
+    };
+
+    HTMLMediaElement.prototype.play = play;
+
+    const captureOnPlay = event => {
+      if (event.target instanceof HTMLMediaElement) {
+        capture(event.target);
+      }
+    };
+
+    addEventListener("play", captureOnPlay, { capture: true });
+  })();
+  """.formatted(BINDING, SAMPLE_RATE);
+
+  // also the burst after a quiet time
   static final int BUDGET_SECONDS_PER_SECOND = 2;
 
-  /**
-   * How long the frame whose sound passes must be quiet before the sound of another frame may pass, in milliseconds.
-   */
-  static final int QUIET_MILLIS = 250;
+  // quiet of the passing frame before the sound of another frame may pass
+  static final int QUIET_MILLISECONDS = 250;
 
-  private static final int BYTES_PER_SECOND = 48_000 * HelperProtocol.AUDIO_FRAME_BYTES;
+  private static final int BYTES_PER_SECOND = SAMPLE_RATE * HelperProtocol.AUDIO_FRAME_BYTES;
   private static final long BUDGET_BYTES = (long) BUDGET_SECONDS_PER_SECOND * BYTES_PER_SECOND;
-  private static final String PREFIX = "{\"name\":\"" + BINDING + "\",\"payload\":\"";
-  private static final int MAX_PAYLOAD_CHARS = ((HelperProtocol.MAX_AUDIO_BYTES + 2) / 3) * 4;
+
+  private static final int BASE64_GROUP_CHARACTERS = 4;
+  private static final int BASE64_GROUP_BYTES = 3;
+  private static final int MAXIMUM_BASE64_PADDING = 2;
+
+  private static final String PREFIX = "{\"name\":\"%s\",\"payload\":\"".formatted(BINDING);
+  private static final int MAXIMUM_PAYLOAD_CHARACTERS =
+    Math.ceilDiv(HelperProtocol.MAXIMUM_AUDIO_BYTES, BASE64_GROUP_BYTES) * BASE64_GROUP_CHARACTERS;
+
   private static final String CONTEXT_FIELD = "\",\"executionContextId\":";
-  private static final Pattern CONTEXT = Pattern.compile(Pattern.quote(CONTEXT_FIELD) + "-?[0-9]{1,10}}");
-  private static final int MAX_TAIL = CONTEXT_FIELD.length() + 12;
+  private static final Pattern CONTEXT = createContextPattern();
+  private static final int MAXIMUM_CONTEXT_ID_CHARACTERS = 11;
+  private static final int MAXIMUM_TAIL = CONTEXT_FIELD.length() + MAXIMUM_CONTEXT_ID_CHARACTERS + 1;
+
+  private static final String ENABLE_RUNTIME_METHOD = "Runtime.enable";
+  private static final String ADD_BINDING_METHOD = "Runtime.addBinding";
+
+  private static final char PAYLOAD_END = '"';
+
+  private static final long QUIET_NANOSECONDS = TimeUnit.MILLISECONDS.toNanos(QUIET_MILLISECONDS);
+  private static final long NANOSECONDS_PER_SECOND = TimeUnit.SECONDS.toNanos(1);
 
   private final Consumer<byte[]> sink;
   private final LongSupplier clock;
-  private long available;
-  private long last;
-  private long speaker;
-  private long spoken;
 
-  /**
-   * Creates the listener.
-   *
-   * @param sink  receives the samples of every event that is taken
-   * @param clock a monotonic clock in nanoseconds
-   */
+  private long availableBytes;
+  private long lastRefill;
+  private long speakingContext;
+  private long lastSound;
+
   PageAudio(final Consumer<byte[]> sink, final LongSupplier clock) {
     this.sink = sink;
     this.clock = clock;
-    this.available = BUDGET_BYTES;
-    this.last = clock.getAsLong();
-    this.spoken = this.last - TimeUnit.MILLISECONDS.toNanos(QUIET_MILLIS);
+    this.availableBytes = BUDGET_BYTES;
+    this.lastRefill = clock.getAsLong();
+    this.speakingContext = 0;
+    this.lastSound = this.lastRefill - QUIET_NANOSECONDS;
   }
 
-  /**
-   * Gets the DevTools calls that let a page hand over its sound: the binding, and the script for every new document.
-   *
-   * @return the calls, to be made before the page loads
-   */
+  private static Pattern createContextPattern() {
+    final String quotedField = Pattern.quote(CONTEXT_FIELD);
+    final String expression = "%s-?[0-9]{1,10}}".formatted(quotedField);
+    return Pattern.compile(expression);
+  }
+
   static List<DevToolsInput.DevToolsCall> install() {
-    final DevToolsInput.DevToolsCall enable = new DevToolsInput.DevToolsCall("Runtime.enable", "{}");
-    final DevToolsInput.DevToolsCall binding = new DevToolsInput.DevToolsCall(
-      "Runtime.addBinding",
-      "{\"name\":" + DevToolsInput.quote(BINDING) + "}"
-    );
+    final DevToolsInput.DevToolsCall enable = new DevToolsInput.DevToolsCall(ENABLE_RUNTIME_METHOD, "{}");
+    final String quotedBinding = DevToolsInput.quote(BINDING);
+    final DevToolsInput.DevToolsCall binding = new DevToolsInput.DevToolsCall(ADD_BINDING_METHOD, "{\"name\":%s}".formatted(quotedBinding));
+    final String quotedScript = DevToolsInput.quote(SCRIPT);
     final DevToolsInput.DevToolsCall capture = new DevToolsInput.DevToolsCall(
       DevToolsInput.ADD_SCRIPT_METHOD,
-      "{\"source\":" + DevToolsInput.quote(SCRIPT) + "}"
+      "{\"source\":%s}".formatted(quotedScript)
     );
     return List.of(enable, binding, capture);
   }
 
-  /**
-   * Takes the samples of a call of the binding and passes them on, unless they are not sound or over the budget.
-   *
-   * @param method     the method of the event
-   * @param parameters the parameters of the event, JSON
-   */
   @Override
   public void onEvent(final String method, final String parameters) {
-    if (!this.mayTake(leastBytes(parameters))) {
+    final long leastBytes = leastBytes(parameters);
+    if (!this.mayTake(leastBytes)) {
       return;
     }
+
     final Chunk chunk = parse(method, parameters);
     if (chunk != null && this.take(chunk)) {
-      this.sink.accept(chunk.samples());
+      final byte[] samples = chunk.getSamples();
+      this.sink.accept(samples);
     }
   }
 
-  /**
-   * Gets how many bytes of sound an event holds at least, from its length alone, so an event over the budget is refused
-   * before it is decoded.
-   *
-   * @param parameters the parameters of the event
-   * @return the least number of bytes a call of the binding this long decodes to, negative if it may hold none
-   */
+  // from the length alone, so an event over the budget is refused before it is decoded
   @VisibleForTesting
   static long leastBytes(final String parameters) {
-    return ((parameters.length() - PREFIX.length() - MAX_TAIL) / 4L) * 3L - 2L;
+    final long payloadCharacters = (long) parameters.length() - PREFIX.length() - MAXIMUM_TAIL;
+    final long groups = payloadCharacters / BASE64_GROUP_CHARACTERS;
+    final long payloadBytes = groups * BASE64_GROUP_BYTES;
+    return payloadBytes - MAXIMUM_BASE64_PADDING;
   }
 
   private synchronized boolean mayTake(final long bytes) {
-    this.refill(this.clock.getAsLong());
-    return bytes <= this.available;
+    final long now = this.clock.getAsLong();
+    this.refill(now);
+
+    return bytes <= this.availableBytes;
   }
 
   private synchronized boolean take(final Chunk chunk) {
     final long now = this.clock.getAsLong();
-    final boolean quiet = now - this.spoken >= TimeUnit.MILLISECONDS.toNanos(QUIET_MILLIS);
-    if (chunk.context() != this.speaker && !quiet) {
+    final boolean quiet = now - this.lastSound >= QUIET_NANOSECONDS;
+    final long contextId = chunk.getContextId();
+    if (contextId != this.speakingContext && !quiet) {
       return false;
     }
-    if (!this.spend(chunk.samples().length, now)) {
+
+    final byte[] samples = chunk.getSamples();
+    if (!this.spend(samples.length, now)) {
       return false;
     }
-    this.speaker = chunk.context();
-    if (!isSilent(chunk.samples())) {
-      this.spoken = now;
+
+    this.speakingContext = contextId;
+
+    if (!this.isSilent(samples)) {
+      this.lastSound = now;
     }
+
     return true;
   }
 
-  private static boolean isSilent(final byte[] samples) {
+  private boolean isSilent(final byte[] samples) {
     for (final byte sample : samples) {
       if (sample != 0) {
         return false;
       }
     }
+
     return true;
   }
 
   private void refill(final long now) {
-    final long elapsed = Math.min(Math.max(now - this.last, 0L), TimeUnit.SECONDS.toNanos(1));
-    this.last = now;
-    this.available = Math.min(BUDGET_BYTES, this.available + (elapsed * BUDGET_BYTES) / TimeUnit.SECONDS.toNanos(1));
+    final long elapsed = Math.clamp(now - this.lastRefill, 0L, NANOSECONDS_PER_SECOND);
+    this.lastRefill = now;
+    final long refilled = (elapsed * BUDGET_BYTES) / NANOSECONDS_PER_SECOND;
+    this.availableBytes = Math.min(BUDGET_BYTES, this.availableBytes + refilled);
   }
 
   private boolean spend(final int bytes, final long now) {
     this.refill(now);
-    if (bytes > this.available) {
+
+    if (bytes > this.availableBytes) {
       return false;
     }
-    this.available -= bytes;
+
+    this.availableBytes -= bytes;
+
     return true;
   }
 
-  /**
-   * Reads an event: exactly a call of the binding whose payload is Base64 of 16-bit stereo samples, whole frames and at
-   * most {@link HelperProtocol#MAX_AUDIO_BYTES}.
-   *
-   * @param method     the method of the event
-   * @param parameters the parameters of the event, JSON as Chromium writes it
-   * @return the samples and the context that sent them, or null if the event is anything else
-   */
   @VisibleForTesting
   static @Nullable Chunk parse(final String method, final String parameters) {
     if (!BINDING_EVENT.equals(method) || !parameters.startsWith(PREFIX)) {
       return null;
     }
+
     final int start = PREFIX.length();
-    final int end = parameters.indexOf('"', start);
-    if (end == -1 || end - start > MAX_PAYLOAD_CHARS) {
+    final int end = parameters.indexOf(PAYLOAD_END, start);
+    if (end == -1 || end - start > MAXIMUM_PAYLOAD_CHARACTERS) {
       return null;
     }
+
     if (!CONTEXT.matcher(parameters).region(end, parameters.length()).matches()) {
       return null;
     }
+
+    final Base64.Decoder decoder = Base64.getDecoder();
     final byte[] samples;
     try {
-      samples = Base64.getDecoder().decode(parameters.substring(start, end));
+      final String payload = parameters.substring(start, end);
+      samples = decoder.decode(payload);
     } catch (final IllegalArgumentException exception) {
       return null;
     }
+
     final int length = samples.length;
     if (length == 0 || length % HelperProtocol.AUDIO_FRAME_BYTES != 0) {
       return null;
     }
-    final long context = Long.parseLong(parameters.substring(end + CONTEXT_FIELD.length(), parameters.length() - 1));
+
+    final int contextStart = end + CONTEXT_FIELD.length();
+    final String contextText = parameters.substring(contextStart, parameters.length() - 1);
+    final long context = Long.parseLong(contextText);
     return new Chunk(context, samples);
   }
 
-  /**
-   * Samples of sound and the execution context of the frame that sent them.
-   */
   static final class Chunk {
 
-    private final long context;
+    private final long contextId;
     private final byte[] samples;
 
-    /**
-     * Creates a chunk.
-     *
-     * @param context the id of the execution context
-     * @param samples 16-bit little-endian stereo samples at 48 kHz, whole frames, which the chunk owns
-     */
-    private Chunk(final long context, final byte[] samples) {
-      this.context = context;
+    private Chunk(final long contextId, final byte[] samples) {
+      this.contextId = contextId;
       this.samples = samples;
     }
 
-    /**
-     * Gets the execution context of the frame that sent the samples.
-     *
-     * @return the id of the context
-     */
-    long context() {
-      return this.context;
+    long getContextId() {
+      return this.contextId;
     }
 
-    /**
-     * Gets the samples, which the receiver owns: they are not copied.
-     *
-     * @return the samples
-     */
-    byte[] samples() {
+    // not copied: the receiver owns them
+    byte[] getSamples() {
       return this.samples;
+    }
+
+    @Override
+    public boolean equals(final @Nullable Object other) {
+      if (this == other) {
+        return true;
+      }
+
+      if (!(other instanceof final Chunk chunk)) {
+        return false;
+      }
+
+      return this.contextId == chunk.contextId && Arrays.equals(this.samples, chunk.samples);
+    }
+
+    @Override
+    public int hashCode() {
+      final int samplesHashCode = Arrays.hashCode(this.samples);
+      return Objects.hash(this.contextId, samplesHashCode);
+    }
+
+    @Override
+    public String toString() {
+      // the helper process has no Guava on its class path
+      return "Chunk{contextId=%s, sampleBytes=%s}".formatted(this.contextId, this.samples.length);
     }
   }
 }

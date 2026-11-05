@@ -17,28 +17,35 @@
  */
 package me.brandonli.mcav.browser;
 
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.List;
 
-/**
- * Restricts its main thread as a confined helper does, hiding the folder of its first argument, and then runs
- * {@code cat} on the file of its second argument and on its own status, to show that a process started afterwards is
- * restricted too.
- */
+// Restricts its main thread as a confined helper does, then runs cat to show that a later process is restricted too.
 final class ConfinedProbeMain {
 
+  private static final String STATUS_FILE = "/proc/self/status";
+
+  private static final Path ROOT = Path.of("/");
+
   private ConfinedProbeMain() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   public static void main(final String[] arguments) throws Exception {
     final Path hidden = Path.of(arguments[0]);
-    final List<Landlock.Rule> rules = ChromiumConfinement.rules(Path.of("/"), List.of(hidden), List.of(), List.of());
-    Landlock.restrictThread(Landlock.version(), rules);
-    final Process cat = new ProcessBuilder("cat", arguments[1], "/proc/self/status").redirectErrorStream(true).start();
-    final String output = new String(cat.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+    final List<Landlock.Rule> rules = ChromiumConfinement.rules(ROOT, List.of(hidden), List.of(), List.of());
+    final int version = Landlock.version();
+    Landlock.restrictThread(version, rules);
+
+    final Process cat = new ProcessBuilder("cat", arguments[1], STATUS_FILE).redirectErrorStream(true).start();
+    final InputStream stream = cat.getInputStream();
+    final byte[] bytes = stream.readAllBytes();
+    final String output = new String(bytes, StandardCharsets.UTF_8);
     System.out.println(output);
-    System.out.println("cat exited " + cat.waitFor());
+    final int exitCode = cat.waitFor();
+    System.out.println("cat exited %s".formatted(exitCode));
   }
 }

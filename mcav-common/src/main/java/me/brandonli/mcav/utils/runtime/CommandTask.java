@@ -68,8 +68,12 @@ import org.slf4j.LoggerFactory;
 public final class CommandTask {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(CommandTask.class);
+
   private static final int NOT_RUN = Integer.MIN_VALUE;
+
   private static final long PROCESS_POLL_NANOSECONDS = TimeUnit.MILLISECONDS.toNanos(20L);
+
+  private static final boolean INTERRUPT_IF_RUNNING = true;
 
   private final List<String> command;
   private final @Nullable Path workingDirectory;
@@ -158,7 +162,7 @@ public final class CommandTask {
    * that may hang, such as programs that talk to a network.
    *
    * @return the exit code of the program
-   * @throws ProcessException     if the program cannot be started or its output cannot be read
+   * @throws ProcessException      if the program cannot be started or its output cannot be read
    * @throws IllegalStateException if the task was already run
    * @since 1.0.0
    */
@@ -180,12 +184,12 @@ public final class CommandTask {
    * @since 1.0.0
    */
   public int run(final Duration timeout) {
-    checkTimeout(timeout);
+    this.checkTimeout(timeout);
 
     return this.runWithTimeout(timeout);
   }
 
-  private static void checkTimeout(final Duration timeout) {
+  private void checkTimeout(final Duration timeout) {
     Preconditions.checkNotNull(timeout, "Timeout must not be null!");
 
     final boolean positive = !timeout.isNegative() && !timeout.isZero();
@@ -204,22 +208,22 @@ public final class CommandTask {
     // pool could run the readers one after another and deadlock exactly like that
     final ExecutorService readers = Executors.newVirtualThreadPerTaskExecutor();
     try {
-      final Future<String> outputFuture = readers.submit(() -> readFully(standardOutput));
-      final Future<String> errorFuture = readers.submit(() -> readFully(standardError));
+      final Future<String> outputFuture = readers.submit(() -> this.readFully(standardOutput));
+      final Future<String> errorFuture = readers.submit(() -> this.readFully(standardError));
       this.awaitCompletion(started, outputFuture, errorFuture, timeout, startNanoseconds);
     } finally {
       // close() waits indefinitely for blocked pipe readers. Cancellation must not extend the caller's deadline.
       readers.shutdownNow();
     }
 
-    LOGGER.debug("Command {} exited with code {}.", this.command, this.exitCode);
+    LOGGER.debug("Command {} exited with code {} after it ran.", this.command, this.exitCode);
     return this.exitCode;
   }
 
   /**
    * Runs the program, waits until it exits, and fails if the exit code is not zero.
    *
-   * @throws ProcessException     if the program cannot be started, its output cannot be read, or it exits with a
+   * @throws ProcessException      if the program cannot be started, its output cannot be read, or it exits with a
    *                               non-zero exit code
    * @throws IllegalStateException if a process was already launched by this task
    * @since 1.0.0
@@ -300,53 +304,57 @@ public final class CommandTask {
   ) {
     try {
       this.exitCode = this.waitForExit(started, timeout, startNanoseconds);
-      this.output = awaitOutput(outputFuture, timeout, startNanoseconds);
-      this.errorOutput = awaitOutput(errorFuture, timeout, startNanoseconds);
+      this.output = this.awaitOutput(outputFuture, timeout, startNanoseconds);
+      this.errorOutput = this.awaitOutput(errorFuture, timeout, startNanoseconds);
     } catch (final InterruptedException exception) {
-      final Thread currentThread = Thread.currentThread();
-      currentThread.interrupt();
+      final Thread current = Thread.currentThread();
+      current.interrupt();
       this.destroyProcessTree(started);
+
       final String message = "Waiting for command %s was interrupted!".formatted(this.command);
       throw new ProcessException(message, exception);
     } catch (final TimeoutException exception) {
       this.destroyProcessTree(started);
+
       final String message = "Command %s did not finish within %s; termination was requested!".formatted(this.command, timeout);
       throw new ProcessException(message, exception);
     } catch (final ExecutionException exception) {
       this.destroyProcessTree(started);
+
       final Throwable reason = exception.getCause();
       final Throwable cause = Objects.requireNonNullElse(reason, exception);
       final String message = "Output of command %s could not be read!".formatted(this.command);
       throw new ProcessException(message, cause);
     } finally {
-      outputFuture.cancel(true);
-      errorFuture.cancel(true);
+      outputFuture.cancel(INTERRUPT_IF_RUNNING);
+      errorFuture.cancel(INTERRUPT_IF_RUNNING);
     }
   }
 
-  private static String awaitOutput(final Future<String> output, final @Nullable Duration timeout, final long startNanoseconds)
+  private String awaitOutput(final Future<String> future, final @Nullable Duration timeout, final long startNanoseconds)
     throws ExecutionException, InterruptedException, TimeoutException {
     if (timeout == null) {
-      return output.get();
+      return future.get();
     }
 
-    final long remaining = remainingNanoseconds(timeout, startNanoseconds);
-    return output.get(remaining, TimeUnit.NANOSECONDS);
+    final long remaining = this.remainingNanoseconds(timeout, startNanoseconds);
+    return future.get(remaining, TimeUnit.NANOSECONDS);
   }
 
-  private static long remainingNanoseconds(final Duration timeout, final long startNanoseconds) throws TimeoutException {
+  private long remainingNanoseconds(final Duration timeout, final long startNanoseconds) throws TimeoutException {
     final long now = System.nanoTime();
-    return remainingNanoseconds(timeout, startNanoseconds, now);
+    return this.remainingNanoseconds(timeout, startNanoseconds, now);
   }
 
   // Takes the current time, so a test can reach the deadline to the nanosecond, which kills the mutant that lets it pass.
   @VisibleForTesting
-  static long remainingNanoseconds(final Duration timeout, final long startNanoseconds, final long now) throws TimeoutException {
+  long remainingNanoseconds(final Duration timeout, final long startNanoseconds, final long now) throws TimeoutException {
     final long budget = TimeUnit.NANOSECONDS.convert(timeout);
     final long elapsed = now - startNanoseconds;
     final long remaining = budget - elapsed;
     if (remaining <= 0) {
-      throw new TimeoutException("The command and output deadline expired!");
+      final String message = "The command and output deadline expired!";
+      throw new TimeoutException(message);
     }
 
     return remaining;
@@ -357,7 +365,7 @@ public final class CommandTask {
     while (true) {
       // Keep handles while the parent exists: after it exits, inherited-pipe children may already be reparented.
       this.rememberDescendants(started);
-      final long remaining = timeout == null ? PROCESS_POLL_NANOSECONDS : remainingNanoseconds(timeout, startNanoseconds);
+      final long remaining = timeout == null ? PROCESS_POLL_NANOSECONDS : this.remainingNanoseconds(timeout, startNanoseconds);
       final long waitNanoseconds = Math.min(remaining, PROCESS_POLL_NANOSECONDS);
       final boolean exited = started.waitFor(waitNanoseconds, TimeUnit.NANOSECONDS);
       if (exited) {
@@ -379,7 +387,7 @@ public final class CommandTask {
   }
 
   @VisibleForTesting
-  static String readFully(final InputStream stream) {
+  String readFully(final InputStream stream) {
     try (stream) {
       final byte[] bytes = stream.readAllBytes();
       return new String(bytes, StandardCharsets.UTF_8);

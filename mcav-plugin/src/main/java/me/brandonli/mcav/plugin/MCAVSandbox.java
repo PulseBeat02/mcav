@@ -17,13 +17,17 @@
  */
 package me.brandonli.mcav.plugin;
 
+import java.io.File;
+import java.nio.file.Path;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import me.brandonli.mcav.MCAV;
 import me.brandonli.mcav.MCAVApi;
 import me.brandonli.mcav.browser.BrowserModule;
 import me.brandonli.mcav.bukkit.BukkitModule;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2.Pool;
+import me.brandonli.mcav.bukkit.resourcepack.provider.PackHosting;
 import me.brandonli.mcav.bukkit.utils.versioning.ServerEnvironment;
 import me.brandonli.mcav.bukkit.utils.versioning.UnsupportedServerVersionException;
 import me.brandonli.mcav.plugin.audio.AudioProvider;
@@ -33,7 +37,7 @@ import me.brandonli.mcav.plugin.command.image.ImageManager;
 import me.brandonli.mcav.plugin.command.video.Mcv2Support;
 import me.brandonli.mcav.plugin.command.video.VideoPlayerManager;
 import me.brandonli.mcav.plugin.data.PluginDataConfigurationMapper;
-import me.brandonli.mcav.plugin.listener.JukeBoxListener;
+import me.brandonli.mcav.plugin.listener.JukeboxListener;
 import me.brandonli.mcav.plugin.listener.OnlinePlayers;
 import me.brandonli.mcav.plugin.utils.CleanupUtils;
 import me.brandonli.mcav.plugin.utils.Mcv2Hosting;
@@ -51,7 +55,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *
  * <p>Everything is created in {@link #onEnable()} in dependency order: the library, the configuration, the audio
  * and media managers, the commands, and the listeners. The getters fail with an {@link IllegalStateException}
- * when called before the plugin is enabled.
+ * when called before the plugin is enabled and, except {@link #getConfiguration()}, after it is disabled.
  *
  * <p>Paper constructs this class from the plugin descriptor, and the commands it registers are documented in the plugin
  * pages of the MCAV docs.
@@ -63,61 +67,27 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 public final class MCAVSandbox extends JavaPlugin {
 
-  private static final String UNSUPPORTED_VERSION_REMEDY =
-    "run MCAV on a Minecraft " + ServerEnvironment.SUPPORTED_MINECRAFT_VERSION + " server";
-
-  private static final String MISSING_VOICE_CHAT_REMEDY =
-    "install the Simple Voice Chat plugin or set simple-voice-chat.enabled to false in config.yml";
-
-  private static final String CANNOT_ENABLE = "MCAV cannot be enabled: {} To fix it, {}.";
-
-  private static final String CANNOT_REENABLE = "Paper cannot re-enable this plugin after it has been disabled!";
-
-  private static final String RESTART_REMEDY = "restart the server to enable MCAV";
-
-  private static final String LOADING = "Loading MCAV.";
-
-  private static final String NO_QEMU =
-    "QEMU is not installed and MCAV cannot install it on this server, so virtual machines will not be available.";
-
-  private static final String NO_BROWSER =
-    "There is no browser for the operating system and processor of this server, browsers will not be available.";
-
-  private static final String LOADED = "MCAV loaded in {} ms.";
-
-  private static final String ENCODER_SHARE = "MCV2 encoders share {} of {} processors.";
-
-  private static final String ENCODER_KERNELS = "MCV2 uses the {} kernels.";
-
   private static final String NATIVES_FOLDER = "natives";
 
   private @MonotonicNonNull ComponentLogger logger;
 
   private @Nullable MCAVApi mcav;
-
   private @MonotonicNonNull PluginDataConfigurationMapper configurationMapper;
-
   private @Nullable AudioProvider audioProvider;
-
   private @Nullable ImageManager imageManager;
-
   private @Nullable VideoPlayerManager videoPlayerManager;
-
   private @Nullable Mcv2Support mcv2Support;
-
   private @Nullable OnlinePlayers onlinePlayers;
-
   private @Nullable AnnotationParserHandler annotationParserHandler;
-
-  private @Nullable JukeBoxListener listener;
+  private @Nullable JukeboxListener listener;
 
   private boolean qemuAvailable;
   private boolean browserSupported;
 
-  private boolean hasBeenDisabled;
+  private boolean disabled;
 
   /**
-   * Constructs the plugin. Paper creates it for you; everything else is created in {@link #onEnable()}.
+   * Creates the plugin. Paper calls it for you; everything else is created in {@link #onEnable()}.
    *
    * @since 1.0.0
    */
@@ -131,8 +101,8 @@ public final class MCAVSandbox extends JavaPlugin {
    * registrations are closed. A later enable attempt logs one error with an instruction to restart the server.
    *
    * <p>Two failures are setup problems of the server rather than bugs: a server that runs a Minecraft version the
-   * library does not support, and Simple Voice Chat audio that is enabled in {@code config.yml} while the voicechat
-   * plugin is missing. For either, the plugin logs one error that names the problem and how to fix it, and then
+   * library does not support, and Simple Voice Chat audio that is enabled in {@code config.yml} while the Simple Voice
+   * Chat plugin is missing. For either, the plugin logs one error that names the problem and how to fix it, and then
    * disables itself through the plugin manager, which calls {@link #onDisable()} to release what was created.
    *
    * @throws RuntimeException if anything else fails; Paper then reports the failure and disables the plugin, and
@@ -143,42 +113,48 @@ public final class MCAVSandbox extends JavaPlugin {
   public void onEnable() {
     this.logger = this.getComponentLogger();
 
-    // Paper closes the plugin loader and its lifecycle registrations when disabling it.
-    if (this.hasBeenDisabled) {
-      this.disableBecause(new IllegalStateException(CANNOT_REENABLE), RESTART_REMEDY);
+    if (this.disabled) {
+      final String message = "Paper cannot re-enable this plugin after it has been disabled!";
+      this.disableBecause(new IllegalStateException(message), "restart the server to enable MCAV");
       return;
     }
 
     try {
       this.loadMCAV();
       this.loadPluginData();
+      this.loadMcv2Encoders();
       this.loadManagers();
       this.loadCommands();
       this.loadListeners();
     } catch (final UnsupportedServerVersionException exception) {
-      this.disableBecause(exception, UNSUPPORTED_VERSION_REMEDY);
+      final String remedy = "run MCAV on a Minecraft %s server".formatted(ServerEnvironment.SUPPORTED_MINECRAFT_VERSION);
+      this.disableBecause(exception, remedy);
     } catch (final MissingVoiceChatException exception) {
-      this.disableBecause(exception, MISSING_VOICE_CHAT_REMEDY);
+      this.disableBecause(exception, "install the Simple Voice Chat plugin or set simple-voice-chat.enabled to false in config.yml");
     }
   }
 
   /**
-   * Disables the plugin: stops the video and the images, the jukebox listener, the commands and the audio outputs,
-   * and releases the library. Parts that were never created, because the plugin failed to enable, are skipped.
+   * Disables the plugin: stops the video and the images, the jukebox listener, the commands, the audio outputs, the
+   * MCV2 support and the online player tracking, and releases the library. Parts that were never created, because the
+   * plugin failed to enable, are skipped.
    *
+   * @throws RuntimeException if a part fails to stop, after every other part was stopped
    * @since 1.0.0
    */
   @Override
   public void onDisable() {
-    this.hasBeenDisabled = true;
+    this.disabled = true;
+
     final VideoPlayerManager videos = this.videoPlayerManager;
     final ImageManager images = this.imageManager;
-    final JukeBoxListener jukebox = this.listener;
+    final JukeboxListener jukebox = this.listener;
     final AnnotationParserHandler commands = this.annotationParserHandler;
     final AudioProvider audio = this.audioProvider;
     final Mcv2Support mcv2 = this.mcv2Support;
     final OnlinePlayers online = this.onlinePlayers;
     final MCAVApi library = this.mcav;
+
     this.mcv2Support = null;
     this.onlinePlayers = null;
     this.videoPlayerManager = null;
@@ -187,23 +163,23 @@ public final class MCAVSandbox extends JavaPlugin {
     this.annotationParserHandler = null;
     this.audioProvider = null;
     this.mcav = null;
+
     CleanupUtils.runAll(
       this.whenPresent(videos, VideoPlayerManager::shutdown),
       this.whenPresent(images, ImageManager::shutdown),
-      this.whenPresent(jukebox, JukeBoxListener::shutdown),
+      this.whenPresent(jukebox, JukeboxListener::shutdown),
       this.whenPresent(commands, AnnotationParserHandler::shutdownCommands),
       this.whenPresent(audio, AudioProvider::shutdown),
       this.whenPresent(mcv2, Mcv2Support::shutdown),
-      this.whenPresent(online, OnlinePlayers::stop),
+      this.whenPresent(online, OnlinePlayers::shutdown),
       this.whenPresent(library, MCAVApi::release)
     );
   }
 
-  // disabling runs onDisable(), which releases what was created before the failure
   private void disableBecause(final RuntimeException failure, final String remedy) {
     final ComponentLogger pluginLogger = this.requireLogger();
     final String reason = failure.getMessage();
-    pluginLogger.error(CANNOT_ENABLE, reason, remedy);
+    pluginLogger.error("MCAV cannot be enabled: {} To fix it, {}.", reason, remedy);
 
     final Server server = this.getServer();
     final PluginManager pluginManager = server.getPluginManager();
@@ -212,7 +188,8 @@ public final class MCAVSandbox extends JavaPlugin {
 
   private void loadMCAV() {
     final ComponentLogger pluginLogger = this.requireLogger();
-    pluginLogger.info(LOADING);
+    pluginLogger.info("Loading MCAV.");
+
     final long start = System.currentTimeMillis();
     final MCAVApi api = MCAV.api();
     // kept before installing, so onDisable releases whatever the modules created even when installing fails
@@ -221,49 +198,73 @@ public final class MCAVSandbox extends JavaPlugin {
 
     final BukkitModule bukkitModule = api.getModule(BukkitModule.class);
     bukkitModule.inject(this);
+
     final VmModule vmModule = api.getModule(VmModule.class);
     this.qemuAvailable = vmModule.isQemuAvailable();
     if (!this.qemuAvailable) {
-      pluginLogger.warn(NO_QEMU);
+      pluginLogger.warn("QEMU is not installed and MCAV cannot install it on this server, so virtual machines will not be available.");
     }
+
     final BrowserModule browserModule = api.getModule(BrowserModule.class);
     this.browserSupported = browserModule.isSupported();
     if (!this.browserSupported) {
-      pluginLogger.warn(NO_BROWSER);
+      pluginLogger.warn("There is no browser for the operating system and processor of this server, so browsers will not be available.");
     }
 
     final long end = System.currentTimeMillis();
     final long duration = end - start;
-    pluginLogger.info(LOADED, duration);
+    pluginLogger.info("MCAV loaded in {} ms.", duration);
   }
 
   private void loadPluginData() {
     final PluginDataConfigurationMapper mapper = new PluginDataConfigurationMapper(this);
     mapper.deserialize();
     this.configurationMapper = mapper;
-    Pool.setSharedThreads(mapper.getMcv2EncoderThreads());
-    final int processors = Runtime.getRuntime().availableProcessors();
-    this.requireLogger().info(ENCODER_SHARE, Pool.shared().getThreads(), processors);
+  }
+
+  private void loadMcv2Encoders() {
+    final PluginDataConfigurationMapper mapper = this.getConfiguration();
+    final int encoderThreads = mapper.getMcv2EncoderThreads();
+    Pool.setSharedThreads(encoderThreads);
+
+    final Runtime runtime = Runtime.getRuntime();
+    final int processors = runtime.availableProcessors();
+    final ComponentLogger pluginLogger = this.requireLogger();
+    final Pool sharedPool = Pool.shared();
+    final int sharedThreads = sharedPool.getThreads();
+    pluginLogger.info("MCV2 encoders share {} of {} processors.", sharedThreads, processors);
+
     // the native kernels extract into the data folder, never /tmp; installing them decides which kernels run and logs it
-    Mcv2.installNatives(this.getDataFolder().toPath().resolve(NATIVES_FOLDER), mapper.getMcv2Native());
-    this.requireLogger().info(ENCODER_KERNELS, Mcv2.describeNatives());
+    final File dataFolder = this.getDataFolder();
+    final Path dataPath = dataFolder.toPath();
+    final Path nativesPath = dataPath.resolve(NATIVES_FOLDER);
+    final String nativeLibrary = mapper.getMcv2Native();
+    Mcv2.installNatives(nativesPath, nativeLibrary);
+
+    final String kernels = Mcv2.describeNatives();
+    pluginLogger.info("MCV2 uses the {} kernels.", kernels);
   }
 
   private void loadManagers() {
     final AudioProvider provider = new AudioProvider(this);
     this.audioProvider = provider;
     provider.initialize();
+
     this.videoPlayerManager = new VideoPlayerManager(this);
     this.imageManager = new ImageManager(this);
+
     final OnlinePlayers online = new OnlinePlayers();
     this.onlinePlayers = online;
     online.start(this);
+
     final PluginDataConfigurationMapper mapper = this.getConfiguration();
     final Mcv2Hosting hosting = mapper.getMcv2PackHosting();
-    final Mcv2Support support = new Mcv2Support(
-      this.getDataFolder().toPath(),
-      hosting.hosting(mapper.getMcv2PackHttpHost(), mapper.getMcv2PackHttpPort())
-    );
+    final File dataFolder = this.getDataFolder();
+    final Path dataPath = dataFolder.toPath();
+    final String host = mapper.getMcv2PackHttpHost();
+    final int port = mapper.getMcv2PackHttpPort();
+    final Function<Path, PackHosting> packHosting = hosting.hosting(host, port);
+    final Mcv2Support support = new Mcv2Support(dataPath, packHosting);
     this.mcv2Support = support;
     support.start();
   }
@@ -275,9 +276,9 @@ public final class MCAVSandbox extends JavaPlugin {
   }
 
   private void loadListeners() {
-    final JukeBoxListener jukeBoxListener = new JukeBoxListener(this);
-    this.listener = jukeBoxListener;
-    jukeBoxListener.start();
+    final JukeboxListener jukeboxListener = new JukeboxListener(this);
+    this.listener = jukeboxListener;
+    jukeboxListener.start();
   }
 
   private <PartType> Runnable whenPresent(final @Nullable PartType part, final Consumer<PartType> cleanup) {
@@ -296,7 +297,7 @@ public final class MCAVSandbox extends JavaPlugin {
 
   private <ValueType> ValueType require(final @Nullable ValueType value, final String name) {
     if (value == null) {
-      final String message = "The %s is not available before the plugin is enabled!".formatted(name);
+      final String message = "The %s is only available while the plugin is enabled!".formatted(name);
       throw new IllegalStateException(message);
     }
 
@@ -307,6 +308,7 @@ public final class MCAVSandbox extends JavaPlugin {
    * Returns the library instance.
    *
    * @return the library
+   * @throws IllegalStateException if the plugin is not enabled
    * @since 1.0.0
    */
   public MCAVApi getMCAV() {
@@ -317,6 +319,7 @@ public final class MCAVSandbox extends JavaPlugin {
    * Returns the configuration.
    *
    * @return the configuration
+   * @throws IllegalStateException if the plugin was never enabled
    * @since 1.0.0
    */
   public PluginDataConfigurationMapper getConfiguration() {
@@ -327,6 +330,7 @@ public final class MCAVSandbox extends JavaPlugin {
    * Returns the manager of the video player.
    *
    * @return the video player manager
+   * @throws IllegalStateException if the plugin is not enabled
    * @since 1.0.0
    */
   public VideoPlayerManager getVideoPlayerManager() {
@@ -337,6 +341,7 @@ public final class MCAVSandbox extends JavaPlugin {
    * Returns the provider of audio outputs.
    *
    * @return the audio provider
+   * @throws IllegalStateException if the plugin is not enabled
    * @since 1.0.0
    */
   public AudioProvider getAudioProvider() {
@@ -347,6 +352,7 @@ public final class MCAVSandbox extends JavaPlugin {
    * Returns the manager of displayed images.
    *
    * @return the image manager
+   * @throws IllegalStateException if the plugin is not enabled
    * @since 1.0.0
    */
   public ImageManager getImageManager() {
@@ -357,6 +363,7 @@ public final class MCAVSandbox extends JavaPlugin {
    * Returns what the MCV2 screens share: the one pack that decodes them all, and who loaded it.
    *
    * @return the MCV2 support
+   * @throws IllegalStateException if the plugin is not enabled
    * @since 1.0.0
    */
   public Mcv2Support getMcv2Support() {
@@ -367,6 +374,7 @@ public final class MCAVSandbox extends JavaPlugin {
    * Returns the players online, which a wall shown to {@code @a} keeps following.
    *
    * @return the online players
+   * @throws IllegalStateException if the plugin is not enabled
    * @since 1.0.0
    */
   public OnlinePlayers getOnlinePlayers() {

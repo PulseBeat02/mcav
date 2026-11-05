@@ -18,23 +18,22 @@
 package me.brandonli.mcav.media.player.multimedia.cv;
 
 import com.google.common.base.Preconditions;
+import me.brandonli.mcav.media.player.multimedia.VideoPlayer;
 import org.bytedeco.javacv.FFmpegFrameGrabber;
 import org.bytedeco.javacv.FrameGrabber;
 
 /**
- * A player that decodes media with the bundled FFmpeg libraries, when their native binaries load on the host.
- * It handles files, HTTP
- * streams, RTSP cameras, and raw device input. Create instances with
- * {@link me.brandonli.mcav.media.player.multimedia.VideoPlayer#ffmpeg()}.
+ * A player that decodes media with the bundled FFmpeg libraries, when their native binaries load on the host. It
+ * handles files, HTTP streams, RTSP cameras, and raw device input. Create instances with {@link VideoPlayer#ffmpeg()}.
  *
  * <p>This class is thread-safe.
  *
  * @since 1.0.0
  */
-public class FfmpegPlayer extends AbstractVideoPlayerCv {
+public final class FfmpegPlayer extends AbstractVideoPlayerCv {
 
   /**
-   * Constructs a new FFmpeg player.
+   * Creates an FFmpeg player.
    *
    * @since 1.0.0
    */

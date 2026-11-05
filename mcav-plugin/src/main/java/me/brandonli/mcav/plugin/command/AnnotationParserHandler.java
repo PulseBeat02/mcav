@@ -78,6 +78,7 @@ public final class AnnotationParserHandler {
    * Creates the command manager and the features. The plugin's managers must exist already.
    *
    * @param plugin the plugin
+   * @throws NullPointerException if {@code plugin} is null
    * @since 1.0.0
    */
   public AnnotationParserHandler(final MCAVSandbox plugin) {
@@ -86,6 +87,7 @@ public final class AnnotationParserHandler {
     this.manager = this.createCommandManager(plugin);
     this.parser = this.createAnnotationParser(this.manager);
     this.features = this.createFeatures(plugin, this.manager);
+    this.shutDown = false;
   }
 
   private CommandManager<CommandSender> createCommandManager(@UnderInitialization AnnotationParserHandler this, final MCAVSandbox plugin) {
@@ -103,13 +105,13 @@ public final class AnnotationParserHandler {
     final CommandManager<CommandSender> manager
   ) {
     final AnnotationParser<CommandSender> annotationParser = new AnnotationParser<>(manager, CommandSender.class);
-    annotationParser.descriptionMapper(AnnotationParserHandler::describe);
+    annotationParser.descriptionMapper(this::describe);
     return annotationParser;
   }
 
   // the server translates only the game's own keys, so plugin descriptions are rendered here
   @VisibleForTesting
-  static RichDescription describe(final String key) {
+  RichDescription describe(@UnderInitialization AnnotationParserHandler this, final String key) {
     if (key.isEmpty()) {
       return RichDescription.empty();
     }

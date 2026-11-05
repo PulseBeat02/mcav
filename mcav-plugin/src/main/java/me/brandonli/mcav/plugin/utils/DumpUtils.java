@@ -17,6 +17,8 @@
  */
 package me.brandonli.mcav.plugin.utils;
 
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.annotations.VisibleForTesting;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -35,12 +37,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayDeque;
-import java.util.ArrayList;
 import java.util.Deque;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Properties;
 import java.util.Set;
 import java.util.TreeMap;
@@ -52,9 +52,10 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 /**
  * Collects diagnostic information for bug reports and uploads it to a paste site.
  *
- * <p>The dump is public, so it contains no environment variables, and the values of JVM properties and JVM
- * arguments whose names suggest secrets, such as {@code -Dbot.token=...}, are redacted. Only the end of the server
- * log is included. Redaction is heuristic: unlabelled secrets and application-specific credential formats may
+ * <p>The dump is public, so it contains no environment variables, and the values of JVM properties and JVM arguments
+ * whose names suggest secrets, such as {@code -Dbot.token=...}, are redacted. Only the end of the server log is
+ * included, and its lines lose IP addresses, the arguments of other plugins' commands, and the credentials, queries and
+ * fragments of web addresses. Redaction is heuristic: unlabeled secrets and application-specific credential formats may
  * still appear in diagnostic text.
  *
  * <p>This class is stateless and thread-safe.
@@ -64,22 +65,30 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 public final class DumpUtils {
 
   private static final String PASTE_SITE = "https://paste.helpch.at/";
+  private static final String DOCUMENTS_PATH = "documents/";
   private static final HttpClient HTTP_CLIENT = HttpClient.newHttpClient();
   private static final Duration UPLOAD_TIMEOUT = Duration.ofSeconds(30);
+
   private static final Path LOG_FILE = Path.of("logs", "latest.log");
   private static final int MAXIMUM_LOG_LINES = 2_000;
+
   private static final List<String> SECRET_WORDS = List.of("token", "password", "passwd", "secret", "key", "credential", "auth");
   private static final String REDACTED = "<redacted>";
   private static final String REDACTED_ADDRESS = "<redacted-address>";
+
   private static final Pattern WORD = Pattern.compile("\\S+");
   private static final Pattern IPV4_ADDRESS = Pattern.compile("\\b\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\b(?::\\d{1,5})?");
   private static final Pattern IPV6_ADDRESS = Pattern.compile("/\\[[0-9A-Fa-f:.]+(?:%[^\\]\\s]+)?](?::\\d{1,5})?");
-  private static final Pattern OTHER_COMMAND = Pattern.compile("(issued server command: /)([^\\s]+)(\\s.*)?$");
+  private static final Pattern ISSUED_COMMAND = Pattern.compile("(issued server command: /)([^\\s]+)(\\s.*)?$");
   private static final Pattern WEB_ADDRESS = Pattern.compile("\\b([A-Za-z][A-Za-z0-9+.-]*://)([^\\s/?#]*@)?([^\\s?#]*)([?#]\\S*)?");
-  private static final String OWN_COMMAND_PREFIX = "mcav";
+
+  private static final String OWN_COMMAND_NAME = "mcav";
+
   private static final long MEGABYTE = 1024L * 1024L;
 
-  private static final String DOCUMENTS_PATH = "documents/";
+  private static final String CONTENT_TYPE_HEADER = "Content-Type";
+
+  private static final String PLAIN_TEXT_CONTENT_TYPE = "text/plain";
 
   private static final String LABEL_SEPARATOR = ": ";
 
@@ -94,21 +103,29 @@ public final class DumpUtils {
 
   private static final String WORD_SEPARATOR = " ";
 
+  private static final int SCHEME_GROUP = 1;
   private static final int USER_GROUP = 2;
   private static final int HOST_GROUP = 3;
   private static final int QUERY_OR_FRAGMENT_GROUP = 4;
 
   private static final String USER_SEPARATOR = "@";
 
-  private static final String ADDRESS_PREFIX = "/";
+  private static final String REDACTED_IPV6_ADDRESS = "/<redacted-address>";
 
   private static final int COMMAND_NAME_GROUP = 2;
   private static final int COMMAND_ARGUMENTS_GROUP = 3;
 
   private static final String STACK_FRAME_PREFIX = "\tat ";
 
+  private static final String OS_NAME_PROPERTY = "os.name";
+  private static final String OS_VERSION_PROPERTY = "os.version";
+  private static final String OS_ARCHITECTURE_PROPERTY = "os.arch";
+  private static final String JAVA_VERSION_PROPERTY = "java.version";
+  private static final String JAVA_VENDOR_PROPERTY = "java.vendor";
+
   private DumpUtils() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   /**
@@ -126,18 +143,21 @@ public final class DumpUtils {
   static String createAndUploadDump(final HttpClient client, final String pasteSite, final Path logFile) {
     final String dump = createDumpContents(logFile);
     try {
-      final URI endpoint = URI.create(pasteSite + DOCUMENTS_PATH);
+      final String endpointUrl = "%s%s".formatted(pasteSite, DOCUMENTS_PATH);
+      final URI endpoint = URI.create(endpointUrl);
       final String response = uploadDump(client, endpoint, dump);
       final String documentKey = parseDocumentKey(response);
-      return pasteSite + documentKey;
+      final String url = "%s%s".formatted(pasteSite, documentKey);
+      return url;
     } catch (final IOException exception) {
-      final String reason = exception.getMessage();
-      final String message = "The dump could not be uploaded (%s)!".formatted(reason);
+      final String message = "The dump could not be uploaded!";
       throw new PluginException(message, exception);
     } catch (final InterruptedException exception) {
       final Thread current = Thread.currentThread();
       current.interrupt();
-      throw new PluginException("Interrupted while uploading the dump!", exception);
+
+      final String message = "Interrupted while uploading the dump!";
+      throw new PluginException(message, exception);
     }
   }
 
@@ -150,6 +170,7 @@ public final class DumpUtils {
         return key.getAsString();
       }
     }
+
     final String message = "Paste site answer %s has no document key!".formatted(response);
     throw new PluginException(message);
   }
@@ -167,7 +188,7 @@ public final class DumpUtils {
     throws IOException, InterruptedException {
     final HttpRequest.BodyPublisher body = HttpRequest.BodyPublishers.ofString(dump);
     final HttpRequest.Builder builder = HttpRequest.newBuilder(endpoint);
-    builder.header("Content-Type", "text/plain");
+    builder.header(CONTENT_TYPE_HEADER, PLAIN_TEXT_CONTENT_TYPE);
     builder.timeout(UPLOAD_TIMEOUT);
     builder.POST(body);
     final HttpRequest request = builder.build();
@@ -206,11 +227,11 @@ public final class DumpUtils {
   }
 
   private static void appendOperatingSystem(final StringBuilder dump) {
-    final String osName = System.getProperty("os.name");
-    final String osVersion = System.getProperty("os.version");
-    final String architecture = System.getProperty("os.arch");
-    final String javaVersion = System.getProperty("java.version");
-    final String javaVendor = System.getProperty("java.vendor");
+    final String osName = System.getProperty(OS_NAME_PROPERTY);
+    final String osVersion = System.getProperty(OS_VERSION_PROPERTY);
+    final String architecture = System.getProperty(OS_ARCHITECTURE_PROPERTY);
+    final String javaVersion = System.getProperty(JAVA_VERSION_PROPERTY);
+    final String javaVendor = System.getProperty(JAVA_VENDOR_PROPERTY);
     appendLine(dump, "OS", osName);
     appendLine(dump, "OS Version", osVersion);
     appendLine(dump, "Architecture", architecture);
@@ -249,12 +270,7 @@ public final class DumpUtils {
   // everything after the first equals sign is redacted
   @VisibleForTesting
   static List<String> redactArguments(final List<String> arguments) {
-    final List<String> redacted = new ArrayList<>();
-    for (final String argument : arguments) {
-      final String safe = redactArgument(argument);
-      redacted.add(safe);
-    }
-    return redacted;
+    return arguments.stream().map(DumpUtils::redactArgument).toList();
   }
 
   private static String redactArgument(final String argument) {
@@ -271,7 +287,8 @@ public final class DumpUtils {
 
     final int firstEquals = argument.indexOf(PROPERTY_SEPARATOR);
     final String name = argument.substring(0, firstEquals);
-    return name + PROPERTY_SEPARATOR + REDACTED;
+    final String redacted = "%s%s%s".formatted(name, PROPERTY_SEPARATOR, REDACTED);
+    return redacted;
   }
 
   private static void appendProperties(final StringBuilder dump) {
@@ -285,6 +302,7 @@ public final class DumpUtils {
       final String safe = secret ? REDACTED : redactSecretsInside(value);
       sorted.put(name, safe);
     }
+
     for (final Map.Entry<String, String> entry : sorted.entrySet()) {
       final String name = entry.getKey();
       final String value = entry.getValue();
@@ -299,14 +317,19 @@ public final class DumpUtils {
       final String word = words.group();
       final String redacted = redactArgument(word);
       if (!redacted.equals(word)) {
-        final String prefix = value.substring(0, words.start());
-        return prefix + redacted;
+        final int start = words.start();
+        final String prefix = value.substring(0, start);
+        final String safe = "%s%s".formatted(prefix, redacted);
+        return safe;
       }
       if (word.startsWith(OPTION_PREFIX) && isSecret(word)) {
-        final String prefix = value.substring(0, words.end());
-        return prefix + WORD_SEPARATOR + REDACTED;
+        final int end = words.end();
+        final String prefix = value.substring(0, end);
+        final String safe = "%s%s%s".formatted(prefix, WORD_SEPARATOR, REDACTED);
+        return safe;
       }
     }
+
     return value;
   }
 
@@ -325,39 +348,45 @@ public final class DumpUtils {
     while (address.find()) {
       final String user = address.group(USER_GROUP);
       final String queryOrFragment = address.group(QUERY_OR_FRAGMENT_GROUP);
-      final String userPart = user == null ? "" : REDACTED + USER_SEPARATOR;
-      final String tail = queryOrFragment == null ? "" : queryOrFragment.charAt(0) + REDACTED;
-      final String replacement = address.group(1) + userPart + address.group(HOST_GROUP) + tail;
-      address.appendReplacement(redacted, Matcher.quoteReplacement(replacement));
+      final String userPart = user == null ? "" : "%s%s".formatted(REDACTED, USER_SEPARATOR);
+      final String tail = queryOrFragment == null ? "" : "%s%s".formatted(queryOrFragment.charAt(0), REDACTED);
+      final String scheme = address.group(SCHEME_GROUP);
+      final String host = address.group(HOST_GROUP);
+      final String replacement = "%s%s%s%s".formatted(scheme, userPart, host, tail);
+      final String quotedReplacement = Matcher.quoteReplacement(replacement);
+      address.appendReplacement(redacted, quotedReplacement);
     }
+
     address.appendTail(redacted);
     return redacted.toString();
   }
 
   private static String redactAddresses(final String line) {
-    final Matcher sixth = IPV6_ADDRESS.matcher(line);
-    final String withoutSixth = sixth.replaceAll(ADDRESS_PREFIX + REDACTED_ADDRESS);
-    final Matcher fourth = IPV4_ADDRESS.matcher(withoutSixth);
-    return fourth.replaceAll(REDACTED_ADDRESS);
+    final Matcher ipv6Addresses = IPV6_ADDRESS.matcher(line);
+    final String withoutIpv6Addresses = ipv6Addresses.replaceAll(REDACTED_IPV6_ADDRESS);
+    final Matcher ipv4Addresses = IPV4_ADDRESS.matcher(withoutIpv6Addresses);
+    return ipv4Addresses.replaceAll(REDACTED_ADDRESS);
   }
 
   private static String redactOtherCommandArguments(final String line) {
-    final Matcher matcher = OTHER_COMMAND.matcher(line);
-    final boolean command = matcher.find();
-    if (!command) {
+    final Matcher matcher = ISSUED_COMMAND.matcher(line);
+    final boolean issued = matcher.find();
+    if (!issued) {
       return line;
     }
 
     final String name = matcher.group(COMMAND_NAME_GROUP);
     final String arguments = matcher.group(COMMAND_ARGUMENTS_GROUP);
-    final String commandName = Objects.requireNonNull(name);
-    final boolean own = commandName.equalsIgnoreCase(OWN_COMMAND_PREFIX);
+    final String commandName = requireNonNull(name);
+    final boolean own = commandName.equalsIgnoreCase(OWN_COMMAND_NAME);
     if (own || arguments == null || arguments.isBlank()) {
       return line;
     }
 
-    final String prefix = line.substring(0, matcher.start(COMMAND_ARGUMENTS_GROUP));
-    return prefix + WORD_SEPARATOR + REDACTED;
+    final int argumentsStart = matcher.start(COMMAND_ARGUMENTS_GROUP);
+    final String prefix = line.substring(0, argumentsStart);
+    final String redacted = "%s%s%s".formatted(prefix, WORD_SEPARATOR, REDACTED);
+    return redacted;
   }
 
   private static boolean isSecret(final String name) {
@@ -367,6 +396,7 @@ public final class DumpUtils {
         return true;
       }
     }
+
     return false;
   }
 
@@ -377,7 +407,8 @@ public final class DumpUtils {
       final Thread thread = entry.getKey();
       final String threadName = thread.getName();
       final Thread.State state = thread.getState();
-      appendLine(dump, "Thread", threadName + " (" + state + ")");
+      final String description = "%s (%s)".formatted(threadName, state);
+      appendLine(dump, "Thread", description);
       final StackTraceElement[] elements = entry.getValue();
       for (final StackTraceElement element : elements) {
         dump.append(STACK_FRAME_PREFIX);
@@ -391,7 +422,8 @@ public final class DumpUtils {
     appendSection(dump, "Latest Log");
     final boolean exists = Files.isRegularFile(logFile);
     if (!exists) {
-      dump.append("No log found\n");
+      dump.append("No log found");
+      dump.append(LINE_SEPARATOR);
       return;
     }
 
@@ -417,6 +449,7 @@ public final class DumpUtils {
         tail.removeFirst();
       }
     }
+
     return tail;
   }
 }

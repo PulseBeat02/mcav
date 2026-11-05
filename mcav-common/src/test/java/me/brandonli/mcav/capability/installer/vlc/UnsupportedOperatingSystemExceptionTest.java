@@ -20,6 +20,7 @@ package me.brandonli.mcav.capability.installer.vlc;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 
 import me.brandonli.mcav.MCAVException;
 import org.junit.jupiter.api.Test;
@@ -35,6 +36,16 @@ final class UnsupportedOperatingSystemExceptionTest {
     final Throwable cause = exception.getCause();
     assertEquals("Operating system FREEBSD does not support installing VLC automatically!", message);
     assertNull(cause);
+  }
+
+  @Test
+  void shouldKeepTheMessageAndTheCause() {
+    final IllegalStateException failure = new IllegalStateException("The VLC library is missing!");
+    final UnsupportedOperatingSystemException exception = new UnsupportedOperatingSystemException("VLC could not be loaded!", failure);
+    final String message = exception.getMessage();
+    final Throwable cause = exception.getCause();
+    assertEquals("VLC could not be loaded!", message);
+    assertSame(failure, cause);
   }
 
   @Test

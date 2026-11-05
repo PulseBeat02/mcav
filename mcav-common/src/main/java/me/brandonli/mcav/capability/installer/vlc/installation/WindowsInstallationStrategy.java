@@ -17,9 +17,10 @@
  */
 package me.brandonli.mcav.capability.installer.vlc.installation;
 
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.base.Preconditions;
 import java.nio.file.Path;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.regex.Pattern;
 import me.brandonli.mcav.capability.installer.InstallationException;
@@ -44,10 +45,11 @@ public final class WindowsInstallationStrategy extends ManualInstallationStrateg
 
   private static final Pattern LIBRARY = Pattern.compile("libvlc\\.dll");
   private static final Pattern CORE_LIBRARY = Pattern.compile("libvlccore\\.dll");
+
   private static final String TEMPORARY_DIRECTORY = "vlc-extract";
 
   /**
-   * Constructs a new strategy for the installer.
+   * Creates a new strategy for the installer.
    *
    * @param installer the installer whose installation directory is used
    * @throws NullPointerException if {@code installer} is null
@@ -67,7 +69,7 @@ public final class WindowsInstallationStrategy extends ManualInstallationStrateg
   @Override
   public Optional<Path> getInstalledPath() {
     final Path installDirectory = this.getInstallDirectory();
-    return findLibraryDirectory(installDirectory, LIBRARY, CORE_LIBRARY);
+    return this.findLibraryDirectory(installDirectory, LIBRARY, CORE_LIBRARY);
   }
 
   /**
@@ -88,35 +90,36 @@ public final class WindowsInstallationStrategy extends ManualInstallationStrateg
 
     final Path installDirectory = this.getInstallDirectory();
     final Path parentOrNull = installDirectory.getParent();
-    final Path parent = Objects.requireNonNull(parentOrNull, "The installation directory lies in the installer folder!");
+    final Path parent = requireNonNull(parentOrNull, "The installation directory lies in the installer folder!");
     final Path temporary = parent.resolve(TEMPORARY_DIRECTORY);
-    deleteRecursively(temporary);
-    deleteRecursively(installDirectory);
+    IoUtils.deleteRecursively(temporary);
+    IoUtils.deleteRecursively(installDirectory);
     try {
-      extractInto(archive, temporary, installDirectory);
+      this.extractInto(archive, temporary, installDirectory);
     } finally {
-      deleteRecursively(temporary);
+      IoUtils.deleteRecursively(temporary);
     }
 
     this.deleteFile(archive);
+
     return installDirectory;
   }
 
-  private static void extractInto(final Path archive, final Path temporary, final Path installDirectory) {
-    unzip(archive, temporary);
-    final Optional<Path> extractedLibraryDirectory = findLibraryDirectory(temporary, LIBRARY, CORE_LIBRARY);
+  private void extractInto(final Path archive, final Path temporary, final Path installDirectory) {
+    this.unzip(archive, temporary);
+
+    final Optional<Path> extractedLibraryDirectory = this.findLibraryDirectory(temporary, LIBRARY, CORE_LIBRARY);
     final @Nullable Path extractedRoot = extractedLibraryDirectory.orElse(null);
     if (extractedRoot == null) {
-      throw new InstallationException("The VLC zip does not contain nonempty libvlc.dll and libvlccore.dll in the same directory!");
+      final String message = "The VLC zip does not contain nonempty libvlc.dll and libvlccore.dll in the same directory!";
+      throw new InstallationException(message);
     }
 
     IoUtils.moveReplacing(extractedRoot, installDirectory);
   }
 
-  // Extracts the zip. IoUtils.unzip(Path, Path) reports failures unchecked, as a FileOperationException for an archive
-  // that cannot be read and as a ZipEntryIntegrityException for an archive that is unsafe, but an installation must
-  // fail with an InstallationException like every other installation failure.
-  private static void unzip(final Path archive, final Path temporary) {
+  // every installation failure is an InstallationException
+  private void unzip(final Path archive, final Path temporary) {
     try {
       IoUtils.unzip(archive, temporary);
     } catch (final FileOperationException | ZipEntryIntegrityException exception) {

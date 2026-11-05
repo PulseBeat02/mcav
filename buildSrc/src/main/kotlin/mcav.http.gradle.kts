@@ -18,6 +18,7 @@
 
 import com.github.gradle.node.NodeExtension
 import me.brandonli.mcav.gradle.HostPlatform
+import me.brandonli.mcav.gradle.NodeLayout
 
 plugins {
     id("mcav.module")
@@ -30,6 +31,8 @@ val disabledPrompt: String = "0"
 val nodeOptionsVariable: String = "NODE_OPTIONS"
 val nodeHeapMegabytes: Int = 4096
 
+val pnpmCommand: String = "pnpm"
+
 val websitePath: String = "mcav-website"
 val packageJsonPath: String = "mcav-website/package.json"
 val pnpmLockPath: String = "mcav-website/pnpm-lock.yaml"
@@ -38,9 +41,10 @@ val websiteSourcePath: String = "mcav-website/src"
 val websitePublicPath: String = "mcav-website/public"
 val websiteTestPath: String = "mcav-website/test"
 val websiteOutputPath: String = "mcav-website/out"
+val noticesScriptPath: String = "mcav-website/third-party-notices.mjs"
 val websiteConfigurationFiles: List<String> = listOf(
     "mcav-website/next.config.ts",
-    "mcav-website/third-party-notices.mjs",
+    noticesScriptPath,
     "mcav-website/tsconfig.json",
     "mcav-website/postcss.config.mjs"
 )
@@ -54,15 +58,12 @@ val builtJarProperty: String = "mcav.http.jar"
 val builtJarPath: String = "libs/mcav-http.jar"
 
 val node: NodeExtension = rootProject.extensions.getByType<NodeExtension>()
-val nodeSetup: TaskProvider<Task> = rootProject.tasks.named("nodeSetup")
+val nodeSetup: TaskProvider<Task> = rootProject.tasks.named(NodeLayout.SETUP_TASK_NAME)
 val host: HostPlatform = HostPlatform.current()
-val isWindows: Boolean = host.isWindows
 val nodeDirectory: Directory = node.resolvedNodeDir.get()
-val nodeExecutable: File = nodeDirectory.file(if (isWindows) "node.exe" else "bin/node").asFile
-// node-gradle unpacks the bin/corepack symlink as an empty file, so corepack runs through node
-val corepackScript: String = if (isWindows) "node_modules/corepack/dist/corepack.js" else "lib/node_modules/corepack/dist/corepack.js"
-val corepack: File = nodeDirectory.file(corepackScript).asFile
-val nodePath: String = nodeExecutable.parentFile.absolutePath + File.pathSeparator + System.getenv("PATH")
+val nodeExecutable: File = NodeLayout.executable(nodeDirectory, host).asFile
+val corepack: File = NodeLayout.corepackScript(nodeDirectory, host).asFile
+val nodePath: String = "${nodeExecutable.parentFile.absolutePath}${File.pathSeparator}${System.getenv(pathVariable)}"
 
 val pnpmProjectInstall: TaskProvider<Exec> = tasks.register<Exec>("pnpmProjectInstall") {
     this.group = "build"
@@ -72,7 +73,7 @@ val pnpmProjectInstall: TaskProvider<Exec> = tasks.register<Exec>("pnpmProjectIn
     this.executable = nodeExecutable.absolutePath
     this.environment(pathVariable, nodePath)
     this.environment(corepackPromptVariable, disabledPrompt)
-    this.args(corepack.absolutePath, "pnpm", "install", "--frozen-lockfile")
+    this.args(corepack.absolutePath, pnpmCommand, "install", "--frozen-lockfile")
     this.inputs.file(packageJsonPath)
     this.inputs.file(pnpmLockPath)
     this.outputs.file(installedModulesPath)
@@ -87,7 +88,7 @@ val buildWebsite: TaskProvider<Exec> = tasks.register<Exec>("buildWebsite") {
     this.environment(pathVariable, nodePath)
     this.environment(corepackPromptVariable, disabledPrompt)
     this.environment(nodeOptionsVariable, "--max-old-space-size=$nodeHeapMegabytes")
-    this.args(corepack.absolutePath, "pnpm", "run", "build")
+    this.args(corepack.absolutePath, pnpmCommand, "run", "build")
     this.inputs.dir(websiteSourcePath)
     this.inputs.dir(websitePublicPath)
     this.inputs.file(packageJsonPath)
@@ -105,10 +106,12 @@ val testWebsite: TaskProvider<Exec> = tasks.register<Exec>("testWebsite") {
     this.executable = nodeExecutable.absolutePath
     this.environment(pathVariable, nodePath)
     this.environment(corepackPromptVariable, disabledPrompt)
-    this.args(corepack.absolutePath, "pnpm", "test")
+    this.args(corepack.absolutePath, pnpmCommand, "test")
     this.inputs.dir(websiteSourcePath)
     this.inputs.dir(websiteTestPath)
     this.inputs.file(packageJsonPath)
+    this.inputs.file(pnpmLockPath)
+    this.inputs.file(noticesScriptPath)
 
     val passed: Provider<RegularFile> = layout.buildDirectory.file(websiteTestsPassedPath)
     this.outputs.file(passed)
@@ -139,11 +142,13 @@ tasks.named<Jar>("sourcesJar") {
     }
 }
 
-val builtJar: String = "-D$builtJarProperty=" + layout.buildDirectory.file(builtJarPath).get().asFile.absolutePath
+val builtJarFile: String = layout.buildDirectory.file(builtJarPath).get().asFile.absolutePath
+val builtJar: String = "-D$builtJarProperty=$builtJarFile"
 tasks.test {
     this.dependsOn(tasks.jar)
     this.jvmArgs(builtJar)
 }
+
 tasks.named("pitest") {
     this.dependsOn(tasks.jar)
 }

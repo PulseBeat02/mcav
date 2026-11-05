@@ -20,10 +20,10 @@ package me.brandonli.mcav.mod;
 import com.mojang.blaze3d.resource.GraphicsResourceAllocator;
 
 interface StripOutput {
-  int width();
+  int getWidth();
 
-  int height();
+  int getHeight();
 
   // writes the strip, top row first, over the main target's top rows and runs the pack's chain; false without a chain
-  boolean decode(byte[] strip, int rows, GraphicsResourceAllocator allocator);
+  boolean decode(final byte[] strip, final int rows, final GraphicsResourceAllocator allocator);
 }

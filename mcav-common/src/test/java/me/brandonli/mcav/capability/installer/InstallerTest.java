@@ -33,12 +33,14 @@ final class InstallerTest {
     final Installer installer = new Installer() {
       @Override
       public Path download(final FileMode mode) {
-        throw new AssertionError("Looking for an installation must not download anything!");
+        final String message = "Looking for an installation must not download anything!";
+        throw new AssertionError(message);
       }
 
       @Override
       public boolean isSupported() {
-        throw new AssertionError("Looking for an installation must not ask whether a download exists!");
+        final String message = "Looking for an installation must not ask whether a download exists!";
+        throw new AssertionError(message);
       }
 
       @Override

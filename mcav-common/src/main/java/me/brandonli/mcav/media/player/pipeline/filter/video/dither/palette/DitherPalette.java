@@ -17,9 +17,10 @@
  */
 package me.brandonli.mcav.media.player.pipeline.filter.video.dither.palette;
 
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.base.Preconditions;
 import java.util.List;
-import java.util.Objects;
 
 /**
  * A fixed set of at most 256 colors that images are reduced to, together with lookup tables that find the closest
@@ -57,7 +58,7 @@ public interface DitherPalette {
    * @since 1.0.0
    */
   static void init() {
-    Objects.requireNonNull(DEFAULT_MAP_PALETTE, "Map palette must not be null!");
+    requireNonNull(DEFAULT_MAP_PALETTE, "Map palette must not be null!");
   }
 
   /**

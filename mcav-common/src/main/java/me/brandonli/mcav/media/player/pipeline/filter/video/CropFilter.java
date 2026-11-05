@@ -35,7 +35,7 @@ import org.bytedeco.opencv.opencv_core.Rect;
  *
  * @since 1.0.0
  */
-public class CropFilter extends MatVideoFilter {
+public final class CropFilter extends MatVideoFilter {
 
   private final int left;
   private final int top;
@@ -49,7 +49,7 @@ public class CropFilter extends MatVideoFilter {
    * @param top    the y coordinate of the top left corner of the rectangle
    * @param width  the width of the rectangle, which must be positive
    * @param height the height of the rectangle, which must be positive
-   * @throws IllegalArgumentException if the origin is negative or either size is nonpositive
+   * @throws IllegalArgumentException if the origin is negative or either size is not positive
    * @since 1.0.0
    */
   public CropFilter(final int left, final int top, final int width, final int height) {
@@ -103,13 +103,14 @@ public class CropFilter extends MatVideoFilter {
    * Always throws, because a crop changes the size of the frame and cannot be done in place;
    * {@link #modifyImage(MatImageBuffer)} crops instead.
    *
-   * @param mat the matrix of the frame
+   * @param matrix the matrix of the frame
    * @return never returns normally
    * @throws UnsupportedOperationException always
    * @since 1.0.0
    */
   @Override
-  protected boolean modifyMat(final Mat mat) {
-    throw new UnsupportedOperationException("Cropping cannot be done in place!");
+  protected boolean modifyMat(final Mat matrix) {
+    final String message = "Cropping cannot be done in place!";
+    throw new UnsupportedOperationException(message);
   }
 }

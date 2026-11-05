@@ -20,25 +20,25 @@ granted.
 | `mcav.command.video.chat`, `.block`, `.entity`, `.scoreboard`, `.map`, `.pause`, `.resume`, `.release`, `.seek`, `.volume`, `.speed`, `.loop` | the `/mcav video` commands of those names |
 | `mcav.command.video.device` | `/mcav video devices`, the `DEVICE` player, and raw FFmpeg inputs (`format\|\|input`) in any video command |
 | `mcav.command.browser.create` | `/mcav browser create` |
-| `mcav.browser.release` | `/mcav browser release` |
-| `mcav.browser.interact` | `/mcav browser interact`, and clicking the screen of the browser |
+| `mcav.command.browser.release` | `/mcav browser release` |
+| `mcav.command.browser.interact` | `/mcav browser interact`, and clicking the screen of the browser |
 | `mcav.command.vm.create` | `/mcav vm create` |
-| `mcav.vm.release` | `/mcav vm release` |
-| `mcav.vm.interact` | `/mcav vm interact`, and clicking the screen of the virtual machine |
+| `mcav.command.vm.release` | `/mcav vm release` |
+| `mcav.command.vm.interact` | `/mcav vm interact`, and clicking the screen of the virtual machine |
 | `mcav.command.vnc.create` | `/mcav vnc create` |
-| `mcav.vnc.release` | `/mcav vnc release` |
-| `mcav.vnc.interact` | `/mcav vnc interact`, and clicking the screen of the desktop |
+| `mcav.command.vnc.release` | `/mcav vnc release` |
+| `mcav.command.vnc.interact` | `/mcav vnc interact`, and clicking the screen of the desktop |
 | `mcav.command.video.mcv2` | `/mcav video mcv2` |
 | `mcav.command.mcv2.play` | `/mcav mcv2 play`, `stream` and `stop` |
 | `mcav.command.mcv2.encode` | `/mcav mcv2 encode` and `cancel` |
 
 ```{important}
-`mcav.browser.interact`, `mcav.vm.interact` and `mcav.vnc.interact` do not only switch chat input on: they are also what
-lets a player click a browser, a virtual machine or a desktop by clicking its map screen. The screen stands in the
-world, so anyone can reach it; without the permission a click does nothing, while the frames of the screen stay
-protected for everyone. The permission is the only check: a region plugin that protects the area, or a chat plugin that
-cancels the message, does not stop a click or typed text from a player who has it. To keep a screen to some players or
-places, give the permission only there, for example per world with your permissions plugin.
+`mcav.command.browser.interact`, `mcav.command.vm.interact` and `mcav.command.vnc.interact` do not only switch chat
+input on: they are also what lets a player click a browser, a virtual machine or a desktop by clicking its map screen.
+The screen stands in the world, so anyone can reach it; without the permission a click does nothing, while the frames of
+the screen stay protected for everyone. The permission is the only check: a region plugin that protects the area, or a
+chat plugin that cancels the message, does not stop a click or typed text from a player who has it. To keep a screen to
+some players or places, give the permission only there, for example per world with your permissions plugin.
 ```
 
 ## General commands
@@ -49,7 +49,7 @@ places, give the permission only there, for example per world with your permissi
 | Permission                        | `mcav.command.help`                                                                                                                        |
 | Description                       | This command shows you a tree of all the commands available to you. It also shows some basic information about what each command does.     |
 | Arguments                         |                                                                                                                                            |
-| &nbsp;&nbsp;&nbsp;&nbsp;`query`   | (optional): The command you want to get help for. If not provided, it shows the entire command tree.                                       |
+| &nbsp;&nbsp;&nbsp;&nbsp;`query`   | Optional: The command you want to get help for. If not provided, it shows the entire command tree.                                       |
 
 ---
 
@@ -60,9 +60,9 @@ places, give the permission only there, for example per world with your permissi
 | Description                               | Builds a wall of maps directly, using the block width and height. Players choose its facing by looking; the console builds it north of the location, facing south. |
 | Arguments                                 |                                                                                                     |
 | &nbsp;&nbsp;&nbsp;&nbsp;`blockDimensions` | The dimensions of the map blocks (e.g., 3x2), at most 64x64 so one frame of the wall still fits into a single packet bundle |
-| &nbsp;&nbsp;&nbsp;&nbsp;`mapId`           | The ID of the map to use. It may lie at most 4096 ids past the maps the world already has, because every map in between is created |
+| &nbsp;&nbsp;&nbsp;&nbsp;`mapId`           | The ID of the map to use. It may lie at most 4096 IDs past the maps the world already has, because every map in between is created |
 | &nbsp;&nbsp;&nbsp;&nbsp;`material`        | The material to use for the screen frame                                                            |
-| &nbsp;&nbsp;&nbsp;&nbsp;`location`        | The location in the World to build the screen                                                       |
+| &nbsp;&nbsp;&nbsp;&nbsp;`location`        | The location in the world to build the screen                                                       |
 
 ---
 
@@ -245,8 +245,8 @@ every device there is.
 | &nbsp;&nbsp;&nbsp;&nbsp;`playerType`      | The type of video player to use                                                                          |
 | &nbsp;&nbsp;&nbsp;&nbsp;`audioType`       | The type of audio output to use                                                                          |
 | &nbsp;&nbsp;&nbsp;&nbsp;`videoResolution` | A resolution in width×height format (example, 640x360)                                                   |
-| &nbsp;&nbsp;&nbsp;&nbsp;`location`        | The location in the World to display the video                                                           |
-| &nbsp;&nbsp;&nbsp;&nbsp;`ytdlpOptions`           | Additional options if yt-dlp parses the media (in format --yt-dlp{arg1=...,arg2,etc}; see [which options are accepted](#yt-dlp-options)            |
+| &nbsp;&nbsp;&nbsp;&nbsp;`location`        | The location in the world to display the video                                                           |
+| &nbsp;&nbsp;&nbsp;&nbsp;`ytdlpOptions`           | Additional options if yt-dlp parses the media, in the format `--yt-dlp{name=value,switch}`; see [which options are accepted](#yt-dlp-options)            |
 | &nbsp;&nbsp;&nbsp;&nbsp;`mrl`             | The Media Resource Locator pointing to the video                                                         |
 | &nbsp;&nbsp;&nbsp;&nbsp;`--filters`       | Optional: filters applied to every frame in order, in quotes, such as `"grayscale,blur=3"`; see [filters](#filters) |
 
@@ -263,7 +263,7 @@ every device there is.
 | &nbsp;&nbsp;&nbsp;&nbsp;`audioType`       | The type of audio output to use                                                                          |
 | &nbsp;&nbsp;&nbsp;&nbsp;`videoResolution` | A resolution in width×height format (example, 640x360)                                                   |
 | &nbsp;&nbsp;&nbsp;&nbsp;`character`       | The character to use for rendering the video in chat                                                     |
-| &nbsp;&nbsp;&nbsp;&nbsp;`ytdlpOptions`           | Additional options if yt-dlp parses the media (in format --yt-dlp{arg1=...,arg2,etc}; see [which options are accepted](#yt-dlp-options)            |
+| &nbsp;&nbsp;&nbsp;&nbsp;`ytdlpOptions`           | Additional options if yt-dlp parses the media, in the format `--yt-dlp{name=value,switch}`; see [which options are accepted](#yt-dlp-options)            |
 | &nbsp;&nbsp;&nbsp;&nbsp;`mrl`             | The Media Resource Locator pointing to the video                                                         |
 | &nbsp;&nbsp;&nbsp;&nbsp;`--filters`       | Optional: filters applied to every frame in order, in quotes, such as `"grayscale,blur=3"`; see [filters](#filters) |
 
@@ -273,7 +273,7 @@ every device there is.
 |-------------------------------------------|-----------------------------------------------------------------------------------------------------------------------|
 | Usage                                     | `/mcav video entity <playerSelector> <playerType> <audioType> <videoResolution> <character> <location> <ytdlpOptions> <mrl> [--filters "<chain>"]` |
 | Permission                                | `mcav.command.video.entity`                                                                                           |
-| Description                               | Displays a video as a TextDisplay entity.                                                                             |
+| Description                               | Displays a video as a `TextDisplay` entity.                                                                           |
 | Arguments                                 |                                                                                                                       |
 | &nbsp;&nbsp;&nbsp;&nbsp;`playerSelector`  | A selector for the players that can see the video                                                                     |
 | &nbsp;&nbsp;&nbsp;&nbsp;`playerType`      | The type of video player to use                                                                                       |
@@ -281,7 +281,7 @@ every device there is.
 | &nbsp;&nbsp;&nbsp;&nbsp;`videoResolution` | A resolution in width×height format (example, 640x360)                                                                |
 | &nbsp;&nbsp;&nbsp;&nbsp;`character`       | The character to use for rendering the video                                                                          |
 | &nbsp;&nbsp;&nbsp;&nbsp;`location`        | The location where to display the video entity                                                                        |
-| &nbsp;&nbsp;&nbsp;&nbsp;`ytdlpOptions`           | Additional options if yt-dlp parses the media (in format --yt-dlp{arg1=...,arg2,etc}; see [which options are accepted](#yt-dlp-options)            |
+| &nbsp;&nbsp;&nbsp;&nbsp;`ytdlpOptions`           | Additional options if yt-dlp parses the media, in the format `--yt-dlp{name=value,switch}`; see [which options are accepted](#yt-dlp-options)            |
 | &nbsp;&nbsp;&nbsp;&nbsp;`mrl`             | The Media Resource Locator pointing to the video                                                                      |
 | &nbsp;&nbsp;&nbsp;&nbsp;`--filters`       | Optional: filters applied to every frame in order, in quotes, such as `"grayscale,blur=3"`; see [filters](#filters) |
 
@@ -298,22 +298,22 @@ every device there is.
 | &nbsp;&nbsp;&nbsp;&nbsp;`audioType`          | The type of audio output to use                                                                                                            |
 | &nbsp;&nbsp;&nbsp;&nbsp;`videoResolution`    | A resolution in width×height format (example, 640x360)                                                                                     |
 | &nbsp;&nbsp;&nbsp;&nbsp;`blockDimensions`    | The dimensions of the map blocks                                                                                                           |
-| &nbsp;&nbsp;&nbsp;&nbsp;`mapId`              | The ID of the map. This corresponds with the id you set in `/mcav screen` to create the map screen                                         |
-| &nbsp;&nbsp;&nbsp;&nbsp;`ditheringAlgorithm` | The algorithm used for dithering the video. Use FILTER_LITE for best results                                                               |
-| &nbsp;&nbsp;&nbsp;&nbsp;`ytdlpOptions`       | Additional flags if yt-dlp parses the media (in format --yt-dlp{arg1=...,arg2,etc}; see [which options are accepted](#yt-dlp-options)            |
+| &nbsp;&nbsp;&nbsp;&nbsp;`mapId`              | The ID of the map. This corresponds with the ID you set in `/mcav screen` to create the map screen                                         |
+| &nbsp;&nbsp;&nbsp;&nbsp;`ditheringAlgorithm` | The algorithm used for dithering the video. Use `FILTER_LITE` for best results                                                             |
+| &nbsp;&nbsp;&nbsp;&nbsp;`ytdlpOptions`       | Additional options if yt-dlp parses the media, in the format `--yt-dlp{name=value,switch}`; see [which options are accepted](#yt-dlp-options)            |
 | &nbsp;&nbsp;&nbsp;&nbsp;`mrl`                | The Media Resource Locator pointing to the video                                                                                           |
 | &nbsp;&nbsp;&nbsp;&nbsp;`--filters`       | Optional: filters applied to every frame in order, in quotes, such as `"grayscale,blur=3"`; see [filters](#filters) |
-| &nbsp;&nbsp;&nbsp;&nbsp;`--codec`            | (optional): `dither` or `mcv2`, see [the codec of a wall of maps](#the-codec-of-a-wall-of-maps); `mcv2.default-codec` without it           |
+| &nbsp;&nbsp;&nbsp;&nbsp;`--codec`            | Optional: `dither` or `mcv2`, see [the codec of a wall of maps](#the-codec-of-a-wall-of-maps); `mcv2.default-codec` without it           |
 
 ---
 
 | Command                                      | `/mcav video mcv2`                                                                                                                         |
 |----------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------|
-| Usage                                        | `/mcav video mcv2 <playerSelector> <playerType> <audioType> <videoResolution> <blockDimensions> <mapId> <profile> <ditheringAlgorithm> <ytdlpOptions> <mrl> [--filters "<chain>"]` |
+| Usage                                        | `/mcav video mcv2 <playerSelector> <playerType> <audioType> <videoResolution> <blockDimensions> <mapId> <preset> <ditheringAlgorithm> <ytdlpOptions> <mrl> [--filters "<chain>"]`  |
 | Permission                                   | `mcav.command.video.mcv2`                                                                                                                  |
-| Description                                  | Plays a video on a map screen with MCV2, like `/mcav video map ... --codec mcv2`, with the encoder profile of your choice                  |
+| Description                                  | Plays a video on a map screen with MCV2, like `/mcav video map ... --codec mcv2`, with the encoder preset of your choice                   |
 | Arguments                                    |                                                                                                                                            |
-| &nbsp;&nbsp;&nbsp;&nbsp;`profile`            | The encoder preset: `DEFAULT` (the default of `--codec mcv2`), `FAST` (the fastest search, for a server that can't keep up; more bandwidth) |
+| &nbsp;&nbsp;&nbsp;&nbsp;`preset`             | The encoder preset: `DEFAULT` (the default of `--codec mcv2`), `FAST` (the fastest search, for a server that can't keep up; more bandwidth) |
 |                                              | The other arguments are those of `/mcav video map`; the dithering algorithm is for the viewers without the pack                          |
 
 ---
@@ -329,7 +329,7 @@ every device there is.
 | &nbsp;&nbsp;&nbsp;&nbsp;`audioType`       | The type of audio output to use                                                                                |
 | &nbsp;&nbsp;&nbsp;&nbsp;`videoResolution` | A resolution in width×height format (example, 640x360)                                                         |
 | &nbsp;&nbsp;&nbsp;&nbsp;`character`       | The character to use for rendering the video in the scoreboard                                                 |
-| &nbsp;&nbsp;&nbsp;&nbsp;`ytdlpOptions`           | Additional options if yt-dlp parses the media (in format --yt-dlp{arg1=...,arg2,etc}; see [which options are accepted](#yt-dlp-options)            |
+| &nbsp;&nbsp;&nbsp;&nbsp;`ytdlpOptions`           | Additional options if yt-dlp parses the media, in the format `--yt-dlp{name=value,switch}`; see [which options are accepted](#yt-dlp-options)            |
 | &nbsp;&nbsp;&nbsp;&nbsp;`mrl`             | The Media Resource Locator pointing to the video                                                               |
 | &nbsp;&nbsp;&nbsp;&nbsp;`--filters`       | Optional: filters applied to every frame in order, in quotes, such as `"grayscale,blur=3"`; see [filters](#filters) |
 
@@ -340,7 +340,7 @@ every device there is.
 | Command         | `/mcav browser interact`                                                                                            |
 |-----------------|---------------------------------------------------------------------------------------------------------------------|
 | Usage           | `/mcav browser interact`                                                                                            |
-| Permission      | `mcav.browser.interact`                                                                                             |
+| Permission      | `mcav.command.browser.interact`                                                                                     |
 | Description     | Switches browser interaction mode on or off for the player: while it is on, their chat messages are typed into the browser instead of sent to chat. Clicking the screen needs no mode, only the permission. |
 | Arguments       | None                                                                                                                |
 
@@ -349,7 +349,7 @@ every device there is.
 | Command         | `/mcav browser release`                                     |
 |-----------------|-------------------------------------------------------------|
 | Usage           | `/mcav browser release`                                     |
-| Permission      | `mcav.browser.release`                                      |
+| Permission      | `mcav.command.browser.release`                              |
 | Description     | Releases/removes the browser that was previously displayed. |
 | Arguments       | None                                                        |
 
@@ -365,11 +365,11 @@ every device there is.
 | &nbsp;&nbsp;&nbsp;&nbsp;`browserResolution`  | A resolution in width×height format (example, 1280x720), at most 4096 on each side                                               |
 | &nbsp;&nbsp;&nbsp;&nbsp;`nth`                | How many painted frames make one streamed frame (1 streams every frame, 2 every other frame, up to 1000)                         |
 | &nbsp;&nbsp;&nbsp;&nbsp;`blockDimensions`    | The dimensions of the map blocks                                                                                                 |
-| &nbsp;&nbsp;&nbsp;&nbsp;`mapId`              | The ID of the map. This corresponds with the id you set in `/mcav screen` to create the map screen                               |
-| &nbsp;&nbsp;&nbsp;&nbsp;`ditheringAlgorithm` | The algorithm used for dithering the browser. Use FILTER_LITE for best results                                                   |
+| &nbsp;&nbsp;&nbsp;&nbsp;`mapId`              | The ID of the map. This corresponds with the ID you set in `/mcav screen` to create the map screen                               |
+| &nbsp;&nbsp;&nbsp;&nbsp;`ditheringAlgorithm` | The algorithm used for dithering the browser. Use `FILTER_LITE` for best results                                                 |
 | &nbsp;&nbsp;&nbsp;&nbsp;`audioType`          | Where the sound of the page plays, as for the video commands (`NONE` keeps the page silent)                                      |
-| &nbsp;&nbsp;&nbsp;&nbsp;`url`                | The URL of the webpage to display, the rest of the line up to `--codec`. Must be the full `http` or `https` URL. Pages of the server's own network are refused unless `browser.allow-private-networks` is on.     |
-| &nbsp;&nbsp;&nbsp;&nbsp;`--codec`            | (optional): `dither` or `mcv2`, see [the codec of a wall of maps](#the-codec-of-a-wall-of-maps); `mcv2.default-codec` without it |
+| &nbsp;&nbsp;&nbsp;&nbsp;`url`                | The URL of the web page to display, the rest of the line up to `--codec`. Must be the full `http` or `https` URL. Pages of the server's own network are refused unless `browser.allow-private-networks` is on.     |
+| &nbsp;&nbsp;&nbsp;&nbsp;`--codec`            | Optional: `dither` or `mcv2`, see [the codec of a wall of maps](#the-codec-of-a-wall-of-maps); `mcv2.default-codec` without it |
 
 ---
 
@@ -383,7 +383,7 @@ installed and configured to use these commands.
 | Command         | `/mcav vm interact`                                                                                                      |
 |-----------------|--------------------------------------------------------------------------------------------------------------------------|
 | Usage           | `/mcav vm interact`                                                                                                      |
-| Permission      | `mcav.vm.interact`                                                                                                       |
+| Permission      | `mcav.command.vm.interact`                                                                                               |
 | Description     | Switches VM interaction mode on or off for the player: while it is on, their chat messages are typed into the virtual machine instead of sent to chat. Clicking the screen needs no mode, only the permission. |
 | Arguments       | None                                                                                                                     |
 
@@ -392,7 +392,7 @@ installed and configured to use these commands.
 | Command         | `/mcav vm release`                                     |
 |-----------------|--------------------------------------------------------|
 | Usage           | `/mcav vm release`                                     |
-| Permission      | `mcav.vm.release`                                      |
+| Permission      | `mcav.command.vm.release`                              |
 | Description     | Releases/removes the VM that was previously displayed. |
 | Arguments       | None                                                   |
 
@@ -408,8 +408,8 @@ installed and configured to use these commands.
 | &nbsp;&nbsp;&nbsp;&nbsp;`vmResolution`       | A resolution in width×height format (example, 1280x720)                                                                             |
 | &nbsp;&nbsp;&nbsp;&nbsp;`targetFramesPerSecond`          | Target frames per second for the VM (1 to 240)                                                                                      |
 | &nbsp;&nbsp;&nbsp;&nbsp;`blockDimensions`    | The dimensions of the map blocks                                                                                                    |
-| &nbsp;&nbsp;&nbsp;&nbsp;`mapId`              | The ID of the map. This corresponds with the id you set in `/mcav screen` to create the map screen                                  |
-| &nbsp;&nbsp;&nbsp;&nbsp;`ditheringAlgorithm` | The algorithm used for dithering the VM display. Use FILTER_LITE for best results                                                   |
+| &nbsp;&nbsp;&nbsp;&nbsp;`mapId`              | The ID of the map. This corresponds with the ID you set in `/mcav screen` to create the map screen                                  |
+| &nbsp;&nbsp;&nbsp;&nbsp;`ditheringAlgorithm` | The algorithm used for dithering the VM display. Use `FILTER_LITE` for best results                                                 |
 | &nbsp;&nbsp;&nbsp;&nbsp;`architecture`       | The CPU architecture to use for the VM                                                                                              |
 | &nbsp;&nbsp;&nbsp;&nbsp;`audioType`          | Where the sound of the VM plays, as for the video commands (`NONE` keeps it silent); only `X86_64` PC and Q35 machines have sound, other architectures must choose `NONE`; a machine with sound takes the output over from a playing video    |
 | &nbsp;&nbsp;&nbsp;&nbsp;`flags`              | Additional flags and options to pass to the QEMU VM (for example, ISO files, boot drives, memory); see [which options are accepted](#qemu-options). A `--codec dither` or `--codec mcv2` at the very end is not passed to QEMU: it chooses [the codec of the wall](#the-codec-of-a-wall-of-maps) |
@@ -435,17 +435,17 @@ message types and encodings outside what the client supports close the connectio
 | &nbsp;&nbsp;&nbsp;&nbsp;`vncResolution`      | The size the desktop is scaled to, in width×height format (example, 1280x720)                                                       |
 | &nbsp;&nbsp;&nbsp;&nbsp;`targetFramesPerSecond`          | Frames per second streamed from the desktop (1 to 240)                                                                              |
 | &nbsp;&nbsp;&nbsp;&nbsp;`blockDimensions`    | The dimensions of the map blocks                                                                                                    |
-| &nbsp;&nbsp;&nbsp;&nbsp;`mapId`              | The ID of the map. This corresponds with the id you set in `/mcav screen` to create the map screen                                  |
+| &nbsp;&nbsp;&nbsp;&nbsp;`mapId`              | The ID of the map. This corresponds with the ID you set in `/mcav screen` to create the map screen                                  |
 | &nbsp;&nbsp;&nbsp;&nbsp;`ditheringAlgorithm` | The algorithm used for dithering the desktop. `NEAREST_COLOR` keeps text sharp                                                     |
 | &nbsp;&nbsp;&nbsp;&nbsp;`server`             | The VNC server as `host:port`, or `[address]:port` for an IPv6 address, exactly as listed in `vnc.allowed-hosts`                   |
-| &nbsp;&nbsp;&nbsp;&nbsp;`--codec`            | (optional): `dither` or `mcv2`, see [the codec of a wall of maps](#the-codec-of-a-wall-of-maps); `mcv2.default-codec` without it    |
+| &nbsp;&nbsp;&nbsp;&nbsp;`--codec`            | Optional: `dither` or `mcv2`, see [the codec of a wall of maps](#the-codec-of-a-wall-of-maps); `mcv2.default-codec` without it    |
 
 ---
 
 | Command         | `/mcav vnc interact`                                                                                                   |
 |-----------------|------------------------------------------------------------------------------------------------------------------------|
 | Usage           | `/mcav vnc interact`                                                                                                   |
-| Permission      | `mcav.vnc.interact`                                                                                                    |
+| Permission      | `mcav.command.vnc.interact`                                                                                            |
 | Description     | Toggles typing into the desktop: while it is on, what you write in the chat is typed into the desktop and not sent    |
 | Arguments       | None                                                                                                                   |
 
@@ -454,7 +454,7 @@ message types and encodings outside what the client supports close the connectio
 | Command         | `/mcav vnc release`                                                              |
 |-----------------|----------------------------------------------------------------------------------|
 | Usage           | `/mcav vnc release`                                                              |
-| Permission      | `mcav.vnc.release`                                                               |
+| Permission      | `mcav.command.vnc.release`                                                       |
 | Description     | Disconnects from the desktop and clears its maps for every viewer               |
 | Arguments       | None                                                                             |
 
@@ -466,14 +466,14 @@ They have no sound. Stream files live in the plugin's `mcv2` folder; a name that
 
 | Command                                   | `/mcav mcv2 encode`                                                                                    |
 |-------------------------------------------|--------------------------------------------------------------------------------------------------------|
-| Usage                                     | `/mcav mcv2 encode <file> <output> <resolution> <profile>`                                            |
+| Usage                                     | `/mcav mcv2 encode <file> <output> <resolution> <preset>`                                             |
 | Permission                                | `mcav.command.mcv2.encode`                                                                             |
 | Description                               | Encodes a video file into a stream file ahead of time, on the encoder threads every MCV2 screen shares, telling you the progress every thirty seconds. One encode runs at a time |
 | Arguments                                 |                                                                                                        |
 | &nbsp;&nbsp;&nbsp;&nbsp;`file`            | The video file on the server                                                                           |
 | &nbsp;&nbsp;&nbsp;&nbsp;`output`          | The stream file to write in the plugin's `mcv2` folder; an existing one is replaced when the encode ends |
 | &nbsp;&nbsp;&nbsp;&nbsp;`resolution`      | The video size in width×height format (example, 1280x720)                                              |
-| &nbsp;&nbsp;&nbsp;&nbsp;`profile`         | The encoder preset, usually `DEFAULT`, the best picture for its bandwidth; `FAST` is faster |
+| &nbsp;&nbsp;&nbsp;&nbsp;`preset`          | The encoder preset, usually `DEFAULT`, the best picture for its bandwidth; `FAST` is faster |
 
 ---
 
@@ -492,7 +492,7 @@ They have no sound. Stream files live in the plugin's `mcv2` folder; a name that
 | Permission                                | `mcav.command.mcv2.play`                                                                               |
 | Description                               | Plays a stream file on a wall of maps with MCV2, looping; `play` sends a frame every few server ticks, `stream` at a frame rate of its own. The file is read off the server's main thread, so a large file or a busy disk does not hold the server up, and the screen opens once it is read. The screen takes a slot of the MCV2 pack like every MCV2 screen, and replaces the stream played before, also one whose file is still being read |
 | Arguments                                 |                                                                                                        |
-| &nbsp;&nbsp;&nbsp;&nbsp;`ticks` / `fps`   | The server ticks between frames (1 or more), or the frames a second (1 to 240)                         |
+| &nbsp;&nbsp;&nbsp;&nbsp;`ticks` / `framesPerSecond` | The server ticks between frames (1 or more), or the frames a second (1 to 240)                         |
 | &nbsp;&nbsp;&nbsp;&nbsp;`file`            | The stream file in the plugin's `mcv2` folder                                                          |
 |                                           | The other arguments are those of `/mcav video map`                                                     |
 
@@ -516,17 +516,17 @@ filter is bounded by what the command shows; every argument is bounded too.
 | Filter | Arguments | Effect |
 |---|---|---|
 | `grayscale` | none | shades of gray |
-| `invert` | none | inverts every colour |
+| `invert` | none | inverts every color |
 | `blur=<radius>` | 1 to 15 | Gaussian blur over a kernel twice the radius plus one wide |
 | `bilateral=<diameter>` | 1 to 9 | blur that keeps edges (its work grows with the square of the diameter) |
 | `threshold=<level>` | 0 to 255 | black below the level, white above |
 | `luminance=<contrast>:<brightness>` | 0 to 3 (up to 3 decimals), -255 to 255 | contrast factor and brightness shift |
-| `colormap=<name>` | `autumn`, `bone`, `jet`, `winter`, `rainbow`, `ocean`, `summer`, `spring`, `cool`, `hsv`, `pink`, `hot`, `parula`, `magma`, `inferno`, `plasma`, `viridis`, `cividis`, `twilight`, `turbo` | false colours of OpenCV's colour map |
-| `tint=<rrggbb>[:<strength>]` | a hex colour, 0 to 100 percent (default 50) | blends the colour in |
+| `colormap=<name>` | `autumn`, `bone`, `jet`, `winter`, `rainbow`, `ocean`, `summer`, `spring`, `cool`, `hsv`, `pink`, `hot`, `parula`, `magma`, `inferno`, `plasma`, `viridis`, `cividis`, `twilight`, `turbo` | false colors of OpenCV's color map |
+| `tint=<rrggbb>[:<strength>]` | a hex color, 0 to 100 percent (default 50) | blends the color in |
 | `flip=<h\|v\|hv>` | direction | mirrors horizontally, vertically or both |
 | `rotate=<90\|180\|270>` | degrees clockwise | rotates the picture |
 | `crop=<x>:<y>:<width>:<height>` | percent of the picture, the region inside it | zooms into the region, shown at the full size |
-| `rectangle=<x>:<y>:<width>:<height>:<rrggbb>` | percent of the picture, a hex colour | draws the outline of a rectangle |
+| `rectangle=<x>:<y>:<width>:<height>:<rrggbb>` | percent of the picture, a hex color | draws the outline of a rectangle |
 | `dilate=<size>`, `erode=<size>` | 1 to 15 | grows or shrinks bright areas |
 | `text=<text>` | up to 32 letters, digits, spaces and `.!?'()+-` | writes the text in the top-left corner |
 | `overlay=<name>` | the name of a PNG file of the plugin's `overlays` folder, without `.png` | draws the file over the top-left corner |
@@ -596,7 +596,7 @@ who may create or use a machine may use them.
 ## Image commands
 
 An image that declares more than 8192 by 8192 pixels is refused before it is decoded, since decoding it could take
-gigabytes of memory. Start the server with `-Dmcav.image.maxPixels=<pixels>` for another limit.
+gigabytes of memory. Start the server with `-Dmcav.image.maximum_pixels=<pixels>` for another limit.
 
 | Command         | `/mcav image release`                                     |
 |-----------------|-----------------------------------------------------------|
@@ -615,7 +615,7 @@ gigabytes of memory. Start the server with `-Dmcav.image.maxPixels=<pixels>` for
 | Arguments                                 |                                                                         |
 | &nbsp;&nbsp;&nbsp;&nbsp;`playerSelector`  | A selector for the players that can see the image                       |
 | &nbsp;&nbsp;&nbsp;&nbsp;`imageResolution` | A resolution in width×height format (example, 640x640)                  |
-| &nbsp;&nbsp;&nbsp;&nbsp;`location`        | The location in the World to display the image                          |
+| &nbsp;&nbsp;&nbsp;&nbsp;`location`        | The location in the world to display the image                          |
 | &nbsp;&nbsp;&nbsp;&nbsp;`mrl`             | The Media Resource Locator pointing to the image                        |
 | &nbsp;&nbsp;&nbsp;&nbsp;`--filters`       | Optional: filters applied to the image in order, in quotes, such as `"grayscale,blur=3"`; see [filters](#filters) |
 
@@ -639,7 +639,7 @@ gigabytes of memory. Start the server with `-Dmcav.image.maxPixels=<pixels>` for
 |-------------------------------------------|--------------------------------------------------------------------------------------|
 | Usage                                     | `/mcav image entity <playerSelector> <imageResolution> <character> <location> <mrl> [--filters "<chain>"]` |
 | Permission                                | `mcav.command.image.entity`                                                          |
-| Description                               | Displays an image as a TextDisplay entity.                                           |
+| Description                               | Displays an image as a `TextDisplay` entity.                                         |
 | Arguments                                 |                                                                                      |
 | &nbsp;&nbsp;&nbsp;&nbsp;`playerSelector`  | A selector for the players that can see the image                                    |
 | &nbsp;&nbsp;&nbsp;&nbsp;`imageResolution` | A resolution in width×height format (example, 640x640)                               |
@@ -659,11 +659,11 @@ gigabytes of memory. Start the server with `-Dmcav.image.maxPixels=<pixels>` for
 | &nbsp;&nbsp;&nbsp;&nbsp;`playerSelector`     | A selector for the players that can see the image                                                         |
 | &nbsp;&nbsp;&nbsp;&nbsp;`imageResolution`    | A resolution in width×height format (example, 640x640)                                                    |
 | &nbsp;&nbsp;&nbsp;&nbsp;`blockDimensions`    | The dimensions of the map blocks                                                                          |
-| &nbsp;&nbsp;&nbsp;&nbsp;`mapId`              | The ID of the map. This corresponds with the id you set in `/mcav screen` to create the map screen        |
-| &nbsp;&nbsp;&nbsp;&nbsp;`ditheringAlgorithm` | The algorithm used for dithering the image. Use FILTER_LITE for best results                              |
-| &nbsp;&nbsp;&nbsp;&nbsp;`mrl`                | The Media Resource Locator pointing to the image; the rest of the line up to `--codec`                    |
+| &nbsp;&nbsp;&nbsp;&nbsp;`mapId`              | The ID of the map. This corresponds with the ID you set in `/mcav screen` to create the map screen        |
+| &nbsp;&nbsp;&nbsp;&nbsp;`ditheringAlgorithm` | The algorithm used for dithering the image. Use `FILTER_LITE` for best results                            |
+| &nbsp;&nbsp;&nbsp;&nbsp;`mrl`                | The Media Resource Locator pointing to the image; the rest of the line up to the first flag, `--codec` or `--filters`                    |
 | &nbsp;&nbsp;&nbsp;&nbsp;`--filters`       | Optional: filters applied to the image in order, in quotes, such as `"grayscale,blur=3"`; see [filters](#filters) |
-| &nbsp;&nbsp;&nbsp;&nbsp;`--codec`            | (optional): `dither` or `mcv2`, see [the codec of a wall of maps](#the-codec-of-a-wall-of-maps); `mcv2.default-codec` without it |
+| &nbsp;&nbsp;&nbsp;&nbsp;`--codec`            | Optional: `dither` or `mcv2`, see [the codec of a wall of maps](#the-codec-of-a-wall-of-maps); `mcv2.default-codec` without it |
 
 ---
 

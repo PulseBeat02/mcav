@@ -67,8 +67,10 @@ final class FrameFormatCallbackTest {
     assertEquals("RV32", chroma);
     assertEquals(1920, width);
     assertEquals(1088, height);
-    assertArrayEquals(new int[] { 1920 * 4 }, pitches);
-    assertArrayEquals(new int[] { 1088 }, lines);
+    final int[] expectedPitches = new int[] { 1920 * 4 };
+    assertArrayEquals(expectedPitches, pitches);
+    final int[] expectedLines = new int[] { 1088 };
+    assertArrayEquals(expectedLines, lines);
     verify(this.renderer).createBufferFormat(1920, 1088, 1920, 1080);
   }
 

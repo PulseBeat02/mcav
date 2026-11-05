@@ -30,16 +30,21 @@ import me.brandonli.mcav.media.source.uri.UriSource;
 
 public final class YtdlpExample {
 
-  private YtdlpExample() {}
+  private YtdlpExample() {
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
+  }
 
   static void main() throws IOException {
     final MCAVApi api = MCAV.api();
     try {
       api.install();
+
       final CompletableFuture<Boolean> ready = api.whenCapabilityReady(Capability.YT_DLP);
       final boolean available = ready.join();
       if (!available) {
-        throw new IllegalStateException("yt-dlp is unavailable!");
+        final String message = "yt-dlp is unavailable!";
+        throw new IllegalStateException(message);
       }
 
       final URI uri = URI.create("https://www.youtube.com/watch?v=47dtFZ8CFo8");
@@ -51,8 +56,8 @@ public final class YtdlpExample {
       final Format audioFormat = selector.getAudioSource(dump);
       final UriSource videoSource = videoFormat.toUriSource();
       final UriSource audioSource = audioFormat.toUriSource();
-      System.out.println("Video: " + videoSource);
-      System.out.println("Audio: " + audioSource);
+      System.out.println("Video: %s".formatted(videoSource));
+      System.out.println("Audio: %s".formatted(audioSource));
     } finally {
       api.release();
     }

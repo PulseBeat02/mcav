@@ -29,7 +29,7 @@ final class FixedDirectoryProvider implements DiscoveryDirectoryProvider {
     this.directory = absolute.toString();
   }
 
-  // Returns the priority of the provider, which is the highest possible because the directory was chosen explicitly.
+  // highest: the directory was chosen explicitly
   @Override
   public int priority() {
     return Integer.MAX_VALUE;

@@ -24,10 +24,11 @@ import me.brandonli.mcav.json.ytdlp.format.UrlParseDump;
 public final class UrlParseDumpUtils {
 
   private UrlParseDumpUtils() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
-  public static UrlParseDump completeDump() {
+  public static UrlParseDump createCompleteDump() {
     final String json = """
     {
       "title": "Song",

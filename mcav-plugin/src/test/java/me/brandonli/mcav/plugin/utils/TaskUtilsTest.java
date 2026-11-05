@@ -62,7 +62,7 @@ final class TaskUtilsTest {
     assertEquals(0, pendingBefore);
 
     handover.run();
-    final BukkitScheduler scheduler = TestServer.scheduler();
+    final BukkitScheduler scheduler = TestServer.getScheduler();
     verify(scheduler).runTask(plugin, task);
 
     final int runsBeforeTick = runs.get();
@@ -100,7 +100,7 @@ final class TaskUtilsTest {
   @Test
   void shouldDropTheTaskWhenThePluginIsDisabled() {
     final MCAVSandbox plugin = mock(MCAVSandbox.class);
-    final BukkitScheduler scheduler = TestServer.scheduler();
+    final BukkitScheduler scheduler = TestServer.getScheduler();
     when(scheduler.runTask(any(Plugin.class), any(Runnable.class))).thenThrow(new IllegalPluginAccessException("disabled!"));
     final AtomicInteger runs = new AtomicInteger();
     final boolean scheduled = TaskUtils.runOnMainThread(plugin, runs::incrementAndGet);
@@ -196,7 +196,8 @@ final class TaskUtilsTest {
   }
 
   private void throwCallbackFailure() {
-    throw new IllegalStateException("the callback failed!");
+    final String message = "the callback failed!";
+    throw new IllegalStateException(message);
   }
 
   @Test

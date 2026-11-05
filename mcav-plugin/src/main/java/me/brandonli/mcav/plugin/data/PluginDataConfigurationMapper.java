@@ -17,6 +17,8 @@
  */
 package me.brandonli.mcav.plugin.data;
 
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.base.Preconditions;
 import java.io.IOException;
 import java.io.Reader;
@@ -27,6 +29,7 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2.Pool;
 import me.brandonli.mcav.plugin.MCAVSandbox;
@@ -59,121 +62,87 @@ public final class PluginDataConfigurationMapper {
 
   private static final String PLUGIN_LANGUAGE = "language";
 
-  private static final String DISCORD_BOT_TOKEN_FIELD = "discord-bot.token";
-
-  private static final String DISCORD_BOT_CHANNEL_FIELD = "discord-bot.channel-id";
-
-  private static final String DISCORD_BOT_GUILD_ID_FIELD = "discord-bot.guild-id";
-
+  private static final String DISCORD_BOT_TOKEN = "discord-bot.token";
+  private static final String DISCORD_BOT_CHANNEL_ID = "discord-bot.channel-id";
+  private static final String DISCORD_BOT_GUILD_ID = "discord-bot.guild-id";
   private static final String DISCORD_BOT_ENABLED = "discord-bot.enabled";
 
-  private static final String HTTP_HOST_FIELD = "http-server.host-name";
-
-  private static final String HTTP_PORT_FIELD = "http-server.port";
-
+  private static final String HTTP_HOST_NAME = "http-server.host-name";
+  private static final String HTTP_PORT = "http-server.port";
   private static final String HTTP_ENABLED = "http-server.enabled";
 
   private static final String SIMPLE_VOICE_CHAT_ENABLED = "simple-voice-chat.enabled";
 
   private static final String MCV2_ENCODER_THREADS = "mcv2.encoder-threads";
-
   private static final String MCV2_NATIVE = "mcv2.native";
-
   private static final String MCV2_DEFAULT_CODEC = "mcv2.default-codec";
-
   private static final String MCV2_PACK_HOSTING = "mcv2.pack.hosting";
-
   private static final String MCV2_PACK_HTTP_HOST = "mcv2.pack.http-host";
-
   private static final String MCV2_PACK_HTTP_PORT = "mcv2.pack.http-port";
 
-  private static final int DEFAULT_PACK_HTTP_PORT = 25580;
-
   private static final String BROWSER_PRIVATE_NETWORKS = "browser.allow-private-networks";
-
   private static final String BROWSER_JAVASCRIPT_JIT = "browser.javascript-jit";
-
   private static final String BROWSER_AUTOPLAY_SOUND = "browser.autoplay-sound";
-
   private static final String BROWSER_CONFINE_CHROMIUM = "browser.confine-chromium";
-
   private static final String BROWSER_REFUSED_HOSTS = "browser.refused-hosts";
 
   private static final String VM_ALLOW_NETWORK = "vm.allow-network";
 
   private static final String VNC_ALLOWED_HOSTS = "vnc.allowed-hosts";
 
+  private static final String DEFAULT_HOST = "localhost";
+  private static final String DEFAULT_LOCALE = "EN_US";
   private static final int DEFAULT_HTTP_PORT = 3000;
+  private static final int DEFAULT_PACK_HTTP_PORT = 25580;
+  private static final int DEFAULT_ENCODER_THREADS = 0;
 
   private static final int MAXIMUM_PORT = 65535;
 
-  private static final String INVALID_PORT = "Invalid {} {}, using {} instead.";
-
-  private static final String INVALID_REFUSED_HOST = "Ignoring the entry {} of {}, which is not a host name or address.";
-  private static final String INVALID_THREADS = "Invalid {} {}, using half the processors.";
-
-  private static final String INVALID_NATIVE = "Invalid {} {}, using " + Mcv2.NATIVE_AUTO + " instead.";
-
-  private static final String INVALID_CHOICE = "Invalid {} {}, using {} instead.";
-
+  private static final String INVALID_SETTING = "Invalid {} {}, using {} instead.";
   // names the host and the port of the entry, never its password
   private static final String INVALID_VNC_HOST = "Ignoring the entry {}:{} of {}, which is not a host and a port from 1 to 65535.";
 
-  private static final String DEFAULT_HOST = "localhost";
-  private static final String DEFAULT_LOCALE = "EN_US";
-
   private static final char HOST_SEPARATOR = ',';
+
+  private static final boolean DO_NOT_REPLACE = false;
 
   private final MCAVSandbox plugin;
 
   private Locale locale;
 
   private boolean discordBotEnabled;
-
   private String discordBotToken;
-
   private String discordBotChannelId;
-
   private String discordBotGuildId;
 
   private boolean httpEnabled;
-
   private String httpHostName;
-
   private int httpPort;
 
   private boolean simpleVoiceChatEnabled;
 
   private boolean browserPrivateNetworks;
-
   private boolean browserJavaScriptJit;
-
   private boolean browserAutoplaySound;
-
-  private boolean browserConfineChromium = true;
-
-  private List<String> browserRefusedHosts = List.of();
+  private boolean browserConfineChromium;
+  private List<String> browserRefusedHosts;
 
   private boolean vmAllowNetwork;
 
   private int mcv2EncoderThreads;
+  private String mcv2Native;
+  private MapCodec mcv2DefaultCodec;
+  private Mcv2Hosting mcv2PackHosting;
+  private String mcv2PackHttpHost;
+  private int mcv2PackHttpPort;
 
-  private String mcv2Native = Mcv2.NATIVE_AUTO;
-
-  private MapCodec mcv2DefaultCodec = MapCodec.DITHER;
-
-  private Mcv2Hosting mcv2PackHosting = Mcv2Hosting.INJECTOR;
-
-  private String mcv2PackHttpHost = "";
-
-  private int mcv2PackHttpPort = DEFAULT_PACK_HTTP_PORT;
-
-  private VncAllowList vncAllowList = VncAllowList.NONE;
+  private VncAllowList vncAllowList;
 
   /**
-   * Constructs the mapper with default settings. Call {@link #deserialize()} to read the file.
+   * Creates the mapper with default settings. Call {@link #deserialize()} to read the file.
    *
    * @param plugin the plugin
+   * @throws NullPointerException if {@code plugin} is null
    * @since 1.0.0
    */
   public PluginDataConfigurationMapper(final MCAVSandbox plugin) {
@@ -186,6 +155,14 @@ public final class PluginDataConfigurationMapper {
     this.discordBotGuildId = "";
     this.httpHostName = DEFAULT_HOST;
     this.httpPort = DEFAULT_HTTP_PORT;
+    this.browserConfineChromium = true;
+    this.browserRefusedHosts = List.of();
+    this.mcv2Native = Mcv2.NATIVE_AUTO;
+    this.mcv2DefaultCodec = MapCodec.DITHER;
+    this.mcv2PackHosting = Mcv2Hosting.INJECTOR;
+    this.mcv2PackHttpHost = "";
+    this.mcv2PackHttpPort = DEFAULT_PACK_HTTP_PORT;
+    this.vncAllowList = VncAllowList.NONE;
   }
 
   /**
@@ -197,14 +174,15 @@ public final class PluginDataConfigurationMapper {
   public synchronized void deserialize() {
     final FileConfiguration configuration = this.loadConfiguration();
     final String language = this.getString(configuration, PLUGIN_LANGUAGE, DEFAULT_LOCALE);
-    this.locale = Locale.fromString(language);
+    final Optional<Locale> foundLocale = Locale.fromString(language);
+    this.locale = requireNonNull(foundLocale.orElse(Locale.EN_US)); // checker framework
     this.discordBotEnabled = configuration.getBoolean(DISCORD_BOT_ENABLED, false);
-    this.discordBotToken = this.getString(configuration, DISCORD_BOT_TOKEN_FIELD, "");
-    this.discordBotChannelId = this.getString(configuration, DISCORD_BOT_CHANNEL_FIELD, "");
-    this.discordBotGuildId = this.getString(configuration, DISCORD_BOT_GUILD_ID_FIELD, "");
+    this.discordBotToken = this.getString(configuration, DISCORD_BOT_TOKEN, "");
+    this.discordBotChannelId = this.getString(configuration, DISCORD_BOT_CHANNEL_ID, "");
+    this.discordBotGuildId = this.getString(configuration, DISCORD_BOT_GUILD_ID, "");
     this.httpEnabled = configuration.getBoolean(HTTP_ENABLED, false);
-    this.httpHostName = this.getString(configuration, HTTP_HOST_FIELD, DEFAULT_HOST);
-    this.httpPort = this.readPort(configuration, HTTP_PORT_FIELD, DEFAULT_HTTP_PORT);
+    this.httpHostName = this.getString(configuration, HTTP_HOST_NAME, DEFAULT_HOST);
+    this.httpPort = this.readPort(configuration, HTTP_PORT, DEFAULT_HTTP_PORT);
     this.simpleVoiceChatEnabled = configuration.getBoolean(SIMPLE_VOICE_CHAT_ENABLED, false);
     this.mcv2EncoderThreads = this.readEncoderThreads(configuration);
     this.mcv2Native = this.readNative(configuration);
@@ -226,19 +204,20 @@ public final class PluginDataConfigurationMapper {
     final Path file = folder.resolve(CONFIGURATION_FILE);
     final boolean exists = Files.exists(file);
     if (!exists) {
-      this.plugin.saveResource(CONFIGURATION_FILE, false);
+      this.plugin.saveResource(CONFIGURATION_FILE, DO_NOT_REPLACE);
     }
+
     try (final Reader reader = Files.newBufferedReader(file)) {
       final YamlConfiguration configuration = new YamlConfiguration();
       configuration.load(reader);
       return configuration;
     } catch (final IOException exception) {
       final String reason = exception.getMessage();
-      final String message = "File %s could not be read (%s)!".formatted(file, reason);
+      final String message = "Because of \"%s\", file %s could not be read!".formatted(reason, file);
       throw new PluginException(message, exception);
     } catch (final InvalidConfigurationException exception) {
       final String reason = exception.getMessage();
-      final String message = "File %s is not valid YAML (%s)!".formatted(file, reason);
+      final String message = "Because of \"%s\", file %s is not valid YAML!".formatted(reason, file);
       throw new PluginException(message, exception);
     }
   }
@@ -254,7 +233,7 @@ public final class PluginDataConfigurationMapper {
     // a fraction down to a whole number
     final Object value = configuration.get(key, fallback);
     if (!(value instanceof final Integer port) || port < 1 || port > MAXIMUM_PORT) {
-      LOGGER.warn(INVALID_PORT, key, value, fallback);
+      LOGGER.warn(INVALID_SETTING, key, value, fallback);
       return fallback;
     }
 
@@ -273,7 +252,8 @@ public final class PluginDataConfigurationMapper {
         return constant;
       }
     }
-    LOGGER.warn(INVALID_CHOICE, key, value, fallback);
+
+    LOGGER.warn(INVALID_SETTING, key, value, fallback);
 
     return fallback;
   }
@@ -283,20 +263,21 @@ public final class PluginDataConfigurationMapper {
     for (final String entry : configuration.getStringList(BROWSER_REFUSED_HOSTS)) {
       final String host = entry.strip();
       if (host.isEmpty() || host.chars().anyMatch(character -> character == HOST_SEPARATOR || Character.isWhitespace(character))) {
-        LOGGER.warn(INVALID_REFUSED_HOST, entry, BROWSER_REFUSED_HOSTS);
+        LOGGER.warn("Ignoring the entry {} of {}, which is not a host name or address.", entry, BROWSER_REFUSED_HOSTS);
       } else {
         hosts.add(host);
       }
     }
+
     return List.copyOf(hosts);
   }
 
   private int readEncoderThreads(final FileConfiguration configuration) {
     // only a YAML int is taken, as for a port
-    final Object value = configuration.get(MCV2_ENCODER_THREADS, 0);
+    final Object value = configuration.get(MCV2_ENCODER_THREADS, DEFAULT_ENCODER_THREADS);
     if (!(value instanceof final Integer threads) || threads < 0 || threads > Pool.MAXIMUM_THREADS) {
-      LOGGER.warn(INVALID_THREADS, MCV2_ENCODER_THREADS, value);
-      return 0;
+      LOGGER.warn("Invalid {} {}, using half the processors.", MCV2_ENCODER_THREADS, value);
+      return DEFAULT_ENCODER_THREADS;
     }
 
     return threads;
@@ -310,7 +291,7 @@ public final class PluginDataConfigurationMapper {
 
     final String mode = this.getString(configuration, MCV2_NATIVE, Mcv2.NATIVE_AUTO);
     if (!mode.equals(Mcv2.NATIVE_AUTO) && !mode.equals(Mcv2.NATIVE_OFF)) {
-      LOGGER.warn(INVALID_NATIVE, MCV2_NATIVE, mode);
+      LOGGER.warn(INVALID_SETTING, MCV2_NATIVE, mode, Mcv2.NATIVE_AUTO);
       return Mcv2.NATIVE_AUTO;
     }
 
@@ -325,6 +306,7 @@ public final class PluginDataConfigurationMapper {
         entries.add(entry);
       }
     }
+
     return VncAllowList.of(entries);
   }
 

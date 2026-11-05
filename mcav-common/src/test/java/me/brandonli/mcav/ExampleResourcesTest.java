@@ -61,6 +61,8 @@ final class ExampleResourcesTest {
 
   private static final String WINDOW_TITLE = "test";
 
+  private static final String FATAL_CREATION_RETURNED_MESSAGE = "fatal creation unexpectedly returned!";
+
   @Test
   void shouldReleaseInReverseAcquisitionOrderExactlyOnce() {
     final List<String> closed = new ArrayList<>();
@@ -265,7 +267,7 @@ final class ExampleResourcesTest {
         .when(() -> SwingUtilities.invokeLater(any(Runnable.class)))
         .thenAnswer(invocation -> this.dispatchOnANewThread(invocation, fatal, dispatchFailure));
       SwingVideoWindow.open(WINDOW_TITLE, 1, 1);
-      callerFailure.complete(new AssertionError("fatal creation unexpectedly returned!"));
+      callerFailure.complete(new AssertionError(FATAL_CREATION_RETURNED_MESSAGE));
     } catch (final Throwable exception) {
       callerFailure.complete(exception);
     }
@@ -298,7 +300,7 @@ final class ExampleResourcesTest {
     ) {
       try {
         create.run();
-        dispatchFailure.complete(new AssertionError("fatal creation unexpectedly returned!"));
+        dispatchFailure.complete(new AssertionError(FATAL_CREATION_RETURNED_MESSAGE));
       } finally {
         final List<JFrame> constructed = frames.constructed();
         final int constructedCount = constructed.size();

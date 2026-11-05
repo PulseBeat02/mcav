@@ -50,6 +50,9 @@ final class ErrorDiffusionDitherTest {
 
   private static final int BLACK = 0xFF000000;
   private static final int WHITE = 0xFFFFFFFF;
+  private static final int DARK_RED = 0xFF640000;
+  private static final int DARK_GREEN = 0xFF006400;
+  private static final int DARK_BLUE = 0xFF000064;
 
   private static final int MIDDLE_GRAY_LEVEL = 128;
 
@@ -94,14 +97,17 @@ final class ErrorDiffusionDitherTest {
     final int[] source = { 0xFF646464, 0xFF646464 };
     final int[] inPlace = source.clone();
     dither.dither(inPlace, 2);
-    assertArrayEquals(new int[] { BLACK, WHITE }, inPlace);
+    final int[] expectedInPlace = new int[] { BLACK, WHITE };
+    assertArrayEquals(expectedInPlace, inPlace);
 
     try (final ImageBuffer image = ImageBuffer.buffer(source, 2, 1)) {
       final byte[] ditheredIndices = dither.ditherIntoBytes(image);
-      assertArrayEquals(new byte[] { 0, 1 }, ditheredIndices);
+      final byte[] expectedDitheredIndices = new byte[] { 0, 1 };
+      assertArrayEquals(expectedDitheredIndices, ditheredIndices);
 
       final int[] untouchedPixels = image.getPixels();
-      assertArrayEquals(new int[] { 0xFF646464, 0xFF646464 }, untouchedPixels);
+      final int[] expectedUntouchedPixels = new int[] { 0xFF646464, 0xFF646464 };
+      assertArrayEquals(expectedUntouchedPixels, untouchedPixels);
     }
   }
 
@@ -132,13 +138,13 @@ final class ErrorDiffusionDitherTest {
       assertEquals(pixels.length, indices.length);
 
       final boolean balanced = ratio > 0.45 && ratio < 0.55;
-      assertTrue(balanced, algorithm + " ratio " + ratio);
+      assertTrue(balanced, "%s ratio %s".formatted(algorithm, ratio));
 
       final boolean leftMostlyBlack = leftWhite < HEIGHT / 4;
-      assertTrue(leftMostlyBlack, algorithm + " left edge");
+      assertTrue(leftMostlyBlack, "%s left edge".formatted(algorithm));
 
       final boolean rightMostlyWhite = rightWhite > (HEIGHT * 3) / 4;
-      assertTrue(rightMostlyWhite, algorithm + " right edge");
+      assertTrue(rightMostlyWhite, "%s right edge".formatted(algorithm));
     }
   }
 
@@ -156,7 +162,7 @@ final class ErrorDiffusionDitherTest {
 
   @Test
   void shouldDiffuseErrorsOfSingleChannels() {
-    final int[] pixels = { 0xFF006400, 0xFF000064, 0xFF640000, 0xFF000000 };
+    final int[] pixels = { DARK_GREEN, DARK_BLUE, DARK_RED, BLACK };
     final ErrorDiffusionDither dither = build(ErrorDiffusionDitherBuilder.Algorithm.FLOYD_STEINBERG);
     try (final ImageBuffer image = ImageBuffer.buffer(pixels, 2, 2)) {
       final byte[] indices = dither.ditherIntoBytes(image);
@@ -168,14 +174,15 @@ final class ErrorDiffusionDitherTest {
 
   @Test
   void shouldMapLonePrimaryPixelsToBlack() {
-    final int[] colors = { 0xFF640000, 0xFF006400, 0xFF000064 };
+    final int[] colors = { DARK_RED, DARK_GREEN, DARK_BLUE };
     for (final int color : colors) {
       final ErrorDiffusionDither dither = build(ErrorDiffusionDitherBuilder.Algorithm.FLOYD_STEINBERG);
       final int[] pixels = { color };
       try (final ImageBuffer image = ImageBuffer.buffer(pixels, 1, 1)) {
         final byte[] indices = dither.ditherIntoBytes(image);
         final String hexadecimal = Integer.toHexString(color);
-        assertArrayEquals(new byte[] { 0 }, indices, hexadecimal);
+        final byte[] expected = new byte[] { 0 };
+        assertArrayEquals(expected, indices, hexadecimal);
       }
     }
   }
@@ -337,7 +344,8 @@ final class ErrorDiffusionDitherTest {
     final ErrorDiffusionDither dither = build(ErrorDiffusionDitherBuilder.Algorithm.FLOYD_STEINBERG);
     try (final ImageBuffer image = ImageBuffer.buffer(pixels, 4, 1)) {
       final byte[] indices = dither.ditherIntoBytes(image);
-      assertArrayEquals(new byte[] { 1, 0, 1, 0 }, indices);
+      final byte[] expected = new byte[] { 1, 0, 1, 0 };
+      assertArrayEquals(expected, indices);
     }
   }
 
@@ -350,7 +358,8 @@ final class ErrorDiffusionDitherTest {
     final ErrorDiffusionDither dither = build(ErrorDiffusionDitherBuilder.Algorithm.FLOYD_STEINBERG);
     try (final ImageBuffer image = ImageBuffer.buffer(pixels, 3, 2)) {
       final byte[] indices = dither.ditherIntoBytes(image);
-      assertArrayEquals(new byte[] { 0, 0, 0, 0, 0, 1 }, indices);
+      final byte[] expected = new byte[] { 0, 0, 0, 0, 0, 1 };
+      assertArrayEquals(expected, indices);
     }
   }
 }

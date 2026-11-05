@@ -104,7 +104,7 @@ final class AnnotationParserHandlerTest {
     "mcav video hologram set location",
     "mcav video hologram disable",
     "mcav video map playerSelector playerType audioType videoResolution blockDimensions mapId ditheringAlgorithm ytdlpOptions mrl flags",
-    "mcav video mcv2 playerSelector playerType audioType videoResolution blockDimensions mapId profile ditheringAlgorithm ytdlpOptions mrl flags",
+    "mcav video mcv2 playerSelector playerType audioType videoResolution blockDimensions mapId preset ditheringAlgorithm ytdlpOptions mrl flags",
     "mcav mcv2 play playerSelector blockDimensions mapId ticks file",
     "mcav mcv2 stream playerSelector blockDimensions mapId framesPerSecond file",
     "mcav mcv2 stop",
@@ -130,6 +130,12 @@ final class AnnotationParserHandlerTest {
   private static final String VNC_SYNTAX =
     "mcav vnc create playerSelector vncResolution targetFramesPerSecond blockDimensions mapId ditheringAlgorithm server flags";
 
+  private static final String REGISTRATION_FAILURE_MESSAGE = "registration failed!";
+
+  private static final String BROWSER_CLEANUP_FAILURE_MESSAGE = "browser cleanup failed!";
+
+  private static final String FATAL_FAILURE_MESSAGE = "fatal sentinel!";
+
   private MCAVSandbox plugin;
 
   private VideoPlayerManager videoManager;
@@ -152,7 +158,7 @@ final class AnnotationParserHandlerTest {
     when(this.plugin.getImageManager()).thenReturn(imageManager);
     when(this.plugin.getAudioProvider()).thenReturn(audioProvider);
     this.commands = new TestCommandManager();
-    this.paperManager = this.commands.asPaperManager();
+    this.paperManager = this.commands.createPaperManager();
     this.paperManagers = Mockito.mockStatic();
     this.paperManagers.when(() -> LegacyPaperCommandManager.createNative(eq(this.plugin), notNull())).thenReturn(this.paperManager);
   }
@@ -182,17 +188,17 @@ final class AnnotationParserHandlerTest {
   void shouldRegisterEveryCommandOfThePlugin() {
     final AnnotationParserHandler handler = new AnnotationParserHandler(this.plugin);
     handler.registerCommands();
-    final Set<String> syntaxes = this.commands.syntaxes();
+    final Set<String> syntaxes = this.commands.getSyntaxes();
     final int count = syntaxes.size();
     final String registeredSyntaxes = String.valueOf(syntaxes);
     assertEquals(39, count, registeredSyntaxes);
 
     for (final String syntax : EXPECTED_SYNTAXES) {
       final boolean registered = syntaxes.contains(syntax);
-      assertTrue(registered, syntax + " in " + syntaxes);
+      assertTrue(registered, "%s in %s".formatted(syntax, syntaxes));
     }
 
-    final PluginManager pluginManager = TestServer.pluginManager();
+    final PluginManager pluginManager = TestServer.getPluginManager();
     verify(pluginManager).registerEvents(any(BrowserCommand.class), eq(this.plugin));
     verify(pluginManager).registerEvents(any(VirtualizeCommand.class), eq(this.plugin));
     verify(pluginManager).registerEvents(any(VncCommand.class), eq(this.plugin));
@@ -214,7 +220,7 @@ final class AnnotationParserHandlerTest {
   }
 
   private ArgumentParser<CommandSender, ?> parserOf(final String syntax, final String argument) {
-    final Command<CommandSender> command = this.commands.command(syntax);
+    final Command<CommandSender> command = this.commands.getCommand(syntax);
     final List<CommandComponent<CommandSender>> components = command.components();
     for (final CommandComponent<CommandSender> component : components) {
       final String name = component.name();
@@ -258,9 +264,9 @@ final class AnnotationParserHandlerTest {
   void shouldNameEveryArgumentOfACommandOnce() {
     final AnnotationParserHandler handler = new AnnotationParserHandler(this.plugin);
     handler.registerCommands();
-    for (final String syntax : this.commands.syntaxes()) {
+    for (final String syntax : this.commands.getSyntaxes()) {
       // an argument named like the component of the command's flags would be handed the flags
-      final List<String> names = this.commands.command(syntax).components().stream().map(CommandComponent::name).toList();
+      final List<String> names = this.commands.getCommand(syntax).components().stream().map(CommandComponent::name).toList();
 
       final int expected = names.size();
       final int size = Set.copyOf(names).size();
@@ -273,7 +279,8 @@ final class AnnotationParserHandlerTest {
     final AnnotationParserHandler handler = new AnnotationParserHandler(this.plugin);
     handler.registerCommands();
     final String vnc = VNC_SYNTAX;
-    final StringParser<?> server = assertInstanceOf(StringParser.class, this.parserOf(vnc, "server"));
+    final ArgumentParser<CommandSender, ?> serverParser = this.parserOf(vnc, "server");
+    final StringParser<?> server = assertInstanceOf(StringParser.class, serverParser);
     // a quoted argument ends a host at its colon
 
     final StringParser.StringMode stringMode = server.stringMode();
@@ -285,8 +292,9 @@ final class AnnotationParserHandlerTest {
     final AnnotationParserHandler handler = new AnnotationParserHandler(this.plugin);
     handler.registerCommands();
     for (final String syntax : List.of(VIDEO_SYNTAX, IMAGE_SYNTAX, BROWSER_SYNTAX, VNC_SYNTAX)) {
-      final Command<CommandSender> command = this.commands.command(syntax);
-      final CommandFlagParser<?> flags = assertInstanceOf(CommandFlagParser.class, command.components().getLast().parser(), syntax);
+      final Command<CommandSender> command = this.commands.getCommand(syntax);
+      final ArgumentParser<CommandSender, ?> flagsParser = command.components().getLast().parser();
+      final CommandFlagParser<?> flags = assertInstanceOf(CommandFlagParser.class, flagsParser, syntax);
 
       final List<String> names = flags.flags().stream().map(CommandFlag::name).toList();
 
@@ -294,10 +302,12 @@ final class AnnotationParserHandlerTest {
       assertEquals("codec", name, syntax);
 
       final CommandComponent<?> codec = Objects.requireNonNull(flags.flags().iterator().next().commandComponent());
-      final EnumParser<?, ?> values = assertInstanceOf(EnumParser.class, codec.parser(), syntax);
+      final ArgumentParser<?, ?> codecParser = codec.parser();
+      final EnumParser<?, ?> values = assertInstanceOf(EnumParser.class, codecParser, syntax);
 
       final Set<? extends Enum<?>> copy = Set.copyOf(values.acceptedValues());
-      assertEquals(Set.of(MapCodec.DITHER, MapCodec.MCV2), copy, syntax);
+      final Set<MapCodec> expected = Set.of(MapCodec.DITHER, MapCodec.MCV2);
+      assertEquals(expected, copy, syntax);
     }
   }
 
@@ -305,7 +315,8 @@ final class AnnotationParserHandlerTest {
   void shouldTakeASeekPositionWithColonsUnquoted() {
     final AnnotationParserHandler handler = new AnnotationParserHandler(this.plugin);
     handler.registerCommands();
-    final StringParser<?> position = assertInstanceOf(StringParser.class, this.parserOf("mcav video seek position", "position"));
+    final ArgumentParser<CommandSender, ?> positionParser = this.parserOf("mcav video seek position", "position");
+    final StringParser<?> position = assertInstanceOf(StringParser.class, positionParser);
 
     final StringParser.StringMode stringMode = position.stringMode();
     assertEquals(StringParser.StringMode.GREEDY, stringMode, "a single word cannot hold the colon of 1:30");
@@ -316,7 +327,7 @@ final class AnnotationParserHandlerTest {
     final AnnotationParserHandler handler = new AnnotationParserHandler(this.plugin);
     handler.registerCommands();
     final List<String> media = this.commands
-      .syntaxes()
+      .getSyntaxes()
       .stream()
       .filter(syntax -> (syntax.startsWith("mcav video ") || syntax.startsWith("mcav image ")) && syntax.contains(" mrl"))
       .toList();
@@ -325,8 +336,9 @@ final class AnnotationParserHandlerTest {
     assertEquals(11, size, String.valueOf(media));
 
     for (final String syntax : media) {
-      final Command<CommandSender> command = this.commands.command(syntax);
-      final CommandFlagParser<?> flags = assertInstanceOf(CommandFlagParser.class, command.components().getLast().parser(), syntax);
+      final Command<CommandSender> command = this.commands.getCommand(syntax);
+      final ArgumentParser<CommandSender, ?> flagsParser = command.components().getLast().parser();
+      final CommandFlagParser<?> flags = assertInstanceOf(CommandFlagParser.class, flagsParser, syntax);
 
       final CommandFlag<?> filters = flags
         .flags()
@@ -334,11 +346,8 @@ final class AnnotationParserHandlerTest {
         .filter(flag -> flag.name().equals("filters"))
         .findFirst()
         .orElseThrow();
-      final StringParser<?> parser = assertInstanceOf(
-        StringParser.class,
-        Objects.requireNonNull(filters.commandComponent()).parser(),
-        syntax
-      );
+      final ArgumentParser<?, ?> filterParser = Objects.requireNonNull(filters.commandComponent()).parser();
+      final StringParser<?> parser = assertInstanceOf(StringParser.class, filterParser, syntax);
 
       final StringParser.StringMode stringMode = parser.stringMode();
       assertEquals(StringParser.StringMode.QUOTED, stringMode, syntax);
@@ -362,7 +371,7 @@ final class AnnotationParserHandlerTest {
       final Collection<? extends Enum<?>> acceptedValues = outputs.acceptedValues();
       assertEquals(expected, acceptedValues, syntax);
     }
-    final Component description = ((RichDescription) this.commands.command(browser).commandDescription().description()).contents();
+    final Component description = ((RichDescription) this.commands.getCommand(browser).commandDescription().description()).contents();
 
     final String text = Components.plain(description);
     assertEquals("Opens a web page on a wall of maps, with its sound in an audio output", text);
@@ -372,7 +381,7 @@ final class AnnotationParserHandlerTest {
   void shouldDescribeTheCommandsInTheLanguageOfThePlugin() {
     final AnnotationParserHandler handler = new AnnotationParserHandler(this.plugin);
     handler.registerCommands();
-    final Command<CommandSender> dump = this.commands.command("mcav dump");
+    final Command<CommandSender> dump = this.commands.getCommand("mcav dump");
     final CommandDescription commandDescription = dump.commandDescription();
     final Description description = commandDescription.description();
     final RichDescription rich = (RichDescription) description;
@@ -396,7 +405,8 @@ final class AnnotationParserHandlerTest {
 
     final List<Component> messages = Components.received(sender);
     final Component paused = Message.PAUSE_PLAYER.build();
-    assertEquals(List.of(paused), messages);
+    final List<Component> expectedMessages = List.of(paused);
+    assertEquals(expectedMessages, messages);
   }
 
   @Test
@@ -440,8 +450,8 @@ final class AnnotationParserHandlerTest {
   @ParameterizedTest
   @ValueSource(booleans = { false, true })
   void shouldKeepTheRegistrationFailurePrimaryWhenRollbackAlsoFails(final boolean sameFailure) {
-    final IllegalStateException primary = new IllegalStateException("registration failed!");
-    final RuntimeException cleanup = sameFailure ? primary : new IllegalArgumentException("browser cleanup failed!");
+    final IllegalStateException primary = new IllegalStateException(REGISTRATION_FAILURE_MESSAGE);
+    final RuntimeException cleanup = sameFailure ? primary : new IllegalArgumentException(BROWSER_CLEANUP_FAILURE_MESSAGE);
     try (
       final MockedConstruction<BrowserCommand> browsers = Mockito.mockConstruction(BrowserCommand.class, (browser, context) ->
         this.failRegistrationAndShutdown(browser, primary, cleanup)
@@ -473,7 +483,7 @@ final class AnnotationParserHandlerTest {
 
   @Test
   void shouldShutLaterFeaturesDownEvenWhenAnEarlierFeatureFails() {
-    final IllegalStateException failure = new IllegalStateException("browser cleanup failed!");
+    final IllegalStateException failure = new IllegalStateException(BROWSER_CLEANUP_FAILURE_MESSAGE);
     try (
       final MockedConstruction<BrowserCommand> browsers = Mockito.mockConstruction(BrowserCommand.class, (browser, _) ->
         this.failShutdown(browser, failure)
@@ -500,15 +510,16 @@ final class AnnotationParserHandlerTest {
 
   @Test
   void shouldRenderDescriptionsWithTheMessagesOfThePlugin() {
-    final RichDescription description = AnnotationParserHandler.describe("mcav.command.video.pause.info");
+    final AnnotationParserHandler handler = new AnnotationParserHandler(this.plugin);
+    final RichDescription description = handler.describe("mcav.command.video.pause.info");
     final Component contents = description.contents();
     final String text = Components.plain(contents);
     assertEquals("Pauses the current video player", text);
 
-    final RichDescription none = AnnotationParserHandler.describe("");
+    final RichDescription none = handler.describe("");
     final boolean empty = none.isEmpty();
     assertTrue(empty);
-    assertThrows(MissingResourceException.class, () -> AnnotationParserHandler.describe("mcav.unknown"));
+    assertThrows(MissingResourceException.class, () -> handler.describe("mcav.unknown"));
   }
 
   @Test
@@ -518,7 +529,7 @@ final class AnnotationParserHandlerTest {
 
   @Test
   void shouldPropagateFatalRegistrationFailureWithoutAttemptingRollback() {
-    final OutOfMemoryError fatal = new OutOfMemoryError("fatal sentinel!");
+    final OutOfMemoryError fatal = new OutOfMemoryError(FATAL_FAILURE_MESSAGE);
     try (
       final MockedConstruction<BrowserCommand> browsers = Mockito.mockConstruction(BrowserCommand.class, (browser, _) ->
         this.failFeatureRegistration(browser, fatal)
@@ -540,8 +551,8 @@ final class AnnotationParserHandlerTest {
 
   @Test
   void shouldPropagateFatalCleanupFailureDuringRollback() {
-    final IllegalStateException primary = new IllegalStateException("registration failed!");
-    final OutOfMemoryError fatal = new OutOfMemoryError("fatal sentinel!");
+    final IllegalStateException primary = new IllegalStateException(REGISTRATION_FAILURE_MESSAGE);
+    final OutOfMemoryError fatal = new OutOfMemoryError(FATAL_FAILURE_MESSAGE);
     try (
       final MockedConstruction<BrowserCommand> browsers = Mockito.mockConstruction(BrowserCommand.class, (browser, _) ->
         this.failRegistrationAndShutdown(browser, primary, fatal)

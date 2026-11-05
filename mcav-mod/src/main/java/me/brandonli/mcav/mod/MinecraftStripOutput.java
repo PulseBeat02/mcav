@@ -33,15 +33,13 @@ import net.minecraft.client.renderer.LevelTargetBundle;
 import net.minecraft.client.renderer.PostChain;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-// the pack's chain replaces vanilla's entity_outline chain, which also draws glowing entities' outlines from the
-// outline target and writes into it: it runs on an empty one, copied each frame from a target nothing draws into
+// the pack's chain replaces vanilla's entity_outline chain, so it runs on an empty target, not the glowing outlines
 final class MinecraftStripOutput implements StripOutput {
 
   private static final String EMPTY_OUTLINE = "MCV2 empty outline";
-
   private static final String TRANSPARENT = "MCV2 transparent";
 
-  private static final String NO_COLOUR = "Render target must have a colour texture!";
+  private static final @Nullable GpuFormat NO_DEPTH_FORMAT = null;
 
   private static final int BASE_MIP_LEVEL = 0;
 
@@ -51,14 +49,11 @@ final class MinecraftStripOutput implements StripOutput {
   private static final int BOTTOM_ROW = 0;
 
   private final Supplier<RenderTarget> main;
-
   private final Supplier<@Nullable PostChain> chain;
-
   private final Supplier<CommandEncoder> encoder;
 
   private @Nullable OutlineTargets outlineTargets;
-
-  private ByteBuffer pixels = ByteBuffer.allocateDirect(0);
+  private ByteBuffer pixels;
 
   MinecraftStripOutput(
     final Supplier<RenderTarget> main,
@@ -68,61 +63,82 @@ final class MinecraftStripOutput implements StripOutput {
     this.main = main;
     this.chain = chain;
     this.encoder = encoder;
+    this.pixels = ByteBuffer.allocateDirect(0);
   }
 
   @Override
-  public int width() {
+  public int getWidth() {
     final RenderTarget target = this.main.get();
     return target.width;
   }
 
   @Override
-  public int height() {
+  public int getHeight() {
     final RenderTarget target = this.main.get();
     return target.height;
   }
 
   @Override
   public boolean decode(final byte[] strip, final int rows, final GraphicsResourceAllocator allocator) {
-    final PostChain outline = this.chain.get();
+    final @Nullable PostChain outline = this.chain.get();
     if (outline == null) {
       return false;
     }
 
     final RenderTarget target = this.main.get();
     final int rowBytes = target.width * TransportStrip.CHANNELS;
-    if (this.pixels.capacity() < rows * rowBytes) {
-      this.pixels = ByteBuffer.allocateDirect(rows * rowBytes).order(ByteOrder.nativeOrder());
+    this.copyStripBottomUp(strip, rows, rowBytes);
+
+    final CommandEncoder commands = this.encoder.get();
+    this.uploadPixels(commands, target, rows);
+    this.runOutlineChain(outline, target, commands, allocator);
+
+    return true;
+  }
+
+  private void copyStripBottomUp(final byte[] strip, final int rows, final int rowBytes) {
+    final int stripBytes = rows * rowBytes;
+    if (this.pixels.capacity() < stripBytes) {
+      this.pixels = ByteBuffer.allocateDirect(stripBytes).order(ByteOrder.nativeOrder());
     }
+
     this.pixels.clear();
     // texture rows count from the bottom of the screen, the strip's from the top
     for (int row = rows - 1; row >= 0; row--) {
       this.pixels.put(strip, row * rowBytes, rowBytes);
     }
+
     this.pixels.flip();
-    final CommandEncoder commands = this.encoder.get();
-    commands.writeToTexture(
-      colour(target),
-      this.pixels,
-      BASE_MIP_LEVEL,
-      FIRST_LAYER,
-      LEFT_COLUMN,
-      target.height - rows,
-      target.width,
-      rows
-    );
-    final TextureTarget empty = this.emptyOutline(target, commands);
+  }
+
+  private void uploadPixels(final CommandEncoder commands, final RenderTarget target, final int rows) {
+    final GpuTexture texture = this.getColorTexture(target);
+    final int firstRow = target.height - rows;
+    commands.writeToTexture(texture, this.pixels, BASE_MIP_LEVEL, FIRST_LAYER, LEFT_COLUMN, firstRow, target.width, rows);
+  }
+
+  // a target has its color texture from creation until it is destroyed
+  private GpuTexture getColorTexture(final RenderTarget target) {
+    return requireNonNull(target.getColorTexture(), "Render target must have a color texture!");
+  }
+
+  private void runOutlineChain(
+    final PostChain outline,
+    final RenderTarget target,
+    final CommandEncoder commands,
+    final GraphicsResourceAllocator allocator
+  ) {
+    final TextureTarget empty = this.resetEmptyOutline(target, commands);
     final FrameGraphBuilder frame = new FrameGraphBuilder();
     final LevelTargetBundle targets = new LevelTargetBundle();
     targets.main = frame.importExternal(LevelTargetBundle.MAIN_TARGET_ID.toString(), target);
     targets.entityOutline = frame.importExternal(LevelTargetBundle.ENTITY_OUTLINE_TARGET_ID.toString(), empty);
     outline.addToFrame(frame, target.width, target.height, targets);
     frame.execute(allocator);
-    return true;
   }
 
   // copied over again each frame, since the chain wrote into the last frame's
-  private TextureTarget emptyOutline(final RenderTarget target, final CommandEncoder commands) {
+  private TextureTarget resetEmptyOutline(final RenderTarget target, final CommandEncoder commands) {
     final OutlineTargets targets = this.sizeOutlineTargets(target, commands);
     final TextureTarget empty = targets.empty();
     final TextureTarget transparent = targets.transparent();
@@ -158,17 +174,14 @@ final class MinecraftStripOutput implements StripOutput {
   }
 
   private OutlineTargets createOutlineTargets(final RenderTarget target, final CommandEncoder commands) {
-    final TextureTarget transparent = new TextureTarget(TRANSPARENT, target.width, target.height, GpuFormat.RGBA8_UNORM, null);
+    final TextureTarget transparent = new TextureTarget(TRANSPARENT, target.width, target.height, GpuFormat.RGBA8_UNORM, NO_DEPTH_FORMAT);
     // a new texture's pixels are undefined; a new direct buffer's bytes are zero
     final ByteBuffer zeros = ByteBuffer.allocateDirect(target.width * target.height * TransportStrip.CHANNELS);
-    commands.writeToTexture(colour(transparent), zeros, BASE_MIP_LEVEL, FIRST_LAYER, LEFT_COLUMN, BOTTOM_ROW, target.width, target.height);
-    final TextureTarget empty = new TextureTarget(EMPTY_OUTLINE, target.width, target.height, GpuFormat.RGBA8_UNORM, null);
-    return new OutlineTargets(empty, transparent);
-  }
+    final GpuTexture texture = this.getColorTexture(transparent);
+    commands.writeToTexture(texture, zeros, BASE_MIP_LEVEL, FIRST_LAYER, LEFT_COLUMN, BOTTOM_ROW, target.width, target.height);
 
-  // a target has its colour texture from creation until it is destroyed
-  private static GpuTexture colour(final RenderTarget target) {
-    return requireNonNull(target.getColorTexture(), NO_COLOUR);
+    final TextureTarget empty = new TextureTarget(EMPTY_OUTLINE, target.width, target.height, GpuFormat.RGBA8_UNORM, NO_DEPTH_FORMAT);
+    return new OutlineTargets(empty, transparent);
   }
 
   // the chain runs on empty, copied from transparent; both the size of the screen

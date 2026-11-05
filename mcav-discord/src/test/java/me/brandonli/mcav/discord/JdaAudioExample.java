@@ -36,15 +36,22 @@ import net.dv8tion.jda.api.utils.cache.CacheFlag;
 
 public final class JdaAudioExample {
 
+  private static final String TOKEN_VARIABLE = "DISCORD_TOKEN";
+  private static final String GUILD_VARIABLE = "DISCORD_GUILD";
+  private static final String CHANNEL_VARIABLE = "DISCORD_CHANNEL";
+  private static final String MEDIA_FILE_VARIABLE = "MEDIA_FILE";
+
   private JdaAudioExample() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   static void main() throws InterruptedException {
-    final String token = getEnvironmentVariable("DISCORD_TOKEN");
-    final String guildId = getEnvironmentVariable("DISCORD_GUILD");
-    final String channelId = getEnvironmentVariable("DISCORD_CHANNEL");
-    final String file = getEnvironmentVariable("MEDIA_FILE");
+    final String token = getEnvironmentVariable(TOKEN_VARIABLE);
+    final String guildId = getEnvironmentVariable(GUILD_VARIABLE);
+    final String channelId = getEnvironmentVariable(CHANNEL_VARIABLE);
+    final String file = getEnvironmentVariable(MEDIA_FILE_VARIABLE);
+
     final MCAVApi api = MCAV.api();
     api.install(JdaModule.class);
 
@@ -58,6 +65,7 @@ public final class JdaAudioExample {
 
     final VideoPlayerMultiplexer multiplexer = play(player, file);
     player.setPlaying(file);
+
     final Thread shutdownHook = new Thread(() -> release(multiplexer, audioManager, jda, api));
     final Runtime runtime = Runtime.getRuntime();
     runtime.addShutdownHook(shutdownHook);
@@ -78,6 +86,7 @@ public final class JdaAudioExample {
     builder.enableCache(CacheFlag.VOICE_STATE);
     final JDA jda = builder.build();
     jda.awaitReady();
+
     return jda;
   }
 
@@ -106,6 +115,7 @@ public final class JdaAudioExample {
     final VideoPlayerMultiplexer multiplexer = VideoPlayer.ffmpeg();
     final AudioAttachableCallback audio = multiplexer.getAudioAttachableCallback();
     audio.attach(audioPipeline);
+
     final Path path = Path.of(file);
     final Source source = FileSource.path(path);
     multiplexer.start(source);
