@@ -378,6 +378,21 @@ final class FilterChainTest {
   }
 
   @Test
+  void shouldTintByHalfWithoutAStrengthAndByTheStrengthTyped() {
+    final ImageBuffer halfTinted = this.picture(2, 2, 0);
+    this.parse("tint=804020").apply(halfTinted);
+
+    final int halfTint = halfTinted.getPixels()[0] & RGB_MASK;
+    assertEquals(0x402010, halfTint);
+
+    final ImageBuffer fullyTinted = this.picture(2, 2, 0);
+    this.parse("tint=ff0000:100").apply(fullyTinted);
+
+    final int fullTint = fullyTinted.getPixels()[0] & RGB_MASK;
+    assertEquals(RED, fullTint);
+  }
+
+  @Test
   void shouldLetABlurReachAsFarAsItsRadius() {
     final ImageBuffer narrow = this.whiteDot();
     this.parse(NARROW_BLUR_FILTER).apply(narrow);
