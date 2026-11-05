@@ -40,12 +40,12 @@ final class DevToolsInput {
   static final String OPEN_IN_PLACE_SCRIPT = """
   (() => {
     // the helper may place the script twice; once is enough
-    const PLACED = Symbol.for('mcav.open-in-place');
+    const PLACED = Symbol.for("mcav.open-in-place");
 
-    const FORM_TARGET_ATTRIBUTE = 'formtarget';
-    const SELF_TARGET = '_self';
-    const LINK_SELECTOR = 'a[href], area[href]';
-    const WEB_PROTOCOLS = ['http:', 'https:'];
+    const FORM_TARGET_ATTRIBUTE = "formtarget";
+    const SELF_TARGET = "_self";
+    const LINK_SELECTOR = "a[href], area[href]";
+    const WEB_PROTOCOLS = ["http:", "https:"];
 
     if (Object.prototype.hasOwnProperty.call(globalThis, PLACED)) {
       return;
@@ -58,7 +58,7 @@ final class DevToolsInput {
       let target;
       try {
         target = new URL(String(address), document.baseURI);
-      } catch (error) {
+      } catch (exception) {
         return;
       }
       if (WEB_PROTOCOLS.includes(target.protocol)) {
@@ -70,7 +70,7 @@ final class DevToolsInput {
       let found;
       try {
         found = view[name];
-      } catch (error) {
+      } catch (exception) {
         found = undefined;
       }
       // the window of a frame is its own window property, unlike a page element of that name
@@ -81,7 +81,7 @@ final class DevToolsInput {
       let count = 0;
       try {
         count = view.frames.length;
-      } catch (error) {
+      } catch (exception) {
         return false;
       }
       for (let index = 0; index < count; index++) {
@@ -92,32 +92,35 @@ final class DevToolsInput {
       return false;
     };
     const opensElsewhere = name => {
-      const text = String(name || '');
+      const text = String(name || "");
       const lower = text.toLowerCase();
-      if (lower === '' || lower === SELF_TARGET || lower === '_top' || lower === '_parent') {
+      if (lower === "" || lower === SELF_TARGET || lower === "_top" || lower === "_parent") {
         return false;
       }
 
-      return lower === '_blank' || !namesAFrame(window.top, text);
+      return lower === "_blank" || !namesAFrame(window.top, text);
     };
-    Object.defineProperty(window, 'open', {
+    const openFromScript = address => {
+      if (isActive() && address !== undefined && address !== null && String(address) !== "") {
+        openInPlace(address);
+      }
+
+      return null;
+    };
+    Object.defineProperty(window, "open", {
       configurable: true,
       writable: true,
-      value: function (address) {
-        if (isActive() && address !== undefined && address !== null && String(address) !== '') {
-          openInPlace(address);
-        }
-        return null;
-      }
+      value: openFromScript
     });
-    window.addEventListener('click', event => {
+    const openLinkInPlace = event => {
       const origin = event.target instanceof Element ? event.target.closest(LINK_SELECTOR) : null;
       if (origin !== null && !event.defaultPrevented && isActive() && opensElsewhere(origin.target)) {
         event.preventDefault();
         openInPlace(origin.href);
       }
-    });
-    window.addEventListener('submit', event => {
+    };
+    window.addEventListener("click", openLinkInPlace);
+    const submitInPlace = event => {
       const form = event.target;
       if (!(form instanceof HTMLFormElement) || !isActive()) {
         return;
@@ -132,7 +135,8 @@ final class DevToolsInput {
       } else if (opensElsewhere(form.target)) {
         form.target = SELF_TARGET;
       }
-    }, true);
+    };
+    window.addEventListener("submit", submitInPlace, { capture: true });
   })();
   """;
 

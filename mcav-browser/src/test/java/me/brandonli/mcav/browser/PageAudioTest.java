@@ -464,7 +464,7 @@ class PageAudioTest {
   void shouldTakeTheBindingAwayInTheScriptAndSendWhatThePagePlays() throws Exception {
     final String script = PageAudio.SCRIPT;
     ScriptAssertions.execute(PAGE_AUDIO_SCRIPT_FILE, script);
-    final boolean usesTheBindingName = script.contains("const BINDING = '" + PageAudio.BINDING + "';");
+    final boolean usesTheBindingName = script.contains("const BINDING = \"" + PageAudio.BINDING + "\";");
     assertTrue(usesTheBindingName, "the script uses the binding's name");
 
     final boolean deletesTheBinding = script.contains("delete globalThis[BINDING]");

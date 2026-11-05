@@ -122,17 +122,22 @@ public final class TestPages implements AutoCloseable {
     const CLOCK_INTERVAL_MILLISECONDS = 1000;
 
     const context = new AudioContext();
-    context.addEventListener('statechange', () => {
-      report('state', { key: context.state });
+    const reportClock = clock => {
+      report("time", { key: context.currentTime.toFixed(2) });
+
+      if (++clock.times === CLOCK_REPORTS) {
+        clearInterval(clock.interval);
+      }
+    };
+
+    const reportState = () => {
+      report("state", { key: context.state });
       // whether the clock of the context runs: without an audio device that renders, it stands still
-      let times = 0;
-      const clock = setInterval(() => {
-        report('time', { key: context.currentTime.toFixed(2) });
-        if (++times === CLOCK_REPORTS) {
-          clearInterval(clock);
-        }
-      }, CLOCK_INTERVAL_MILLISECONDS);
-    });
+      const clock = { times: 0 };
+      clock.interval = setInterval(() => reportClock(clock), CLOCK_INTERVAL_MILLISECONDS);
+    };
+
+    context.addEventListener("statechange", reportState);
     const oscillator = context.createOscillator();
     oscillator.frequency.value = %s;
     const gain = context.createGain();
@@ -140,7 +145,9 @@ public final class TestPages implements AutoCloseable {
     oscillator.connect(gain);
     gain.connect(context.destination);
     oscillator.start();
-    addEventListener('pointerdown', () => context.resume().catch((error) => report('state', { key: 'resume failed: ' + error.name })));
+    const reportFailure = exception => report("state", { key: `resume failed: ${exception.name}` });
+    const resumeContext = () => context.resume().catch(reportFailure);
+    addEventListener("pointerdown", resumeContext);
   </script>
   """.formatted(TONE_HERTZ, TONE_AMPLITUDE);
 
@@ -153,33 +160,47 @@ public final class TestPages implements AutoCloseable {
     const SAMPLE_RATE = %s;
 
     const taps = new Set();
-    const keep = (node) => {
+    const keep = node => {
       if (node instanceof ScriptProcessorNode) {
         taps.add(node);
       }
+
       return node;
     };
+
+    const wrapFactory = (prototype, name) => {
+      const original = prototype[name];
+      if (typeof original === "function") {
+        const createNode = function (...callArguments) {
+          return keep(original.apply(this, callArguments));
+        };
+
+        prototype[name] = createNode;
+      }
+    };
+
     for (const prototype of [BaseAudioContext.prototype, AudioContext.prototype]) {
-      for (const name of ['createScriptProcessor', 'createGain', 'createMediaElementSource']) {
-        const original = prototype[name];
-        if (typeof original === 'function') {
-          prototype[name] = function (...args) {
-            return keep(original.apply(this, args));
-          };
-        }
+      for (const name of ["createScriptProcessor", "createGain", "createMediaElementSource"]) {
+        wrapFactory(prototype, name);
       }
     }
     const connect = AudioNode.prototype.connect;
-    AudioNode.prototype.connect = function (target, ...rest) {
+    const connectAndKeep = function (target, ...rest) {
       keep(this);
       keep(target);
+
       return connect.call(this, target, ...rest);
     };
+
+    AudioNode.prototype.connect = connectAndKeep;
     const listen = EventTarget.prototype.addEventListener;
-    EventTarget.prototype.addEventListener = function (type, listener, ...rest) {
+    const listenAndKeep = function (type, listener, ...rest) {
       keep(this);
+
       return listen.call(this, type, listener, ...rest);
     };
+
+    EventTarget.prototype.addEventListener = listenAndKeep;
     const context = new AudioContext();
     const oscillator = context.createOscillator();
     oscillator.frequency.value = %s;
@@ -191,37 +212,42 @@ public final class TestPages implements AutoCloseable {
     const forged = new AudioBuffer({ length: FORGED_FRAMES, numberOfChannels: CHANNELS, sampleRate: SAMPLE_RATE });
     forged.getChannelData(0).fill(FORGED_LEVEL);
     forged.getChannelData(1).fill(FORGED_LEVEL);
-    setInterval(() => {
+    const dispatchForgedFrames = () => {
       for (const tap of taps) {
-        const event = new AudioProcessingEvent('audioprocess', { playbackTime: 0, inputBuffer: forged, outputBuffer: forged });
-        if (typeof tap.onaudioprocess === 'function') {
+        const event = new AudioProcessingEvent("audioprocess", { playbackTime: 0, inputBuffer: forged, outputBuffer: forged });
+        if (typeof tap.onaudioprocess === "function") {
           tap.onaudioprocess(event);
         }
         tap.dispatchEvent(event);
       }
-    }, TAP_INTERVAL_MILLISECONDS);
-    report('taps', { clientX: taps.size });
-    addEventListener('pointerdown', () => context.resume());
+    };
+
+    setInterval(dispatchForgedFrames, TAP_INTERVAL_MILLISECONDS);
+    report("taps", { clientX: taps.size });
+    addEventListener("pointerdown", () => context.resume());
   </script>
   """.formatted(CHANNELS, SAMPLE_RATE, TONE_HERTZ, TONE_AMPLITUDE);
 
   private static final String ELEMENT_SCRIPT = """
   <audio id="tone" src="/tone.wav" loop></audio>
   <script>
-    const element = document.getElementById('tone');
+    const element = document.getElementById("tone");
     const parameters = new URLSearchParams(location.search);
-    element.volume = Number(parameters.get('volume') || '1');
-    element.muted = parameters.get('muted') === '1';
-    addEventListener('pointerdown', () =>
-      element.play().then(() => report('play', { key: 'playing' })).catch((error) => report('play', { key: error.name }))
-    );
+    element.volume = Number(parameters.get("volume") || "1");
+    element.muted = parameters.get("muted") === "1";
+    const reportPlaying = () => report("play", { key: "playing" });
+    const reportFailure = exception => report("play", { key: exception.name });
+    const playElement = () => element.play()
+      .then(reportPlaying)
+      .catch(reportFailure);
+    addEventListener("pointerdown", playElement);
   </script>
   """;
 
   private static final String TOGGLE_SCRIPT = """
   <script>
-    const LIGHT_COLOR = '#ffffff';
-    const DARK_COLOR = '#000000';
+    const LIGHT_COLOR = "#ffffff";
+    const DARK_COLOR = "#000000";
 
     const context = new AudioContext();
     const oscillator = context.createOscillator();
@@ -233,7 +259,13 @@ public final class TestPages implements AutoCloseable {
     oscillator.start();
     let on = false;
     let started = false;
-    addEventListener('pointerdown', () => {
+    const toggle = () => {
+      on = !on;
+      document.body.style.background = on ? LIGHT_COLOR : DARK_COLOR;
+      gain.gain.setValueAtTime(on ? %s : 0, context.currentTime);
+    };
+
+    const startToggling = () => {
       context.resume();
 
       if (started) {
@@ -241,12 +273,10 @@ public final class TestPages implements AutoCloseable {
       }
 
       started = true;
-      setInterval(() => {
-        on = !on;
-        document.body.style.background = on ? LIGHT_COLOR : DARK_COLOR;
-        gain.gain.setValueAtTime(on ? %s : 0, context.currentTime);
-      }, %s);
-    });
+      setInterval(toggle, %s);
+    };
+
+    addEventListener("pointerdown", startToggling);
   </script>
   """.formatted(TONE_HERTZ, TONE_AMPLITUDE, TOGGLE_MILLISECONDS);
 
@@ -258,6 +288,13 @@ public final class TestPages implements AutoCloseable {
     const page = document.body.dataset.page;
     // one report at a time: independent fetches can arrive out of order
     let reports = Promise.resolve();
+    const checkResponse = response => {
+      if (!response.ok) {
+        const message = `HTTP status ${response.status} failed the event report!`;
+        throw new Error(message);
+      }
+    };
+
     const report = (type, event) => {
       const parameters = new URLSearchParams({
         page: page,
@@ -266,45 +303,59 @@ public final class TestPages implements AutoCloseable {
         y: String(Math.round(event.clientY || 0)),
         button: String(event.button || 0),
         buttons: String(event.buttons || 0),
-        key: event.key || ''
+        key: event.key || ""
       });
-      const address = '/event?' + parameters.toString();
-      reports = reports.then(async () => {
-        const response = await fetch(address, { keepalive: true });
-        if (!response.ok) {
-          throw new Error('Event reporting failed with HTTP ' + response.status);
-        }
-      }).catch(error => console.error('TestPages event reporting failed', page, type, error));
+      const address = "/event?" + parameters.toString();
+      const sendReport = () => fetch(address, { keepalive: true });
+      const reportFailure = exception => console.error(`Event ${type} of page ${page} could not be reported.`, exception);
+      reports = reports
+        .then(sendReport)
+        .then(checkResponse)
+        .catch(reportFailure);
+
       return reports;
     };
-    const closeLater = delay => setTimeout(() => {
-      report('closing', {}).then(() => window.close());
-    }, delay);
-    for (const type of ['mousemove', 'mousedown', 'mouseup', 'click', 'dblclick']) {
+
+    const closeWindow = () => window.close();
+    const reportClosing = () => {
+      report("closing", {}).then(closeWindow);
+    };
+
+    const closeLater = delay => setTimeout(reportClosing, delay);
+    for (const type of ["mousemove", "mousedown", "mouseup", "click", "dblclick"]) {
       document.addEventListener(type, event => report(type, event));
     }
-    document.addEventListener('wheel', event => report('wheel', { clientX: event.clientX, clientY: event.clientY, key: String(Math.sign(event.deltaY)) }));
-    document.addEventListener('contextmenu', event => {
-      event.preventDefault();
-      report('contextmenu', event);
+    const reportWheel = event => report("wheel", {
+      clientX: event.clientX,
+      clientY: event.clientY,
+      key: String(Math.sign(event.deltaY))
     });
-    document.addEventListener('keydown', event => {
-      const reported = report('keydown', event);
-      if (page === 'main' && event.key === 'o') {
-        window.open('/popup', '_blank');
+    document.addEventListener("wheel", reportWheel);
+    const preventContextMenu = event => {
+      event.preventDefault();
+      report("contextmenu", event);
+    };
+
+    document.addEventListener("contextmenu", preventContextMenu);
+    const onKeyDown = event => {
+      const reported = report("keydown", event);
+      if (page === "main" && event.key === "o") {
+        window.open("/popup", "_blank");
       }
-      if (page === 'popup' && event.key === 'n') {
-        window.open('/second', '_blank');
+      if (page === "popup" && event.key === "n") {
+        window.open("/second", "_blank");
         closeLater(POPUP_CLOSE_DELAY_MILLISECONDS);
       }
-      if (page === 'second' && event.key === 'w') {
+      if (page === "second" && event.key === "w") {
         closeLater(SECOND_CLOSE_DELAY_MILLISECONDS);
       }
-      if (page === 'popup' && event.key === 'x') {
-        reported.then(() => window.close());
+      if (page === "popup" && event.key === "x") {
+        reported.then(closeWindow);
       }
-    });
-    report('size', { clientX: window.innerWidth, clientY: window.innerHeight });
+    };
+
+    document.addEventListener("keydown", onKeyDown);
+    report("size", { clientX: window.innerWidth, clientY: window.innerHeight });
   </script>
   """;
 
@@ -335,9 +386,30 @@ public final class TestPages implements AutoCloseable {
       httpServer.createContext(HOOKED_PATH, pages::serveMainPageAfterTheLoadHook);
       httpServer.createContext(EVENT_PATH, pages::recordEvent);
       httpServer.createContext(DIALOG_PATH, TestPages::serveDialogs);
-      httpServer.createContext(TO_FILE_PATH, exchange -> serveScript(exchange, "location.href = 'file:///etc/passwd';"));
-      httpServer.createContext(TO_DOWNLOAD_PATH, exchange -> serveScript(exchange, "location.href = '/download';"));
-      httpServer.createContext(TO_POPUP_PATH, exchange -> serveScript(exchange, "window.open('/popup', '_blank');"));
+      httpServer.createContext(TO_FILE_PATH, exchange ->
+        serveScript(
+          exchange,
+          """
+          location.href = "file:///etc/passwd";\
+          """
+        )
+      );
+      httpServer.createContext(TO_DOWNLOAD_PATH, exchange ->
+        serveScript(
+          exchange,
+          """
+          location.href = "/download";\
+          """
+        )
+      );
+      httpServer.createContext(TO_POPUP_PATH, exchange ->
+        serveScript(
+          exchange,
+          """
+          window.open("/popup", "_blank");\
+          """
+        )
+      );
       httpServer.createContext(TO_POPUP_LINK_PATH, TestPages::serveLinkToAPopup);
       httpServer.createContext(TO_POPUP_SYNTHETIC_PATH, TestPages::serveLinkToAPopupThatAScriptClicks);
       httpServer.createContext(NAMED_FRAME_PATH, TestPages::serveLinkIntoANamedFrame);
@@ -356,20 +428,29 @@ public final class TestPages implements AutoCloseable {
   }
 
   private static void serveDialogs(final HttpExchange exchange) throws IOException {
-    serveScript(exchange, "alert('hi'); confirm('sure?'); document.body.style.background = '#00ff00';");
+    serveScript(
+      exchange,
+      """
+      alert("hi"); confirm("sure?"); document.body.style.background = "#00ff00";\
+      """
+    );
   }
 
   private static void serveLinkToAPopup(final HttpExchange exchange) throws IOException {
     serveScript(
       exchange,
-      "document.body.insertAdjacentHTML('beforeend', '<a href=\"/popup\" target=\"_blank\" style=\"position:fixed;inset:0\"></a>');"
+      """
+      document.body.insertAdjacentHTML("beforeend", `<a href="/popup" target="_blank" style="position:fixed;inset:0"></a>`);\
+      """
     );
   }
 
   private static void serveLinkToAPopupThatAScriptClicks(final HttpExchange exchange) throws IOException {
     serveScript(
       exchange,
-      "document.body.insertAdjacentHTML('beforeend', '<a id=\"link\" href=\"/popup\" target=\"_blank\">popup</a>'); document.getElementById('link').click();"
+      """
+      document.body.insertAdjacentHTML("beforeend", `<a id="link" href="/popup" target="_blank">popup</a>`); document.getElementById("link").click();\
+      """
     );
   }
 
@@ -472,7 +553,7 @@ public final class TestPages implements AutoCloseable {
 
   private static void serveScript(final HttpExchange exchange, final String script) throws IOException {
     final String html =
-      "<!doctype html><html><head><style>html,body{margin:0;width:100%%;height:100%%;background:#ff0000;}</style></head><body><script>window.addEventListener('load', () => setTimeout(() => { %s }, %s));</script></body></html>".formatted(
+      "<!doctype html><html><head><style>html,body{margin:0;width:100%%;height:100%%;background:#ff0000;}</style></head><body><script>window.addEventListener(\"load\", () => setTimeout(() => { %s }, %s));</script></body></html>".formatted(
         script,
         SCRIPT_DELAY_MILLISECONDS
       );

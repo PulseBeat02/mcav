@@ -44,32 +44,37 @@ final class PageAudio implements CefDevToolsClient.EventListener {
   // MCAV: hands what a document plays to the browser helper, see PageAudio.java. Without a sound card every context runs
   // on its own clock, so the document gets one 48 kHz context; its tap sends PCM and outputs silence.
   (() => {
-    'use strict';
+    "use strict";
     // the helper may place the script twice; once is enough
-    const PLACED = Symbol.for('mcav.audio');
-    const INSTALLED = Symbol.for('mcav.audio.installed');
+    const PLACED = Symbol.for("mcav.audio");
+    const INSTALLED = Symbol.for("mcav.audio.installed");
 
-    const BINDING = '%s';
+    const BINDING = "%s";
 
     const SAMPLE_RATE = %s;
     const CHUNK = 2048;
     const QUIET_SECONDS = 2;
     const FRAME_BYTES = 4;
     const SAMPLE_BYTES = 2;
+
+    const NEGATIVE_SAMPLE_SCALE = 32768;
+    const POSITIVE_SAMPLE_SCALE = 32767;
+
     const LITTLE_ENDIAN = true;
     const TEXT_SLICE_BYTES = 0x2000;
     const CHANNELS = 2;
     // a pause after sound is sent as two seconds of silence, so the server keeps its time; longer pauses are not sent
     const QUIET_CHUNKS = Math.ceil((QUIET_SECONDS * SAMPLE_RATE) / CHUNK);
 
-    const GESTURES = ['pointerdown', 'mousedown', 'keydown', 'touchend'];
+    const GESTURES = ["pointerdown", "mousedown", "keydown", "touchend"];
 
     if (Object.prototype.hasOwnProperty.call(globalThis, PLACED)) {
       return;
     }
 
     Object.defineProperty(globalThis, PLACED, { value: true });
-    if (typeof AudioContext !== 'function' || globalThis[INSTALLED] === true) {
+
+    if (typeof AudioContext !== "function" || globalThis[INSTALLED] === true) {
       return;
     }
 
@@ -83,12 +88,12 @@ final class PageAudio implements CefDevToolsClient.EventListener {
     const nativeResume = AudioContext.prototype.resume;
     const nativeAddEventListener = EventTarget.prototype.addEventListener;
     const nativeGetChannelData = AudioBuffer.prototype.getChannelData;
-    const destinationOf = getter(BaseAudioContext, 'destination');
-    const stateOf = getter(BaseAudioContext, 'state');
-    const gainOf = getter(GainNode, 'gain');
-    const setValue = Object.getOwnPropertyDescriptor(AudioParam.prototype, 'value').set;
-    const inputBufferOf = getter(AudioProcessingEvent, 'inputBuffer');
-    const channelsOf = getter(AudioBuffer, 'numberOfChannels');
+    const destinationOf = getter(BaseAudioContext, "destination");
+    const stateOf = getter(BaseAudioContext, "state");
+    const gainOf = getter(GainNode, "gain");
+    const setValue = Object.getOwnPropertyDescriptor(AudioParam.prototype, "value").set;
+    const inputBufferOf = getter(AudioProcessingEvent, "inputBuffer");
+    const channelsOf = getter(AudioBuffer, "numberOfChannels");
     const NativeElementSource = MediaElementAudioSourceNode;
     const nativeConnect = AudioNode.prototype.connect;
     const nativeDisconnect = AudioNode.prototype.disconnect;
@@ -98,26 +103,61 @@ final class PageAudio implements CefDevToolsClient.EventListener {
     const fromCharCode = String.fromCharCode;
     const construct = Reflect.construct;
 
-    let send = null;
+    let send;
     let quietChunks = QUIET_CHUNKS;
     const takeBinding = () => {
-      if (send === null && typeof globalThis[BINDING] === 'function') {
+      if (send === undefined && typeof globalThis[BINDING] === "function") {
         send = globalThis[BINDING];
         // the page cannot send through it once it is taken
         delete globalThis[BINDING];
       }
+
       return send;
     };
+
     takeBinding();
 
-    const toSample = (value) => {
-      const clamped = value > 1 ? 1 : value < -1 ? -1 : value || 0;
-      return Math.round(clamped < 0 ? clamped * 32768 : clamped * 32767);
+    const toSample = value => {
+      const clamped = Math.min(Math.max(value || 0, -1), 1);
+      const scale = clamped < 0 ? NEGATIVE_SAMPLE_SCALE : POSITIVE_SAMPLE_SCALE;
+      return Math.round(clamped * scale);
     };
 
-    const deliver = (buffer) => {
+    const encodeFrames = buffer => {
+      const left = nativeGetChannelData.call(buffer, 0);
+      const right = channelsOf.call(buffer) > 1 ? nativeGetChannelData.call(buffer, 1) : left;
+      const bytes = new Uint8Array(left.length * FRAME_BYTES);
+      const view = new DataView(bytes.buffer);
+      let loud = false;
+
+      for (let frame = 0; frame < left.length; frame++) {
+        const first = toSample(left[frame]);
+        const second = toSample(right[frame]);
+        view.setInt16(frame * FRAME_BYTES, first, LITTLE_ENDIAN);
+        view.setInt16(frame * FRAME_BYTES + SAMPLE_BYTES, second, LITTLE_ENDIAN);
+        loud = loud || first !== 0 || second !== 0;
+      }
+
+      return { bytes, loud };
+    };
+
+    const isQuietTooLong = loud => {
+      return !loud && quietChunks >= QUIET_CHUNKS;
+    };
+
+    const toBinaryText = bytes => {
+      let text = "";
+
+      for (let start = 0; start < bytes.length; start += TEXT_SLICE_BYTES) {
+        text += fromCharCode.apply(null, bytes.subarray(start, start + TEXT_SLICE_BYTES));
+      }
+
+      return text;
+    };
+
+    const deliver = buffer => {
       const deliverTo = takeBinding();
-      if (deliverTo === null) {
+      if (deliverTo === undefined) {
         return;
       }
 
@@ -132,38 +172,8 @@ final class PageAudio implements CefDevToolsClient.EventListener {
       deliverTo(toBase64(text));
     };
 
-    const encodeFrames = (buffer) => {
-      const left = nativeGetChannelData.call(buffer, 0);
-      const right = channelsOf.call(buffer) > 1 ? nativeGetChannelData.call(buffer, 1) : left;
-      const bytes = new Uint8Array(left.length * FRAME_BYTES);
-      const view = new DataView(bytes.buffer);
-      let loud = false;
-      for (let frame = 0; frame < left.length; frame++) {
-        const first = toSample(left[frame]);
-        const second = toSample(right[frame]);
-        view.setInt16(frame * FRAME_BYTES, first, LITTLE_ENDIAN);
-        view.setInt16(frame * FRAME_BYTES + SAMPLE_BYTES, second, LITTLE_ENDIAN);
-        loud = loud || first !== 0 || second !== 0;
-      }
-
-      return { bytes, loud };
-    };
-
-    const isQuietTooLong = (loud) => {
-      return !loud && quietChunks >= QUIET_CHUNKS;
-    };
-
-    const toBinaryText = (bytes) => {
-      let text = '';
-      for (let start = 0; start < bytes.length; start += TEXT_SLICE_BYTES) {
-        text += fromCharCode.apply(null, bytes.subarray(start, start + TEXT_SLICE_BYTES));
-      }
-
-      return text;
-    };
-
     // the one context of the document, made again should the page close it
-    let mixer = null;
+    let mixer;
     const createMixer = () => {
       const context = construct(NativeAudioContext, [{ sampleRate: SAMPLE_RATE }], NativeAudioContext);
       const bus = nativeCreateGain.call(context);
@@ -173,57 +183,75 @@ final class PageAudio implements CefDevToolsClient.EventListener {
       nativeConnect.call(bus, tap);
       nativeConnect.call(tap, silence);
       nativeConnect.call(silence, destinationOf.call(context));
-      nativeAddEventListener.call(tap, 'audioprocess', (event) => deliver(inputBufferOf.call(event)));
+      nativeAddEventListener.call(tap, "audioprocess", event => deliver(inputBufferOf.call(event)));
+
       return { context, bus };
     };
+
     const mixerOf = () => {
-      if (mixer === null || stateOf.call(mixer.context) === 'closed') {
+      if (mixer === undefined || stateOf.call(mixer.context) === "closed") {
         mixer = createMixer();
       }
+
       return mixer;
     };
+
+    // the next gesture tries again
+    const ignoreFailure = () => {
+    };
+
     // a page may play sound only after the first click on the screen
     const resume = () => {
-      if (mixer !== null && stateOf.call(mixer.context) === 'suspended') {
-        nativeResume.call(mixer.context).catch(() => {});
+      if (mixer !== undefined && stateOf.call(mixer.context) === "suspended") {
+        nativeResume.call(mixer.context).catch(ignoreFailure);
       }
     };
+
     for (const type of GESTURES) {
       addEventListener(type, resume, { capture: true, passive: true });
     }
 
-    const SharedAudioContext = new Proxy(NativeAudioContext, {
-      construct(target, argumentsList, newTarget) {
-        if (newTarget !== SharedAudioContext) {
-          // a subclass gets a context of its own, whose sound is not captured
-          return construct(target, argumentsList, newTarget);
-        }
+    const constructSharedContext = (target, argumentsList, newTarget) => {
+      if (newTarget !== SharedAudioContext) {
+        // a subclass gets a context of its own, whose sound is not captured
+        return construct(target, argumentsList, newTarget);
+      }
 
-        return mixerOf().context;
-      },
-    });
+      return mixerOf().context;
+    };
+
+    const SharedAudioContext = new Proxy(NativeAudioContext, { construct: constructSharedContext });
     globalThis.AudioContext = SharedAudioContext;
 
     // whatever the page connects to the destination also reaches the tap
-    const isOutput = (target) => mixer !== null && target === destinationOf.call(mixer.context);
-    AudioNode.prototype.connect = function connect(target, ...rest) {
+    const isOutput = target => mixer !== undefined && target === destinationOf.call(mixer.context);
+    const connect = function connect(target, ...rest) {
       const result = nativeConnect.call(this, target, ...rest);
+
       if (isOutput(target)) {
         nativeConnect.call(this, mixer.bus, rest.length > 0 ? rest[0] : 0);
       }
+
       return result;
     };
-    AudioNode.prototype.disconnect = function disconnect(...callArguments) {
+
+    AudioNode.prototype.connect = connect;
+
+    const disconnect = function disconnect(...callArguments) {
       const result = nativeDisconnect.apply(this, callArguments);
+
       if (isOutput(callArguments[0])) {
         try {
           nativeDisconnect.call(this, mixer.bus);
-        } catch (error) {
+        } catch (exception) {
           // it was not connected to the tap
         }
       }
+
       return result;
     };
+
+    AudioNode.prototype.disconnect = disconnect;
 
     // an element plays into the context once it plays; a page asking for its source gets that node, cut from the tap
     const sources = new WeakMap();
@@ -234,55 +262,66 @@ final class PageAudio implements CefDevToolsClient.EventListener {
           known.byPage = true;
           nativeDisconnect.call(known.node);
         }
+
         return known.node;
       }
 
       const node = nativeCreateElementSource.call(context, element);
       sources.set(element, { node, byPage });
+
       if (!byPage) {
         nativeConnect.call(node, mixerOf().bus);
       }
+
       return node;
     };
-    NativeAudioContext.prototype.createMediaElementSource = function createMediaElementSource(element) {
+
+    const createMediaElementSource = function createMediaElementSource(element) {
       return sourceOf(this, element, true);
     };
-    const SharedElementSource = new Proxy(NativeElementSource, {
-      construct(target, argumentsList, newTarget) {
-        const options = argumentsList[1];
-        const element = options !== null && typeof options === 'object' ? options.mediaElement : undefined;
-        if (newTarget === SharedElementSource && element instanceof HTMLMediaElement) {
-          return sourceOf(argumentsList[0], element, true);
-        }
 
-        return construct(target, argumentsList, newTarget);
-      },
-    });
+    NativeAudioContext.prototype.createMediaElementSource = createMediaElementSource;
+
+    const constructElementSource = (target, argumentsList, newTarget) => {
+      const options = argumentsList[1];
+      const element = options !== null && typeof options === "object" ? options.mediaElement : undefined;
+      if (newTarget === SharedElementSource && element instanceof HTMLMediaElement) {
+        return sourceOf(argumentsList[0], element, true);
+      }
+
+      return construct(target, argumentsList, newTarget);
+    };
+
+    const SharedElementSource = new Proxy(NativeElementSource, { construct: constructElementSource });
     globalThis.MediaElementAudioSourceNode = SharedElementSource;
-    const capture = (element) => {
+
+    const capture = element => {
       if (sources.has(element)) {
         return;
       }
 
       try {
         sourceOf(mixerOf().context, element, false);
-      } catch (error) {
+      } catch (exception) {
         // the element plays as without MCAV
       }
     };
-    HTMLMediaElement.prototype.play = function play(...callArguments) {
+
+    const play = function play(...callArguments) {
       capture(this);
+
       return nativePlay.apply(this, callArguments);
     };
-    addEventListener(
-      'play',
-      (event) => {
-        if (event.target instanceof HTMLMediaElement) {
-          capture(event.target);
-        }
-      },
-      true
-    );
+
+    HTMLMediaElement.prototype.play = play;
+
+    const captureOnPlay = event => {
+      if (event.target instanceof HTMLMediaElement) {
+        capture(event.target);
+      }
+    };
+
+    addEventListener("play", captureOnPlay, { capture: true });
   })();
   """.formatted(BINDING, SAMPLE_RATE);
 

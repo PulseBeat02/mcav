@@ -329,7 +329,7 @@ class DevToolsInputTest {
     final boolean opensInTheTopWindow = DevToolsInput.OPEN_IN_PLACE_SCRIPT.contains("window.top.location.href = target.href");
     assertTrue(opensInTheTopWindow);
 
-    final boolean marksItselfPlaced = DevToolsInput.OPEN_IN_PLACE_SCRIPT.contains("const PLACED = Symbol.for('mcav.open-in-place');");
+    final boolean marksItselfPlaced = DevToolsInput.OPEN_IN_PLACE_SCRIPT.contains("const PLACED = Symbol.for(\"mcav.open-in-place\");");
     assertTrue(marksItselfPlaced, "placed twice, it runs once");
   }
 
