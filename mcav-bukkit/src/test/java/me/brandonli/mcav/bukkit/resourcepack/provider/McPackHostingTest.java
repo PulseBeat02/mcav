@@ -377,8 +377,8 @@ final class McPackHostingTest {
       final boolean released = release.await(10, TimeUnit.SECONDS);
       assertTrue(released, "the test releases the upload");
     } catch (final InterruptedException exception) {
-      final Thread handlerThread = Thread.currentThread();
-      handlerThread.interrupt();
+      final Thread current = Thread.currentThread();
+      current.interrupt();
     }
   }
 
