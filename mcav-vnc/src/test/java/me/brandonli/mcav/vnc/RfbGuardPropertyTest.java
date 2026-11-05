@@ -49,9 +49,7 @@ import java.util.Random;
 import net.jqwik.api.ForAll;
 import net.jqwik.api.Property;
 
-// Properties of RfbGuard on generated server streams: every message of a valid session passes whatever chunks the bytes
-// arrive in, so the guard follows the protocol and not the reads; and a session with one byte changed either passes or
-// is refused with an IOException, never another failure.
+// Valid sessions pass in any chunking; a session with one byte changed passes or fails only with an IOException.
 final class RfbGuardPropertyTest {
 
   private static final String SEED = "20260928";

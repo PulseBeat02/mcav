@@ -26,16 +26,11 @@ import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Set;
 
-// Checks what a VNC server sends before the VNC client reads it. The client library allocates what the server's length
-// fields name - the desktop name, the clipboard text, the framebuffer - without a bound, so a hostile server could make
-// the Minecraft server's JVM allocate gigabytes. The guard follows the protocol (RFB 3.3, 3.7 and 3.8, RFC 6143) byte
-// by byte on both directions of the connection, and checks every length and size before the client sees it: a length
-// above its bound, a message type or encoding the client cannot decode anyway, or bytes where the protocol allows none
-// end the connection with an IOException instead of reaching the client. It frames the security types the client
-// supports (none, VNC authentication and MS-Logon II), and the server messages and rectangle encodings the client
-// decodes (raw, copy rectangle, RRE, hextile, zlib, and the desktop size and cursor pseudo-encodings). The client's own
-// messages are only read to learn the version and security type it chose and the pixel format it asked for, which
-// decide how the server's messages are framed.
+/*
+ * Checks what a VNC server sends before the client reads it, since the client allocates whatever length a server
+ * names: any length above its bound, or any message, encoding or byte the client cannot decode, ends the connection
+ * with an IOException. Client messages are read only for the version, security type and pixel format they pick.
+ */
 final class RfbGuard {
 
   // The largest framebuffer side accepted: a 4K desktop fits, and the client's picture stays under 64 MiB.

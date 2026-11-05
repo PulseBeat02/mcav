@@ -24,8 +24,7 @@ import java.io.OutputStream;
 import java.net.Socket;
 import java.net.SocketException;
 
-// A connected socket whose streams pass through an RfbGuard: the VNC client reads only what the guard let through. The
-// client uses a socket only for its streams, and closing this closes the connection.
+// A socket whose streams pass through an RfbGuard; the VNC client uses only its streams and close().
 final class GuardedSocket extends Socket {
 
   private final Socket socket;

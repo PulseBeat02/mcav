@@ -70,9 +70,6 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
-// Tests RfbGuard: every handshake the client supports passes, every message and encoding is framed so the messages
-// after it pass too, and every length or size above its bound, and every byte the protocol does not allow, is refused
-// before the client would read it.
 final class RfbGuardTest {
 
   private static final int SIDE = 64;
