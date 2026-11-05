@@ -18,6 +18,7 @@
 package me.brandonli.mcav.browser;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
@@ -831,6 +832,8 @@ class LinuxLibrariesTest {
     final Path linkTarget = Files.readSymbolicLink(linked.resolve(MISSING_SONAME_FILE));
     final Path expectedLinkTarget = installation.resolve(MISSING_SONAME_FILE);
     assertEquals(expectedLinkTarget, linkTarget);
+
+    assertDoesNotThrow(() -> libraries.requireHostLibraries(PLATFORM, List.of(host)));
 
     final Path bare = Files.createDirectory(this.folder.resolve(BARE_HOST_FOLDER));
     final BrowserException lacking = assertThrows(BrowserUnavailableException.class, () ->
