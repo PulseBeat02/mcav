@@ -73,7 +73,8 @@ jobs:
             :mcav-lwjgl:test --rerun --tests '*.GlTextureFilterTest' \
             :mcav-vm:test --rerun --tests '*.QemuVmPlayerTest' --tests '*.VmProcessTest' --tests '*.ExecutableFinderTest'
 
-      - name: Annotate the failed test cases
+      - &annotate-failed-test-cases
+        name: Annotate the failed test cases
         if: failure()
         shell: java --source 25 {0}
         run: |
@@ -301,6 +302,8 @@ jobs:
         shell: bash
         run: xvfb-run -a -s '-screen 0 1920x1080x24' sh ./gradlew --console=plain propertyTest -Pmcav.networkTests=true
 
+      - *annotate-failed-test-cases
+
   jcstress:
     name: Concurrency tests
     runs-on: ubuntu-24.04
@@ -354,6 +357,8 @@ jobs:
         shell: bash
         run: sh ./gradlew --console=plain --no-parallel --continue ${{ matrix.tasks }} -Pfuzz.seconds=60
 
+      - *annotate-failed-test-cases
+
       - name: Upload crash reproducers
         if: failure()
         uses: actions/upload-artifact@v7
@@ -388,6 +393,8 @@ jobs:
         timeout-minutes: 60
         shell: bash
         run: sh ./gradlew --console=plain :mcav-plugin:e2eTest -Pmcav.e2e=true -Pmcav.acceptMinecraftEula=true
+
+      - *annotate-failed-test-cases
 
       - name: Upload test reports
         if: always()
