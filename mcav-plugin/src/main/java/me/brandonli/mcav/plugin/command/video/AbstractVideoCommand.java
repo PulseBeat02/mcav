@@ -693,12 +693,19 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
       throw new PluginException(message, exception);
     }
 
+    return this.selectStreams(page, dump);
+  }
+
+  private SourceSelection selectStreams(final UriSource page, final UrlParseDump dump) {
     final StrategySelector selector = StrategySelector.of(FormatStrategy.BEST_QUALITY_AUDIO, FormatStrategy.BEST_QUALITY_VIDEO);
     final Format videoFormat = selector.getVideoSource(dump);
-    final Format audioFormat = selector.getAudioSource(dump);
     final UriSource video = videoFormat.toUriSource();
-    final UriSource audio = audioFormat.toUriSource();
     this.checkWebStream(page, video);
+
+    final FormatStrategy audioStrategy = selector.getAudioStrategy();
+    final Optional<Format> separateAudio = audioStrategy.select(dump);
+    final Format audioFormat = separateAudio.orElse(videoFormat);
+    final UriSource audio = audioFormat.toUriSource();
     this.checkWebStream(page, audio);
     return new SourceSelection(video, audio, dump);
   }
