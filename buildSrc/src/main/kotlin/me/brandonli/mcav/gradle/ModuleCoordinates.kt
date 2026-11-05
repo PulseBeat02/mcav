@@ -20,6 +20,8 @@ package me.brandonli.mcav.gradle
 
 import org.gradle.api.Project
 import org.gradle.api.artifacts.Configuration
+import org.gradle.api.artifacts.DependencySubstitution
+import org.gradle.api.artifacts.component.ModuleComponentSelector
 
 /**
  * Names Maven modules: the coordinates and project paths of the modules of this build, and the groups and names of the
@@ -110,5 +112,25 @@ object ModuleCoordinates {
         return configuration.dependencies
             .filter { it.group == group && root.findProject("$PROJECT_PATH_PREFIX${it.name}") != null }
             .map { "$PROJECT_PATH_PREFIX${it.name}" }
+    }
+
+    /**
+     * Redirects [substitution] to the project of this build when it requests one of the modules of this build.
+     *
+     * A requested module is a module of this build when it has the group of [root] and [root] has a project of its
+     * name; any other request is left as it is.
+     *
+     * @param substitution the dependency substitution to redirect
+     * @param root         the root project of the build
+     */
+    fun substituteLocalProject(substitution: DependencySubstitution, root: Project): Unit {
+        val module: ModuleComponentSelector = substitution.requested as? ModuleComponentSelector ?: return
+        val group: String = root.group.toString()
+        if (module.group != group) {
+            return
+        }
+
+        val localProject: Project = root.findProject("$PROJECT_PATH_PREFIX${module.module}") ?: return
+        substitution.useTarget(localProject)
     }
 }
