@@ -112,8 +112,8 @@ final class Seatbelt {
     try {
       return function.invokeWithArguments(arguments);
     } catch (final Throwable exception) {
-      if (exception instanceof final VirtualMachineError fatal) {
-        throw fatal;
+      if (exception instanceof final VirtualMachineError virtualMachineError) {
+        throw virtualMachineError;
       }
 
       final String message = "The C library could not be called!";

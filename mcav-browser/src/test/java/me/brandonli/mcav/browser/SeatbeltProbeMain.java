@@ -125,7 +125,7 @@ final class SeatbeltProbeMain {
   private static String describe(final IOException failure) {
     final boolean refused =
       failure instanceof AccessDeniedException ||
-      (failure instanceof final FileSystemException system && NOT_PERMITTED_REASON.equals(system.getReason()));
+      (failure instanceof final FileSystemException fileSystemException && NOT_PERMITTED_REASON.equals(fileSystemException.getReason()));
     return refused ? "denied" : "failed: %s".formatted(failure);
   }
 

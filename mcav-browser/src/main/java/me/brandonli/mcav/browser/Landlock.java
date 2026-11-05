@@ -219,8 +219,8 @@ final class Landlock {
       return ((Number) result).longValue();
     } catch (final Throwable exception) {
       // ThrowableUtils is not on the class path of the helper
-      if (exception instanceof final VirtualMachineError fatal) {
-        throw fatal;
+      if (exception instanceof final VirtualMachineError virtualMachineError) {
+        throw virtualMachineError;
       }
 
       final String message = "The C library could not be called!";
