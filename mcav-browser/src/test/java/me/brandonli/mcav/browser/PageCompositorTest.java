@@ -98,7 +98,8 @@ class PageCompositorTest {
   void shouldStartWhiteAndHoldTheWholeViewport() throws InterruptedException {
     final PageCompositor compositor = this.compositor(1);
     final int pageBytes = compositor.getPageBytes();
-    assertEquals(WIDTH * HEIGHT * 4, pageBytes);
+    final int expectedPageBytes = WIDTH * HEIGHT * 4;
+    assertEquals(expectedPageBytes, pageBytes);
 
     compositor.onPaint(false, new Rectangle[] { new Rectangle(0, 0, 1, 1) }, this.buffer(WIDTH, HEIGHT, 9), WIDTH, HEIGHT);
     final FrameRegion region = this.take(compositor);
@@ -122,7 +123,8 @@ class PageCompositorTest {
     assertEquals(HEIGHT, pageHeight);
 
     final Rectangle bounds = new Rectangle(region.getX(), region.getY(), region.getWidth(), region.getHeight());
-    assertEquals(new Rectangle(1, 1, 5, 4), bounds);
+    final Rectangle expectedBounds = new Rectangle(1, 1, 5, 4);
+    assertEquals(expectedBounds, bounds);
 
     final int paintedValue = this.pixel(region, 1, 1, 0);
     assertEquals(7, paintedValue);
@@ -147,7 +149,8 @@ class PageCompositorTest {
     compositor.onPaint(false, dirty, this.buffer(WIDTH, HEIGHT, 3), WIDTH, HEIGHT);
     final FrameRegion region = this.take(compositor);
     final Rectangle bounds = new Rectangle(region.getX(), region.getY(), region.getWidth(), region.getHeight());
-    assertEquals(new Rectangle(0, 0, 2, 2), bounds);
+    final Rectangle expectedBounds = new Rectangle(0, 0, 2, 2);
+    assertEquals(expectedBounds, bounds);
   }
 
   @Test
@@ -273,7 +276,8 @@ class PageCompositorTest {
     compositor.onPaint(true, new Rectangle[] { new Rectangle(0, 0, 3, 2) }, this.buffer(3, 2, POPUP_BLUE), 3, 2);
     final FrameRegion region = this.take(compositor);
     final Rectangle bounds = new Rectangle(region.getX(), region.getY(), region.getWidth(), region.getHeight());
-    assertEquals(new Rectangle(2, 2, 3, 2), bounds);
+    final Rectangle expectedBounds = new Rectangle(2, 2, 3, 2);
+    assertEquals(expectedBounds, bounds);
 
     final int popupValue = this.pixel(region, 3, 3, 0);
     assertEquals(POPUP_BLUE, popupValue);
@@ -302,7 +306,8 @@ class PageCompositorTest {
     compositor.onPaint(false, new Rectangle[] { new Rectangle(0, 0, 1, 1) }, this.buffer(WIDTH, HEIGHT, 7), WIDTH, HEIGHT);
     final FrameRegion region = this.take(compositor);
     final Rectangle bounds = new Rectangle(region.getX(), region.getY(), region.getWidth(), region.getHeight());
-    assertEquals(new Rectangle(0, 0, 1, 1), bounds);
+    final Rectangle expectedBounds = new Rectangle(0, 0, 1, 1);
+    assertEquals(expectedBounds, bounds);
 
     final int pageValue = this.pixel(region, 0, 0, 0);
     assertEquals(7, pageValue);
@@ -319,7 +324,8 @@ class PageCompositorTest {
     compositor.onPopupShow(false);
     final FrameRegion region = this.take(compositor);
     final Rectangle bounds = new Rectangle(region.getX(), region.getY(), region.getWidth(), region.getHeight());
-    assertEquals(new Rectangle(1, 1, 2, 2), bounds);
+    final Rectangle expectedBounds = new Rectangle(1, 1, 2, 2);
+    assertEquals(expectedBounds, bounds);
 
     final int pageValue = this.pixel(region, 1, 1, 0);
     assertEquals(1, pageValue);
@@ -356,7 +362,8 @@ class PageCompositorTest {
     compositor.onPopupSize(new Rectangle(4, 3, 2, 2));
     final FrameRegion region = this.take(compositor);
     final Rectangle bounds = new Rectangle(region.getX(), region.getY(), region.getWidth(), region.getHeight());
-    assertEquals(new Rectangle(0, 0, 2, 2), bounds);
+    final Rectangle expectedBounds = new Rectangle(0, 0, 2, 2);
+    assertEquals(expectedBounds, bounds);
 
     compositor.onPopupSize(new Rectangle(100, 100, 2, 2));
     compositor.onPaint(true, new Rectangle[] { new Rectangle(0, 0, 2, 2) }, this.buffer(2, 2, POPUP_SHADE), 2, 2);
@@ -381,7 +388,8 @@ class PageCompositorTest {
     compositor.onPopupShow(false);
     final FrameRegion page = hidden.get(10, TimeUnit.SECONDS);
     final Rectangle bounds = new Rectangle(page.getX(), page.getY(), page.getWidth(), page.getHeight());
-    assertEquals(new Rectangle(1, 1, 2, 2), bounds);
+    final Rectangle expectedBounds = new Rectangle(1, 1, 2, 2);
+    assertEquals(expectedBounds, bounds);
   }
 
   private FrameRegion waitForDamage(final PageCompositor compositor, final byte[] target) {

@@ -99,12 +99,14 @@ class PageAudioTest {
     now.addAndGet(TimeUnit.MILLISECONDS.toNanos(PageAudio.QUIET_MILLISECONDS - 1));
     audio.onEvent(PageAudio.BINDING_EVENT, first);
     audio.onEvent(PageAudio.BINDING_EVENT, second);
-    assertEquals(List.of((byte) 2, (byte) 2), passed, "the frame that spoke first keeps the word");
+    final List<Byte> expectedPassedSamples = List.of((byte) 2, (byte) 2);
+    assertEquals(expectedPassedSamples, passed, "the frame that spoke first keeps the word");
 
     now.addAndGet(TimeUnit.MILLISECONDS.toNanos(PageAudio.QUIET_MILLISECONDS));
     audio.onEvent(PageAudio.BINDING_EVENT, first);
     audio.onEvent(PageAudio.BINDING_EVENT, second);
-    assertEquals(List.of((byte) 2, (byte) 2, (byte) 1), passed, "after a quiet moment another frame speaks");
+    final List<Byte> expectedPassedSamplesAfterQuietMoment = List.of((byte) 2, (byte) 2, (byte) 1);
+    assertEquals(expectedPassedSamplesAfterQuietMoment, passed, "after a quiet moment another frame speaks");
   }
 
   @Test
@@ -118,11 +120,13 @@ class PageAudioTest {
     audio.onEvent(PageAudio.BINDING_EVENT, sound);
     now.addAndGet(TimeUnit.MILLISECONDS.toNanos(PageAudio.QUIET_MILLISECONDS - 1));
     audio.onEvent(PageAudio.BINDING_EVENT, silence);
-    assertEquals(List.of((byte) 1, (byte) 0), passed);
+    final List<Byte> expectedPassedSamples = List.of((byte) 1, (byte) 0);
+    assertEquals(expectedPassedSamples, passed);
 
     now.addAndGet(TimeUnit.MILLISECONDS.toNanos(1));
     audio.onEvent(PageAudio.BINDING_EVENT, other);
-    assertEquals(List.of((byte) 1, (byte) 0, (byte) 2), passed, "another frame speaks after the quiet moment");
+    final List<Byte> expectedPassedSamplesAfterQuietMoment = List.of((byte) 1, (byte) 0, (byte) 2);
+    assertEquals(expectedPassedSamplesAfterQuietMoment, passed, "another frame speaks after the quiet moment");
 
     audio.onEvent(PageAudio.BINDING_EVENT, silence);
     final int passedCount = passed.size();
@@ -274,7 +278,8 @@ class PageAudioTest {
     assertEquals(17, countAfterAnotherSecond);
 
     final int budgetBytes = PageAudio.BUDGET_SECONDS_PER_SECOND * SECOND_BYTES;
-    assertEquals(2 * SECOND_BYTES, budgetBytes);
+    final int expectedBudgetBytes = 2 * SECOND_BYTES;
+    assertEquals(expectedBudgetBytes, budgetBytes);
   }
 
   @Test
@@ -322,10 +327,15 @@ class PageAudioTest {
     audio.onEvent(PageAudio.BINDING_EVENT, this.call(new byte[4_000]));
     final int looksAtASmallCall = looks.get();
     assertEquals(2, looksAtASmallCall);
-    assertEquals(
-      List.of(MAXIMUM_CHUNK_BYTES, MAXIMUM_CHUNK_BYTES, MAXIMUM_CHUNK_BYTES, MAXIMUM_CHUNK_BYTES, MAXIMUM_CHUNK_BYTES, 4_000),
-      passed
+    final List<Integer> expectedChunkSizes = List.of(
+      MAXIMUM_CHUNK_BYTES,
+      MAXIMUM_CHUNK_BYTES,
+      MAXIMUM_CHUNK_BYTES,
+      MAXIMUM_CHUNK_BYTES,
+      MAXIMUM_CHUNK_BYTES,
+      4_000
     );
+    assertEquals(expectedChunkSizes, passed);
   }
 
   private long countLookAndRead(final AtomicInteger looks, final AtomicLong now) {
@@ -351,18 +361,16 @@ class PageAudioTest {
 
     audio.onEvent(PageAudio.BINDING_EVENT, largest);
     audio.onEvent(PageAudio.BINDING_EVENT, this.call(new byte[65_532]));
-    assertEquals(
-      List.of(
-        MAXIMUM_CHUNK_BYTES,
-        MAXIMUM_CHUNK_BYTES,
-        MAXIMUM_CHUNK_BYTES,
-        MAXIMUM_CHUNK_BYTES,
-        MAXIMUM_CHUNK_BYTES,
-        PARTIAL_CHUNK_BYTES,
-        65_532
-      ),
-      passed
+    final List<Integer> expectedChunkSizes = List.of(
+      MAXIMUM_CHUNK_BYTES,
+      MAXIMUM_CHUNK_BYTES,
+      MAXIMUM_CHUNK_BYTES,
+      MAXIMUM_CHUNK_BYTES,
+      MAXIMUM_CHUNK_BYTES,
+      PARTIAL_CHUNK_BYTES,
+      65_532
     );
+    assertEquals(expectedChunkSizes, passed);
   }
 
   @Test
@@ -391,19 +399,16 @@ class PageAudioTest {
 
     audio.onEvent(PageAudio.BINDING_EVENT, frame);
     audio.onEvent(PageAudio.BINDING_EVENT, frame);
-    assertEquals(
-      List.of(
-        MAXIMUM_CHUNK_BYTES,
-        MAXIMUM_CHUNK_BYTES,
-        MAXIMUM_CHUNK_BYTES,
-        MAXIMUM_CHUNK_BYTES,
-        MAXIMUM_CHUNK_BYTES,
-        PARTIAL_CHUNK_BYTES,
-        4
-      ),
-      passed,
-      "the budget is spent after the first"
+    final List<Integer> expectedChunkSizes = List.of(
+      MAXIMUM_CHUNK_BYTES,
+      MAXIMUM_CHUNK_BYTES,
+      MAXIMUM_CHUNK_BYTES,
+      MAXIMUM_CHUNK_BYTES,
+      MAXIMUM_CHUNK_BYTES,
+      PARTIAL_CHUNK_BYTES,
+      4
     );
+    assertEquals(expectedChunkSizes, passed, "the budget is spent after the first");
   }
 
   @Test
@@ -420,18 +425,16 @@ class PageAudioTest {
     audio.onEvent(PageAudio.BINDING_EVENT, this.call(new byte[PARTIAL_CHUNK_BYTES]));
     step.set(FRAME_BUDGET_NANOSECONDS);
     audio.onEvent(PageAudio.BINDING_EVENT, this.call(new byte[8]));
-    assertEquals(
-      List.of(
-        MAXIMUM_CHUNK_BYTES,
-        MAXIMUM_CHUNK_BYTES,
-        MAXIMUM_CHUNK_BYTES,
-        MAXIMUM_CHUNK_BYTES,
-        MAXIMUM_CHUNK_BYTES,
-        PARTIAL_CHUNK_BYTES,
-        8
-      ),
-      passed
+    final List<Integer> expectedChunkSizes = List.of(
+      MAXIMUM_CHUNK_BYTES,
+      MAXIMUM_CHUNK_BYTES,
+      MAXIMUM_CHUNK_BYTES,
+      MAXIMUM_CHUNK_BYTES,
+      MAXIMUM_CHUNK_BYTES,
+      PARTIAL_CHUNK_BYTES,
+      8
     );
+    assertEquals(expectedChunkSizes, passed);
   }
 
   @Test
@@ -457,7 +460,8 @@ class PageAudioTest {
 
     final String scriptParameters = calls.get(2).getParameters();
     final String quotedScript = DevToolsInput.quote(PageAudio.SCRIPT);
-    assertEquals("{\"source\":%s}".formatted(quotedScript), scriptParameters);
+    final String expectedScriptParameters = "{\"source\":%s}".formatted(quotedScript);
+    assertEquals(expectedScriptParameters, scriptParameters);
   }
 
   @Test

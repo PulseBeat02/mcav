@@ -223,7 +223,8 @@ class SocksProtocolTest {
     SocksProtocol.writeMethod(output, SocksProtocol.NO_ACCEPTABLE_METHOD);
     SocksProtocol.writeReply(output, SocksProtocol.NOT_ALLOWED);
     final byte[] writtenAnswers = bytes.toByteArray();
-    assertArrayEquals(new byte[] { 5, (byte) CHANNEL_MASK, 5, 2, 0, 1, 0, 0, 0, 0, 0, 0 }, writtenAnswers);
+    final byte[] expectedWrittenAnswers = new byte[] { 5, (byte) CHANNEL_MASK, 5, 2, 0, 1, 0, 0, 0, 0, 0, 0 };
+    assertArrayEquals(expectedWrittenAnswers, writtenAnswers);
   }
 
   @Test
@@ -231,7 +232,8 @@ class SocksProtocolTest {
     for (final String host : new String[] { "[example.com", "]example.com", "example.com]" }) {
       final ProtocolException failure = assertThrows(ProtocolException.class, () -> this.requestAConnection(host, HTTPS_PORT));
       final String message = failure.getMessage();
-      assertEquals("Host name %s of the request holds a bracket!".formatted(host), message);
+      final String expectedMessage = "Host name %s of the request holds a bracket!".formatted(host);
+      assertEquals(expectedMessage, message);
     }
   }
 

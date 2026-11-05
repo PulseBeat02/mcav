@@ -57,7 +57,8 @@ class BrowserSourceTest {
     assertFalse(direct);
 
     final String resource = source.getResource();
-    assertEquals(PAGE.toString(), resource);
+    final String expectedResource = PAGE.toString();
+    assertEquals(expectedResource, resource);
   }
 
   @Test
@@ -133,7 +134,8 @@ class BrowserSourceTest {
     final BrowserSource first = BrowserSource.uri(PAGE, WIDTH, HEIGHT, 1);
     final BrowserSource wider = BrowserSource.uri(PAGE, WIDTH + 1, HEIGHT, 1);
     final int widerHashCode = wider.hashCode();
-    assertNotEquals(first.hashCode(), widerHashCode);
+    final int firstHashCode = first.hashCode();
+    assertNotEquals(firstHashCode, widerHashCode);
   }
 
   @Test

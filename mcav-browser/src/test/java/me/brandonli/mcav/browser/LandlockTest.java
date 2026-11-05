@@ -153,7 +153,8 @@ class LandlockTest {
     assertEquals(READ_FILE, readOnlyFileRights);
 
     final long writableFolderRights = Landlock.rightsOf(new Landlock.Rule(path, Landlock.Access.READ_WRITE), Landlock.PathKind.FOLDER, all);
-    assertEquals(VERSION_FIVE_RIGHTS & ~(1L << 6) & ~(1L << 11), writableFolderRights);
+    final long expectedWritableFolderRights = VERSION_FIVE_RIGHTS & ~(1L << 6) & ~(1L << 11);
+    assertEquals(expectedWritableFolderRights, writableFolderRights);
 
     final long writableFileRights = Landlock.rightsOf(new Landlock.Rule(path, Landlock.Access.READ_WRITE), Landlock.PathKind.FILE, all);
     assertEquals(0b1100_0000_0000_0111, writableFileRights);
@@ -163,7 +164,8 @@ class LandlockTest {
       Landlock.PathKind.FOLDER,
       Landlock.handledRights(1)
     );
-    assertEquals(VERSION_ONE_RIGHTS & ~(1L << 6) & ~(1L << 11), versionOneWritableFolderRights);
+    final long expectedVersionOneWritableFolderRights = VERSION_ONE_RIGHTS & ~(1L << 6) & ~(1L << 11);
+    assertEquals(expectedVersionOneWritableFolderRights, versionOneWritableFolderRights);
   }
 
   @Test
@@ -260,7 +262,8 @@ class LandlockTest {
       this.restrictAndCheckAccess(version, rules, seen, readable, granted, secret, open, writable)
     );
     assertNull(failure, () -> "the restricted thread failed: " + failure);
-    assertEquals(List.of("readable", "granted", NEW_FILE), seen);
+    final List<String> expectedSeen = List.of("readable", "granted", NEW_FILE);
+    assertEquals(expectedSeen, seen);
 
     final String secretText = Files.readString(secret, StandardCharsets.UTF_8);
     assertEquals(SECRET_TEXT, secretText, "the other threads are free");

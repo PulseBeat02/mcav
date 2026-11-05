@@ -87,7 +87,8 @@ class SessionFoldersTest {
     final Path gone = this.folderOf(this.server(GONE, Optional.of(Instant.parse(GONE_SERVER_START))));
     final Path running = this.folderOf(ProcessHandle.current());
     final String ownerRecord = Files.readString(gone.resolve(SessionFolders.OWNER_FILE), StandardCharsets.US_ASCII);
-    assertEquals(GONE + LINE_SEPARATOR + GONE_SERVER_START + LINE_SEPARATOR, ownerRecord);
+    final String expectedOwnerRecord = GONE + LINE_SEPARATOR + GONE_SERVER_START + LINE_SEPARATOR;
+    assertEquals(expectedOwnerRecord, ownerRecord);
 
     final int removed = SessionFolders.ofThisServer().removeStale(this.temporary);
 
@@ -139,7 +140,8 @@ class SessionFoldersTest {
 
     final int removed = SessionFolders.ofThisServer().removeStale(this.temporary);
 
-    assertEquals(readable ? 1 : 0, removed, "a user who may read every file reads the record");
+    final int expectedRemovedCount = readable ? 1 : 0;
+    assertEquals(expectedRemovedCount, removed, "a user who may read every file reads the record");
 
     for (final Path kept : List.of(unnamed, garbage, truncated, notAscii, other)) {
       final boolean folderKept = Files.exists(kept);

@@ -122,7 +122,8 @@ final class LinuxLibrariesFuzzTest {
     }
 
     if (outcome == Outcome.EXTRACTED) {
-      assertEquals(Set.copyOf(PINNED.values()), written, "a package that extracts holds every pinned library");
+      final Set<String> expectedWrittenLibraries = Set.copyOf(PINNED.values());
+      assertEquals(expectedWrittenLibraries, written, "a package that extracts holds every pinned library");
     }
   }
 

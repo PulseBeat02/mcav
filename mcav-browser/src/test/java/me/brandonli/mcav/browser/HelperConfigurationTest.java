@@ -152,7 +152,8 @@ class HelperConfigurationTest {
 
     final HelperConfiguration read = HelperConfiguration.fromLine(line);
     final byte[] keptToken = read.getToken();
-    assertArrayEquals(this.token(), keptToken);
+    final byte[] expectedToken = this.token();
+    assertArrayEquals(expectedToken, keptToken);
 
     final Path socket = read.getSocket();
     assertEquals(SOCKET, socket);
@@ -164,7 +165,8 @@ class HelperConfigurationTest {
     assertEquals(PROFILE, profile);
 
     final URI url = read.getUrl();
-    assertEquals(URI.create("https://example.com/a?b=%20c"), url);
+    final URI expectedUrl = URI.create("https://example.com/a?b=%20c");
+    assertEquals(expectedUrl, url);
     final int width = read.getWidth();
     assertEquals(PAGE_WIDTH, width);
 
@@ -193,7 +195,8 @@ class HelperConfigurationTest {
     assertEquals(SERVER, serverFolder);
 
     final List<String> keptRefusedHosts = read.getRefusedHosts();
-    assertEquals(List.of("mc.example.com", "203.0.113.5", "2001:db8::1"), keptRefusedHosts);
+    final List<String> expectedRefusedHosts = List.of("mc.example.com", "203.0.113.5", "2001:db8::1");
+    assertEquals(expectedRefusedHosts, keptRefusedHosts);
 
     final HelperConfiguration defaults = HelperConfiguration.fromLine(this.configuration().toLine());
     final boolean defaultJavaScriptJit = defaults.isJavaScriptJit();
@@ -272,7 +275,8 @@ class HelperConfigurationTest {
       final Executable refusingTheHost = () -> this.confinedConfiguration(page, SERVER, List.of(host));
       final IllegalArgumentException refused = assertThrows(IllegalArgumentException.class, refusingTheHost);
       final String refusedMessage = refused.getMessage();
-      assertEquals("Host %s is not a host name or address!".formatted(host), refusedMessage);
+      final String expectedRefusedMessage = "Host %s is not a host name or address!".formatted(host);
+      assertEquals(expectedRefusedMessage, refusedMessage);
     }
 
     new HelperConfiguration(

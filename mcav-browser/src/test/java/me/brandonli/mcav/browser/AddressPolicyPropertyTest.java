@@ -78,7 +78,8 @@ final class AddressPolicyPropertyTest {
     final List<AddressPolicy.TranslationPrefix> prefixes = AddressPolicy.findTranslationPrefixes(answer);
     if (prefixes.size() == 1) {
       final boolean translatedJudgedPublic = AddressPolicy.isPublic(this.translate(prefix, length, ipv4), prefixes);
-      assertEquals(AddressPolicy.isPublicIpv4(ipv4), translatedJudgedPublic);
+      final boolean expectedJudgedPublic = AddressPolicy.isPublicIpv4(ipv4);
+      assertEquals(expectedJudgedPublic, translatedJudgedPublic);
     }
 
     final byte[] ordinary = prefix.clone();
@@ -96,7 +97,8 @@ final class AddressPolicyPropertyTest {
     assertEquals(1, matchingCount, "the generated ordinary prefix is discovered exactly once");
 
     final boolean ordinaryTranslatedJudgedPublic = AddressPolicy.isPublic(this.translate(ordinary, length, ipv4), matching);
-    assertEquals(AddressPolicy.isPublicIpv4(ipv4), ordinaryTranslatedJudgedPublic);
+    final boolean expectedOrdinaryJudgedPublic = AddressPolicy.isPublicIpv4(ipv4);
+    assertEquals(expectedOrdinaryJudgedPublic, ordinaryTranslatedJudgedPublic);
   }
 
   @Property(seed = SEED, tries = 2000)

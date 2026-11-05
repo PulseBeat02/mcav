@@ -214,7 +214,8 @@ class CefBrowserIntegrationTest {
     Await.until("the keys", () -> this.pages.count("keydown") >= 4);
     final List<String> keys = this.pages.getEvents("keydown").stream().map(TestPages.PageEvent::getKey).toList();
     final List<String> typedKeys = keys.subList(0, 4);
-    assertEquals(List.of("h", "i", "Enter", "PageDown"), typedKeys);
+    final List<String> expectedTypedKeys = List.of("h", "i", "Enter", "PageDown");
+    assertEquals(expectedTypedKeys, typedKeys);
 
     player.scroll(50, 60, 0, 120);
     Await.until("a turn of the wheel", () -> this.pages.count("wheel") > 0);
@@ -382,7 +383,8 @@ class CefBrowserIntegrationTest {
         .filter(line -> line.contains("the notice \"The download of "))
         .map(line -> line.substring(line.indexOf("The browser sent the notice \"The download of ")))
         .toList();
-      assertEquals(List.of(refusal), downloadReports);
+      final List<String> expectedDownloadReports = List.of(refusal);
+      assertEquals(expectedDownloadReports, downloadReports);
     }
   }
 
@@ -459,10 +461,10 @@ class CefBrowserIntegrationTest {
 
       final boolean playing = player.isPlaying();
       assertFalse(playing, "the player knows its browser ended");
-      assertEquals(
-        List.of("Because of \"The browser module was stopped!\", the browser session ended. The browser module was stopped!"),
-        this.failures
+      final List<String> expectedFailures = List.of(
+        "Because of \"The browser module was stopped!\", the browser session ended. The browser module was stopped!"
       );
+      assertEquals(expectedFailures, this.failures);
 
       Await.until("the browser processes ended", () -> countBrowserProcesses() == 0);
     } finally {

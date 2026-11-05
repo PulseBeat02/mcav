@@ -351,7 +351,8 @@ class HelperSessionTest {
     Await.until("the sound", () -> this.listener.sound.size() == ScriptedEngine.SOUND_CHUNKS);
     for (int chunk = 1; chunk <= ScriptedEngine.SOUND_CHUNKS; chunk++) {
       final byte[] samples = this.listener.sound.get(chunk - 1);
-      assertEquals(ScriptedEngine.SOUND_FRAMES * HelperProtocol.AUDIO_FRAME_BYTES, samples.length);
+      final int expectedSampleBytes = ScriptedEngine.SOUND_FRAMES * HelperProtocol.AUDIO_FRAME_BYTES;
+      assertEquals(expectedSampleBytes, samples.length);
 
       for (int index = 0; index < samples.length; index += 2) {
         final byte lowByte = samples[index];
@@ -613,10 +614,12 @@ class HelperSessionTest {
     );
     final ProcessBuilder builder = HelperSession.createProcessBuilder(launcher, this.directory, null);
     final Map<String, String> helperEnvironment = builder.environment();
-    assertEquals(launcher.createEnvironment(this.directory, null), helperEnvironment);
+    final Map<String, String> expectedHelperEnvironment = launcher.createEnvironment(this.directory, null);
+    assertEquals(expectedHelperEnvironment, helperEnvironment);
 
     final File workingDirectory = builder.directory();
-    assertEquals(this.directory.toFile(), workingDirectory);
+    final File expectedWorkingDirectory = this.directory.toFile();
+    assertEquals(expectedWorkingDirectory, workingDirectory);
 
     final boolean errorsMerged = builder.redirectErrorStream();
     assertTrue(errorsMerged);
@@ -643,7 +646,8 @@ class HelperSessionTest {
   void shouldEndTheSessionWithTheExitCodeOfAHelperThatExitsWhileItRuns() {
     this.open(RawHelperMain.class.getName(), RawHelperMain.EXIT_LATER_PATH);
     Await.until(SESSION_ENDED_MESSAGE, () -> !this.listener.ended.isEmpty());
-    assertEquals(List.of("The browser helper exited with code 5 before it was asked to stop!"), this.listener.ended);
+    final List<String> expectedEndReasons = List.of("The browser helper exited with code 5 before it was asked to stop!");
+    assertEquals(expectedEndReasons, this.listener.ended);
   }
 
   @Test
@@ -799,7 +803,8 @@ class HelperSessionTest {
   void shouldEndTheSessionWhenTheBrowserFailsLater() {
     this.open(ScriptedEngine.class.getName(), ScriptedEngine.FAIL_PATH);
     Await.until(SESSION_ENDED_MESSAGE, () -> !this.listener.ended.isEmpty());
-    assertEquals(List.of(BROWSER_FAILED_MESSAGE), this.listener.ended);
+    final List<String> expectedEndReasons = List.of(BROWSER_FAILED_MESSAGE);
+    assertEquals(expectedEndReasons, this.listener.ended);
   }
 
   @Test
@@ -905,7 +910,8 @@ class HelperSessionTest {
     final HelperSession session = HelperSession.open(launcher, NATIVES, source, BrowserOptions.DEFAULT, this.listener);
     this.sessions.add(session);
     Await.until(FIRST_FRAME_MESSAGE, () -> !this.listener.frames.isEmpty());
-    assertEquals(List.of(session.getFolder().resolve(LIBRARIES_FOLDER)), linked);
+    final List<Path> expectedLinkedFolders = List.of(session.getFolder().resolve(LIBRARIES_FOLDER));
+    assertEquals(expectedLinkedFolders, linked);
 
     final boolean librariesLinked = Files.isDirectory(linked.getFirst());
     assertTrue(librariesLinked);
@@ -1190,7 +1196,8 @@ class HelperSessionTest {
     assertTrue(keyAccepted);
 
     Await.until("the input was tried", () -> session.getCompletedInputCount() == 1);
-    assertEquals(List.of("The browser helper closed the connection!"), this.listener.ended);
+    final List<String> expectedEndReasons = List.of("The browser helper closed the connection!");
+    assertEquals(expectedEndReasons, this.listener.ended);
   }
 
   @Test
@@ -1198,7 +1205,8 @@ class HelperSessionTest {
     final HelperSession session = this.open(ScriptedEngine.class.getName(), ScriptedEngine.FAIL_PATH);
     Await.until(SESSION_ENDED_MESSAGE, () -> !this.listener.ended.isEmpty());
     Await.until("the helper exited", () -> !session.isAlive());
-    assertEquals(List.of(BROWSER_FAILED_MESSAGE), this.listener.ended);
+    final List<String> expectedEndReasons = List.of(BROWSER_FAILED_MESSAGE);
+    assertEquals(expectedEndReasons, this.listener.ended);
   }
 
   @Test
@@ -1317,7 +1325,8 @@ class HelperSessionTest {
 
     if (this.directory.getFileSystem().supportedFileAttributeViews().contains("posix")) {
       final Set<PosixFilePermission> folderPermissions = Files.getPosixFilePermissions(folder);
-      assertEquals(PosixFilePermissions.fromString("rwx------"), folderPermissions);
+      final Set<PosixFilePermission> expectedFolderPermissions = PosixFilePermissions.fromString("rwx------");
+      assertEquals(expectedFolderPermissions, folderPermissions);
     }
 
     final Path zip = this.directory.resolve(FOLDERS_ARCHIVE_FILE);
@@ -1343,13 +1352,15 @@ class HelperSessionTest {
     Files.createDirectory(this.directory.resolve(TAKEN_SESSION_FOLDER));
     final Iterator<String> names = List.of(TAKEN_SESSION_FOLDER, FREE_SESSION_FOLDER).iterator();
     final Path freeFolder = HelperSession.createFolder(this.directory, names::next);
-    assertEquals(this.directory.resolve(FREE_SESSION_FOLDER), freeFolder);
+    final Path expectedFreeFolder = this.directory.resolve(FREE_SESSION_FOLDER);
+    assertEquals(expectedFreeFolder, freeFolder);
 
     final AtomicInteger drawn = new AtomicInteger();
     final Path last = HelperSession.createFolder(this.directory, () ->
       drawn.incrementAndGet() < 100 ? TAKEN_SESSION_FOLDER : LAST_SESSION_FOLDER
     );
-    assertEquals(this.directory.resolve(LAST_SESSION_FOLDER), last);
+    final Path expectedLastFolder = this.directory.resolve(LAST_SESSION_FOLDER);
+    assertEquals(expectedLastFolder, last);
 
     drawn.set(0);
     final BrowserException exhausted = assertThrows(BrowserException.class, () -> this.createFolderFromTakenNames(drawn));
@@ -1378,13 +1389,12 @@ class HelperSessionTest {
     final Path tooLong = folder.resolve(BOUNDARY_SESSION_FOLDER);
     final BrowserException refused = assertThrows(BrowserException.class, () -> HelperSession.requireShortEnough(Os.LINUX, tooLong));
     final String message = refused.getMessage();
-    assertEquals(
+    final String expectedMessage =
       TEMPORARY_FOLDER_MESSAGE_PREFIX +
-        folder +
-        " is too long for the browser: on Linux it may have at most 47 characters, so start the server with a shorter" +
-        " java.io.tmpdir (such as /tmp)!",
-      message
-    );
+      folder +
+      " is too long for the browser: on Linux it may have at most 47 characters, so start the server with a shorter" +
+      " java.io.tmpdir (such as /tmp)!";
+    assertEquals(expectedMessage, message);
 
     HelperSession.requireShortEnough(Os.WINDOWS, tooLong);
   }

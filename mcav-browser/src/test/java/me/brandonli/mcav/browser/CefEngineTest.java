@@ -126,7 +126,8 @@ class CefEngineTest {
   void shouldStartChromiumOnAThreadOfItsOwnWhoseFailureReachesTheCaller() throws Exception {
     final List<String> names = new ArrayList<>();
     this.engine.runOnOwnThread("mcav-browser-chromium", () -> names.add(Thread.currentThread().getName()));
-    assertEquals(List.of("mcav-browser-chromium"), names);
+    final List<String> expectedNames = List.of("mcav-browser-chromium");
+    assertEquals(expectedNames, names);
 
     final IOException refused = new IOException("Landlock could not restrict the thread because of error 1 from the kernel!");
     final IOException rethrownRefusal = assertThrows(IOException.class, () -> this.runFailingOnOwnThread(refused));
@@ -327,7 +328,8 @@ class CefEngineTest {
     assertEquals(0, failedCount);
 
     final List<String> log = events.getLog();
-    assertEquals(List.of("failure: CEF failed to initialize"), log);
+    final List<String> expectedLog = List.of("failure: CEF failed to initialize");
+    assertEquals(expectedLog, log);
   }
 
   @Test
@@ -357,7 +359,8 @@ class CefEngineTest {
     order.verify(browser).loadURL(PAGE_URL);
     verify(devTools).close();
     verify(devTools, times(10)).executeDevToolsMethod(anyString(), anyString());
-    assertEquals(List.of(UNCONFIRMED_SCRIPTS_NOTICE), notices);
+    final List<String> expectedNotices = List.of(UNCONFIRMED_SCRIPTS_NOTICE);
+    assertEquals(expectedNotices, notices);
   }
 
   @Test
@@ -431,7 +434,8 @@ class CefEngineTest {
     Await.until(PAGE_LOADED_AFTER_TIMEOUT_MESSAGE, () -> this.hasLoadedAPage(browser));
     verify(browser).loadURL("https://example.com/lost");
     verify(devTools).close();
-    assertEquals(List.of(UNCONFIRMED_SCRIPTS_NOTICE), notices);
+    final List<String> expectedNotices = List.of(UNCONFIRMED_SCRIPTS_NOTICE);
+    assertEquals(expectedNotices, notices);
   }
 
   @Test
@@ -451,7 +455,11 @@ class CefEngineTest {
     final InOrder order = inOrder(browser);
     order.verify(browser).loadURL("https://example.com/late");
     order.verify(browser).reload();
-    assertEquals(List.of(UNCONFIRMED_SCRIPTS_NOTICE, "The scripts of the page were confirmed late; it loads again."), notices);
+    final List<String> expectedNotices = List.of(
+      UNCONFIRMED_SCRIPTS_NOTICE,
+      "The scripts of the page were confirmed late; it loads again."
+    );
+    assertEquals(expectedNotices, notices);
   }
 
   @Test

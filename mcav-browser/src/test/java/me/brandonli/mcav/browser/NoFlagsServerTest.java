@@ -114,7 +114,8 @@ class NoFlagsServerTest {
 
     final String path = String.join(File.pathSeparator, withX.toString(), "", plain.toString());
     final String filteredPath = this.withoutXServers(path);
-    assertEquals(plain.toString(), filteredPath);
+    final String expectedFilteredPath = plain.toString();
+    assertEquals(expectedFilteredPath, filteredPath);
   }
 
   private String withoutXServers(final String path) {

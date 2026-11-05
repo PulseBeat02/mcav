@@ -211,7 +211,8 @@ class NullDisplayTest {
     assertEquals(PROTOCOL_MAJOR_VERSION, protocolMajorVersion);
 
     final int additionalDataBytes = (reply.getShort(6) & UNSIGNED_SHORT_MASK) * 4;
-    assertEquals(reply.limit() - 8, additionalDataBytes, "the length in units counts the rest");
+    final int expectedAdditionalDataBytes = reply.limit() - 8;
+    assertEquals(expectedAdditionalDataBytes, additionalDataBytes, "the length in units counts the rest");
 
     final int vendorLength = reply.getShort(24);
     final String vendor = new String(output.toByteArray(), 40, vendorLength, StandardCharsets.US_ASCII);
@@ -280,7 +281,8 @@ class NullDisplayTest {
       assertEquals(MISSING_COOKIE_REASON, reason);
 
       final short reasonUnits = ByteBuffer.wrap(answer).order(ByteOrder.LITTLE_ENDIAN).getShort(6);
-      assertEquals((answer.length - 8) / 4, reasonUnits, "the reason's length in units");
+      final int expectedReasonUnits = (answer.length - 8) / 4;
+      assertEquals(expectedReasonUnits, reasonUnits, "the reason's length in units");
     }
 
     final ByteArrayOutputStream output = new ByteArrayOutputStream();
@@ -383,14 +385,16 @@ class NullDisplayTest {
       request(ByteOrder.LITTLE_ENDIAN, NullDisplay.GET_INPUT_FOCUS, 0, new byte[0])
     );
     final int answerBytes = answers.limit();
-    assertEquals(4 * REPLY_BYTES, answerBytes);
+    final int expectedAnswerBytes = 4 * REPLY_BYTES;
+    assertEquals(expectedAnswerBytes, answerBytes);
 
     for (int index = 0; index < 4; index++) {
       final byte responseType = answers.get(index * REPLY_BYTES);
       assertEquals(1, responseType, REPLY_MESSAGE);
 
       final short sequenceNumber = answers.getShort(index * REPLY_BYTES + 2);
-      assertEquals(index + 1, sequenceNumber);
+      final int expectedSequenceNumber = index + 1;
+      assertEquals(expectedSequenceNumber, sequenceNumber);
 
       final int replyLength = answers.getInt(index * REPLY_BYTES + 4);
       assertEquals(0, replyLength, "no extra bytes");
@@ -420,7 +424,8 @@ class NullDisplayTest {
     assertEquals(2, modifierReplyLength);
 
     final int answerBytes = answers.limit();
-    assertEquals(modifiers + REPLY_BYTES + 8, answerBytes);
+    final int expectedAnswerBytes = modifiers + REPLY_BYTES + 8;
+    assertEquals(expectedAnswerBytes, answerBytes);
   }
 
   @Test
@@ -469,7 +474,8 @@ class NullDisplayTest {
     assertEquals(ROOT_WINDOW, pointerRoot);
 
     final int answerBytes = answers.limit();
-    assertEquals(pointer + REPLY_BYTES, answerBytes);
+    final int expectedAnswerBytes = pointer + REPLY_BYTES;
+    assertEquals(expectedAnswerBytes, answerBytes);
   }
 
   @Test
@@ -601,7 +607,8 @@ class NullDisplayTest {
     );
     final int[] opcodes = { NullDisplay.INTERN_ATOM, NullDisplay.INTERN_ATOM, NullDisplay.GET_ATOM_NAME, NullDisplay.GET_KEYBOARD_MAPPING };
     final int answerBytes = answers.limit();
-    assertEquals(opcodes.length * REPLY_BYTES, answerBytes);
+    final int expectedAnswerBytes = opcodes.length * REPLY_BYTES;
+    assertEquals(expectedAnswerBytes, answerBytes);
 
     for (int index = 0; index < opcodes.length; index++) {
       final byte responseType = answers.get(index * REPLY_BYTES);
@@ -611,7 +618,8 @@ class NullDisplayTest {
       assertEquals(NullDisplay.BAD_LENGTH, errorCode);
 
       final byte majorOpcode = answers.get(index * REPLY_BYTES + 10);
-      assertEquals(opcodes[index], majorOpcode);
+      final int expectedMajorOpcode = opcodes[index];
+      assertEquals(expectedMajorOpcode, majorOpcode);
     }
   }
 
@@ -651,7 +659,8 @@ class NullDisplayTest {
       count++;
     }
 
-    assertEquals(NullDisplay.MAXIMUM_ATOMS - LAST_PREDEFINED_ATOM, count, "the 68 predefined atoms count too");
+    final int expectedAtomCount = NullDisplay.MAXIMUM_ATOMS - LAST_PREDEFINED_ATOM;
+    assertEquals(expectedAtomCount, count, "the 68 predefined atoms count too");
 
     final int knownAtom = many.intern("atom-0");
     assertEquals(FIRST_DYNAMIC_ATOM, knownAtom, "a known atom is still found");
@@ -699,11 +708,13 @@ class NullDisplayTest {
     try {
       if (authority.getFileSystem().supportedFileAttributeViews().contains(POSIX_ATTRIBUTE_VIEW)) {
         final Set<PosixFilePermission> permissions = Files.getPosixFilePermissions(authority);
-        assertEquals(PosixFilePermissions.fromString("rw-------"), permissions);
+        final Set<PosixFilePermission> expectedPermissions = PosixFilePermissions.fromString("rw-------");
+        assertEquals(expectedPermissions, permissions);
       }
       final byte[] entry = Files.readAllBytes(authority);
       final byte[] cookie = Arrays.copyOfRange(entry, entry.length - NullDisplay.COOKIE_BYTES, entry.length);
-      assertArrayEquals(NullDisplay.createAuthorityEntry(cookie), entry);
+      final byte[] expectedEntry = NullDisplay.createAuthorityEntry(cookie);
+      assertArrayEquals(expectedEntry, entry);
 
       final String name = display.getDisplay();
       final Matcher matcher = DISPLAY_ADDRESS.matcher(name);
@@ -1023,7 +1034,8 @@ class NullDisplayTest {
       assertFalse(thirdPortRefused, "a refused port is kept until the search ends");
 
       final InetAddress boundAddress = third.getInetAddress();
-      assertEquals(InetAddress.getByAddress(new byte[] { LOOPBACK_FIRST_OCTET, 0, 0, 1 }), boundAddress);
+      final InetAddress expectedBoundAddress = InetAddress.getByAddress(new byte[] { LOOPBACK_FIRST_OCTET, 0, 0, 1 });
+      assertEquals(expectedBoundAddress, boundAddress);
     }
 
     for (final int port : refused) {
@@ -1096,7 +1108,8 @@ class NullDisplayTest {
       final Path authority = zip.getPath(ZIPPED_AUTHORITY_FILE);
       NullDisplay.writeAuthority(authority, COOKIE);
       final byte[] authorityEntry = Files.readAllBytes(authority);
-      assertArrayEquals(NullDisplay.createAuthorityEntry(COOKIE), authorityEntry);
+      final byte[] expectedAuthorityEntry = NullDisplay.createAuthorityEntry(COOKIE);
+      assertArrayEquals(expectedAuthorityEntry, authorityEntry);
     }
   }
 
@@ -1107,7 +1120,8 @@ class NullDisplayTest {
       final NullDisplay second = NullDisplay.start(this.folder.resolve(SECOND_DISPLAY_FOLDER))
     ) {
       final String secondDisplayName = second.getDisplay();
-      assertNotEquals(first.getDisplay(), secondDisplayName);
+      final String firstDisplayName = first.getDisplay();
+      assertNotEquals(firstDisplayName, secondDisplayName);
     }
   }
 
@@ -1118,7 +1132,8 @@ class NullDisplayTest {
 
     try (final NullDisplay display = NullDisplay.start(directory.resolve(AUTHORITY_FILE))) {
       final @Nullable String displayName = NullDisplay.nameOf(display);
-      assertEquals(display.getDisplay(), displayName);
+      final String expectedDisplayName = display.getDisplay();
+      assertEquals(expectedDisplayName, displayName);
     }
   }
 

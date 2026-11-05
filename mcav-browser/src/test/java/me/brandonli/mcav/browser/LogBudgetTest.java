@@ -49,7 +49,8 @@ final class LogBudgetTest {
     assertEquals(LogBudget.BURST, lineCount);
 
     final String lastLine = this.log.getLast();
-    assertEquals(LINE_PREFIX + (LogBudget.BURST - 1), lastLine);
+    final String expectedLastLine = LINE_PREFIX + (LogBudget.BURST - 1);
+    assertEquals(expectedLastLine, lastLine);
   }
 
   @Test
@@ -64,7 +65,8 @@ final class LogBudgetTest {
     this.line("a second later");
     this.line("too early again");
     final List<String> laterLines = this.log.subList(LogBudget.BURST, this.log.size());
-    assertEquals(List.of("skipped 11", "a second later"), laterLines);
+    final List<String> expectedLaterLines = List.of("skipped 11", "a second later");
+    assertEquals(expectedLaterLines, laterLines);
   }
 
   @Test
@@ -73,7 +75,8 @@ final class LogBudgetTest {
     this.now.addAndGet(LogBudget.REFILL_NANOSECONDS * 1_000);
     this.lines(LogBudget.BURST + 1);
     final int lineCount = this.log.size();
-    assertEquals(2 * LogBudget.BURST, lineCount);
+    final int expectedLineCount = 2 * LogBudget.BURST;
+    assertEquals(expectedLineCount, lineCount);
   }
 
   @Test

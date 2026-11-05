@@ -85,7 +85,8 @@ final class ContentPolicyFuzzTest {
     when(request.getURL()).thenReturn(address);
     final boolean cancelled = policy.onBeforeBrowse(browser, frame, request, true, false);
     final boolean allowed = NavigationPolicy.allowsNavigation(address, kind);
-    assertEquals(!allowed, cancelled, address);
+    final boolean expectedCancelled = !allowed;
+    assertEquals(expectedCancelled, cancelled, address);
   }
 
   private ContentPolicy createPolicy(final ContentPolicyTest.RecordingEvents events) {

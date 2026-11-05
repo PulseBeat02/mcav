@@ -106,7 +106,8 @@ class BrowserModuleTest {
       module.stop();
       final int helperCount = HelperProcesses.count();
       assertEquals(0, helperCount);
-      assertEquals(List.of("The browser module was stopped!"), this.ends, "the player hears of it");
+      final List<String> expectedEnds = List.of("The browser module was stopped!");
+      assertEquals(expectedEnds, this.ends, "the player hears of it");
 
       Await.until("the helper ended", () -> !process.isAlive());
       final BrowserException refused = assertThrows(BrowserException.class, this::open);

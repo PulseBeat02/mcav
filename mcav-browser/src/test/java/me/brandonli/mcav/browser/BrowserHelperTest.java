@@ -184,7 +184,8 @@ class BrowserHelperTest {
     helper.executeCommand(HelperMessage.key(HelperProtocol.KEY_PRESS, ENTER_KEY));
     reporter.onAudio(chunk);
     final int soundBytesAfterAPressOnTheNewPage = sent.size();
-    assertEquals(2 * message, soundBytesAfterAPressOnTheNewPage);
+    final int expectedSoundBytes = 2 * message;
+    assertEquals(expectedSoundBytes, soundBytesAfterAPressOnTheNewPage);
   }
 
   private SocketChannel connectTo(final Path socket) throws IOException {
@@ -221,7 +222,8 @@ class BrowserHelperTest {
       assertEquals(HelperProtocol.HELLO, helloType);
 
       final byte[] helloToken = hello.getToken();
-      assertArrayEquals(this.token(), helloToken);
+      final byte[] expectedToken = this.token();
+      assertArrayEquals(expectedToken, helloToken);
 
       final String readyText = peer.readUntil(HelperProtocol.READY).getText();
       assertEquals("scripted", readyText);
@@ -594,7 +596,8 @@ class BrowserHelperTest {
     helper.watchInput(new StringReader(""));
     final boolean waitedForTheDeadline = System.nanoTime() - start >= TimeUnit.MILLISECONDS.toNanos(100L);
     assertTrue(waitedForTheDeadline, "it waits for the deadline first");
-    assertEquals(List.of(1), halts);
+    final List<Integer> expectedHalts = List.of(1);
+    assertEquals(expectedHalts, halts);
 
     final @Nullable String stopReason = helper.getStopReason();
     assertEquals(STANDARD_INPUT_ENDED, stopReason);
@@ -624,7 +627,8 @@ class BrowserHelperTest {
       Thread.interrupted();
     }
 
-    assertEquals(List.of(1), halts);
+    final List<Integer> expectedHalts = List.of(1);
+    assertEquals(expectedHalts, halts);
   }
 
   @Test

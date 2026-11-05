@@ -116,7 +116,8 @@ class HelperLauncherTest {
     final Path session = SESSION_FOLDER;
     final List<String> command = this.launcher(Os.LINUX, Map.of()).createCommand(session);
     final String javaProgram = command.getFirst();
-    assertEquals(JAVA.toString(), javaProgram);
+    final String expectedJavaProgram = JAVA.toString();
+    assertEquals(expectedJavaProgram, javaProgram);
 
     final boolean runsHeadless = command.contains("-Djava.awt.headless=true");
     assertTrue(runsHeadless);
@@ -135,11 +136,13 @@ class HelperLauncherTest {
 
     final int classPath = command.indexOf(CLASS_PATH_OPTION);
     final String joinedClassPath = command.get(classPath + 1);
-    assertEquals(Path.of(BROWSER_JAR_FILE) + File.pathSeparator + Path.of(JCEF_API_JAR_FILE), joinedClassPath);
+    final String expectedJoinedClassPath = Path.of(BROWSER_JAR_FILE) + File.pathSeparator + Path.of(JCEF_API_JAR_FILE);
+    assertEquals(expectedJoinedClassPath, joinedClassPath);
 
     final String mainClass = command.getLast();
     assertEquals(HelperLauncher.MAIN_CLASS, mainClass);
-    assertEquals(BrowserHelper.class.getName(), HelperLauncher.MAIN_CLASS);
+    final String expectedMainClass = BrowserHelper.class.getName();
+    assertEquals(expectedMainClass, HelperLauncher.MAIN_CLASS);
   }
 
   @Test
@@ -160,34 +163,48 @@ class HelperLauncherTest {
     final Path authority = this.folder.resolve(NullDisplay.AUTHORITY_FILE);
     final String session = this.folder.toString();
     final Map<String, String> linuxEnvironment = linux.createEnvironment(this.folder, null);
-    assertEquals(
-      Map.of("PATH", SYSTEM_PROGRAMS_FOLDER, "XAUTHORITY", authority.toString(), "TMPDIR", session, "XDG_DATA_HOME", session),
-      linuxEnvironment
+    final Map<String, String> expectedLinuxEnvironment = Map.of(
+      "PATH",
+      SYSTEM_PROGRAMS_FOLDER,
+      "XAUTHORITY",
+      authority.toString(),
+      "TMPDIR",
+      session,
+      "XDG_DATA_HOME",
+      session
     );
+    assertEquals(expectedLinuxEnvironment, linuxEnvironment);
 
     final Path libraries = this.folder.resolve(LIBRARIES_FOLDER);
     final Map<String, String> linuxEnvironmentWithLibraries = linux.createEnvironment(this.folder, libraries);
-    assertEquals(
-      Map.of(
-        "PATH",
-        SYSTEM_PROGRAMS_FOLDER,
-        "XAUTHORITY",
-        authority.toString(),
-        "TMPDIR",
-        session,
-        "XDG_DATA_HOME",
-        session,
-        "LD_LIBRARY_PATH",
-        libraries.toString()
-      ),
-      linuxEnvironmentWithLibraries
+    final Map<String, String> expectedLinuxEnvironmentWithLibraries = Map.of(
+      "PATH",
+      SYSTEM_PROGRAMS_FOLDER,
+      "XAUTHORITY",
+      authority.toString(),
+      "TMPDIR",
+      session,
+      "XDG_DATA_HOME",
+      session,
+      "LD_LIBRARY_PATH",
+      libraries.toString()
     );
+    assertEquals(expectedLinuxEnvironmentWithLibraries, linuxEnvironmentWithLibraries);
 
     final Map<String, String> macEnvironment = this.launcher(Os.MAC, server).createEnvironment(this.folder, null);
-    assertEquals(Map.of("PATH", SYSTEM_PROGRAMS_FOLDER, "TMPDIR", session, "MAC_CHROMIUM_TMPDIR", session), macEnvironment);
+    final Map<String, String> expectedMacEnvironment = Map.of(
+      "PATH",
+      SYSTEM_PROGRAMS_FOLDER,
+      "TMPDIR",
+      session,
+      "MAC_CHROMIUM_TMPDIR",
+      session
+    );
+    assertEquals(expectedMacEnvironment, macEnvironment);
 
     final Map<String, String> windowsEnvironment = this.launcher(Os.WINDOWS, server).createEnvironment(this.folder, null);
-    assertEquals(Map.of("PATH", SYSTEM_PROGRAMS_FOLDER, "TMPDIR", TEMPORARY_FOLDER), windowsEnvironment);
+    final Map<String, String> expectedWindowsEnvironment = Map.of("PATH", SYSTEM_PROGRAMS_FOLDER, "TMPDIR", TEMPORARY_FOLDER);
+    assertEquals(expectedWindowsEnvironment, windowsEnvironment);
 
     final Os operatingSystem = linux.getOs();
     assertEquals(Os.LINUX, operatingSystem);
@@ -211,10 +228,12 @@ class HelperLauncherTest {
     assertTrue(linkedFolderExists);
 
     final List<String> commandWithLibraries = withLibraries.createCommand(this.folder);
-    assertEquals(plain.createCommand(this.folder), commandWithLibraries);
+    final List<String> expectedCommand = plain.createCommand(this.folder);
+    assertEquals(expectedCommand, commandWithLibraries);
 
     final long startTimeoutMilliseconds = withLibraries.getStartTimeoutMilliseconds();
-    assertEquals(plain.getStartTimeoutMilliseconds(), startTimeoutMilliseconds);
+    final long expectedStartTimeoutMilliseconds = plain.getStartTimeoutMilliseconds();
+    assertEquals(expectedStartTimeoutMilliseconds, startTimeoutMilliseconds);
 
     final Os operatingSystem = withLibraries.getOs();
     assertEquals(Os.LINUX, operatingSystem);

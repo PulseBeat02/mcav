@@ -91,7 +91,8 @@ class ContentPolicyTest {
     final boolean cancelled = this.policy.onBeforePopup(this.browser, this.frame(FrameKind.MAIN), "https://example.com/popup", "_blank");
     assertTrue(cancelled);
     verify(this.browser).loadURL("https://example.com/popup");
-    assertEquals(List.of("notice: Opened the new window https://example.com/popup in place."), this.events.log);
+    final List<String> expectedEvents = List.of("notice: Opened the new window https://example.com/popup in place.");
+    assertEquals(expectedEvents, this.events.log);
   }
 
   @Test
@@ -99,7 +100,8 @@ class ContentPolicyTest {
     final boolean popupCancelled = this.policy.onBeforePopup(this.browser, this.frame(FrameKind.MAIN), LOCAL_FILE_URL, "");
     assertTrue(popupCancelled);
     verify(this.browser, never()).loadURL(ArgumentMatchers.anyString());
-    assertEquals(List.of("notice: The new window file:///etc/passwd was refused."), this.events.log);
+    final List<String> expectedEvents = List.of("notice: The new window file:///etc/passwd was refused.");
+    assertEquals(expectedEvents, this.events.log);
   }
 
   @Test
@@ -121,8 +123,10 @@ class ContentPolicyTest {
     this.policy.onAfterCreated(this.browser);
     this.policy.onAfterParentChanged(this.browser);
     this.policy.onBeforeClose(this.browser);
-    assertEquals(List.of(this.browser), this.prepared);
-    assertEquals(List.of("ready: 146.0.10 (Chromium 146)"), this.events.log);
+    final List<CefBrowser> expectedPreparedBrowsers = List.of(this.browser);
+    assertEquals(expectedPreparedBrowsers, this.prepared);
+    final List<String> expectedEvents = List.of("ready: 146.0.10 (Chromium 146)");
+    assertEquals(expectedEvents, this.events.log);
   }
 
   @Test
@@ -173,10 +177,11 @@ class ContentPolicyTest {
       false
     );
     assertTrue(chromeSubframeCancelled);
-    assertEquals(
-      List.of("notice: The navigation to file:///etc/passwd was refused.", "notice: The navigation to chrome://settings was refused."),
-      this.events.log
+    final List<String> expectedEvents = List.of(
+      "notice: The navigation to file:///etc/passwd was refused.",
+      "notice: The navigation to chrome://settings was refused."
     );
+    assertEquals(expectedEvents, this.events.log);
   }
 
   @Test
@@ -221,15 +226,13 @@ class ContentPolicyTest {
       "refused",
       "https://a/?sig=secret"
     );
-    assertEquals(
-      List.of(
-        "notice: The navigation to myapp://callback?<hidden> was refused.",
-        "notice: The request to ftp://<hidden>@example.com/file was refused.",
-        "notice: The invalid certificate of https://expired/page#<hidden> was refused.",
-        "load error: -102 refused https://a/?<hidden>"
-      ),
-      this.events.log
+    final List<String> expectedEvents = List.of(
+      "notice: The navigation to myapp://callback?<hidden> was refused.",
+      "notice: The request to ftp://<hidden>@example.com/file was refused.",
+      "notice: The invalid certificate of https://expired/page#<hidden> was refused.",
+      "load error: -102 refused https://a/?<hidden>"
     );
+    assertEquals(expectedEvents, this.events.log);
   }
 
   @Test
@@ -267,7 +270,8 @@ class ContentPolicyTest {
       this.request("file:///home/server/config.yml")
     );
     assertTrue(fileRequestCancelled);
-    assertEquals(List.of("notice: The request to file:///home/server/config.yml was refused."), this.events.log);
+    final List<String> expectedEvents = List.of("notice: The request to file:///home/server/config.yml was refused.");
+    assertEquals(expectedEvents, this.events.log);
   }
 
   @Test
@@ -286,7 +290,8 @@ class ContentPolicyTest {
     resources.onProtocolExecution(this.browser, this.frame(FrameKind.MAIN), this.request("steam://run/1"), allow);
     final boolean executionAllowed = allow.get();
     assertFalse(executionAllowed);
-    assertEquals(List.of("notice: Opening steam://run/1 with another program was refused."), this.events.log);
+    final List<String> expectedEvents = List.of("notice: Opening steam://run/1 with another program was refused.");
+    assertEquals(expectedEvents, this.events.log);
   }
 
   @Test
@@ -315,16 +320,18 @@ class ContentPolicyTest {
     );
     assertFalse(certificateContinued);
     verifyNoInteractions(certificate);
-    assertEquals(
-      List.of("notice: The login to a was refused.", "notice: The invalid certificate of https://expired/ was refused."),
-      this.events.log
+    final List<String> expectedEvents = List.of(
+      "notice: The login to a was refused.",
+      "notice: The invalid certificate of https://expired/ was refused."
     );
+    assertEquals(expectedEvents, this.events.log);
   }
 
   @Test
   void shouldFailWhenTheRendererCrashes() {
     this.policy.onRenderProcessTerminated(this.browser, CefRequestHandler.TerminationStatus.TS_PROCESS_CRASHED, 11, "segfault");
-    assertEquals(List.of("failure: Status TS_PROCESS_CRASHED (error code 11) ended the renderer of the page"), this.events.log);
+    final List<String> expectedEvents = List.of("failure: Status TS_PROCESS_CRASHED (error code 11) ended the renderer of the page");
+    assertEquals(expectedEvents, this.events.log);
   }
 
   @Test
@@ -389,7 +396,8 @@ class ContentPolicyTest {
     final CefDownloadItemCallback updated = mock(CefDownloadItemCallback.class);
     this.policy.onDownloadUpdated(this.browser, mock(CefDownloadItem.class), updated);
     verify(updated).cancel();
-    assertEquals(List.of("notice: The download of evil.exe was refused."), this.events.log);
+    final List<String> expectedEvents = List.of("notice: The download of evil.exe was refused.");
+    assertEquals(expectedEvents, this.events.log);
   }
 
   // on macOS the view stayed white after a refused download until the page changed
@@ -421,7 +429,8 @@ class ContentPolicyTest {
     );
     assertTrue(handled);
     verify(callback).Cancel();
-    assertEquals(List.of("notice: Refused a file chooser."), this.events.log);
+    final List<String> expectedEvents = List.of("notice: Refused a file chooser.");
+    assertEquals(expectedEvents, this.events.log);
   }
 
   @Test
@@ -455,7 +464,8 @@ class ContentPolicyTest {
     this.policy.onLoadError(blank, this.frame(FrameKind.MAIN), CefLoadHandler.ErrorCode.ERR_ABORTED, ABORTED_REASON, "https://replaced/");
     when(blank.getURL()).thenReturn(PAGE_URL);
     this.policy.onLoadingStateChange(blank, false, false, false);
-    assertEquals(List.of(NOT_LOADING_EVENT), this.events.log);
+    final List<String> expectedEvents = List.of(NOT_LOADING_EVENT);
+    assertEquals(expectedEvents, this.events.log);
   }
 
   @Test
@@ -479,10 +489,13 @@ class ContentPolicyTest {
       "https://x.invalid/"
     );
     this.policy.onLoadingStateChange(this.browser, false, true, false);
-    assertEquals(
-      List.of("loading: true", PAGE_START_EVENT, "load error: -105 no such host https://x.invalid/", NOT_LOADING_EVENT),
-      this.events.log
+    final List<String> expectedEvents = List.of(
+      "loading: true",
+      PAGE_START_EVENT,
+      "load error: -105 no such host https://x.invalid/",
+      NOT_LOADING_EVENT
     );
+    assertEquals(expectedEvents, this.events.log);
   }
 
   @Test
@@ -491,7 +504,8 @@ class ContentPolicyTest {
     assertEquals(List.of(), this.events.log, "a frame inside the page is part of it");
 
     this.policy.onLoadStart(this.browser, this.frame(FrameKind.MAIN), CefRequest.TransitionType.TT_LINK);
-    assertEquals(List.of(PAGE_START_EVENT), this.events.log);
+    final List<String> expectedEvents = List.of(PAGE_START_EVENT);
+    assertEquals(expectedEvents, this.events.log);
   }
 
   static final class RecordingEvents implements HelperEvents {

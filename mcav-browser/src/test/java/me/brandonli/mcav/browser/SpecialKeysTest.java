@@ -53,7 +53,8 @@ class SpecialKeysTest {
   @Test
   void shouldReadTheListFromJsonIntoAnUnmodifiableSet() {
     final Set<String> keys = SpecialKeys.parse(new StringReader("[\"A\", \"B\", \"A\"]"));
-    assertEquals(Set.of("A", "B"), keys);
+    final Set<String> expectedKeys = Set.of("A", "B");
+    assertEquals(expectedKeys, keys);
     assertThrows(UnsupportedOperationException.class, keys::clear);
   }
 

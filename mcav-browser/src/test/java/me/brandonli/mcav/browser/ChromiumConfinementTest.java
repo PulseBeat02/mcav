@@ -152,16 +152,14 @@ class ChromiumConfinementTest {
     final List<Path> hidden = List.of(home, root, root.resolve(MISSING_NAME));
     final List<Landlock.Rule> rules = ChromiumConfinement.rules(root, hidden, List.of(natives), List.of(session));
     final List<Landlock.Rule> walkedRules = this.walkSorted(rules, 2);
-    assertEquals(
-      List.of(
-        new Landlock.Rule(file, Landlock.Access.READ_ONLY),
-        new Landlock.Rule(otherHome, Landlock.Access.READ_ONLY),
-        new Landlock.Rule(system, Landlock.Access.READ_ONLY),
-        new Landlock.Rule(natives, Landlock.Access.READ_ONLY),
-        new Landlock.Rule(session, Landlock.Access.READ_WRITE)
-      ),
-      walkedRules
+    final List<Landlock.Rule> expectedWalkedRules = List.of(
+      new Landlock.Rule(file, Landlock.Access.READ_ONLY),
+      new Landlock.Rule(otherHome, Landlock.Access.READ_ONLY),
+      new Landlock.Rule(system, Landlock.Access.READ_ONLY),
+      new Landlock.Rule(natives, Landlock.Access.READ_ONLY),
+      new Landlock.Rule(session, Landlock.Access.READ_WRITE)
     );
+    assertEquals(expectedWalkedRules, walkedRules);
   }
 
   @Test
@@ -171,7 +169,8 @@ class ChromiumConfinementTest {
     final Path kept = Files.createDirectories(root.resolve(KEPT_FOLDER));
     final Path alias = Files.createSymbolicLink(root.resolve(ALIAS_LINK), real);
     final List<Landlock.Rule> rules = ChromiumConfinement.rules(root, List.of(alias), List.of(), List.of());
-    assertEquals(List.of(new Landlock.Rule(kept, Landlock.Access.READ_ONLY)), rules);
+    final List<Landlock.Rule> expectedRules = List.of(new Landlock.Rule(kept, Landlock.Access.READ_ONLY));
+    assertEquals(expectedRules, rules);
   }
 
   @Test
@@ -198,7 +197,8 @@ class ChromiumConfinementTest {
 
     final String separator = File.pathSeparator;
     final List<Path> paths = ChromiumConfinement.pathsOf(FIRST_PATH + separator + separator + SECOND_PATH);
-    assertEquals(List.of(Path.of(FIRST_PATH), Path.of(SECOND_PATH)), paths);
+    final List<Path> expectedPaths = List.of(Path.of(FIRST_PATH), Path.of(SECOND_PATH));
+    assertEquals(expectedPaths, paths);
   }
 
   @Test
@@ -209,7 +209,8 @@ class ChromiumConfinementTest {
       "-javaagent:/agents/plain.jar"
     );
     final List<Path> agents = ChromiumConfinement.agentsOf(arguments);
-    assertEquals(List.of(Path.of(COVERAGE_AGENT_FILE), Path.of(PLAIN_AGENT_FILE)), agents);
+    final List<Path> expectedAgents = List.of(Path.of(COVERAGE_AGENT_FILE), Path.of(PLAIN_AGENT_FILE));
+    assertEquals(expectedAgents, agents);
   }
 
   @Test
@@ -222,7 +223,8 @@ class ChromiumConfinementTest {
     Files.writeString(linked.resolve(PLAIN_LIBRARY_FILE), "not a link");
     final List<Path> targets = ChromiumConfinement.linkedFiles(List.of(linked, this.folder.resolve(MISSING_NAME), library));
     final List<Path> sortedTargets = targets.stream().sorted().toList();
-    assertEquals(List.of(library, linked.resolve(RELATIVE_LIBRARY)), sortedTargets);
+    final List<Path> expectedTargets = List.of(library, linked.resolve(RELATIVE_LIBRARY));
+    assertEquals(expectedTargets, sortedTargets);
   }
 
   @Test
@@ -339,7 +341,8 @@ class ChromiumConfinementTest {
     final Path link = Files.createSymbolicLink(this.folder.resolve(LINK_NAME), real);
     final Path missing = this.folder.resolve(MISSING_NAME).resolve(PARENT_FOLDER).resolve(GONE_FOLDER);
     final List<Path> resolved = ChromiumConfinement.realPaths(List.of(link, missing));
-    assertEquals(List.of(real.toRealPath(), this.folder.resolve(GONE_FOLDER).toAbsolutePath()), resolved);
+    final List<Path> expectedResolvedPaths = List.of(real.toRealPath(), this.folder.resolve(GONE_FOLDER).toAbsolutePath());
+    assertEquals(expectedResolvedPaths, resolved);
   }
 
   @Test
@@ -440,7 +443,8 @@ class ChromiumConfinementTest {
     final Path root = this.folder.toRealPath();
     final Path beside = Files.createDirectories(root.resolve(BESIDE_FOLDER));
     final List<Landlock.Rule> openRules = ChromiumConfinement.rules(root, List.of(), List.of(), List.of());
-    assertEquals(List.of(new Landlock.Rule(beside, Landlock.Access.READ_ONLY)), openRules);
+    final List<Landlock.Rule> expectedOpenRules = List.of(new Landlock.Rule(beside, Landlock.Access.READ_ONLY));
+    assertEquals(expectedOpenRules, openRules);
 
     final AtomicReference<List<Landlock.Rule>> closedRules = new AtomicReference<>();
     final AtomicReference<Throwable> failure = new AtomicReference<>();
@@ -509,19 +513,16 @@ class ChromiumConfinementTest {
       .lines()
       .filter(line -> !line.startsWith("WARNING"))
       .toList();
-    assertEquals(
-      List.of(
-        "said " + ChromiumConfinement.CONFINED,
-        "server folder: denied",
-        "other session: denied",
-        "session: written",
-        "outside: denied",
-        "started cat: refused",
-        "sandboxed: true"
-      ),
-      outputLines,
-      output
+    final List<String> expectedOutputLines = List.of(
+      "said " + ChromiumConfinement.CONFINED,
+      "server folder: denied",
+      "other session: denied",
+      "session: written",
+      "outside: denied",
+      "started cat: refused",
+      "sandboxed: true"
     );
+    assertEquals(expectedOutputLines, outputLines, output);
 
     final String profileText = Files.readString(session.resolve(PROFILE_TEXT_FILE), StandardCharsets.UTF_8);
     assertEquals(PROFILE_FOLDER, profileText);

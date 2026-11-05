@@ -63,7 +63,8 @@ class MCAVOffscreenBrowserTest {
   @Test
   void shouldPlaceTheViewAtTheOriginOfThePage() {
     final Rectangle view = this.browser.getViewRect(this.browser);
-    assertEquals(new Rectangle(0, 0, VIEW_WIDTH, VIEW_HEIGHT), view);
+    final Rectangle expectedView = new Rectangle(0, 0, VIEW_WIDTH, VIEW_HEIGHT);
+    assertEquals(expectedView, view);
 
     view.width = 1;
     final Rectangle freshView = this.browser.getViewRect(this.browser);
@@ -93,10 +94,13 @@ class MCAVOffscreenBrowserTest {
     this.browser.onPaint(this.browser, true, dirty, buffer, 1, 1);
     this.browser.onPopupShow(this.browser, true);
     this.browser.onPopupSize(this.browser, new Rectangle(1, 2, 3, 4));
-    assertEquals(
-      List.of("paint false 1x1", "paint true 1x1", "show true", "size java.awt.Rectangle[x=1,y=2,width=3,height=4]"),
-      this.painter.log
+    final List<String> expectedPainterEvents = List.of(
+      "paint false 1x1",
+      "paint true 1x1",
+      "show true",
+      "size java.awt.Rectangle[x=1,y=2,width=3,height=4]"
     );
+    assertEquals(expectedPainterEvents, this.painter.log);
   }
 
   @Test

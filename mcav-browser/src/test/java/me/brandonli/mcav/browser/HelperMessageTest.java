@@ -61,7 +61,8 @@ class HelperMessageTest {
     assertEquals(0, firstByte);
 
     final byte[] secondCopy = hello.getToken();
-    assertNotSame(hello.getToken(), secondCopy);
+    final byte[] firstCopy = hello.getToken();
+    assertNotSame(firstCopy, secondCopy);
   }
 
   @Test

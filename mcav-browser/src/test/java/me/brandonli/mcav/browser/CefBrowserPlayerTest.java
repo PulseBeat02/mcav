@@ -166,7 +166,8 @@ class CefBrowserPlayerTest {
   void shouldPassTheSoundOfTheCurrentSessionToTheAudioPipelineAndNoOtherSound() throws InterruptedException {
     final List<byte[]> heard = this.attachSoundRecorder();
     final AudioAttachableCallback audioAttachableCallback = this.player.getAudioAttachableCallback();
-    assertSame(this.player.getAudioAttachableCallback(), audioAttachableCallback);
+    final AudioAttachableCallback currentAudioAttachableCallback = this.player.getAudioAttachableCallback();
+    assertSame(currentAudioAttachableCallback, audioAttachableCallback);
 
     final boolean started = this.player.start(SOURCE);
     assertTrue(started);
@@ -175,7 +176,8 @@ class CefBrowserPlayerTest {
     first.onAudio(new byte[] { 1, 0, 1, 0 });
     Await.until("the sound of the page", () -> heard.size() == 1);
     final byte[] firstSound = heard.getFirst();
-    assertArrayEquals(new byte[] { 1, 0, 1, 0 }, firstSound);
+    final byte[] expectedFirstSound = new byte[] { 1, 0, 1, 0 };
+    assertArrayEquals(expectedFirstSound, firstSound);
 
     final boolean released = this.player.release();
     assertTrue(released);
@@ -347,7 +349,8 @@ class CefBrowserPlayerTest {
 
     final boolean playingAfterFailure = player.isPlaying();
     assertFalse(playingAfterFailure);
-    assertEquals(List.of("Because of \"The browser helper exited\", the browser session ended."), reports);
+    final List<String> expectedReportsBeforeRestart = List.of("Because of \"The browser helper exited\", the browser session ended.");
+    assertEquals(expectedReportsBeforeRestart, reports);
 
     final boolean startedAgain = player.start(SOURCE);
     assertTrue(startedAgain, "a failed player starts again");
@@ -357,7 +360,8 @@ class CefBrowserPlayerTest {
 
     final FakeSession deadSession = opened.getFirst();
     assertEquals(1, deadSession.closed, "the dead session is closed");
-    assertEquals(List.of("Because of \"The browser helper exited\", the browser session ended."), reports);
+    final List<String> expectedReportsAfterRestart = List.of("Because of \"The browser helper exited\", the browser session ended.");
+    assertEquals(expectedReportsAfterRestart, reports);
   }
 
   private BrowserSession openSessionThatEndsFirst(final BrowserSession.Listener sessionListener, final List<FakeSession> opened) {
@@ -448,7 +452,8 @@ class CefBrowserPlayerTest {
       assertTrue(closed, "a failed pipeline still returns the frame's ownership");
     }
 
-    assertEquals(List.of("Failed to process a browser frame. The filter broke!"), this.reports);
+    final List<String> expectedReports = List.of("Failed to process a browser frame. The filter broke!");
+    assertEquals(expectedReports, this.reports);
   }
 
   private boolean breakTheFilter() {
@@ -483,7 +488,8 @@ class CefBrowserPlayerTest {
     first.onEnded(END_REASON, new IllegalStateException(CRASH_REASON));
     final boolean playingAfterEnd = this.player.isPlaying();
     assertFalse(playingAfterEnd);
-    assertEquals(List.of("Because of \"gone\", the browser session ended. The helper crashed!"), this.reports);
+    final List<String> expectedReports = List.of("Because of \"gone\", the browser session ended. The helper crashed!");
+    assertEquals(expectedReports, this.reports);
 
     final boolean startedAgain = this.player.start(SOURCE);
     assertTrue(startedAgain);
@@ -518,7 +524,8 @@ class CefBrowserPlayerTest {
     this.player.start(SOURCE);
     this.listener.onEnded(END_REASON, new IllegalStateException("The first failure!"));
     this.listener.onEnded("gone again", new IllegalStateException("The second failure!"));
-    assertEquals(List.of("Because of \"gone\", the browser session ended. The first failure!"), this.reports);
+    final List<String> expectedReports = List.of("Because of \"gone\", the browser session ended. The first failure!");
+    assertEquals(expectedReports, this.reports);
   }
 
   @Test
@@ -750,26 +757,24 @@ class CefBrowserPlayerTest {
     this.player.sendMouseEvent(MouseClick.HOLD, 5, 6);
     this.player.sendMouseEvent(MouseClick.RELEASE, 7, 8);
     final FakeSession session = this.sessions.getFirst();
-    assertEquals(
-      List.of(
-        "mouse 0 10,20 b0 c0 d0,0",
-        "mouse 1 10,20 b0 c1 d0,0",
-        "mouse 2 10,20 b0 c1 d0,0",
-        "mouse 0 1,2 b0 c0 d0,0",
-        "mouse 1 1,2 b2 c1 d0,0",
-        "mouse 2 1,2 b2 c1 d0,0",
-        "mouse 0 3,4 b0 c0 d0,0",
-        "mouse 1 3,4 b0 c1 d0,0",
-        "mouse 2 3,4 b0 c1 d0,0",
-        "mouse 1 3,4 b0 c2 d0,0",
-        "mouse 2 3,4 b0 c2 d0,0",
-        "mouse 0 5,6 b0 c0 d0,0",
-        "mouse 1 5,6 b0 c1 d0,0",
-        "mouse 0 7,8 b0 c0 d0,0",
-        "mouse 2 7,8 b0 c1 d0,0"
-      ),
-      session.sent
+    final List<String> expectedMouseEvents = List.of(
+      "mouse 0 10,20 b0 c0 d0,0",
+      "mouse 1 10,20 b0 c1 d0,0",
+      "mouse 2 10,20 b0 c1 d0,0",
+      "mouse 0 1,2 b0 c0 d0,0",
+      "mouse 1 1,2 b2 c1 d0,0",
+      "mouse 2 1,2 b2 c1 d0,0",
+      "mouse 0 3,4 b0 c0 d0,0",
+      "mouse 1 3,4 b0 c1 d0,0",
+      "mouse 2 3,4 b0 c1 d0,0",
+      "mouse 1 3,4 b0 c2 d0,0",
+      "mouse 2 3,4 b0 c2 d0,0",
+      "mouse 0 5,6 b0 c0 d0,0",
+      "mouse 1 5,6 b0 c1 d0,0",
+      "mouse 0 7,8 b0 c0 d0,0",
+      "mouse 2 7,8 b0 c1 d0,0"
     );
+    assertEquals(expectedMouseEvents, session.sent);
   }
 
   @Test
@@ -778,7 +783,8 @@ class CefBrowserPlayerTest {
     this.player.moveMouse(-5, 500);
     this.player.scroll(1000, -1, 100_000, -100_000);
     final FakeSession session = this.sessions.getFirst();
-    assertEquals(List.of("mouse 0 0,49 b0 c0 d0,0", "mouse 3 99,0 b0 c0 d32767,-32768"), session.sent);
+    final List<String> expectedMouseEvents = List.of("mouse 0 0,49 b0 c0 d0,0", "mouse 3 99,0 b0 c0 d32767,-32768");
+    assertEquals(expectedMouseEvents, session.sent);
 
     final int clampedX = this.player.clamp(0, 0)[0];
     assertEquals(0, clampedX);
@@ -787,7 +793,8 @@ class CefBrowserPlayerTest {
   @Test
   void shouldClampToTheFirstPixelWithoutAPage() {
     final int[] clamped = this.player.clamp(-3, 7);
-    assertArrayEquals(new int[] { 0, 0 }, clamped);
+    final int[] expectedClampedPosition = new int[] { 0, 0 };
+    assertArrayEquals(expectedClampedPosition, clamped);
   }
 
   @Test
@@ -797,7 +804,8 @@ class CefBrowserPlayerTest {
     this.player.sendKeyEvent("PageDown");
     this.player.sendKeyEvent("hello");
     final FakeSession session = this.sessions.getFirst();
-    assertEquals(List.of("key 0 Enter", "key 0 PageDown", "key 1 hello"), session.sent);
+    final List<String> expectedKeyEvents = List.of("key 0 Enter", "key 0 PageDown", "key 1 hello");
+    assertEquals(expectedKeyEvents, session.sent);
   }
 
   @Test
@@ -819,7 +827,8 @@ class CefBrowserPlayerTest {
     this.sessions.getFirst().accepting = false;
     this.player.sendKeyEvent(INPUT_KEY);
     this.player.scroll(1, 1, 0, 1);
-    assertEquals(List.of(INPUT_QUEUE_FULL_MESSAGE, INPUT_QUEUE_FULL_MESSAGE), this.reports);
+    final List<String> expectedReports = List.of(INPUT_QUEUE_FULL_MESSAGE, INPUT_QUEUE_FULL_MESSAGE);
+    assertEquals(expectedReports, this.reports);
 
     this.player.sendMouseEvent(MouseClick.HOLD, 1, 1);
     final int reportCount = this.reports.size();
@@ -840,13 +849,11 @@ class CefBrowserPlayerTest {
     this.now.addAndGet(LogBudget.REFILL_NANOSECONDS);
     this.player.sendKeyEvent(INPUT_KEY);
     final List<String> later = this.reports.subList(LogBudget.BURST, this.reports.size());
-    assertEquals(
-      List.of(
-        "Browser input queue is full. The browser dropped " + (DROPPED_INPUT_COUNT - LogBudget.BURST) + " more inputs!",
-        INPUT_QUEUE_FULL_MESSAGE
-      ),
-      later
+    final List<String> expectedLaterReports = List.of(
+      "Browser input queue is full. The browser dropped " + (DROPPED_INPUT_COUNT - LogBudget.BURST) + " more inputs!",
+      INPUT_QUEUE_FULL_MESSAGE
     );
+    assertEquals(expectedLaterReports, later);
   }
 
   @Test

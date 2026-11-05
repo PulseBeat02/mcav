@@ -424,7 +424,8 @@ class LinuxLibrariesTest {
       assertTrue(twelveHexadecimalDigits);
     }
 
-    assertEquals(List.of("https://archive.debian.org/debian/", "https://deb.debian.org/debian/"), LinuxLibraries.MIRRORS);
+    final List<String> expectedMirrors = List.of("https://archive.debian.org/debian/", "https://deb.debian.org/debian/");
+    assertEquals(expectedMirrors, LinuxLibraries.MIRRORS);
   }
 
   @Test
@@ -525,29 +526,35 @@ class LinuxLibrariesTest {
       List.of("# a comment", "", this.pin(debianPackage))
     );
     final Path installation = libraries.install(PLATFORM);
-    assertEquals(List.of(URI.create(MIRROR_URL + POOL)), this.downloads);
+    final List<URI> expectedDownloads = List.of(URI.create(MIRROR_URL + POOL));
+    assertEquals(expectedDownloads, this.downloads);
     try (final Stream<Path> files = Files.list(installation)) {
       final List<String> fileNames = files
         .map(file -> file.getFileName().toString())
         .sorted()
         .toList();
-      assertEquals(List.of(INSTALLATION_LOCK_FILE, LIBRARY_NAME), fileNames, "neither the link nor the documentation of the package");
+      final List<String> expectedFileNames = List.of(INSTALLATION_LOCK_FILE, LIBRARY_NAME);
+      assertEquals(expectedFileNames, fileNames, "neither the link nor the documentation of the package");
     }
 
     final Path library = installation.resolve(LIBRARY_NAME);
 
     final byte[] libraryBytes = Files.readAllBytes(library);
-    assertArrayEquals(LIBRARY_TEXT.getBytes(StandardCharsets.US_ASCII), libraryBytes);
+    final byte[] expectedLibraryBytes = LIBRARY_TEXT.getBytes(StandardCharsets.US_ASCII);
+    assertArrayEquals(expectedLibraryBytes, libraryBytes);
 
     if (library.getFileSystem().supportedFileAttributeViews().contains(POSIX_ATTRIBUTE_VIEW)) {
       final Set<PosixFilePermission> libraryPermissions = Files.getPosixFilePermissions(library);
-      assertEquals(PosixFilePermissions.fromString(EXECUTABLE_PERMISSIONS), libraryPermissions);
+      final Set<PosixFilePermission> expectedLibraryPermissions = PosixFilePermissions.fromString(EXECUTABLE_PERMISSIONS);
+      assertEquals(expectedLibraryPermissions, libraryPermissions);
 
       final Set<PosixFilePermission> installationPermissions = Files.getPosixFilePermissions(installation);
-      assertEquals(PosixFilePermissions.fromString(EXECUTABLE_PERMISSIONS), installationPermissions);
+      final Set<PosixFilePermission> expectedInstallationPermissions = PosixFilePermissions.fromString(EXECUTABLE_PERMISSIONS);
+      assertEquals(expectedInstallationPermissions, installationPermissions);
 
       final Set<PosixFilePermission> cachePermissions = Files.getPosixFilePermissions(this.folder.resolve(CACHE_FOLDER));
-      assertEquals(PosixFilePermissions.fromString(EXECUTABLE_PERMISSIONS), cachePermissions);
+      final Set<PosixFilePermission> expectedCachePermissions = PosixFilePermissions.fromString(EXECUTABLE_PERMISSIONS);
+      assertEquals(expectedCachePermissions, cachePermissions);
     }
 
     final Path secondInstallation = libraries.install(PLATFORM);
@@ -583,7 +590,8 @@ class LinuxLibrariesTest {
     final boolean otherLibraryInstalled = Files.isRegularFile(installation.resolve(OTHER_LIBRARY_FILE));
     assertTrue(otherLibraryInstalled);
 
-    assertEquals(List.of(false, false), leftOver, "each package downloads into a free spot");
+    final List<Boolean> expectedLeftoverStates = List.of(false, false);
+    assertEquals(expectedLeftoverStates, leftOver, "each package downloads into a free spot");
   }
 
   private void downloadAndRecordLeftOver(final byte[] debianPackage, final Path destination, final List<Boolean> leftOver)
@@ -614,13 +622,16 @@ class LinuxLibrariesTest {
     assertEquals(1, downloadCount, "nothing is installed again");
 
     final Set<PosixFilePermission> cachePermissions = Files.getPosixFilePermissions(cache);
-    assertEquals(PosixFilePermissions.fromString(EXECUTABLE_PERMISSIONS), cachePermissions);
+    final Set<PosixFilePermission> expectedCachePermissions = PosixFilePermissions.fromString(EXECUTABLE_PERMISSIONS);
+    assertEquals(expectedCachePermissions, cachePermissions);
 
     final Set<PosixFilePermission> installationPermissions = Files.getPosixFilePermissions(installation);
-    assertEquals(PosixFilePermissions.fromString(EXECUTABLE_PERMISSIONS), installationPermissions);
+    final Set<PosixFilePermission> expectedInstallationPermissions = PosixFilePermissions.fromString(EXECUTABLE_PERMISSIONS);
+    assertEquals(expectedInstallationPermissions, installationPermissions);
 
     final Set<PosixFilePermission> libraryPermissions = Files.getPosixFilePermissions(library);
-    assertEquals(PosixFilePermissions.fromString(EXECUTABLE_PERMISSIONS), libraryPermissions);
+    final Set<PosixFilePermission> expectedLibraryPermissions = PosixFilePermissions.fromString(EXECUTABLE_PERMISSIONS);
+    assertEquals(expectedLibraryPermissions, libraryPermissions);
   }
 
   @Test
@@ -684,7 +695,10 @@ class LinuxLibrariesTest {
 
     try (final Stream<Path> left = Files.list(this.folder.resolve(OTHER_CACHE_FOLDER))) {
       final List<String> leftFileNames = left.map(file -> file.getFileName().toString()).toList();
-      assertEquals(List.of(INSTALLATION_PREFIX + LinuxLibraries.fingerprint(none.getPins(PLATFORM)) + LOCK_FILE_SUFFIX), leftFileNames);
+      final List<String> expectedLeftFileNames = List.of(
+        INSTALLATION_PREFIX + LinuxLibraries.fingerprint(none.getPins(PLATFORM)) + LOCK_FILE_SUFFIX
+      );
+      assertEquals(expectedLeftFileNames, leftFileNames);
     }
   }
 
@@ -720,7 +734,8 @@ class LinuxLibrariesTest {
     );
     final IOException link = assertThrows(IOException.class, () -> this.extractIntoNewFolder(linkOnly, wanted, "b"));
     final String linkMessage = link.getMessage();
-    assertEquals("The package link.deb lacks the files [%s] that its pin lists!".formatted(LIBRARY), linkMessage);
+    final String expectedLinkMessage = "The package link.deb lacks the files [%s] that its pin lists!".formatted(LIBRARY);
+    assertEquals(expectedLinkMessage, linkMessage);
 
     final boolean unpackedKept = Files.exists(this.folder.resolve(UNPACKED_LINK_PACKAGE_FILE));
     assertFalse(unpackedKept, "the unpacked package is removed");
@@ -763,7 +778,8 @@ class LinuxLibrariesTest {
     LinuxLibraries.extract(debianPackage, Map.of(LIBRARY, LIBRARY_NAME), target);
 
     final byte[] libraryBytes = Files.readAllBytes(target.resolve(LIBRARY_NAME));
-    assertArrayEquals(LIBRARY_TEXT.getBytes(StandardCharsets.US_ASCII), libraryBytes);
+    final byte[] expectedLibraryBytes = LIBRARY_TEXT.getBytes(StandardCharsets.US_ASCII);
+    assertArrayEquals(expectedLibraryBytes, libraryBytes);
   }
 
   @Test
@@ -773,7 +789,8 @@ class LinuxLibrariesTest {
       final Path target = zip.getPath(ROOT);
       LinuxLibraries.extract(debianPackage, Map.of(LIBRARY, LIBRARY_NAME), target);
       final byte[] libraryBytes = Files.readAllBytes(target.resolve(LIBRARY_NAME));
-      assertArrayEquals(LIBRARY_TEXT.getBytes(StandardCharsets.US_ASCII), libraryBytes);
+      final byte[] expectedLibraryBytes = LIBRARY_TEXT.getBytes(StandardCharsets.US_ASCII);
+      assertArrayEquals(expectedLibraryBytes, libraryBytes);
     }
   }
 
@@ -799,18 +816,21 @@ class LinuxLibrariesTest {
     final Path installation = this.folder.resolve(INSTALLATION_FOLDER);
     final Path session = Files.createDirectory(this.folder.resolve(SESSION_FOLDER));
     final Path linked = LinuxLibraries.link(installation, session, libraries.findMissing(PLATFORM, List.of(host)));
-    assertEquals(session.resolve(LinuxLibraries.SESSION_FOLDER), linked);
+    final Path expectedLinkedFolder = session.resolve(LinuxLibraries.SESSION_FOLDER);
+    assertEquals(expectedLinkedFolder, linked);
 
     try (final Stream<Path> links = Files.list(linked)) {
       final List<String> linkNames = links
         .map(link -> link.getFileName().toString())
         .sorted()
         .toList();
-      assertEquals(List.of(MISSING_SONAME_FILE, MISSING_MODULE_FILE), linkNames);
+      final List<String> expectedLinkNames = List.of(MISSING_SONAME_FILE, MISSING_MODULE_FILE);
+      assertEquals(expectedLinkNames, linkNames);
     }
 
     final Path linkTarget = Files.readSymbolicLink(linked.resolve(MISSING_SONAME_FILE));
-    assertEquals(installation.resolve(MISSING_SONAME_FILE), linkTarget);
+    final Path expectedLinkTarget = installation.resolve(MISSING_SONAME_FILE);
+    assertEquals(expectedLinkTarget, linkTarget);
 
     final Path bare = Files.createDirectory(this.folder.resolve(BARE_HOST_FOLDER));
     final BrowserException lacking = assertThrows(BrowserUnavailableException.class, () ->
@@ -851,7 +871,8 @@ class LinuxLibrariesTest {
 
     final List<Path> arm = LinuxLibraries.hostFolders(this.folder.resolve(EMPTY_ROOT_FOLDER), ARM_PLATFORM);
     final Path firstFolder = arm.getFirst();
-    assertEquals(this.folder.resolve(FIRST_ARM_LIBRARY_FOLDER), firstFolder);
+    final Path expectedFirstFolder = this.folder.resolve(FIRST_ARM_LIBRARY_FOLDER);
+    assertEquals(expectedFirstFolder, firstFolder);
 
     final int folderCount = arm.size();
     assertEquals(6, folderCount, "a system without a configuration has the default folders only");
@@ -868,7 +889,8 @@ class LinuxLibrariesTest {
     final byte[] debianPackage = this.testPackage();
     final LinuxLibraries libraries = this.installer(debianPackage, List.of(), List.of(this.pin(debianPackage)));
     final String fingerprint = LinuxLibraries.fingerprint(libraries.getPins(PLATFORM));
-    assertEquals(this.sha256(this.sha256(debianPackage).getBytes(StandardCharsets.US_ASCII)).substring(0, 12), fingerprint);
+    final String expectedFingerprint = this.sha256(this.sha256(debianPackage).getBytes(StandardCharsets.US_ASCII)).substring(0, 12);
+    assertEquals(expectedFingerprint, fingerprint);
   }
 
   @Test
@@ -945,13 +967,12 @@ class LinuxLibrariesTest {
     final Executable linking = () -> factory.withLibraries(headless, libraries, server);
     final BrowserException refused = assertThrows(BrowserUnavailableException.class, linking);
     final String message = refused.getMessage();
-    assertEquals(
+    final String expectedMessage =
       "The browser needs the Java runtime's libjawt.so, which " +
-        runtime +
-        " lacks: the headless Java packages of Debian and Ubuntu (openjdk-*-jre-headless) leave it out; install the full" +
-        " package of the same version (openjdk-*-jre), or run the server on a full Java runtime!",
-      message
-    );
+      runtime +
+      " lacks: the headless Java packages of Debian and Ubuntu (openjdk-*-jre-headless) leave it out; install the full" +
+      " package of the same version (openjdk-*-jre), or run the server on a full Java runtime!";
+    assertEquals(expectedMessage, message);
     assertEquals(List.of(), this.downloads, "no library is downloaded for a runtime the browser cannot use");
 
     Files.write(library.resolve(JAWT_LIBRARY_FILE), this.elf(ELF_64_BIT, LITTLE_ENDIAN, AMD64_MACHINE));
@@ -992,7 +1013,8 @@ class LinuxLibrariesTest {
     final Path target = Files.createDirectories(this.folder.resolve(PLAIN_FOLDER));
     LinuxLibraries.extract(plain, Map.of(LIBRARY, LIBRARY_NAME), target);
     final byte[] libraryBytes = Files.readAllBytes(target.resolve(LIBRARY_NAME));
-    assertArrayEquals(new byte[] { 7 }, libraryBytes);
+    final byte[] expectedLibraryBytes = new byte[] { 7 };
+    assertArrayEquals(expectedLibraryBytes, libraryBytes);
   }
 
   @Test
@@ -1031,11 +1053,13 @@ class LinuxLibrariesTest {
     Files.writeString(configurationDirectory.resolve(FIRST_CONFIGURATION_FILE), FIRST_OPTIONAL_LIBRARY_PATH);
     Files.writeString(configurationDirectory.resolve(EXCLUDED_TEXT_FILE), SECOND_OPTIONAL_LIBRARY_PATH);
     final List<Path> configurationMatches = LinuxLibraries.glob(this.folder, LOADER_CONFIGURATION_PATTERN);
-    assertEquals(List.of(configurationDirectory.resolve(FIRST_CONFIGURATION_FILE)), configurationMatches);
+    final List<Path> expectedConfigurationMatches = List.of(configurationDirectory.resolve(FIRST_CONFIGURATION_FILE));
+    assertEquals(expectedConfigurationMatches, configurationMatches);
 
     Files.writeString(this.folder.resolve(TOP_CONFIGURATION_FILE), TOP_LIBRARY_PATH);
     final List<Path> topMatches = LinuxLibraries.glob(this.folder, "*.conf");
-    assertEquals(List.of(this.folder.resolve(TOP_CONFIGURATION_FILE)), topMatches);
+    final List<Path> expectedTopMatches = List.of(this.folder.resolve(TOP_CONFIGURATION_FILE));
+    assertEquals(expectedTopMatches, topMatches);
 
     final List<Path> rootMatches = LinuxLibraries.glob(this.folder, ROOT);
     assertEquals(List.of(), rootMatches);
@@ -1105,7 +1129,8 @@ class LinuxLibrariesTest {
     assertEquals(List.of(), pins);
 
     final Path librariesFolder = new LinuxLibraries().getFolder();
-    assertEquals(IoUtils.getCachedFolder().resolve(LIBRARY_CACHE_FOLDER), librariesFolder);
+    final Path expectedLibrariesFolder = IoUtils.getCachedFolder().resolve(LIBRARY_CACHE_FOLDER);
+    assertEquals(expectedLibrariesFolder, librariesFolder);
   }
 
   @Test
@@ -1172,7 +1197,8 @@ class LinuxLibrariesTest {
     Files.writeString(root.resolve(LOADER_CONFIGURATION), RELATIVE_INCLUDE_CONFIGURATION);
     Files.writeString(etc.resolve(GAME_CONFIGURATION_FILE), RELATIVE_LIBRARY_CONFIGURATION);
     final Path firstFolder = LinuxLibraries.hostFolders(root, PLATFORM).getFirst();
-    assertEquals(root.resolve(RELATIVE_LIBRARY_FOLDER), firstFolder);
+    final Path expectedFirstFolder = root.resolve(RELATIVE_LIBRARY_FOLDER);
+    assertEquals(expectedFirstFolder, firstFolder);
   }
 
   @Test
@@ -1187,10 +1213,10 @@ class LinuxLibrariesTest {
       List.of(this.pin(debianPackage).replace(POOL, UPDATED_PACKAGE_PATH))
     );
     libraries.install(PLATFORM);
-    assertEquals(
-      List.of(URI.create("https://security.test/debian-security/pool/updates/main/m/mcavtest/libmcavtest1_1.2.3-1+deb11u1_amd64.deb")),
-      asked
+    final List<URI> expectedRequests = List.of(
+      URI.create("https://security.test/debian-security/pool/updates/main/m/mcavtest/libmcavtest1_1.2.3-1+deb11u1_amd64.deb")
     );
+    assertEquals(expectedRequests, asked);
 
     final String secondSecurityMirror = LinuxLibraries.SECURITY_MIRRORS.get(1);
     assertEquals("https://snapshot.debian.org/archive/debian-security/20260901T000000Z/", secondSecurityMirror);

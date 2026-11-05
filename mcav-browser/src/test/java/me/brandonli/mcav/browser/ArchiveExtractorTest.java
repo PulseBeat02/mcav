@@ -158,8 +158,10 @@ class ArchiveExtractorTest {
     new ArchiveExtractor().extract(archive, this.target);
     final Set<PosixFilePermission> helper = Files.getPosixFilePermissions(this.target.resolve(HELPER_FILE));
     final Set<PosixFilePermission> data = Files.getPosixFilePermissions(this.target.resolve(RESOURCES_FILE));
-    assertEquals(PosixFilePermissions.fromString(EXECUTABLE_PERMISSIONS), helper);
-    assertEquals(PosixFilePermissions.fromString(REGULAR_PERMISSIONS), data);
+    final Set<PosixFilePermission> expectedHelperPermissions = PosixFilePermissions.fromString(EXECUTABLE_PERMISSIONS);
+    assertEquals(expectedHelperPermissions, helper);
+    final Set<PosixFilePermission> expectedDataPermissions = PosixFilePermissions.fromString(REGULAR_PERMISSIONS);
+    assertEquals(expectedDataPermissions, data);
   }
 
   @Test
@@ -250,7 +252,8 @@ class ArchiveExtractorTest {
   void shouldResolveEntryNamesStrictly() throws IOException {
     final Path root = this.target.toRealPath();
     final Path nestedEntry = ArchiveExtractor.resolve(root, NESTED_ENTRY);
-    assertEquals(root.resolve(NESTED_ENTRY), nestedEntry);
+    final Path expectedNestedEntry = root.resolve(NESTED_ENTRY);
+    assertEquals(expectedNestedEntry, nestedEntry);
     assertThrows(IOException.class, () -> ArchiveExtractor.resolve(root, PARENT_TRAVERSAL_ENTRY));
 
     final Path dotSlashEntry = ArchiveExtractor.resolve(root, CURRENT_FOLDER);
@@ -344,8 +347,10 @@ class ArchiveExtractorTest {
 
       final Set<PosixFilePermission> filePermissions = Files.getPosixFilePermissions(folder.resolve(NATIVES_LIBRARY_FILE));
       final Set<PosixFilePermission> folderPermissions = Files.getPosixFilePermissions(folder.resolve(NATIVES_FOLDER));
-      assertEquals(PosixFilePermissions.fromString(REGULAR_PERMISSIONS), filePermissions, "zipfs would otherwise create it as rwxrwxrwx");
-      assertEquals(PosixFilePermissions.fromString(EXECUTABLE_PERMISSIONS), folderPermissions);
+      final Set<PosixFilePermission> expectedFilePermissions = PosixFilePermissions.fromString(REGULAR_PERMISSIONS);
+      assertEquals(expectedFilePermissions, filePermissions, "zipfs would otherwise create it as rwxrwxrwx");
+      final Set<PosixFilePermission> expectedFolderPermissions = PosixFilePermissions.fromString(EXECUTABLE_PERMISSIONS);
+      assertEquals(expectedFolderPermissions, folderPermissions);
     }
   }
 
@@ -393,22 +398,28 @@ class ArchiveExtractorTest {
     ArchiveExtractor.tighten(installation);
 
     final Set<PosixFilePermission> installationPermissions = Files.getPosixFilePermissions(installation);
-    assertEquals(PosixFilePermissions.fromString(EXECUTABLE_PERMISSIONS), installationPermissions);
+    final Set<PosixFilePermission> expectedInstallationPermissions = PosixFilePermissions.fromString(EXECUTABLE_PERMISSIONS);
+    assertEquals(expectedInstallationPermissions, installationPermissions);
 
     final Set<PosixFilePermission> innerPermissions = Files.getPosixFilePermissions(inner);
-    assertEquals(PosixFilePermissions.fromString(EXECUTABLE_PERMISSIONS), innerPermissions);
+    final Set<PosixFilePermission> expectedInnerPermissions = PosixFilePermissions.fromString(EXECUTABLE_PERMISSIONS);
+    assertEquals(expectedInnerPermissions, innerPermissions);
 
     final Set<PosixFilePermission> groupWritablePermissions = Files.getPosixFilePermissions(groupWritable);
-    assertEquals(PosixFilePermissions.fromString(REGULAR_PERMISSIONS), groupWritablePermissions);
+    final Set<PosixFilePermission> expectedGroupWritablePermissions = PosixFilePermissions.fromString(REGULAR_PERMISSIONS);
+    assertEquals(expectedGroupWritablePermissions, groupWritablePermissions);
 
     final Set<PosixFilePermission> othersWritablePermissions = Files.getPosixFilePermissions(othersWritable);
-    assertEquals(PosixFilePermissions.fromString(EXECUTABLE_PERMISSIONS), othersWritablePermissions);
+    final Set<PosixFilePermission> expectedOthersWritablePermissions = PosixFilePermissions.fromString(EXECUTABLE_PERMISSIONS);
+    assertEquals(expectedOthersWritablePermissions, othersWritablePermissions);
 
     final Set<PosixFilePermission> untouchedPermissions = Files.getPosixFilePermissions(untouched);
-    assertEquals(PosixFilePermissions.fromString("r--------"), untouchedPermissions);
+    final Set<PosixFilePermission> expectedUntouchedPermissions = PosixFilePermissions.fromString("r--------");
+    assertEquals(expectedUntouchedPermissions, untouchedPermissions);
 
     final Set<PosixFilePermission> outsidePermissions = Files.getPosixFilePermissions(outside);
-    assertEquals(PosixFilePermissions.fromString("rw-rw-rw-"), outsidePermissions, "a link's target is not ours");
+    final Set<PosixFilePermission> expectedOutsidePermissions = PosixFilePermissions.fromString("rw-rw-rw-");
+    assertEquals(expectedOutsidePermissions, outsidePermissions, "a link's target is not ours");
   }
 
   @Test
@@ -424,7 +435,8 @@ class ArchiveExtractorTest {
       assumeTrue(!Files.isReadable(closed), "The user may read every folder, so none can be closed to it!");
       ArchiveExtractor.tighten(this.target);
       final Set<PosixFilePermission> closedPermissions = Files.getPosixFilePermissions(closed);
-      assertEquals(PosixFilePermissions.fromString("-wx------"), closedPermissions);
+      final Set<PosixFilePermission> expectedClosedPermissions = PosixFilePermissions.fromString("-wx------");
+      assertEquals(expectedClosedPermissions, closedPermissions);
     } finally {
       Files.setPosixFilePermissions(closed, PosixFilePermissions.fromString("rwx------"));
     }

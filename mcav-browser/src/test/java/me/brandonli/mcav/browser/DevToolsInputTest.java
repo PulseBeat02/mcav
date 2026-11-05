@@ -68,12 +68,18 @@ class DevToolsInputTest {
     final List<String> press = this.parameters(
       DevToolsInput.mouse(new MouseInput(HelperProtocol.MOUSE_PRESS, 1, 2, HelperProtocol.BUTTON_LEFT, 1, 0, 0), 0)
     );
-    assertEquals(List.of("{\"type\":\"mousePressed\",\"x\":1,\"y\":2,\"buttons\":1,\"button\":\"left\",\"clickCount\":1}"), press);
+    final List<String> expectedPress = List.of(
+      "{\"type\":\"mousePressed\",\"x\":1,\"y\":2,\"buttons\":1,\"button\":\"left\",\"clickCount\":1}"
+    );
+    assertEquals(expectedPress, press);
 
     final List<String> release = this.parameters(
       DevToolsInput.mouse(new MouseInput(HelperProtocol.MOUSE_RELEASE, 1, 2, HelperProtocol.BUTTON_RIGHT, 2, 0, 0), 2)
     );
-    assertEquals(List.of("{\"type\":\"mouseReleased\",\"x\":1,\"y\":2,\"buttons\":0,\"button\":\"right\",\"clickCount\":2}"), release);
+    final List<String> expectedRelease = List.of(
+      "{\"type\":\"mouseReleased\",\"x\":1,\"y\":2,\"buttons\":0,\"button\":\"right\",\"clickCount\":2}"
+    );
+    assertEquals(expectedRelease, release);
 
     final List<String> middle = this.parameters(
       DevToolsInput.mouse(new MouseInput(HelperProtocol.MOUSE_PRESS, 0, 0, HelperProtocol.BUTTON_MIDDLE, 1, 0, 0), 0)
@@ -84,7 +90,8 @@ class DevToolsInputTest {
     final List<String> wheel = this.parameters(
       DevToolsInput.mouse(new MouseInput(HelperProtocol.MOUSE_WHEEL, 5, 6, 0, 0, -10, WHEEL_DISTANCE), 0)
     );
-    assertEquals(List.of("{\"type\":\"mouseWheel\",\"x\":5,\"y\":6,\"buttons\":0,\"deltaX\":-10,\"deltaY\":120}"), wheel);
+    final List<String> expectedWheel = List.of("{\"type\":\"mouseWheel\",\"x\":5,\"y\":6,\"buttons\":0,\"deltaX\":-10,\"deltaY\":120}");
+    assertEquals(expectedWheel, wheel);
   }
 
   @Test
@@ -98,7 +105,8 @@ class DevToolsInputTest {
     assertEquals(1, held);
 
     final List<String> dragParameters = this.parameters(DevToolsInput.mouse(move, held));
-    assertEquals(List.of("{\"type\":\"mouseMoved\",\"x\":6,\"y\":6,\"buttons\":1,\"button\":\"left\"}"), dragParameters);
+    final List<String> expectedDragParameters = List.of("{\"type\":\"mouseMoved\",\"x\":6,\"y\":6,\"buttons\":1,\"button\":\"left\"}");
+    assertEquals(expectedDragParameters, dragParameters);
 
     final int heldAfterTheMove = DevToolsInput.heldAfter(move, held);
     assertEquals(1, heldAfterTheMove);
@@ -131,25 +139,21 @@ class DevToolsInputTest {
     assertEquals(DevToolsInput.KEY_METHOD, method);
 
     final List<String> pageDownParameters = this.parameters(pageDown);
-    assertEquals(
-      List.of(
-        "{\"type\":\"rawKeyDown\",\"key\":\"PageDown\",\"code\":\"PageDown\",\"windowsVirtualKeyCode\":34}",
-        "{\"type\":\"keyUp\",\"key\":\"PageDown\",\"code\":\"PageDown\",\"windowsVirtualKeyCode\":34}"
-      ),
-      pageDownParameters
+    final List<String> expectedPageDownParameters = List.of(
+      "{\"type\":\"rawKeyDown\",\"key\":\"PageDown\",\"code\":\"PageDown\",\"windowsVirtualKeyCode\":34}",
+      "{\"type\":\"keyUp\",\"key\":\"PageDown\",\"code\":\"PageDown\",\"windowsVirtualKeyCode\":34}"
     );
+    assertEquals(expectedPageDownParameters, pageDownParameters);
   }
 
   @Test
   void shouldSendTheTextOfKeysThatTypeText() {
     final List<String> enterParameters = this.parameters(DevToolsInput.pressKey("Enter"));
-    assertEquals(
-      List.of(
-        "{\"type\":\"keyDown\",\"key\":\"Enter\",\"code\":\"Enter\",\"windowsVirtualKeyCode\":13,\"text\":\"\\r\",\"unmodifiedText\":\"\\r\"}",
-        "{\"type\":\"keyUp\",\"key\":\"Enter\",\"code\":\"Enter\",\"windowsVirtualKeyCode\":13}"
-      ),
-      enterParameters
+    final List<String> expectedEnterParameters = List.of(
+      "{\"type\":\"keyDown\",\"key\":\"Enter\",\"code\":\"Enter\",\"windowsVirtualKeyCode\":13,\"text\":\"\\r\",\"unmodifiedText\":\"\\r\"}",
+      "{\"type\":\"keyUp\",\"key\":\"Enter\",\"code\":\"Enter\",\"windowsVirtualKeyCode\":13}"
     );
+    assertEquals(expectedEnterParameters, enterParameters);
 
     final List<String> space = this.parameters(DevToolsInput.pressKey(" "));
     final boolean spaceHasItsCode = space.getFirst().contains("\"code\":\"Space\"");
@@ -183,29 +187,25 @@ class DevToolsInputTest {
   @Test
   void shouldPressAKeyWithoutADefinitionByItsNameAlone() {
     final List<String> mediaKeyParameters = this.parameters(DevToolsInput.pressKey("MediaPlayPause"));
-    assertEquals(
-      List.of(
-        "{\"type\":\"rawKeyDown\",\"key\":\"MediaPlayPause\",\"windowsVirtualKeyCode\":0}",
-        "{\"type\":\"keyUp\",\"key\":\"MediaPlayPause\",\"windowsVirtualKeyCode\":0}"
-      ),
-      mediaKeyParameters
+    final List<String> expectedMediaKeyParameters = List.of(
+      "{\"type\":\"rawKeyDown\",\"key\":\"MediaPlayPause\",\"windowsVirtualKeyCode\":0}",
+      "{\"type\":\"keyUp\",\"key\":\"MediaPlayPause\",\"windowsVirtualKeyCode\":0}"
     );
+    assertEquals(expectedMediaKeyParameters, mediaKeyParameters);
   }
 
   @Test
   void shouldTypeTextOneCharacterAtATime() {
     final List<String> typed = this.parameters(DevToolsInput.typeText("a1!"));
-    assertEquals(
-      List.of(
-        "{\"type\":\"keyDown\",\"key\":\"a\",\"windowsVirtualKeyCode\":65,\"text\":\"a\",\"unmodifiedText\":\"a\"}",
-        "{\"type\":\"keyUp\",\"key\":\"a\",\"windowsVirtualKeyCode\":65}",
-        "{\"type\":\"keyDown\",\"key\":\"1\",\"windowsVirtualKeyCode\":49,\"text\":\"1\",\"unmodifiedText\":\"1\"}",
-        "{\"type\":\"keyUp\",\"key\":\"1\",\"windowsVirtualKeyCode\":49}",
-        "{\"type\":\"keyDown\",\"key\":\"!\",\"windowsVirtualKeyCode\":0,\"text\":\"!\",\"unmodifiedText\":\"!\"}",
-        "{\"type\":\"keyUp\",\"key\":\"!\",\"windowsVirtualKeyCode\":0}"
-      ),
-      typed
+    final List<String> expectedTypedParameters = List.of(
+      "{\"type\":\"keyDown\",\"key\":\"a\",\"windowsVirtualKeyCode\":65,\"text\":\"a\",\"unmodifiedText\":\"a\"}",
+      "{\"type\":\"keyUp\",\"key\":\"a\",\"windowsVirtualKeyCode\":65}",
+      "{\"type\":\"keyDown\",\"key\":\"1\",\"windowsVirtualKeyCode\":49,\"text\":\"1\",\"unmodifiedText\":\"1\"}",
+      "{\"type\":\"keyUp\",\"key\":\"1\",\"windowsVirtualKeyCode\":49}",
+      "{\"type\":\"keyDown\",\"key\":\"!\",\"windowsVirtualKeyCode\":0,\"text\":\"!\",\"unmodifiedText\":\"!\"}",
+      "{\"type\":\"keyUp\",\"key\":\"!\",\"windowsVirtualKeyCode\":0}"
     );
+    assertEquals(expectedTypedParameters, typed);
   }
 
   @Test
@@ -234,7 +234,8 @@ class DevToolsInputTest {
       .filter(call -> call.contains("keyDown"))
       .map(this::keyOf)
       .toList();
-    assertEquals(List.of("\"a\"", "\"Enter\"", "\"b\"", "\"Enter\"", "\"Enter\""), keys);
+    final List<String> expectedKeys = List.of("\"a\"", "\"Enter\"", "\"b\"", "\"Enter\"", "\"Enter\"");
+    assertEquals(expectedKeys, keys);
   }
 
   private String keyOf(final String call) {

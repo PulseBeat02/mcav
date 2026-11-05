@@ -72,21 +72,21 @@ class SeatbeltTest {
       );
     }
 
-    assertEquals(
+    final String expectedProfile =
       PROFILE +
-        "(deny file-read-data (subpath \"/server\") (subpath \"/Users/owner\"))\n" +
-        "(allow file-read-data (subpath \"/Users/owner/.mcav/natives\") (subpath \"/Users/owner/helper.jar\"))\n" +
-        "(allow file-read-data (subpath \"/private/var/folders/session\") (subpath \"/dev\"))\n" +
-        DENY_WRITING +
-        "(allow file-write* (subpath \"/private/var/folders/session\") (subpath \"/dev\"))\n",
-      profile
-    );
+      "(deny file-read-data (subpath \"/server\") (subpath \"/Users/owner\"))\n" +
+      "(allow file-read-data (subpath \"/Users/owner/.mcav/natives\") (subpath \"/Users/owner/helper.jar\"))\n" +
+      "(allow file-read-data (subpath \"/private/var/folders/session\") (subpath \"/dev\"))\n" +
+      DENY_WRITING +
+      "(allow file-write* (subpath \"/private/var/folders/session\") (subpath \"/dev\"))\n";
+    assertEquals(expectedProfile, profile);
   }
 
   @Test
   void shouldHideNothingAndChangeNothingInAProfileWithoutPaths() {
     final String emptyProfile = Seatbelt.profile(List.of(), List.of(), List.of());
-    assertEquals(PROFILE + DENY_WRITING, emptyProfile);
+    final String expectedEmptyProfile = PROFILE + DENY_WRITING;
+    assertEquals(expectedEmptyProfile, emptyProfile);
   }
 
   @Test
@@ -136,10 +136,12 @@ class SeatbeltTest {
 
       seatbelt.restrictProcess(PROFILE + DENY_WRITING);
       final List<String> passedProfiles = library.getProfiles();
-      assertEquals(List.of(PROFILE + DENY_WRITING), passedProfiles);
+      final List<String> expectedPassedProfiles = List.of(PROFILE + DENY_WRITING);
+      assertEquals(expectedPassedProfiles, passedProfiles);
 
       final List<Long> passedFlags = library.getFlags();
-      assertEquals(List.of(0L), passedFlags);
+      final List<Long> expectedPassedFlags = List.of(0L);
+      assertEquals(expectedPassedFlags, passedFlags);
 
       final List<Long> freedAddresses = library.getFreed();
       assertEquals(List.of(), freedAddresses);
@@ -156,7 +158,8 @@ class SeatbeltTest {
       assertEquals("Seatbelt refused the profile, reporting unbound variable: subpat as the reason!", message);
 
       final List<Long> freedAddresses = library.getFreed();
-      assertEquals(List.of(library.getReasonAddress()), freedAddresses);
+      final List<Long> expectedFreedAddresses = List.of(library.getReasonAddress());
+      assertEquals(expectedFreedAddresses, freedAddresses);
     }
   }
 

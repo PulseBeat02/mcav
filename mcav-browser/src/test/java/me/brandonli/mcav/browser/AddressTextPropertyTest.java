@@ -69,7 +69,8 @@ final class AddressTextPropertyTest {
   ) {
     final String address = scheme + SCHEME_SEPARATOR + user + "@" + host + path + "?" + query + "#" + fragment;
     final String described = AddressText.describe(address);
-    assertEquals(scheme + SCHEME_SEPARATOR + AddressText.HIDDEN + "@" + host + path + "?" + AddressText.HIDDEN, described);
+    final String expectedDescription = scheme + SCHEME_SEPARATOR + AddressText.HIDDEN + "@" + host + path + "?" + AddressText.HIDDEN;
+    assertEquals(expectedDescription, described);
     final boolean showsTheUser = described.contains(user);
     assertFalse(showsTheUser, described);
 

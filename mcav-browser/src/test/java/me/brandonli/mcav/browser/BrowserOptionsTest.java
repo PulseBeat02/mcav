@@ -81,7 +81,8 @@ class BrowserOptionsTest {
     assertFalse(confined);
 
     final List<String> refusedHosts = options.getRefusedHosts();
-    assertEquals(List.of(REFUSED_HOST, "203.0.113.5"), refusedHosts);
+    final List<String> expectedRefusedHosts = List.of(REFUSED_HOST, "203.0.113.5");
+    assertEquals(expectedRefusedHosts, refusedHosts);
 
     final BrowserOptionsBuilder builder = BrowserOptions.builder().refusedHosts(List.of("a b"));
     final IllegalArgumentException refused = assertThrows(IllegalArgumentException.class, builder::build);
@@ -121,7 +122,8 @@ class BrowserOptionsTest {
   void shouldHashOptionsThatDifferInAValueDifferently() {
     final BrowserOptions slower = BrowserOptions.builder().frameRate(1).build();
     final int slowerHashCode = slower.hashCode();
-    assertNotEquals(BrowserOptions.DEFAULT.hashCode(), slowerHashCode);
+    final int defaultHashCode = BrowserOptions.DEFAULT.hashCode();
+    assertNotEquals(defaultHashCode, slowerHashCode);
   }
 
   @Test

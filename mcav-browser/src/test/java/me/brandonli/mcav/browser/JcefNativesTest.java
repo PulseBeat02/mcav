@@ -203,32 +203,40 @@ class JcefNativesTest {
 
     try (final URLClassLoader first = new URLClassLoader(urls, null); final URLClassLoader second = new URLClassLoader(urls, null)) {
       final Class<?> secondNatives = second.loadClass(JcefNatives.class.getName());
-      assertNotSame(first.loadClass(JcefNatives.class.getName()), secondNatives);
+      final Class<?> firstNatives = first.loadClass(JcefNatives.class.getName());
+      assertNotSame(firstNatives, secondNatives);
 
       final Object secondInstallLock = this.installLockOf(second);
-      assertSame(this.installLockOf(first), secondInstallLock);
+      final Object firstInstallLock = this.installLockOf(first);
+      assertSame(firstInstallLock, secondInstallLock);
     }
   }
 
   @Test
   void shouldFindEveryPlatformWithNatives() {
     final Optional<JcefNatives.NativePlatform> linuxAmd64Platform = JcefNatives.detect(Os.LINUX, Arch.X86, Bits.BITS_64);
-    assertEquals(Optional.of(JcefNatives.NativePlatform.LINUX_AMD64), linuxAmd64Platform);
+    final Optional<JcefNatives.NativePlatform> expectedLinuxAmd64Platform = Optional.of(JcefNatives.NativePlatform.LINUX_AMD64);
+    assertEquals(expectedLinuxAmd64Platform, linuxAmd64Platform);
 
     final Optional<JcefNatives.NativePlatform> linuxArm64Platform = JcefNatives.detect(Os.LINUX, Arch.ARM, Bits.BITS_64);
-    assertEquals(Optional.of(JcefNatives.NativePlatform.LINUX_ARM64), linuxArm64Platform);
+    final Optional<JcefNatives.NativePlatform> expectedLinuxArm64Platform = Optional.of(JcefNatives.NativePlatform.LINUX_ARM64);
+    assertEquals(expectedLinuxArm64Platform, linuxArm64Platform);
 
     final Optional<JcefNatives.NativePlatform> windowsAmd64Platform = JcefNatives.detect(Os.WINDOWS, Arch.X86, Bits.BITS_64);
-    assertEquals(Optional.of(JcefNatives.NativePlatform.WINDOWS_AMD64), windowsAmd64Platform);
+    final Optional<JcefNatives.NativePlatform> expectedWindowsAmd64Platform = Optional.of(JcefNatives.NativePlatform.WINDOWS_AMD64);
+    assertEquals(expectedWindowsAmd64Platform, windowsAmd64Platform);
 
     final Optional<JcefNatives.NativePlatform> windowsArm64Platform = JcefNatives.detect(Os.WINDOWS, Arch.ARM, Bits.BITS_64);
-    assertEquals(Optional.of(JcefNatives.NativePlatform.WINDOWS_ARM64), windowsArm64Platform);
+    final Optional<JcefNatives.NativePlatform> expectedWindowsArm64Platform = Optional.of(JcefNatives.NativePlatform.WINDOWS_ARM64);
+    assertEquals(expectedWindowsArm64Platform, windowsArm64Platform);
 
     final Optional<JcefNatives.NativePlatform> macAmd64Platform = JcefNatives.detect(Os.MAC, Arch.X86, Bits.BITS_64);
-    assertEquals(Optional.of(JcefNatives.NativePlatform.MACOS_AMD64), macAmd64Platform);
+    final Optional<JcefNatives.NativePlatform> expectedMacAmd64Platform = Optional.of(JcefNatives.NativePlatform.MACOS_AMD64);
+    assertEquals(expectedMacAmd64Platform, macAmd64Platform);
 
     final Optional<JcefNatives.NativePlatform> macArm64Platform = JcefNatives.detect(Os.MAC, Arch.ARM, Bits.BITS_64);
-    assertEquals(Optional.of(JcefNatives.NativePlatform.MACOS_ARM64), macArm64Platform);
+    final Optional<JcefNatives.NativePlatform> expectedMacArm64Platform = Optional.of(JcefNatives.NativePlatform.MACOS_ARM64);
+    assertEquals(expectedMacArm64Platform, macArm64Platform);
   }
 
   @Test
@@ -264,14 +272,17 @@ class JcefNativesTest {
   void shouldCreateTheCacheFolderWritableByItsOwnerOnly() throws IOException {
     final Path cache = this.folder.resolve(CACHED_NATIVES_FOLDER);
     final Path installation = this.natives(this.nativesJar(JarContent.WITH_ARCHIVE), cache).install(PLATFORM, PINNED_HASH, PINNED_SIZE);
-    assertEquals(cache.resolve(INSTALLATION_PREFIX + JcefNatives.JCEFMAVEN_VERSION + PLATFORM_SUFFIX), installation);
+    final Path expectedInstallation = cache.resolve(INSTALLATION_PREFIX + JcefNatives.JCEFMAVEN_VERSION + PLATFORM_SUFFIX);
+    assertEquals(expectedInstallation, installation);
 
     if (cache.getFileSystem().supportedFileAttributeViews().contains(POSIX_ATTRIBUTE_VIEW)) {
       final Set<PosixFilePermission> cachePermissions = Files.getPosixFilePermissions(cache);
-      assertEquals(PosixFilePermissions.fromString(EXECUTABLE_PERMISSIONS), cachePermissions);
+      final Set<PosixFilePermission> expectedCachePermissions = PosixFilePermissions.fromString(EXECUTABLE_PERMISSIONS);
+      assertEquals(expectedCachePermissions, cachePermissions);
 
       final Set<PosixFilePermission> cacheParentPermissions = Files.getPosixFilePermissions(cache.getParent());
-      assertEquals(PosixFilePermissions.fromString(EXECUTABLE_PERMISSIONS), cacheParentPermissions);
+      final Set<PosixFilePermission> expectedCacheParentPermissions = PosixFilePermissions.fromString(EXECUTABLE_PERMISSIONS);
+      assertEquals(expectedCacheParentPermissions, cacheParentPermissions);
     }
   }
 
@@ -279,7 +290,8 @@ class JcefNativesTest {
   void shouldDownloadExtractAndMarkTheNativesOnce() throws IOException {
     final JcefNatives natives = this.natives(this.nativesJar(JarContent.WITH_ARCHIVE));
     final Path installation = natives.install(PLATFORM, PINNED_HASH, PINNED_SIZE);
-    assertEquals(this.folder.resolve(INSTALLATION_PREFIX + JcefNatives.JCEFMAVEN_VERSION + PLATFORM_SUFFIX), installation);
+    final Path expectedInstallation = this.folder.resolve(INSTALLATION_PREFIX + JcefNatives.JCEFMAVEN_VERSION + PLATFORM_SUFFIX);
+    assertEquals(expectedInstallation, installation);
 
     final String libraryContent = Files.readString(installation.resolve(LIBRARY_FILE));
     assertEquals(NATIVE_LIBRARY_TEXT, libraryContent);
@@ -289,14 +301,17 @@ class JcefNativesTest {
 
     if (installation.getFileSystem().supportedFileAttributeViews().contains(POSIX_ATTRIBUTE_VIEW)) {
       final Set<PosixFilePermission> installationPermissions = Files.getPosixFilePermissions(installation);
-      assertEquals(PosixFilePermissions.fromString(EXECUTABLE_PERMISSIONS), installationPermissions);
+      final Set<PosixFilePermission> expectedInstallationPermissions = PosixFilePermissions.fromString(EXECUTABLE_PERMISSIONS);
+      assertEquals(expectedInstallationPermissions, installationPermissions);
     }
 
     final URI firstRequest = this.requested.getFirst();
-    assertEquals(URI.create(REPOSITORY + PINNED_NATIVE_DOWNLOAD_PATH), firstRequest);
+    final URI expectedFirstRequest = URI.create(REPOSITORY + PINNED_NATIVE_DOWNLOAD_PATH);
+    assertEquals(expectedFirstRequest, firstRequest);
 
     final List<String> leftoverNames = this.leftovers();
-    assertEquals(List.of(installation.getFileName().toString()), leftoverNames, "the jar and the staging folder are gone");
+    final List<String> expectedLeftoverNames = List.of(installation.getFileName().toString());
+    assertEquals(expectedLeftoverNames, leftoverNames, "the jar and the staging folder are gone");
 
     final Path secondInstallation = natives.install(PLATFORM, PINNED_HASH, PINNED_SIZE);
     assertEquals(installation, secondInstallation);
@@ -326,16 +341,20 @@ class JcefNativesTest {
     assertEquals(1, downloadCount, "nothing is installed again");
 
     final Set<PosixFilePermission> folderPermissions = Files.getPosixFilePermissions(this.folder);
-    assertEquals(PosixFilePermissions.fromString(EXECUTABLE_PERMISSIONS), folderPermissions);
+    final Set<PosixFilePermission> expectedFolderPermissions = PosixFilePermissions.fromString(EXECUTABLE_PERMISSIONS);
+    assertEquals(expectedFolderPermissions, folderPermissions);
 
     final Set<PosixFilePermission> installationPermissions = Files.getPosixFilePermissions(installation);
-    assertEquals(PosixFilePermissions.fromString(EXECUTABLE_PERMISSIONS), installationPermissions);
+    final Set<PosixFilePermission> expectedInstallationPermissions = PosixFilePermissions.fromString(EXECUTABLE_PERMISSIONS);
+    assertEquals(expectedInstallationPermissions, installationPermissions);
 
     final Set<PosixFilePermission> libraryPermissions = Files.getPosixFilePermissions(library);
-    assertEquals(PosixFilePermissions.fromString("rw-r--r--"), libraryPermissions);
+    final Set<PosixFilePermission> expectedLibraryPermissions = PosixFilePermissions.fromString("rw-r--r--");
+    assertEquals(expectedLibraryPermissions, libraryPermissions);
 
     final Set<PosixFilePermission> markerPermissions = Files.getPosixFilePermissions(marker);
-    assertEquals(PosixFilePermissions.fromString("rw-r--r--"), markerPermissions);
+    final Set<PosixFilePermission> expectedMarkerPermissions = PosixFilePermissions.fromString("rw-r--r--");
+    assertEquals(expectedMarkerPermissions, markerPermissions);
   }
 
   @Test
@@ -349,7 +368,8 @@ class JcefNativesTest {
     );
     natives.install(JcefNatives.NativePlatform.MACOS_ARM64);
     final JcefNatives.NativePlatform mac = JcefNatives.NativePlatform.MACOS_ARM64;
-    assertEquals(List.of(mac.getSha256() + HASH_SEPARATOR + mac.getSize()), hashes);
+    final List<String> expectedHashes = List.of(mac.getSha256() + HASH_SEPARATOR + mac.getSize());
+    assertEquals(expectedHashes, hashes);
 
     final boolean macArm64Installed = Files.isDirectory(
       this.folder.resolve(INSTALLATION_PREFIX + JcefNatives.JCEFMAVEN_VERSION + MAC_PLATFORM_SUFFIX)
@@ -445,7 +465,8 @@ class JcefNativesTest {
         release.countDown();
       }
       final Path secondInstallation = second.get(30, TimeUnit.SECONDS);
-      assertEquals(first.get(30, TimeUnit.SECONDS), secondInstallation);
+      final Path firstInstallation = first.get(30, TimeUnit.SECONDS);
+      assertEquals(firstInstallation, secondInstallation);
 
       final int downloadCount = this.downloads.get();
       assertEquals(1, downloadCount);
@@ -597,7 +618,8 @@ class JcefNativesTest {
   @Test
   void shouldKeepTheNativesInTheCacheOfMcavByDefault() {
     final Path defaultFolder = new JcefNatives().getFolder();
-    assertEquals(IoUtils.getCachedFolder().resolve(JCEF_CACHE_FOLDER), defaultFolder);
+    final Path expectedDefaultFolder = IoUtils.getCachedFolder().resolve(JCEF_CACHE_FOLDER);
+    assertEquals(expectedDefaultFolder, defaultFolder);
   }
 
   @Test

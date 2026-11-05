@@ -49,7 +49,15 @@ class HelperEnvironmentTest {
       ":0"
     );
     final Map<String, String> kept = HelperEnvironment.filter(parent);
-    assertEquals(Map.of("PATH", SYSTEM_PROGRAMS_FOLDER, "HOME", SERVER_HOME_FOLDER, "SystemRoot", WINDOWS_SYSTEM_FOLDER), kept);
+    final Map<String, String> expectedEnvironment = Map.of(
+      "PATH",
+      SYSTEM_PROGRAMS_FOLDER,
+      "HOME",
+      SERVER_HOME_FOLDER,
+      "SystemRoot",
+      WINDOWS_SYSTEM_FOLDER
+    );
+    assertEquals(expectedEnvironment, kept);
   }
 
   @Test

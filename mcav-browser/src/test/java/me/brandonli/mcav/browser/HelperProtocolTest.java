@@ -411,17 +411,15 @@ class HelperProtocolTest {
       this.read(this.message(HelperProtocol.LOAD_ERROR, new byte[3]))
     );
     final String loadErrorMessage = loadError.getMessage();
-    assertEquals(
-      "A message of type 5 has 8 to " + (4 + 2 * (2 + maximumTextBytes)) + " bytes, but 3 bytes were announced!",
-      loadErrorMessage
-    );
+    final String expectedLoadErrorMessage =
+      "A message of type 5 has 8 to " + (4 + 2 * (2 + maximumTextBytes)) + " bytes, but 3 bytes were announced!";
+    assertEquals(expectedLoadErrorMessage, loadErrorMessage);
 
     final ProtocolException text = assertThrows(ProtocolException.class, () -> this.read(this.message(HelperProtocol.READY, new byte[1])));
     final String textMessage = text.getMessage();
-    assertEquals(
-      "A message of type " + HelperProtocol.READY + " has 2 to " + (2 + maximumTextBytes) + " bytes, but 1 bytes were announced!",
-      textMessage
-    );
+    final String expectedTextMessage =
+      "A message of type " + HelperProtocol.READY + " has 2 to " + (2 + maximumTextBytes) + " bytes, but 1 bytes were announced!";
+    assertEquals(expectedTextMessage, textMessage);
   }
 
   @Test
@@ -450,7 +448,8 @@ class HelperProtocolTest {
     assertEquals(HelperProtocol.AUDIO, type);
 
     final byte[] soundSamples = sound.getSamples();
-    assertArrayEquals(Arrays.copyOf(samples, 8), soundSamples);
+    final byte[] expectedSoundSamples = Arrays.copyOf(samples, 8);
+    assertArrayEquals(expectedSoundSamples, soundSamples);
 
     final byte[] largest = new byte[HelperProtocol.MAXIMUM_AUDIO_BYTES];
     largest[largest.length - 1] = 5;
@@ -470,7 +469,8 @@ class HelperProtocolTest {
   private void assertSoundRefused(final byte[] samples, final int length) {
     final IllegalArgumentException refused = assertThrows(IllegalArgumentException.class, () -> this.encodeAudio(samples, length));
     final String message = refused.getMessage();
-    assertEquals("Sound of " + length + " bytes cannot be sent!", message);
+    final String expectedMessage = "Sound of " + length + " bytes cannot be sent!";
+    assertEquals(expectedMessage, message);
   }
 
   private byte[] encodeAudio(final byte[] samples, final int length) throws IOException {
@@ -573,10 +573,12 @@ class HelperProtocolTest {
 
     final String straddling = FIRST_TEXT.repeat(HelperProtocol.MAXIMUM_TEXT_BYTES - 1) + "☃";
     final byte[] cut = HelperProtocol.encodeTruncated(straddling);
-    assertEquals(HelperProtocol.MAXIMUM_TEXT_BYTES - 1, cut.length);
+    final int expectedCutBytes = HelperProtocol.MAXIMUM_TEXT_BYTES - 1;
+    assertEquals(expectedCutBytes, cut.length);
 
     final String cutText = new String(cut, StandardCharsets.UTF_8);
-    assertEquals(FIRST_TEXT.repeat(HelperProtocol.MAXIMUM_TEXT_BYTES - 1), cutText);
+    final String expectedCutText = FIRST_TEXT.repeat(HelperProtocol.MAXIMUM_TEXT_BYTES - 1);
+    assertEquals(expectedCutText, cutText);
 
     final byte[] exact = HelperProtocol.encodeTruncated(FIRST_TEXT.repeat(HelperProtocol.MAXIMUM_TEXT_BYTES));
     assertEquals(HelperProtocol.MAXIMUM_TEXT_BYTES, exact.length);
@@ -598,16 +600,20 @@ class HelperProtocolTest {
   void shouldSplitALongTextIntoPartsThatEachFitIntoAMessage() {
     final int maximumTextBytes = HelperProtocol.MAXIMUM_TEXT_BYTES;
     final List<String> emptyParts = HelperProtocol.split("");
-    assertEquals(List.of(""), emptyParts);
+    final List<String> expectedEmptyParts = List.of("");
+    assertEquals(expectedEmptyParts, emptyParts);
 
     final List<String> shortParts = HelperProtocol.split(GREETING_TEXT);
-    assertEquals(List.of(GREETING_TEXT), shortParts);
+    final List<String> expectedShortParts = List.of(GREETING_TEXT);
+    assertEquals(expectedShortParts, shortParts);
 
     final List<String> fullParts = HelperProtocol.split(FIRST_TEXT.repeat(maximumTextBytes));
-    assertEquals(List.of(FIRST_TEXT.repeat(maximumTextBytes)), fullParts);
+    final List<String> expectedFullParts = List.of(FIRST_TEXT.repeat(maximumTextBytes));
+    assertEquals(expectedFullParts, fullParts);
 
     final List<String> overflowingParts = HelperProtocol.split(FIRST_TEXT.repeat(maximumTextBytes + 1));
-    assertEquals(List.of(FIRST_TEXT.repeat(maximumTextBytes), FIRST_TEXT), overflowingParts);
+    final List<String> expectedOverflowingParts = List.of(FIRST_TEXT.repeat(maximumTextBytes), FIRST_TEXT);
+    assertEquals(expectedOverflowingParts, overflowingParts);
 
     for (final String character : new String[] { "\u0080", "\u00e9", "\u0800", "\u20ac", "\uD800\uDC00", "\uD83D\uDE00" }) {
       final String text = character.repeat(maximumTextBytes);
@@ -632,11 +638,13 @@ class HelperProtocolTest {
     final int maximumTextBytes = HelperProtocol.MAXIMUM_TEXT_BYTES;
     final String text = FIRST_TEXT.repeat(maximumTextBytes - 1) + "\r\nb";
     final List<String> carriageReturnParts = HelperProtocol.split(text);
-    assertEquals(List.of(FIRST_TEXT.repeat(maximumTextBytes - 1), "\r\nb"), carriageReturnParts);
+    final List<String> expectedCarriageReturnParts = List.of(FIRST_TEXT.repeat(maximumTextBytes - 1), "\r\nb");
+    assertEquals(expectedCarriageReturnParts, carriageReturnParts);
 
     final String lone = FIRST_TEXT.repeat(maximumTextBytes) + "\nb";
     final List<String> lineFeedParts = HelperProtocol.split(lone);
-    assertEquals(List.of(FIRST_TEXT.repeat(maximumTextBytes), "\nb"), lineFeedParts);
+    final List<String> expectedLineFeedParts = List.of(FIRST_TEXT.repeat(maximumTextBytes), "\nb");
+    assertEquals(expectedLineFeedParts, lineFeedParts);
   }
 
   @Test
