@@ -17,6 +17,7 @@
  */
 package me.brandonli.mcav.browser;
 
+import static java.util.Objects.requireNonNull;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -41,7 +42,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
@@ -578,7 +578,7 @@ class CefEngineTest {
     final boolean authorityFileWritten = Files.exists(authority);
     assertFalse(authorityFileWritten, "no display, no authority file");
 
-    try (final NullDisplay display = Objects.requireNonNull(this.engine.startDisplay(OperatingSystem.LINUX, authority))) {
+    try (final NullDisplay display = requireNonNull(this.engine.startDisplay(OperatingSystem.LINUX, authority))) {
       final boolean loopbackDisplay = display.getDisplay().startsWith("127.0.0.1:");
       assertTrue(loopbackDisplay);
 

@@ -17,6 +17,8 @@
  */
 package me.brandonli.mcav.browser;
 
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.annotations.VisibleForTesting;
 import java.io.FilterInputStream;
 import java.io.IOException;
@@ -38,7 +40,6 @@ import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 import java.util.Set;
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
@@ -193,7 +194,7 @@ final class ArchiveExtractor {
 
   private long writeFile(final InputStream tar, final Path destination, final long remaining, final PosixPermissions permissions)
     throws IOException {
-    final Path parent = Objects.requireNonNull(destination.getParent(), "An entry lies below the folder!");
+    final Path parent = requireNonNull(destination.getParent(), "An entry lies below the folder!");
     createFolders(parent, permissions);
 
     final byte[] buffer = new byte[BUFFER_BYTES];
@@ -233,7 +234,7 @@ final class ArchiveExtractor {
     Path current = folder.toAbsolutePath();
     while (Files.notExists(current, LinkOption.NOFOLLOW_LINKS)) {
       missing.add(current);
-      current = Objects.requireNonNull(current.getParent(), "The root of a file system exists!");
+      current = requireNonNull(current.getParent(), "The root of a file system exists!");
     }
 
     final FileAttribute<?>[] attributes = initialAttributes(permissions, FOLDER);

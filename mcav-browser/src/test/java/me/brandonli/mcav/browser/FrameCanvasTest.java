@@ -17,6 +17,7 @@
  */
 package me.brandonli.mcav.browser;
 
+import static java.util.Objects.requireNonNull;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -25,7 +26,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.net.ProtocolException;
 import java.nio.ByteBuffer;
-import java.util.Objects;
 import me.brandonli.mcav.media.image.ImageBuffer;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.jupiter.api.Test;
@@ -56,7 +56,7 @@ class FrameCanvasTest {
   }
 
   private ImageBuffer snapshot(final FrameCanvas canvas) {
-    return Objects.requireNonNull(canvas.snapshot(), "An open canvas must have a picture!");
+    return requireNonNull(canvas.snapshot(), "An open canvas must have a picture!");
   }
 
   @Test
