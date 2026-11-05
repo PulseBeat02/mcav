@@ -894,7 +894,7 @@ final class DependencyLoaderTest {
   @Test
   @ResourceLock(Resources.SYSTEM_ERR)
   void shouldWarnWithoutFailingWhenGtk2CannotBeInstalled(@TempDir final Path folder) {
-    final Download[] downloads = { new Download(LINUX_ARM_64, UNHASHED_PACKAGE_URL) };
+    final Download[] downloads = { Download.of(LINUX_ARM_64, UNHASHED_PACKAGE_URL) };
     final DebianLibraryInstaller installer = DebianLibraryInstallers.create(folder, downloads, LINUX_ARM_64, this::refuseToLoad);
     final PrintStream standardError = System.err;
     final ByteArrayOutputStream captured = new ByteArrayOutputStream();

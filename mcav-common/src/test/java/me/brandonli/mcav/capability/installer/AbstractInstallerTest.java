@@ -217,7 +217,7 @@ final class AbstractInstallerTest {
   @Test
   void shouldResolveTheDownloadsLazilyAndOnlyOnce() {
     final AtomicInteger calls = new AtomicInteger();
-    final Download current = new Download(CURRENT_PLATFORM, TOOL_URL, "ab12cd");
+    final Download current = Download.of(CURRENT_PLATFORM, TOOL_URL, "ab12cd");
     final TestInstaller installer = new TestInstaller(this.folder, NAME, () -> this.countAndListDownload(calls, current));
     final int callsAfterConstruction = calls.get();
     final boolean supported = installer.isSupported();
@@ -240,8 +240,8 @@ final class AbstractInstallerTest {
 
   @Test
   void shouldPreferTheExactPlatformOverFallbacks() {
-    final Download exact = new Download(OTHER_PLATFORM, "https://example.com/exact", null);
-    final Download compatible = new Download(LINUX_X86_64, "https://example.com/compatible", null);
+    final Download exact = Download.of(OTHER_PLATFORM, "https://example.com/exact", null);
+    final Download compatible = Download.of(LINUX_X86_64, "https://example.com/compatible", null);
     final TestInstaller installer = new TestInstaller(this.folder, NAME, new Download[] { compatible, exact });
     final List<Platform> fallbacks = List.of(LINUX_X86_64);
     installer.setFallbacks(fallbacks);
@@ -254,8 +254,8 @@ final class AbstractInstallerTest {
   @Test
   void shouldFallBackToCompatiblePlatformsInOrder() {
     final Platform second = Platform.ofPlatform(Os.LINUX, Arch.X86, Bits.BITS_32);
-    final Download secondDownload = new Download(second, "https://example.com/second", null);
-    final Download firstDownload = new Download(LINUX_X86_64, "https://example.com/first", null);
+    final Download secondDownload = Download.of(second, "https://example.com/second", null);
+    final Download firstDownload = Download.of(LINUX_X86_64, "https://example.com/first", null);
     final TestInstaller installer = new TestInstaller(this.folder, NAME, new Download[] { secondDownload, firstDownload });
     final List<Platform> fallbacks = List.of(LINUX_X86_64, second);
     installer.setFallbacks(fallbacks);
@@ -268,7 +268,7 @@ final class AbstractInstallerTest {
   @Test
   void shouldFindNothingWithoutAMatchingOrCompatiblePlatform() {
     final Platform unrelated = Platform.ofPlatform(Os.MAC, Arch.ARM, Bits.BITS_64);
-    final Download download = new Download(unrelated, "https://example.com/mac", null);
+    final Download download = Download.of(unrelated, "https://example.com/mac", null);
     final TestInstaller installer = new TestInstaller(this.folder, NAME, new Download[] { download });
     final List<Platform> fallbacks = List.of(LINUX_X86_64);
     installer.setFallbacks(fallbacks);
@@ -288,7 +288,7 @@ final class AbstractInstallerTest {
 
   @Test
   void shouldReportUnsupportedPlatforms() {
-    final Download elsewhere = new Download(OTHER_PLATFORM, "https://example.com/elsewhere", "00");
+    final Download elsewhere = Download.of(OTHER_PLATFORM, "https://example.com/elsewhere", "00");
     final TestInstaller installer = new TestInstaller(this.folder, NAME, new Download[] { elsewhere });
     final boolean supported = installer.isSupported();
     final Optional<String> url = installer.getUrl();
@@ -357,7 +357,7 @@ final class AbstractInstallerTest {
     final TestInstaller writer = new TestInstaller(this.folder, NAME, new Download[0]);
     writer.writePathToConfiguration(elsewhere);
 
-    final Download unreachable = new Download(CURRENT_PLATFORM, "http://127.0.0.1:1/unreachable", null);
+    final Download unreachable = Download.of(CURRENT_PLATFORM, "http://127.0.0.1:1/unreachable", null);
     final TestInstaller installer = new TestInstaller(this.folder, NAME, new Download[] { unreachable });
     final Path installed = installer.download(FileMode.EXECUTABLE);
     final Path expected = elsewhere.toAbsolutePath();
@@ -453,7 +453,7 @@ final class AbstractInstallerTest {
 
   @Test
   void shouldRejectADownloadUrlThatIsNotAValidUri() {
-    final Download download = new Download(CURRENT_PLATFORM, "https://example.com/a tool");
+    final Download download = Download.of(CURRENT_PLATFORM, "https://example.com/a tool");
     final Download[] downloads = new Download[] { download };
     final TestInstaller installer = new TestInstaller(this.folder, NAME, downloads);
     assertThrows(IllegalArgumentException.class, () -> installer.download(FileMode.UNCHANGED));
@@ -585,7 +585,7 @@ final class AbstractInstallerTest {
       final MockedStatic<IoUtils> ioUtils = Mockito.mockStatic(IoUtils.class, Mockito.CALLS_REAL_METHODS)
     ) {
       server.respond(TOOL_PATH, OK_STATUS, PROGRAM);
-      final Download download = new Download(CURRENT_PLATFORM, server.uri(TOOL_PATH).toString(), null);
+      final Download download = Download.of(CURRENT_PLATFORM, server.uri(TOOL_PATH).toString(), null);
       final Path tools = fileSystem.getPath(POSIX_FOLDER_PATH);
       final TestInstaller first = new TestInstaller(tools, NAME, new Download[] { download });
       final AtomicInteger permissionAttempts = new AtomicInteger();
@@ -622,7 +622,7 @@ final class AbstractInstallerTest {
       server.respond(TOOL_PATH, OK_STATUS, PROGRAM);
       final URI uri = server.uri(TOOL_PATH);
       final String url = uri.toString();
-      final Download download = new Download(CURRENT_PLATFORM, url, null);
+      final Download download = Download.of(CURRENT_PLATFORM, url, null);
       final Path posixFolder = fileSystem.getPath(POSIX_FOLDER_PATH);
       final TestInstaller installer = new TestInstaller(posixFolder, NAME, new Download[] { download });
       final Path installed = installer.download(FileMode.EXECUTABLE);
@@ -642,7 +642,7 @@ final class AbstractInstallerTest {
   void shouldReportAFolderThatCannotBeCreated() throws IOException {
     final Path blocker = this.createFileInFolder(BLOCKER_FILE_NAME);
     final Path tools = blocker.resolve(TOOLS_FOLDER_NAME);
-    final Download download = new Download(CURRENT_PLATFORM, TOOL_URL, PROGRAM_HASH);
+    final Download download = Download.of(CURRENT_PLATFORM, TOOL_URL, PROGRAM_HASH);
     final TestInstaller installer = new TestInstaller(tools, NAME, new Download[] { download });
     final InstallationException downloading = assertThrows(InstallationException.class, () -> installer.download(FileMode.EXECUTABLE));
     final InstallationException remembering = assertThrows(InstallationException.class, () -> installer.writePathToConfiguration(tools));
@@ -709,8 +709,8 @@ final class AbstractInstallerTest {
   void shouldNeverOfferADownloadForAnUnknownPlatform() {
     final Platform unknownOs = Platform.ofPlatform(Os.OTHER, Arch.X86, Bits.BITS_64);
     final Platform unknownArch = Platform.ofPlatform(Os.LINUX, Arch.OTHER, Bits.BITS_64);
-    final Download forUnknownOs = new Download(unknownOs, "https://example.com/unknown-os", null);
-    final Download forUnknownArch = new Download(unknownArch, "https://example.com/unknown-arch", null);
+    final Download forUnknownOs = Download.of(unknownOs, "https://example.com/unknown-os", null);
+    final Download forUnknownArch = Download.of(unknownArch, "https://example.com/unknown-arch", null);
     final TestInstaller installer = new TestInstaller(this.folder, NAME, new Download[] { forUnknownOs, forUnknownArch });
 
     final Optional<Download> osResult = installer.findDownload(unknownOs);
@@ -765,7 +765,7 @@ final class AbstractInstallerTest {
   void shouldNameArchivesAfterTheProgramWhenTheUrlHasNoUsableFileName() {
     final List<String> urls = List.of("https://example.com/", "https://example.com/files/..", "https://example.com/files/.");
     for (final String url : urls) {
-      final Download download = new Download(CURRENT_PLATFORM, url, null);
+      final Download download = Download.of(CURRENT_PLATFORM, url, null);
       final TestInstaller installer = new TestInstaller(this.folder, NAME, new Download[] { download });
       installer.markAsArchive();
       final String fileName = installer.getFileName();
@@ -794,7 +794,7 @@ final class AbstractInstallerTest {
   private TestInstaller installerDownloadingFrom(final LocalHttpServer server, final String path, final String hash) {
     final URI uri = server.uri(path);
     final String url = uri.toString();
-    final Download download = new Download(CURRENT_PLATFORM, url, hash);
+    final Download download = Download.of(CURRENT_PLATFORM, url, hash);
     return new TestInstaller(this.folder, NAME, new Download[] { download });
   }
 

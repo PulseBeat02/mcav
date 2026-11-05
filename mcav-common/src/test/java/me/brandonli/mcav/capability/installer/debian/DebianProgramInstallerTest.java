@@ -293,7 +293,7 @@ final class DebianProgramInstallerTest {
   private Download createDownload(final Platform platform, final String path, final byte[] content) {
     final String url = this.server.uri(path).toString();
     final String sha256 = Hashing.sha256().hashBytes(content).toString();
-    return new Download(platform, url, sha256);
+    return Download.of(platform, url, sha256);
   }
 
   private void serveBothPackages() {

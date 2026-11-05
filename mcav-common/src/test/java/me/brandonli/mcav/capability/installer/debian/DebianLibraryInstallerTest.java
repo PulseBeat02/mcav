@@ -313,7 +313,7 @@ final class DebianLibraryInstallerTest {
   @Test
   void shouldRefuseAPackageWithoutAPinnedHash() {
     final String url = this.server.uri(FIRST_PACKAGE).toString();
-    final Download[] downloads = { new Download(ARM64, url) };
+    final Download[] downloads = { Download.of(ARM64, url) };
     final DebianLibraryInstaller installer = new DebianLibraryInstaller(this.folder, NAME, downloads, ARM64, this::record);
 
     final InstallationException failure = assertThrows(InstallationException.class, () -> installer.download(FileMode.EXECUTABLE));
@@ -431,7 +431,7 @@ final class DebianLibraryInstallerTest {
   private Download createDownload(final Platform platform, final String path, final byte[] content) {
     final String url = this.server.uri(path).toString();
     final String sha256 = Hashing.sha256().hashBytes(content).toString();
-    return new Download(platform, url, sha256);
+    return Download.of(platform, url, sha256);
   }
 
   private void serveBothPackages() {

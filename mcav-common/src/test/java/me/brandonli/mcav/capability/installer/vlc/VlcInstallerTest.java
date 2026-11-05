@@ -250,7 +250,7 @@ final class VlcInstallerTest {
   @Test
   void shouldBeSupportedWithoutAnInstallationWhenThisPlatformHasADownload() {
     final Platform current = Platform.getCurrentPlatform();
-    final Download download = new Download(current, "https://example.invalid/vlc.zip");
+    final Download download = Download.of(current, "https://example.invalid/vlc.zip");
     final VlcInstaller installer = new VlcInstaller(this.folder, () -> new Download[] { download });
     final boolean supported = installer.isSupported();
     assertTrue(supported);
@@ -524,7 +524,7 @@ final class VlcInstallerTest {
     final URI uri = server.uri(ZIP_PATH);
     final String url = uri.toString();
     final Platform current = Platform.getCurrentPlatform();
-    final Download download = new Download(current, url);
+    final Download download = Download.of(current, url);
     return new VlcInstaller(this.folder, () -> new Download[] { download });
   }
 

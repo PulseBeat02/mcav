@@ -664,7 +664,7 @@ public final class IoUtils {
       final Platform platform = Platform.ofPlatform(os, architecture, bits);
       final String url = fields.url();
       final @Nullable String hash = fields.hash();
-      return new Download(platform, url, hash);
+      return Download.of(platform, url, hash);
     } catch (final NullPointerException | IllegalArgumentException exception) {
       final String message = "Download list has an incomplete download!";
       throw new IOException(message, exception);

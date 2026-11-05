@@ -39,7 +39,7 @@ final class DownloadTest {
 
   @Test
   void shouldStorePlatformUrlAndHash() {
-    final Download download = new Download(LINUX, TOOL_URL, HASH);
+    final Download download = Download.of(LINUX, TOOL_URL, HASH);
     final Platform platform = download.getPlatform();
     final String url = download.getUrl();
     final Optional<String> hash = download.getHash();
@@ -50,10 +50,10 @@ final class DownloadTest {
   }
 
   @Test
-  void shouldDescribeTheSameDownloadWithEveryConstructor() {
-    final Download withoutHash = new Download(LINUX, TOOL_URL);
-    final Download fromPartsWithHash = new Download(Os.LINUX, Arch.X86, Bits.BITS_64, TOOL_URL, HASH);
-    final Download fromParts = new Download(Os.LINUX, Arch.X86, Bits.BITS_64, TOOL_URL);
+  void shouldDescribeTheSameDownloadWithEveryFactory() {
+    final Download withoutHash = Download.of(LINUX, TOOL_URL);
+    final Download fromPartsWithHash = Download.of(Os.LINUX, Arch.X86, Bits.BITS_64, TOOL_URL, HASH);
+    final Download fromParts = Download.of(Os.LINUX, Arch.X86, Bits.BITS_64, TOOL_URL);
     final Optional<String> missingHash = withoutHash.getHash();
     final Platform partsPlatform = fromPartsWithHash.getPlatform();
     final Optional<String> partsHash = fromPartsWithHash.getHash();
@@ -70,18 +70,18 @@ final class DownloadTest {
   @Test
   void shouldFollowTheEqualityContract() {
     final Platform windows = Platform.ofPlatform(Os.WINDOWS, Arch.X86, Bits.BITS_64);
-    final Download download = new Download(LINUX, TOOL_URL, HASH);
-    final Download equalDownload = new Download(LINUX, TOOL_URL, HASH);
-    final Download otherPlatform = new Download(windows, TOOL_URL, HASH);
-    final Download otherUrl = new Download(LINUX, "https://example.com/other", HASH);
-    final Download otherHash = new Download(LINUX, TOOL_URL, "def");
-    final Download withoutHash = new Download(LINUX, TOOL_URL);
+    final Download download = Download.of(LINUX, TOOL_URL, HASH);
+    final Download equalDownload = Download.of(LINUX, TOOL_URL, HASH);
+    final Download otherPlatform = Download.of(windows, TOOL_URL, HASH);
+    final Download otherUrl = Download.of(LINUX, "https://example.com/other", HASH);
+    final Download otherHash = Download.of(LINUX, TOOL_URL, "def");
+    final Download withoutHash = Download.of(LINUX, TOOL_URL);
     EqualityAssertions.assertEqualityContract(download, equalDownload, otherPlatform, otherUrl, otherHash, withoutHash);
   }
 
   @Test
   void shouldHashThePlatformTheUrlAndTheHash() {
-    final Download download = new Download(LINUX, TOOL_URL, HASH);
+    final Download download = Download.of(LINUX, TOOL_URL, HASH);
 
     final int hashCode = download.hashCode();
     final int expected = Objects.hash(LINUX, TOOL_URL, HASH);
@@ -90,7 +90,7 @@ final class DownloadTest {
 
   @Test
   void shouldPrintThePlatformTheUrlAndTheHash() {
-    final Download download = new Download(LINUX, TOOL_URL, HASH);
+    final Download download = Download.of(LINUX, TOOL_URL, HASH);
 
     final String text = download.toString();
     final String expected = "Download{platform=%s, url=%s, hash=%s}".formatted(LINUX, TOOL_URL, HASH);
@@ -99,13 +99,13 @@ final class DownloadTest {
 
   @Test
   void shouldRejectInvalidArguments() {
-    assertThrows(IllegalArgumentException.class, () -> new Download(LINUX, " "));
-    assertThrows(NullPointerException.class, () -> new Download(null, TOOL_URL));
-    assertThrows(NullPointerException.class, () -> new Download(LINUX, null));
-    assertThrows(NullPointerException.class, () -> new Download(null, Arch.X86, Bits.BITS_64, TOOL_URL));
-    assertThrows(NullPointerException.class, () -> new Download(Os.LINUX, null, Bits.BITS_64, TOOL_URL));
-    assertThrows(NullPointerException.class, () -> new Download(Os.LINUX, Arch.X86, null, TOOL_URL));
-    assertThrows(NullPointerException.class, () -> new Download(Os.LINUX, Arch.X86, Bits.BITS_64, null));
-    assertThrows(IllegalArgumentException.class, () -> new Download(Os.LINUX, Arch.X86, Bits.BITS_64, " "));
+    assertThrows(IllegalArgumentException.class, () -> Download.of(LINUX, " "));
+    assertThrows(NullPointerException.class, () -> Download.of(null, TOOL_URL));
+    assertThrows(NullPointerException.class, () -> Download.of(LINUX, null));
+    assertThrows(NullPointerException.class, () -> Download.of(null, Arch.X86, Bits.BITS_64, TOOL_URL));
+    assertThrows(NullPointerException.class, () -> Download.of(Os.LINUX, null, Bits.BITS_64, TOOL_URL));
+    assertThrows(NullPointerException.class, () -> Download.of(Os.LINUX, Arch.X86, null, TOOL_URL));
+    assertThrows(NullPointerException.class, () -> Download.of(Os.LINUX, Arch.X86, Bits.BITS_64, null));
+    assertThrows(IllegalArgumentException.class, () -> Download.of(Os.LINUX, Arch.X86, Bits.BITS_64, " "));
   }
 }

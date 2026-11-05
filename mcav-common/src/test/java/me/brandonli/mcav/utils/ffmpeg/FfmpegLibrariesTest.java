@@ -80,7 +80,7 @@ final class FfmpegLibrariesTest {
 
   @Test
   void shouldUseTheLibrariesOfTheSystem(@TempDir final Path folder) {
-    final Download[] downloads = { new Download(LINUX_X86_64, PACKAGE_URL) };
+    final Download[] downloads = { Download.of(LINUX_X86_64, PACKAGE_URL) };
     final DebianLibraryInstaller installer = DebianLibraryInstallers.create(folder, downloads, LINUX_X86_64, this::refuseToLoad);
     final FfmpegLibraries libraries = FfmpegLibraries.install(Os.LINUX, library -> true, () -> installer);
     final Map<String, String> environment = libraries.createEnvironment(EXECUTABLE, INHERITED_LIBRARY_PATH);
@@ -95,7 +95,7 @@ final class FfmpegLibrariesTest {
     final Path pulseLibrary = this.createLibrary(folder, PULSE_LIBRARY_PATH);
     final List<String> loadOrder = List.of(SOUND_LIBRARY_PATH, PULSE_LIBRARY_PATH);
     Files.write(folder.resolve(LOAD_ORDER_FILE), loadOrder, StandardCharsets.UTF_8);
-    final Download[] downloads = { new Download(LINUX_X86_64, PACKAGE_URL) };
+    final Download[] downloads = { Download.of(LINUX_X86_64, PACKAGE_URL) };
     final List<String> loaded = new ArrayList<>();
     final DebianLibraryInstaller installer = DebianLibraryInstallers.create(folder, downloads, LINUX_X86_64, loaded::add);
     final Predicate<String> systemLibraries = Predicate.not("libasound.so.2"::equals);
@@ -124,7 +124,7 @@ final class FfmpegLibrariesTest {
   @ResourceLock(Resources.SYSTEM_ERR)
   void shouldWarnWithoutFailingWhenTheLibrariesCannotBeInstalled(@TempDir final Path folder) {
     final Path installation = folder.resolve(INSTALLATION_FOLDER);
-    final Download[] downloads = { new Download(LINUX_X86_64, PACKAGE_URL) };
+    final Download[] downloads = { Download.of(LINUX_X86_64, PACKAGE_URL) };
     final DebianLibraryInstaller installer = DebianLibraryInstallers.create(installation, downloads, LINUX_X86_64, this::refuseToLoad);
     final PrintStream standardError = System.err;
     final ByteArrayOutputStream captured = new ByteArrayOutputStream();

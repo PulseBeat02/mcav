@@ -436,7 +436,7 @@ final class YtdlpInstallerTest {
   }
 
   private YtdlpInstaller installerFor(final String url) {
-    final Download download = new Download(CURRENT_PLATFORM, url);
+    final Download download = Download.of(CURRENT_PLATFORM, url);
     final Download[] downloads = { download };
     return new YtdlpInstaller(this.folder, downloads);
   }
@@ -446,7 +446,7 @@ final class YtdlpInstallerTest {
     final URI uri = server.uri(path);
     final String url = uri.toString();
     final String hash = sha256(body);
-    final Download download = new Download(CURRENT_PLATFORM, url, hash);
+    final Download download = Download.of(CURRENT_PLATFORM, url, hash);
     final Download[] downloads = { download };
     return new YtdlpInstaller(this.folder, downloads);
   }
