@@ -301,7 +301,8 @@ final class Mcv2FileEncoderTest {
     final Mcv2FileEncoder.FrameReader interrupting = new Mcv2FileEncoder.FrameReader() {
       @Override
       public boolean read(final byte[] rgb) {
-        Thread.currentThread().interrupt();
+        final Thread current = Thread.currentThread();
+        current.interrupt();
 
         return true;
       }

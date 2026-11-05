@@ -683,7 +683,9 @@ final class McPackHostingTest {
         final boolean terminated = this.handlers.awaitTermination(10, TimeUnit.SECONDS);
         assertTrue(terminated, "the upload callbacks finish");
       } catch (final InterruptedException exception) {
-        Thread.currentThread().interrupt();
+        final Thread current = Thread.currentThread();
+        current.interrupt();
+
         throw new AssertionError("Interrupted while joining upload callbacks!", exception);
       }
 

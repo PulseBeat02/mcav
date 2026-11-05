@@ -174,7 +174,9 @@ final class Mcv2WorkersTest {
       final boolean released = latch.await(5, TimeUnit.SECONDS);
       assertTrue(released, "fixture latch must be released");
     } catch (final InterruptedException exception) {
-      Thread.currentThread().interrupt();
+      final Thread current = Thread.currentThread();
+      current.interrupt();
+
       throw new AssertionError(exception);
     }
   }

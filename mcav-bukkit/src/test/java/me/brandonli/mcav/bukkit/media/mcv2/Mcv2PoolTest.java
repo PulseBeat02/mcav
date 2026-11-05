@@ -298,7 +298,8 @@ final class Mcv2PoolTest {
   void shouldStartNothingForACallerInterruptedBefore() {
     try (final Pool pool = new Pool(1)) {
       final AtomicReference<Thread> ran = new AtomicReference<>();
-      Thread.currentThread().interrupt();
+      final Thread current = Thread.currentThread();
+      current.interrupt();
       final Mcv2Exception thrown = assertThrows(Mcv2Exception.class, () -> pool.run(() -> this.recordThread(ran)));
       final boolean interrupted = Thread.interrupted();
       assertTrue(interrupted);

@@ -446,7 +446,8 @@ final class Mcv2ResultTest {
   void shouldKeepItsInterruptWhileReleasing() {
     final Mcv2Result result = this.result(this.configuration, null);
     result.start();
-    Thread.currentThread().interrupt();
+    final Thread current = Thread.currentThread();
+    current.interrupt();
     result.release();
 
     final boolean interrupted = Thread.interrupted();
@@ -2189,7 +2190,8 @@ final class Mcv2ResultTest {
     }
 
     if (interrupted) {
-      Thread.currentThread().interrupt();
+      final Thread current = Thread.currentThread();
+      current.interrupt();
     }
   }
 
