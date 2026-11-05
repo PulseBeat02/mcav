@@ -28,8 +28,7 @@ import java.util.Optional;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-// names no JOML type: the build's javac lint rejects the type annotations of JOML's class files; the matrices are
-// found by name, once, and read through JOML's Externalizable form, sixteen floats column by column
+// names no JOML type (javac lint rejects its class files' type annotations); reads the matrices by name as Externalizable
 final class GameMatrices {
 
   static final int FLOATS_PER_MATRIX = 16;

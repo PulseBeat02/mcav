@@ -92,8 +92,7 @@ public final class NeoForgeEntrypoint {
   }
 
   private void onRegisterPayloadHandlers(final RegisterPayloadHandlersEvent event) {
-    // optional, so the client still joins servers without the channel, which are all servers but MCAV's; the server of
-    // a single-player world has no MCV2 screens, and its handler drops the reports
+    // optional, so the client still joins servers without the channel; a single-player server drops the reports
     event
       .registrar(PROTOCOL)
       .optional()
