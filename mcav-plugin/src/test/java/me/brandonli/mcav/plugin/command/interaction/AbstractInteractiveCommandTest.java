@@ -49,6 +49,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import me.brandonli.mcav.bukkit.media.config.MapConfiguration;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2.Settings;
@@ -78,6 +79,7 @@ import me.brandonli.mcav.plugin.utils.Keys;
 import me.brandonli.mcav.plugin.utils.MapCodec;
 import me.brandonli.mcav.utils.immutable.Pair;
 import net.kyori.adventure.text.Component;
+import org.bukkit.Bukkit;
 import org.bukkit.FluidCollisionMode;
 import org.bukkit.Location;
 import org.bukkit.Server;
@@ -601,6 +603,41 @@ final class AbstractInteractiveCommandTest {
     this.assertReleased(BROWSER);
     verify(maps).release();
     verify(sender, never()).sendMessage(any(Component.class));
+  }
+
+  @Test
+  void shouldReleaseTheOutputOfAFailedStartOnTheMainThreadAndTellTheSender() throws InterruptedException {
+    TestServer.resetWithDeferredTasks();
+    final Screen screen = this.createMockedScreen();
+    final FunctionalVideoFilter maps = screen.getOutput();
+    final AtomicInteger mainThreadReleases = new AtomicInteger();
+    Mockito.doAnswer(_ -> this.releaseOnTheMainThreadOnly(mainThreadReleases))
+      .when(maps)
+      .release();
+    final CommandSender sender = mock(CommandSender.class);
+    final CompletableFuture<Boolean> start = new CompletableFuture<>();
+    this.command.reportStartWhenDone(sender, BROWSER, screen, start, BROWSER_DESCRIPTION);
+
+    final IllegalStateException missingChrome = new IllegalStateException(MISSING_CHROME_MESSAGE);
+    final Thread worker = Thread.ofPlatform().start(() -> start.completeExceptionally(missingChrome));
+    worker.join();
+    TestServer.runPendingTasks();
+
+    final int releases = mainThreadReleases.get();
+    assertEquals(1, releases);
+    this.assertReleased(BROWSER);
+    assertNull(this.command.output);
+    this.assertReceivedText(sender, "failed: no chrome!");
+  }
+
+  // Paper refuses to remove the page frames of an MCV2 screen off the main thread
+  private @Nullable Object releaseOnTheMainThreadOnly(final AtomicInteger mainThreadReleases) {
+    if (!Bukkit.isPrimaryThread()) {
+      throw new IllegalStateException("Maps may only be released on the main thread!");
+    }
+
+    mainThreadReleases.incrementAndGet();
+    return null;
   }
 
   @Test
