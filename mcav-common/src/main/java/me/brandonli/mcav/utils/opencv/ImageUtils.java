@@ -32,6 +32,7 @@ import org.bytedeco.opencv.opencv_core.Scalar;
 public final class ImageUtils {
 
   private static final int SCALAR_COMPONENTS = 4;
+
   private static final int BLUE_INDEX = 0;
   private static final int GREEN_INDEX = 1;
   private static final int RED_INDEX = 2;

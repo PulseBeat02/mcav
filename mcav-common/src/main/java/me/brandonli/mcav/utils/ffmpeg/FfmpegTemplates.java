@@ -33,6 +33,9 @@ public final class FfmpegTemplates {
 
   private static final String NO_VIDEO_FLAG = "-vn";
   private static final String SEEK_FLAG = "-ss";
+  private static final String AUDIO_CHANNELS_FLAG = "-ac";
+  private static final String DURATION_FLAG = "-t";
+  private static final String FRAME_COUNT_FLAG = "-frames:v";
   private static final String STRICTNESS_FLAG = "-strict";
   private static final String EXPERIMENTAL_STRICTNESS = "-2";
 
@@ -95,7 +98,7 @@ public final class FfmpegTemplates {
     builder.addArgument(NO_VIDEO_FLAG);
     builder.addArguments(STRICTNESS_FLAG, EXPERIMENTAL_STRICTNESS);
     builder.addAudioCodec(VORBIS_CODEC);
-    builder.addArguments("-ac", STEREO_CHANNELS);
+    builder.addArguments(AUDIO_CHANNELS_FLAG, STEREO_CHANNELS);
     builder.addOverwrite();
     builder.addOutput(output);
     return builder.build();
@@ -149,7 +152,7 @@ public final class FfmpegTemplates {
     final FfmpegCommandBuilder builder = FfmpegCommand.builder();
     builder.addArguments(SEEK_FLAG, startTime);
     builder.addInput(input);
-    builder.addArguments("-t", duration);
+    builder.addArguments(DURATION_FLAG, duration);
     builder.addVideoCodec(COPY_CODEC);
     builder.addAudioCodec(COPY_CODEC);
     builder.addOverwrite();
@@ -175,7 +178,7 @@ public final class FfmpegTemplates {
     final FfmpegCommandBuilder builder = FfmpegCommand.builder();
     builder.addArguments(SEEK_FLAG, timePosition);
     builder.addInput(input);
-    builder.addArguments("-frames:v", SINGLE_FRAME);
+    builder.addArguments(FRAME_COUNT_FLAG, SINGLE_FRAME);
     builder.addOverwrite();
     builder.addOutput(output);
     return builder.build();

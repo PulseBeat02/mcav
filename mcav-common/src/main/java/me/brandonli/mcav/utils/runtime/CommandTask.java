@@ -68,8 +68,12 @@ import org.slf4j.LoggerFactory;
 public final class CommandTask {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(CommandTask.class);
+
   private static final int NOT_RUN = Integer.MIN_VALUE;
+
   private static final long PROCESS_POLL_NANOSECONDS = TimeUnit.MILLISECONDS.toNanos(20L);
+
+  private static final boolean INTERRUPT_IF_RUNNING = true;
 
   private final List<String> command;
   private final @Nullable Path workingDirectory;
@@ -319,8 +323,8 @@ public final class CommandTask {
       final String message = "Output of command %s could not be read!".formatted(this.command);
       throw new ProcessException(message, cause);
     } finally {
-      outputFuture.cancel(true);
-      errorFuture.cancel(true);
+      outputFuture.cancel(INTERRUPT_IF_RUNNING);
+      errorFuture.cancel(INTERRUPT_IF_RUNNING);
     }
   }
 

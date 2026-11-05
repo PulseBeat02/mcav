@@ -27,6 +27,16 @@ final class DefaultFfmpegCommandBuilder implements FfmpegCommandBuilder {
   private static final String BITRATE_NULL_MESSAGE = "Bitrate must not be null!";
   private static final String ARGUMENT_NULL_MESSAGE = "Argument must not be null!";
 
+  private static final String INPUT_FLAG = "-i";
+  private static final String VIDEO_CODEC_FLAG = "-c:v";
+  private static final String AUDIO_CODEC_FLAG = "-c:a";
+  private static final String VIDEO_BITRATE_FLAG = "-b:v";
+  private static final String AUDIO_BITRATE_FLAG = "-b:a";
+  private static final String FRAME_RATE_FLAG = "-r";
+  private static final String RESOLUTION_FLAG = "-s";
+  private static final String OVERWRITE_FLAG = "-y";
+  private static final String FILTER_COMPLEX_FLAG = "-filter_complex";
+
   private static final String RESOLUTION_SEPARATOR = "x";
 
   private final List<String> arguments;
@@ -39,7 +49,7 @@ final class DefaultFfmpegCommandBuilder implements FfmpegCommandBuilder {
   public FfmpegCommandBuilder addInput(final String input) {
     Preconditions.checkNotNull(input, "Input must not be null!");
 
-    this.arguments.add("-i");
+    this.arguments.add(INPUT_FLAG);
     this.arguments.add(input);
     return this;
   }
@@ -56,7 +66,7 @@ final class DefaultFfmpegCommandBuilder implements FfmpegCommandBuilder {
   public FfmpegCommandBuilder addVideoCodec(final String codec) {
     Preconditions.checkNotNull(codec, CODEC_NULL_MESSAGE);
 
-    this.arguments.add("-c:v");
+    this.arguments.add(VIDEO_CODEC_FLAG);
     this.arguments.add(codec);
     return this;
   }
@@ -65,7 +75,7 @@ final class DefaultFfmpegCommandBuilder implements FfmpegCommandBuilder {
   public FfmpegCommandBuilder addAudioCodec(final String codec) {
     Preconditions.checkNotNull(codec, CODEC_NULL_MESSAGE);
 
-    this.arguments.add("-c:a");
+    this.arguments.add(AUDIO_CODEC_FLAG);
     this.arguments.add(codec);
     return this;
   }
@@ -74,7 +84,7 @@ final class DefaultFfmpegCommandBuilder implements FfmpegCommandBuilder {
   public FfmpegCommandBuilder addVideoBitrate(final String bitrate) {
     Preconditions.checkNotNull(bitrate, BITRATE_NULL_MESSAGE);
 
-    this.arguments.add("-b:v");
+    this.arguments.add(VIDEO_BITRATE_FLAG);
     this.arguments.add(bitrate);
     return this;
   }
@@ -83,7 +93,7 @@ final class DefaultFfmpegCommandBuilder implements FfmpegCommandBuilder {
   public FfmpegCommandBuilder addAudioBitrate(final String bitrate) {
     Preconditions.checkNotNull(bitrate, BITRATE_NULL_MESSAGE);
 
-    this.arguments.add("-b:a");
+    this.arguments.add(AUDIO_BITRATE_FLAG);
     this.arguments.add(bitrate);
     return this;
   }
@@ -92,7 +102,7 @@ final class DefaultFfmpegCommandBuilder implements FfmpegCommandBuilder {
   public FfmpegCommandBuilder addFrameRate(final int frameRate) {
     Preconditions.checkArgument(frameRate > 0, "Frame rate %s must be positive!", frameRate);
 
-    this.arguments.add("-r");
+    this.arguments.add(FRAME_RATE_FLAG);
     final String value = String.valueOf(frameRate);
     this.arguments.add(value);
     return this;
@@ -102,7 +112,7 @@ final class DefaultFfmpegCommandBuilder implements FfmpegCommandBuilder {
   public FfmpegCommandBuilder addResolution(final int width, final int height) {
     Preconditions.checkArgument(width > 0 && height > 0, "Resolution %sx%s must be positive!", width, height);
 
-    this.arguments.add("-s");
+    this.arguments.add(RESOLUTION_FLAG);
     final String size = width + RESOLUTION_SEPARATOR + height;
     this.arguments.add(size);
     return this;
@@ -110,7 +120,7 @@ final class DefaultFfmpegCommandBuilder implements FfmpegCommandBuilder {
 
   @Override
   public FfmpegCommandBuilder addOverwrite() {
-    this.arguments.add("-y");
+    this.arguments.add(OVERWRITE_FLAG);
     return this;
   }
 
@@ -118,7 +128,7 @@ final class DefaultFfmpegCommandBuilder implements FfmpegCommandBuilder {
   public FfmpegCommandBuilder addFilter(final String filter) {
     Preconditions.checkNotNull(filter, "Filter must not be null!");
 
-    this.arguments.add("-filter_complex");
+    this.arguments.add(FILTER_COMPLEX_FLAG);
     this.arguments.add(filter);
     return this;
   }
