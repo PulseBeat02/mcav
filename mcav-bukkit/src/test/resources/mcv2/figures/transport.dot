@@ -34,9 +34,9 @@ digraph transport {
     frame [label="Frame bytes", fillcolor="#fff2cc", color="#d6b656"];
     pages [label="Pages of 12,256 bytes\n+ 32-byte header\n+ CRC32"];
     symbols [label="Six-bit symbols\n(16,384 = one map)"];
-    colours [label="Map colours\n4 to 67"];
+    colors [label="Map colors\n4 to 67"];
     bundle [label="One bundle of\nmap packets"];
-    frame -> pages -> symbols -> colours -> bundle;
+    frame -> pages -> symbols -> colors -> bundle;
   }
 
   subgraph cluster_client {
