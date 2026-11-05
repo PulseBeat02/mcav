@@ -31,8 +31,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 
-// Confines its process as a macOS helper does, tries reads, writes and a child process, and asks whether it is in a
-// sandbox.
+// Confines its process as a macOS helper does, tries reads, writes and a child process, and asks whether it is in a sandbox.
 final class SeatbeltProbeMain {
 
   private static final int NATIVES_ARGUMENT = 2;

@@ -31,8 +31,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.IntFunction;
 
-// Messages are a type byte, a 32-bit length and the payload, big-endian. The helper runs untrusted content without the
-// Chromium sandbox, so every length is checked against the limit of its type before anything is allocated.
+// Messages are a type byte, a big-endian 32-bit length and a payload; every length meets its type's limit before anything is allocated.
 final class HelperProtocol {
 
   static final int LOADING_STARTED = 1;

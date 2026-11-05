@@ -98,8 +98,7 @@ class CefBrowserIntegrationTest {
     return frames;
   }
 
-  // Chromium ignores clicks and keys for a moment after a page appears, but not mouse moves: probe with clicks until the
-  // page reports one, then forget the probe's events.
+  // Chromium ignores clicks and keys, not moves, just after a page appears: click until the page reports one, then drop the probe's events.
   private void awaitInput(final BrowserPlayer player) {
     Await.until("the page reported its size", () -> this.pages.count(SIZE_EVENT) > 0);
     final long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);

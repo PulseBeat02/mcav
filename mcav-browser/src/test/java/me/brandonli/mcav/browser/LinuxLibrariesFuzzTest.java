@@ -44,9 +44,11 @@ import org.junit.jupiter.api.Tag;
 import org.tukaani.xz.LZMA2Options;
 import org.tukaani.xz.XZOutputStream;
 
-// The packages are pinned by their hashes, so this fuzzes a second line of defense: extraction fails with an
-// IOException or writes only the pinned libraries, as plain files inside the target. The first byte of an input picks
-// its layer: the whole package (0), its data.tar.xz (1), or its tar (2 and 3).
+/*
+ * The packages are pinned by their hashes, so this fuzzes a second line of defense: extraction fails with an
+ * IOException or writes only the pinned libraries, as plain files inside the target. The first byte of an input picks
+ * its layer: the whole package (0), its data.tar.xz (1), or its tar (2 and 3).
+ */
 @Tag("fuzz")
 final class LinuxLibrariesFuzzTest {
 

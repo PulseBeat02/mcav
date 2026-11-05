@@ -33,8 +33,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 
-// Linux's unprivileged sandbox (5.13 and later): a restricted thread, and what it starts afterwards, reaches only what
-// its rules allow, for good, while the other threads of the process stay free.
+// Linux's unprivileged sandbox (5.13+): a thread and its later children reach only what its rules allow, for good; other threads stay free.
 final class Landlock {
 
   // the system call numbers of Landlock are the same on every architecture

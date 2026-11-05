@@ -798,8 +798,7 @@ class NullDisplayTest {
     }
   }
 
-  // The display answers a setup before the thread of the client takes a slot, so on a busy machine any client may be
-  // the one ended: of one client over the limit, exactly one ends.
+  // A setup is answered before its client's thread takes a slot, so any client may be ended; with one over the limit, exactly one ends.
   @Test
   void shouldEndClientsWithTheCookieBeyondTheLimitAndFreeThePlaceOfOneThatLeaves() throws IOException {
     final Path authority = this.folder.resolve(AUTHORITY_FILE);

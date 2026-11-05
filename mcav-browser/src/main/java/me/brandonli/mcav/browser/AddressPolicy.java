@@ -26,9 +26,12 @@ import java.util.List;
 import java.util.Objects;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-// Public unicast addresses only, as a page could otherwise reach private networks or a cloud metadata service. IPv4
-// inside IPv6 (mapped, or translated by NAT64 with the well-known or a network's own prefix) is judged as IPv4. A network
-// prefix counts only in global unicast or well-known NAT64 space, so a forged answer cannot make refused addresses pass.
+/*
+ * Public unicast addresses only, as a page could otherwise reach private networks or a cloud metadata service. IPv4
+ * inside IPv6 (mapped, or translated by NAT64 with the well-known or a network's own prefix) is judged as IPv4. A
+ * network prefix counts only in global unicast or well-known NAT64 space, so a forged answer cannot make refused
+ * addresses pass.
+ */
 final class AddressPolicy {
 
   private static final int[][] REFUSED_IPV4 = {

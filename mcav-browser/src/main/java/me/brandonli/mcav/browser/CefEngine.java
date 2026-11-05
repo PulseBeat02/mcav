@@ -47,8 +47,7 @@ import org.cef.browser.CefDevToolsClient;
 import org.cef.browser.MCAVOffscreenBrowser;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-// CEF in the helper, off-screen on its external message pump, which JCEF drives from the AWT event thread (a headless
-// JVM has one too). The helper never downloads: it runs the natives the server installed and verified.
+// CEF off-screen on its external message pump, driven by JCEF from the AWT event thread (headless JVMs have one); never downloads natives
 final class CefEngine implements HelperEngine {
 
   private static final String OS_NAME_PROPERTY = "os.name";
@@ -153,8 +152,7 @@ final class CefEngine implements HelperEngine {
   }
 
   private void addSoundSwitches(final List<String> switches, final HelperConfiguration configuration) {
-    // the sound reaches the server through PageAudio on Chromium's own clock, not a server sound device, which may stall;
-    // a page may play sound only after a click unless the options allow it (CEF's default)
+    // sound goes through PageAudio on Chromium's clock, not a sound device that may stall; without the option, play waits for a click
     switches.add(MUTE_AUDIO_SWITCH);
     switches.add(DISABLE_AUDIO_OUTPUT_SWITCH);
     final boolean allowsAutoplay = configuration.isAutoplay();
@@ -176,8 +174,7 @@ final class CefEngine implements HelperEngine {
   }
 
   private void addGoogleSwitches(final List<String> switches) {
-    // keeps Chromium from telling Google a browser runs here: sign-in and search go to names that cannot exist (RFC 6761),
-    // and network time and the search preconnect are off
+    // hides this browser from Google: sign-in and search go to nonexistent RFC 6761 names; network time and the search preconnect are off
     switches.add(GAIA_URL_SWITCH);
     switches.add(GOOGLE_BASE_URL_SWITCH);
     final List<String> disabledFeatures = new ArrayList<>(CEF_DISABLED_FEATURES);
@@ -256,8 +253,7 @@ final class CefEngine implements HelperEngine {
     this.configureSettings(settings, configuration);
     builder.setAppHandler(new StateListener(this.terminated, events));
 
-    // on Linux the confinement holds for this thread and what it starts (the AWT event thread, CEF, Chromium), leaving the
-    // guard, the display and the main thread free; on macOS it holds for the whole helper
+    // Linux confines this thread and what it starts (AWT, CEF, Chromium), not the guard, display or main thread; macOS the whole helper
     this.runOnOwnThread(CHROMIUM_THREAD_NAME, () -> this.confineAndStartChromium(builder, configuration, system, painter, events));
   }
 
@@ -369,9 +365,11 @@ final class CefEngine implements HelperEngine {
     return NullDisplay.start(authority);
   }
 
-  // Places the window and sound scripts before the page loads, which would miss them otherwise. A JCEF DevTools client can
-  // lose its answers, so an unanswered attempt is retried with a new client; after the last one the page loads anyway,
-  // and loads again if the answer arrives late.
+  /*
+   * Places the window and sound scripts before the page loads, which would miss them otherwise. A JCEF DevTools client
+   * can lose its answers, so an unanswered attempt is retried with a new client; after the last one the page loads
+   * anyway, and loads again if the answer arrives late.
+   */
   void openPage(
     final CefBrowser created,
     final String url,

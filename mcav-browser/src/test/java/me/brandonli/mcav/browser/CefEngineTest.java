@@ -215,8 +215,7 @@ class CefEngineTest {
     }
   }
 
-  // measured with Chromium's net log: the sign-in check, the AI mode check of the search box, the network time service
-  // and the preconnect to the search engine
+  // Chromium's own Google contacts: the sign-in check, the search box's AI mode check, network time and the search preconnect
   @Test
   void shouldNeverLetTheOwnServicesOfChromiumContactGoogle() {
     final List<String> switches = this.engine.createSwitches(this.configuration(AllowedFeature.NONE), OperatingSystem.OTHER, 0, null);
@@ -241,8 +240,7 @@ class CefEngineTest {
     assertTrue(keepsCefDisabledFeatures, "the features CEF disables itself stay disabled");
   }
 
-  // Chromium keeps only the last --disable-features, so the helper's repeats the list CEF passes first. When moving to
-  // another CEF, copy the list a renderer gets without the helper's switch.
+  // Chromium keeps the last --disable-features only, so ours repeats CEF's list; for a new CEF, copy a renderer's list without our switch
   @Test
   void shouldMatchTheFeaturesCefDisablesItselfToThoseOfThisCef() throws IOException {
     final CefBuildInfo build = CefBuildInfo.fromClasspath();

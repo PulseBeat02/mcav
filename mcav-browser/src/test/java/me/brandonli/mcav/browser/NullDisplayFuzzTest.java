@@ -26,8 +26,7 @@ import java.io.IOException;
 import java.nio.ByteOrder;
 import org.junit.jupiter.api.Tag;
 
-// A client with the cookie, such as a renderer of the page, is untrusted: the display answers or ends the connection,
-// never with more than a bounded reply per request.
+// Even a cookie holder, such as the page's renderer, is untrusted: the display answers with a bounded reply or ends the connection.
 @Tag("fuzz")
 final class NullDisplayFuzzTest {
 

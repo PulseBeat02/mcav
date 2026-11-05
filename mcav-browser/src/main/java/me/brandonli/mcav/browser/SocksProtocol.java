@@ -27,8 +27,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Objects;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-// The part of SOCKS 5 (RFC 1928) that Chromium speaks: "no authentication", then one CONNECT per connection. The reader
-// never reads more than a request can hold.
+// The SOCKS 5 (RFC 1928) subset Chromium speaks: "no authentication", then one CONNECT per connection; reads never pass a request's size.
 final class SocksProtocol {
 
   private static final char IPV6_SEPARATOR = ':';

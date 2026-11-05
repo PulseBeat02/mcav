@@ -121,8 +121,7 @@ final class Seatbelt {
     }
   }
 
-  // names and attributes of files stay visible, as with Landlock; Seatbelt matches real paths, and a later rule of a
-  // profile overrides an earlier one
+  // file names and attributes stay visible, as with Landlock; Seatbelt matches real paths, and a later rule of a profile wins
   static String profile(final List<Path> hidden, final List<Path> readable, final List<Path> writable) {
     final StringBuilder profile = new StringBuilder(PROFILE_START);
     appendRule(profile, DENY_READING, hidden);
