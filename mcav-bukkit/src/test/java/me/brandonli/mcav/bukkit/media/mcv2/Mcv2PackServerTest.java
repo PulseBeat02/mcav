@@ -120,6 +120,7 @@ final class Mcv2PackServerTest {
   private static final String MISSING_PACK_FILE_NAME = "missing.zip";
   private static final String NOTES_FILE_NAME = "notes.txt";
   private static final String KEPT_FILE_NAME = "keep.txt";
+  private static final String BLOCKING_FILE_NAME = "taken";
 
   private static final String HASH_ALGORITHM = "SHA-1";
 
@@ -996,7 +997,7 @@ final class Mcv2PackServerTest {
 
   @Test
   void shouldReportAFolderThatCannotBeCreatedAndNotServeThePack() throws IOException {
-    final Path file = this.folder.resolve("taken");
+    final Path file = this.folder.resolve(BLOCKING_FILE_NAME);
     Files.writeString(file, "not a folder");
     final QueuedExecutor own = new QueuedExecutor();
     final Mcv2PackServer blocked = new Mcv2PackServer(

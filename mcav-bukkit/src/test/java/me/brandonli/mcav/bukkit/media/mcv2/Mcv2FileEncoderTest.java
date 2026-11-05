@@ -61,6 +61,9 @@ final class Mcv2FileEncoderTest {
 
   private static final int HEIGHT = 48;
 
+  private static final String VIDEO_FILE_NAME = "clip.mp4";
+  private static final String MISSING_VIDEO_FILE_NAME = "missing.mp4";
+
   @TempDir
   private Path directory;
 
@@ -188,7 +191,7 @@ final class Mcv2FileEncoderTest {
   void shouldAskForRgbPicturesScaledByAreaAndDecodedOnEveryCore() throws Exception {
     final Path video = TestMedia.video();
     final FFmpegFrameGrabber grabber = new FFmpegFrameGrabber(video.toFile());
-    try (final Mcv2FileEncoder.FrameReader _ = Mcv2FileEncoder.open(grabber, "clip.mp4", WIDTH, HEIGHT)) {
+    try (final Mcv2FileEncoder.FrameReader _ = Mcv2FileEncoder.open(grabber, VIDEO_FILE_NAME, WIDTH, HEIGHT)) {
       final int pixelFormat = grabber.getPixelFormat();
       final int scalingFlags = grabber.getImageScalingFlags();
       final String threads = grabber.getVideoOption("threads");
@@ -372,7 +375,7 @@ final class Mcv2FileEncoderTest {
     assertThrows(IllegalArgumentException.class, () -> Mcv2FileEncoder.ffmpeg(this.directory, 1, 0));
 
     final Mcv2Exception missing = assertThrows(Mcv2Exception.class, () ->
-      Mcv2FileEncoder.ffmpeg(this.directory.resolve("missing.mp4"), 8, 8)
+      Mcv2FileEncoder.ffmpeg(this.directory.resolve(MISSING_VIDEO_FILE_NAME), 8, 8)
     );
     final String message = missing.getMessage();
     final boolean reportsTheOpen = message.startsWith("Video ") && message.endsWith(" could not be opened!");
@@ -384,7 +387,7 @@ final class Mcv2FileEncoderTest {
     final FFmpegFrameGrabber grabber = mock(FFmpegFrameGrabber.class);
     doThrow(new FFmpegFrameGrabber.Exception("no stream!")).when(grabber).start();
     doThrow(new FFmpegFrameGrabber.Exception("not open!")).when(grabber).close();
-    final Mcv2Exception thrown = assertThrows(Mcv2Exception.class, () -> Mcv2FileEncoder.open(grabber, "clip.mp4", 8, 8));
+    final Mcv2Exception thrown = assertThrows(Mcv2Exception.class, () -> Mcv2FileEncoder.open(grabber, VIDEO_FILE_NAME, 8, 8));
     final String message = thrown.getMessage();
     assertEquals("Video clip.mp4 could not be opened!", message);
 

@@ -85,6 +85,10 @@ final class McPackHostingTest {
   private static final String PACK_FILE_NAME = "pack.zip";
   private static final String OTHER_FILE_NAME = "other.zip";
   private static final String CACHE_FILE_NAME = "mc-packs-cache.json";
+  private static final String COPY_PACK_FILE_NAME = "copy.zip";
+  private static final String MISSING_PACK_FILE_NAME = "missing.zip";
+
+  private static final String HOME_DIRECTORY = "home";
 
   private static final String USER_HOME_PROPERTY = "user.home";
   private static final String HASH_ALGORITHM = "SHA-1";
@@ -105,7 +109,7 @@ final class McPackHostingTest {
   @BeforeEach
   void startService() throws IOException {
     this.previousHome = System.getProperty(USER_HOME_PROPERTY);
-    final Path home = this.directory.resolve("home");
+    final Path home = this.directory.resolve(HOME_DIRECTORY);
     Files.createDirectory(home);
     final String homePath = home.toString();
     System.setProperty(USER_HOME_PROPERTY, homePath);
@@ -238,7 +242,7 @@ final class McPackHostingTest {
   @Test
   void shouldReuseTheUploadOfAnIdenticalPackWhileItIsStillAvailable() throws IOException {
     final McPackHosting first = this.createHosting(this.zip);
-    final Path copy = this.directory.resolve("copy.zip");
+    final Path copy = this.directory.resolve(COPY_PACK_FILE_NAME);
     final McPackHosting second = this.createHosting(copy);
     Files.write(copy, PACK);
 
@@ -378,7 +382,7 @@ final class McPackHostingTest {
 
   @Test
   void shouldReportPacksThatCannotBeRead() {
-    final Path missing = this.directory.resolve("missing.zip");
+    final Path missing = this.directory.resolve(MISSING_PACK_FILE_NAME);
     final McPackHosting hosting = this.createHosting(missing);
 
     final McPacksException exception = assertThrows(McPacksException.class, hosting::start);
@@ -563,6 +567,8 @@ final class McPackHostingTest {
 
   private static final class PackService implements AutoCloseable {
 
+    private static final String DOWNLOAD_PATH_FORMAT = "/pack/%s.zip";
+
     private static final int REJECTED_STATUS = 500;
 
     private final HttpServer server;
@@ -647,7 +653,7 @@ final class McPackHostingTest {
 
     private String downloadFormat() {
       final int port = this.port();
-      return "http://127.0.0.1:" + port + "/pack/%s.zip";
+      return "http://127.0.0.1:" + port + DOWNLOAD_PATH_FORMAT;
     }
 
     private void rejectUploads() {

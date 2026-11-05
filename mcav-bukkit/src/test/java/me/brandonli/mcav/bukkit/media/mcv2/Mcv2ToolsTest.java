@@ -54,6 +54,17 @@ final class Mcv2ToolsTest {
   private static final String REJECTED_FILE_NAME = "rejected.mcs";
   private static final String CLASSPATH_FILE_NAME = "mcv2-tools-classpath.txt";
 
+  private static final String PACK_DIRECTORY = "pack";
+  private static final String GENERATED_DIRECTORY = "generated";
+  private static final String COMPILED_DIRECTORY = "compiled";
+
+  private static final String SAMPLER_SHADER_FILE_NAME = "sampler.fsh";
+  private static final String INVALID_SHADER_FILE_NAME = "invalid.fsh";
+
+  private static final String WINDOWS_JAVA_EXECUTABLE_FILE_NAME = "java.exe";
+  private static final String BINARY_DIRECTORY = "bin";
+  private static final String BUILD_DIRECTORY = "build";
+
   @TempDir
   Path folder;
 
@@ -182,12 +193,12 @@ final class Mcv2ToolsTest {
 
   @Test
   void shouldPreserveSamplerNamesAndReturnTheFailedStageCountInTheShaderCompiler() throws Exception {
-    final Path pack = folder.resolve("pack");
+    final Path pack = folder.resolve(PACK_DIRECTORY);
     final Path post = Files.createDirectories(pack.resolve(POST_SHADER_FOLDER));
-    final Path generated = Files.createDirectories(folder.resolve("generated"));
-    final Path output = folder.resolve("compiled");
+    final Path generated = Files.createDirectories(folder.resolve(GENERATED_DIRECTORY));
+    final Path output = folder.resolve(COMPILED_DIRECTORY);
     Files.writeString(
-      post.resolve("sampler.fsh"),
+      post.resolve(SAMPLER_SHADER_FILE_NAME),
       """
       #version 330
       layout(location = 0) out vec4 color;
@@ -199,29 +210,29 @@ final class Mcv2ToolsTest {
     final int validFailures = this.compileShaders(arguments);
     assertEquals(0, validFailures);
 
-    final String glsl = Files.readString(output.resolve("sampler.fsh"));
+    final String glsl = Files.readString(output.resolve(SAMPLER_SHADER_FILE_NAME));
     final boolean keepsSampler = glsl.contains("uniform sampler2D Sampler0;");
     assertTrue(keepsSampler);
 
     final boolean renamesSampler = glsl.contains("_uniform_00_03");
     assertFalse(renamesSampler);
 
-    Files.writeString(post.resolve("invalid.fsh"), "#version 330\nvoid main() { invalid shader; }\n");
+    Files.writeString(post.resolve(INVALID_SHADER_FILE_NAME), "#version 330\nvoid main() { invalid shader; }\n");
     final int invalidFailures = this.compileShaders(arguments);
     assertEquals(1, invalidFailures);
 
-    final boolean invalidWritten = Files.exists(output.resolve("invalid.fsh"));
+    final boolean invalidWritten = Files.exists(output.resolve(INVALID_SHADER_FILE_NAME));
     assertFalse(invalidWritten);
 
-    final String samplerAfterFailure = Files.readString(output.resolve("sampler.fsh"));
+    final String samplerAfterFailure = Files.readString(output.resolve(SAMPLER_SHADER_FILE_NAME));
     assertEquals(glsl, samplerAfterFailure);
   }
 
   private int compileShaders(final String[] arguments) throws Exception {
     // JaCoCo's synthetic methods on LWJGL interfaces confuse its FFM callback selection.
-    final String executable = System.getProperty("os.name").startsWith("Windows") ? "java.exe" : "java";
-    final Path java = Path.of(System.getProperty("java.home"), "bin", executable);
-    final String classpath = Files.readString(Path.of("build", CLASSPATH_FILE_NAME));
+    final String executable = System.getProperty("os.name").startsWith("Windows") ? WINDOWS_JAVA_EXECUTABLE_FILE_NAME : "java";
+    final Path java = Path.of(System.getProperty("java.home"), BINARY_DIRECTORY, executable);
+    final String classpath = Files.readString(Path.of(BUILD_DIRECTORY, CLASSPATH_FILE_NAME));
     final List<String> command = new ArrayList<>(
       List.of(java.toString(), "--enable-native-access=ALL-UNNAMED", "-cp", classpath, Mcv2Tools.class.getName(), "shader-compile")
     );

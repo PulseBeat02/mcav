@@ -110,6 +110,27 @@ final class SimpleResourcePackTest {
   private static final String FIRST_SOUND_ENTRY = "assets/mcav/sounds/first.ogg";
   private static final String SECOND_SOUND_ENTRY = "assets/mcav/sounds/second.ogg";
 
+  private static final String FIRST_SOUND_FILE_NAME = "first.ogg";
+  private static final String SECOND_SOUND_FILE_NAME = "second.ogg";
+  private static final String MISSING_SOUND_FILE_NAME = "missing.ogg";
+
+  private static final String BLOCKING_FILE_NAME = "file";
+  private static final String TIMESTAMP_ENTRY_FILE_NAME = "a.txt";
+
+  private static final String INTRO_SOUND_PATH = "music/intro";
+
+  private static final String PARENT_METADATA_PATH = "assets/../pack.mcmeta";
+  private static final String ABSOLUTE_DATA_PATH = "/assets/a.txt";
+  private static final String ABSOLUTE_CREDITS_PATH = "/assets/credits.txt";
+  private static final String DIRECTORY_CREDITS_PATH = "assets/credits/";
+  private static final String EMPTY_SEGMENT_CREDITS_PATH = "assets//credits.txt";
+  private static final String OTHER_NAMESPACE_INTRO_PATH = "assets/other/sounds/music/intro.ogg";
+  private static final String DOT_METADATA_PATH = "./pack.mcmeta";
+  private static final String DOT_SOUNDS_PATH = "assets/./mcav/sounds.json";
+  private static final String TRAILING_DOT_PATH = "assets/mcav/.";
+  private static final String PARENT_ESCAPE_PATH = "../evil.txt";
+  private static final String ASSETS_PARENT_ESCAPE_PATH = "assets/../../evil.txt";
+
   @TempDir
   private Path directory;
 
@@ -121,8 +142,8 @@ final class SimpleResourcePackTest {
 
   @BeforeEach
   void writeFiles() throws IOException {
-    this.firstSound = this.directory.resolve("first.ogg");
-    this.secondSound = this.directory.resolve("second.ogg");
+    this.firstSound = this.directory.resolve(FIRST_SOUND_FILE_NAME);
+    this.secondSound = this.directory.resolve(SECOND_SOUND_FILE_NAME);
     this.credits = this.directory.resolve(CREDITS_FILE_NAME);
     Files.write(this.firstSound, FIRST_SOUND);
     Files.write(this.secondSound, SECOND_SOUND);
@@ -234,7 +255,7 @@ final class SimpleResourcePackTest {
   private void assertSoundEvents(final Map<String, byte[]> entries) {
     final JsonObject expectedMcavSounds = new JsonObject();
     this.addSoundEvent(expectedMcavSounds, "audio", AUDIO_SOUND);
-    this.addSoundEvent(expectedMcavSounds, "music/intro", INTRO_SOUND);
+    this.addSoundEvent(expectedMcavSounds, INTRO_SOUND_PATH, INTRO_SOUND);
     final JsonObject expectedOtherSounds = new JsonObject();
     this.addSoundEvent(expectedOtherSounds, "beep", BEEP_SOUND);
 
@@ -307,8 +328,8 @@ final class SimpleResourcePackTest {
     this.assertEntry(CREDITS, entries, CREDITS_ENTRY);
     this.assertEntry(new byte[] { 2 }, entries, REPLACED_ENTRY);
     assertThrows(IllegalArgumentException.class, () -> pack.data(METADATA_ENTRY, new byte[0]));
-    assertThrows(IllegalArgumentException.class, () -> pack.data("assets/../pack.mcmeta", new byte[0]));
-    assertThrows(IllegalArgumentException.class, () -> pack.data("/assets/a.txt", new byte[0]));
+    assertThrows(IllegalArgumentException.class, () -> pack.data(PARENT_METADATA_PATH, new byte[0]));
+    assertThrows(IllegalArgumentException.class, () -> pack.data(ABSOLUTE_DATA_PATH, new byte[0]));
   }
 
   @Test
@@ -337,7 +358,7 @@ final class SimpleResourcePackTest {
       assertEquals(5, entries);
     }
 
-    final LocalDateTime newEntryTime = SimpleResourcePack.createEntry("a.txt").getTimeLocal();
+    final LocalDateTime newEntryTime = SimpleResourcePack.createEntry(TIMESTAMP_ENTRY_FILE_NAME).getTimeLocal();
     assertEquals(fixed, newEntryTime);
   }
 
@@ -346,13 +367,13 @@ final class SimpleResourcePackTest {
     final SimpleResourcePack pack = SimpleResourcePack.pack();
 
     final IllegalArgumentException absolute = assertThrows(IllegalArgumentException.class, () ->
-      pack.external("/assets/credits.txt", this.credits)
+      pack.external(ABSOLUTE_CREDITS_PATH, this.credits)
     );
 
     final String message = absolute.getMessage();
     assertEquals("Pack path /assets/credits.txt must be relative to the pack root and name a file!", message);
-    assertThrows(IllegalArgumentException.class, () -> pack.external("assets/credits/", this.credits));
-    assertThrows(IllegalArgumentException.class, () -> pack.external("assets//credits.txt", this.credits));
+    assertThrows(IllegalArgumentException.class, () -> pack.external(DIRECTORY_CREDITS_PATH, this.credits));
+    assertThrows(IllegalArgumentException.class, () -> pack.external(EMPTY_SEGMENT_CREDITS_PATH, this.credits));
   }
 
   @Test
@@ -364,7 +385,7 @@ final class SimpleResourcePackTest {
     final IllegalArgumentException meta = assertThrows(IllegalArgumentException.class, () -> pack.external(METADATA_ENTRY, this.credits));
     assertThrows(IllegalArgumentException.class, () -> pack.external(MCAV_SOUNDS_ENTRY, this.credits));
     assertThrows(IllegalArgumentException.class, () -> pack.external(AUDIO_ENTRY, this.credits));
-    assertThrows(IllegalArgumentException.class, () -> pack.external("assets/other/sounds/music/intro.ogg", this.credits));
+    assertThrows(IllegalArgumentException.class, () -> pack.external(OTHER_NAMESPACE_INTRO_PATH, this.credits));
 
     pack.external(ICON_ENTRY, this.credits);
     pack.external(SOUNDS_README_ENTRY, this.credits);
@@ -552,15 +573,15 @@ final class SimpleResourcePackTest {
   @Test
   void shouldRejectDotSegmentsThatBypassReservedPaths() {
     final SimpleResourcePack pack = SimpleResourcePack.pack();
-    assertThrows(IllegalArgumentException.class, () -> pack.external("./pack.mcmeta", this.credits));
-    assertThrows(IllegalArgumentException.class, () -> pack.external("assets/./mcav/sounds.json", this.credits));
-    assertThrows(IllegalArgumentException.class, () -> pack.external("assets/mcav/.", this.credits));
+    assertThrows(IllegalArgumentException.class, () -> pack.external(DOT_METADATA_PATH, this.credits));
+    assertThrows(IllegalArgumentException.class, () -> pack.external(DOT_SOUNDS_PATH, this.credits));
+    assertThrows(IllegalArgumentException.class, () -> pack.external(TRAILING_DOT_PATH, this.credits));
   }
 
   @Test
   void shouldRejectInvalidSounds() {
     final SimpleResourcePack pack = SimpleResourcePack.pack();
-    final Path missing = this.directory.resolve("missing.ogg");
+    final Path missing = this.directory.resolve(MISSING_SOUND_FILE_NAME);
 
     assertThrows(IllegalArgumentException.class, () -> pack.sound("Mcav:audio", this.firstSound));
     assertThrows(IllegalArgumentException.class, () -> pack.sound("audio", this.firstSound));
@@ -578,8 +599,8 @@ final class SimpleResourcePackTest {
     final SimpleResourcePack pack = SimpleResourcePack.pack();
     final Path missing = this.directory.resolve(MISSING_FILE_NAME);
 
-    assertThrows(IllegalArgumentException.class, () -> pack.external("../evil.txt", this.credits));
-    assertThrows(IllegalArgumentException.class, () -> pack.external("assets/../../evil.txt", this.credits));
+    assertThrows(IllegalArgumentException.class, () -> pack.external(PARENT_ESCAPE_PATH, this.credits));
+    assertThrows(IllegalArgumentException.class, () -> pack.external(ASSETS_PARENT_ESCAPE_PATH, this.credits));
     assertThrows(IllegalArgumentException.class, () -> pack.external("with space.txt", this.credits));
     assertThrows(IllegalArgumentException.class, () -> pack.external("C:/absolute.txt", this.credits));
     assertThrows(IllegalArgumentException.class, () -> pack.external("", this.credits));
@@ -608,7 +629,7 @@ final class SimpleResourcePackTest {
   @Test
   void shouldReportPacksThatCannotBeWritten() throws IOException {
     final SimpleResourcePack blocked = SimpleResourcePack.pack();
-    final Path file = this.directory.resolve("file");
+    final Path file = this.directory.resolve(BLOCKING_FILE_NAME);
     final Path belowFile = file.resolve(PACK_FILE_NAME);
     blocked.metadata(1, "pack");
     Files.write(file, CREDITS);

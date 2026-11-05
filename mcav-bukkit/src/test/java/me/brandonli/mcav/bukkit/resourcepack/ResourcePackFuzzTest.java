@@ -49,6 +49,7 @@ final class ResourcePackFuzzTest {
 
   private static final String PATH_SEPARATOR = "/";
   private static final String ZIP_EXTENSION = ".zip";
+  private static final String SOUND_EXTENSION = ".ogg";
 
   private static final String ASSETS_FOLDER = "assets/";
   private static final String SOUNDS_FILE = "/sounds.json";
@@ -147,7 +148,8 @@ final class ResourcePackFuzzTest {
       final JsonObject sounds = this.readJson(zip, ASSETS_FOLDER + namespace + SOUNDS_FILE);
       final boolean registered = sounds.has(value);
       assertTrue(registered, () -> "the sound " + key + " is not registered");
-      final ZipEntry file = zip.getEntry(ASSETS_FOLDER + namespace + SOUNDS_FOLDER + value + ".ogg");
+
+      final ZipEntry file = zip.getEntry(ASSETS_FOLDER + namespace + SOUNDS_FOLDER + value + SOUND_EXTENSION);
       assertNotNull(file, () -> "the sound " + key + " has no file");
     }
   }

@@ -87,6 +87,20 @@ final class Mcv2NativesTest {
   private static final String AUXILIARY_VECTOR_PATH = "/proc/self/auxv";
   private static final String CPU_INFO_PATH = "/proc/cpuinfo";
 
+  private static final String WINDOWS_LIBRARY_FILE_NAME = "mcv2kernels.dll";
+  private static final String MACOS_LIBRARY_FILE_NAME = "libmcv2kernels.dylib";
+  private static final String LINUX_LIBRARY_FILE_NAME = "libmcv2kernels.so";
+
+  private static final String EXTRACTION_DIRECTORY = "created";
+  private static final String OCCUPIED_DIRECTORY = "taken";
+  private static final String DIRECTORY_CONTENT_FILE_NAME = "inside";
+
+  private static final String MISSING_AUXILIARY_VECTOR_FILE_NAME = "missing";
+  private static final String AUXILIARY_VECTOR_FILE_NAME = "auxv";
+  private static final String WITHOUT_CAPABILITIES_FILE_NAME = "without";
+  private static final String TRUNCATED_AUXILIARY_VECTOR_FILE_NAME = "truncated";
+  private static final String LAST_CAPABILITIES_FILE_NAME = "last";
+
   private static final String UNREADABLE_MESSAGE = "unreadable!";
   private static final String NO_LIBRARY_MESSAGE = "no library loads here!";
 
@@ -151,13 +165,13 @@ final class Mcv2NativesTest {
     assertNull(linuxPowerPc);
 
     final String windowsLibrary = Natives.libraryName("windows-x86_64");
-    assertEquals("mcv2kernels.dll", windowsLibrary);
+    assertEquals(WINDOWS_LIBRARY_FILE_NAME, windowsLibrary);
 
     final String macosLibrary = Natives.libraryName("macos-aarch64");
-    assertEquals("libmcv2kernels.dylib", macosLibrary);
+    assertEquals(MACOS_LIBRARY_FILE_NAME, macosLibrary);
 
     final String linuxLibrary = Natives.libraryName("linux-aarch64");
-    assertEquals("libmcv2kernels.so", linuxLibrary);
+    assertEquals(LINUX_LIBRARY_FILE_NAME, linuxLibrary);
   }
 
   @Test
@@ -355,7 +369,7 @@ final class Mcv2NativesTest {
   @Test
   void shouldExtractOnceUnderItsDigestAndReplaceAnythingElse() throws IOException {
     final String digest = Mcv2Resources.sha256(NOT_A_LIBRARY);
-    final Path folder = this.folder.resolve("created");
+    final Path folder = this.folder.resolve(EXTRACTION_DIRECTORY);
     final Path file = Natives.extract(folder, "library", NOT_A_LIBRARY, digest);
     final byte[] extracted = Files.readAllBytes(file);
     assertArrayEquals(NOT_A_LIBRARY, extracted);
@@ -373,9 +387,9 @@ final class Mcv2NativesTest {
     final byte[] replaced = Files.readAllBytes(file);
     assertArrayEquals(NOT_A_LIBRARY, replaced);
 
-    final Path taken = Files.createDirectories(folder.resolve("taken"));
-    Files.writeString(taken.resolve("inside"), "keeps the folder non-empty");
-    assertThrows(IOException.class, () -> Natives.extract(folder, "taken", NOT_A_LIBRARY, digest));
+    final Path taken = Files.createDirectories(folder.resolve(OCCUPIED_DIRECTORY));
+    Files.writeString(taken.resolve(DIRECTORY_CONTENT_FILE_NAME), "keeps the folder non-empty");
+    assertThrows(IOException.class, () -> Natives.extract(folder, OCCUPIED_DIRECTORY, NOT_A_LIBRARY, digest));
 
     try (final Stream<Path> files = Files.list(folder)) {
       final long fileCount = files.count();
@@ -438,27 +452,32 @@ final class Mcv2NativesTest {
 
   @Test
   void shouldReadTheProcessorFeaturesLinuxGives() throws IOException {
-    final long missingCapabilities = Natives.readHardwareCapabilities(this.folder.resolve("missing"));
+    final long missingCapabilities = Natives.readHardwareCapabilities(this.folder.resolve(MISSING_AUXILIARY_VECTOR_FILE_NAME));
     assertEquals(0, missingCapabilities);
 
     // AT_PAGESZ, AT_HWCAP, AT_NULL, and the start of another entry
     final ByteBuffer vector = ByteBuffer.allocate(56).order(ByteOrder.nativeOrder());
     vector.putLong(6).putLong(4096).putLong(16).putLong(0x40_0000L).putLong(0).putLong(0).putInt(16);
-    final Path given = Files.write(this.folder.resolve("auxv"), vector.array());
+    final Path given = Files.write(this.folder.resolve(AUXILIARY_VECTOR_FILE_NAME), vector.array());
     final long givenCapabilities = Natives.readHardwareCapabilities(given);
     assertEquals(0x40_0000L, givenCapabilities);
 
-    final Path without = Files.write(this.folder.resolve("without"), Arrays.copyOfRange(vector.array(), 0, 16));
+    final Path without = Files.write(this.folder.resolve(WITHOUT_CAPABILITIES_FILE_NAME), Arrays.copyOfRange(vector.array(), 0, 16));
     final long withoutCapabilities = Natives.readHardwareCapabilities(without);
     assertEquals(0, withoutCapabilities);
 
-    final Path truncated = Files.write(this.folder.resolve("truncated"), Arrays.copyOfRange(vector.array(), 0, 24));
+    final Path truncated = Files.write(
+      this.folder.resolve(TRUNCATED_AUXILIARY_VECTOR_FILE_NAME),
+      Arrays.copyOfRange(vector.array(), 0, 24)
+    );
     final long truncatedCapabilities = Natives.readHardwareCapabilities(truncated);
     assertEquals(0, truncatedCapabilities);
 
     final ByteBuffer last = ByteBuffer.allocate(16).order(ByteOrder.nativeOrder());
     last.putLong(16).putLong(0x40_0000L);
-    final long lastCapabilities = Natives.readHardwareCapabilities(Files.write(this.folder.resolve("last"), last.array()));
+    final long lastCapabilities = Natives.readHardwareCapabilities(
+      Files.write(this.folder.resolve(LAST_CAPABILITIES_FILE_NAME), last.array())
+    );
     assertEquals(0x40_0000L, lastCapabilities);
   }
 
