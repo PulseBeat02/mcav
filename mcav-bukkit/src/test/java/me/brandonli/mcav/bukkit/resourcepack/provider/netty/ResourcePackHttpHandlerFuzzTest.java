@@ -91,7 +91,7 @@ final class ResourcePackHttpHandlerFuzzTest {
 
     channel.finishAndReleaseAll();
 
-    this.assertBehaviour(stream, forwarded.toByteArray(), answered.toByteArray());
+    this.assertBehavior(stream, forwarded.toByteArray(), answered.toByteArray());
 
     for (final ByteBuf buffer : written) {
       final int references = buffer.refCnt();
@@ -99,7 +99,7 @@ final class ResourcePackHttpHandlerFuzzTest {
     }
   }
 
-  private void assertBehaviour(final byte[] stream, final byte[] forwarded, final byte[] answered) {
+  private void assertBehavior(final byte[] stream, final byte[] forwarded, final byte[] answered) {
     final boolean isGetRequest = this.startsWith(stream, GET_PREFIX);
     final boolean isHeadRequest = this.startsWith(stream, HEAD_PREFIX);
     final boolean waiting = this.isProperPrefix(stream, GET_PREFIX) || this.isProperPrefix(stream, HEAD_PREFIX);

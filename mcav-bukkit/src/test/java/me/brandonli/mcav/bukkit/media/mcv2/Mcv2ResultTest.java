@@ -298,16 +298,16 @@ final class Mcv2ResultTest {
 
       final boolean timedInOrder = frame.getLong("arrived") >= before && frame.getLong("sent") >= frame.getLong("arrived");
       assertTrue(timedInOrder);
-      // two block centres fit a 64-pixel-wide video: the luma of 0x336699 is (0x33 + 2 * 0x66 + 0x99) / 4 = 0x66
+      // two block centers fit a 64-pixel-wide video: the luma of 0x336699 is (0x33 + 2 * 0x66 + 0x99) / 4 = 0x66
       final String fingerprint = frame.getString("fingerprint");
       assertEquals("6666", fingerprint);
     }
   }
 
   @Test
-  void shouldFingerprintTheCentresOfTheFirstBlocks() {
+  void shouldFingerprintTheCentersOfTheFirstBlocks() {
     final byte[] rgb = new byte[1024 * 32 * 3];
-    // block 1's centre white, the others black
+    // block 1's center white, the others black
     final int offset = (16 * 1024 + 48) * 3;
     rgb[offset] = rgb[offset + 1] = rgb[offset + 2] = (byte) 255;
     final String fingerprint = Mcv2FrameEvent.fingerprint(rgb, 1024, 32);

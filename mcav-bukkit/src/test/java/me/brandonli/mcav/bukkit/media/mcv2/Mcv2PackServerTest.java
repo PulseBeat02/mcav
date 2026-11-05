@@ -598,7 +598,7 @@ final class Mcv2PackServerTest {
   }
 
   @Test
-  void shouldRefuseAScreenWhoseOutlineColourIsNotThePacks() {
+  void shouldRefuseAScreenWhoseOutlineColorIsNotThePacks() {
     this.packs.open(this.screen(SCREEN_WIDTH, Set.of()));
     final Mcv2Configuration gold = Mcv2ConfigurationTest.complete().outlineColor(NamedTextColor.GOLD).build();
     assertThrows(IllegalArgumentException.class, () -> this.packs.open(gold));
@@ -606,7 +606,7 @@ final class Mcv2PackServerTest {
   }
 
   @Test
-  void shouldGiveAPackWhoseScreensAllClosedTheOutlineColourOfTheNextScreen() {
+  void shouldGiveAPackWhoseScreensAllClosedTheOutlineColorOfTheNextScreen() {
     this.packs.open(this.screen(SCREEN_WIDTH, Set.of())).close();
     this.settle();
     final Mcv2ConfigurationBuilder goldBuilder = this.screenBuilder(SCREEN_WIDTH, Set.of());

@@ -420,7 +420,7 @@ final class Mcv2PackTest {
     final Path zip = this.directory.resolve(REFUSED_FILE_NAME);
     final Mcv2Configuration first = Mcv2ConfigurationTest.complete().streamId(1).build();
     final Mcv2Configuration sameStream = Mcv2ConfigurationTest.complete().streamId(1).build();
-    final Mcv2Configuration otherColour = Mcv2ConfigurationTest.complete().streamId(2).outlineColor(NamedTextColor.GOLD).build();
+    final Mcv2Configuration otherColor = Mcv2ConfigurationTest.complete().streamId(2).outlineColor(NamedTextColor.GOLD).build();
     final List<Mcv2Configuration> tooMany = new ArrayList<>();
     for (int stream = 0; stream <= Mcv2Pack.MAXIMUM_SCREENS; stream++) {
       tooMany.add(Mcv2ConfigurationTest.complete().streamId(stream).build());
@@ -429,7 +429,7 @@ final class Mcv2PackTest {
     assertThrows(IllegalArgumentException.class, () -> Mcv2Pack.write(List.of(), Mcv2Pack.DebugView.HIDDEN, zip));
     assertThrows(IllegalArgumentException.class, () -> Mcv2Pack.write(tooMany, Mcv2Pack.DebugView.HIDDEN, zip));
     assertThrows(IllegalArgumentException.class, () -> Mcv2Pack.write(List.of(first, sameStream), Mcv2Pack.DebugView.HIDDEN, zip));
-    assertThrows(IllegalArgumentException.class, () -> Mcv2Pack.write(List.of(first, otherColour), Mcv2Pack.DebugView.HIDDEN, zip));
+    assertThrows(IllegalArgumentException.class, () -> Mcv2Pack.write(List.of(first, otherColor), Mcv2Pack.DebugView.HIDDEN, zip));
 
     final boolean written = Files.exists(zip);
     assertFalse(written);

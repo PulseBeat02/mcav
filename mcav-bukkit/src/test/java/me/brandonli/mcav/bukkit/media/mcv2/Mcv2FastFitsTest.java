@@ -30,7 +30,7 @@ final class Mcv2FastFitsTest {
 
   @ParameterizedTest
   @ValueSource(ints = { 8, 16, 32 })
-  void shouldClusterTwoColours(final int size) {
+  void shouldClusterTwoColors(final int size) {
     final int[] source = new int[size * size * 3];
     for (int pixel = 0; pixel < size * size; pixel++) {
       final boolean bright = pixel % size >= size / 2;

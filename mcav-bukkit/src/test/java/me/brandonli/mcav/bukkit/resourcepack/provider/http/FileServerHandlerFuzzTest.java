@@ -127,7 +127,7 @@ final class FileServerHandlerFuzzTest {
     final Outcome outcome = new Outcome(answered, openAfterReads, timeoutLeft);
 
     try {
-      this.assertBehaviour(request.stream, mode, content, readTimeout, outcome);
+      this.assertBehavior(request.stream, mode, content, readTimeout, outcome);
     } finally {
       for (final Object message : answered) {
         this.releaseAnswer(message);
@@ -178,7 +178,7 @@ final class FileServerHandlerFuzzTest {
     return fileChannel;
   }
 
-  private void assertBehaviour(
+  private void assertBehavior(
     final byte[] stream,
     final OpenMode mode,
     final byte[] content,
