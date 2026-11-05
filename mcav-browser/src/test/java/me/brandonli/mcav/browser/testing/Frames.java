@@ -18,16 +18,11 @@
 package me.brandonli.mcav.browser.testing;
 
 import com.google.common.base.MoreObjects;
-import java.awt.image.BufferedImage;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.UncheckedIOException;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.StringJoiner;
 import java.util.concurrent.CopyOnWriteArrayList;
-import javax.imageio.ImageIO;
 import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
 import me.brandonli.mcav.media.player.metadata.OriginalVideoMetadata;
@@ -64,22 +59,6 @@ public final class Frames {
     callback.attach(pipeline);
 
     return recorder;
-  }
-
-  public static byte[] jpeg(final int width, final int height, final int rgb) {
-    final BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
-    for (int row = 0; row < height; row++) {
-      for (int column = 0; column < width; column++) {
-        image.setRGB(column, row, rgb);
-      }
-    }
-
-    try (final ByteArrayOutputStream output = new ByteArrayOutputStream()) {
-      ImageIO.write(image, "jpg", output);
-      return output.toByteArray();
-    } catch (final IOException exception) {
-      throw new UncheckedIOException(exception);
-    }
   }
 
   private boolean record(final ImageBuffer image, final OriginalVideoMetadata metadata) {
@@ -214,14 +193,6 @@ public final class Frames {
     // the pixel at (width / 2, height / 2), rounded down
     public int getCenter() {
       return this.center;
-    }
-
-    public int getMetadataWidth() {
-      return this.metadataWidth;
-    }
-
-    public int getMetadataHeight() {
-      return this.metadataHeight;
     }
 
     @Override
