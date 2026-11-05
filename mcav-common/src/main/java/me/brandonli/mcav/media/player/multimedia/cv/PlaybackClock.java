@@ -22,9 +22,7 @@ import com.google.common.base.Preconditions;
 import java.util.concurrent.TimeUnit;
 import java.util.function.LongSupplier;
 
-// Maps media timestamps onto the wall clock. The first scheduled timestamp is "now"; a later one is due once as much
-// media time, scaled by the speed, has passed. A large timestamp jump re-anchors the clock. All methods are
-// thread-safe.
+// Maps media timestamps onto the wall clock from the first one, scaled by the speed; a large jump re-anchors it; thread-safe.
 final class PlaybackClock {
 
   static final double NORMAL_SPEED = 1.0;
@@ -102,9 +100,7 @@ final class PlaybackClock {
     }
   }
 
-  // Waits while the clock is paused, until it is resumed or the timeout elapses, whichever comes first. A spurious
-  // wakeup keeps waiting for the rest of the timeout. The timeout is measured on the real clock, not on the wall clock
-  // of the constructor, because the thread really sleeps.
+  // Waits while paused, up to the timeout, on the real clock rather than the constructor's, because the thread really sleeps.
   void awaitResume(final long timeoutMilliseconds) throws InterruptedException {
     this.awaitResume(timeoutMilliseconds, System::nanoTime);
   }
@@ -132,8 +128,7 @@ final class PlaybackClock {
     }
   }
 
-  // Sets how fast media passes: at 2, a second of media is due every half second of wall time. The media due now stays
-  // due now, so the change applies to what follows; while paused, to what follows the pause.
+  // The media due now stays due now, so a new speed applies to what follows, or to what follows the pause while paused.
   void setSpeed(final double newSpeed) {
     Preconditions.checkArgument(newSpeed > 0 && Double.isFinite(newSpeed), "Speed %s must be positive and finite!", newSpeed);
 

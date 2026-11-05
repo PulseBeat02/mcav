@@ -119,12 +119,7 @@ public class ColorPalette implements DitherPalette {
     return closest;
   }
 
-  // Measures how far a color is from another with the "redmean" approximation, which weights the channels by how
-  // sensitive the eye is to them at that brightness: green always counts four times, while red grows from two to almost
-  // three as the average red of the two colors rises and blue falls from almost three to two. The two pass each other
-  // near the middle (with equal weights at a red mean of 127.5), because red is 2 + redMean / 256 and blue is 2 + (255
-  // - redMean) / 256. The result is a squared distance, so it is only meaningful compared with another distance.
-  // Visible for testing.
+  // The squared "redmean" distance, weighting channels by the eye's sensitivity, so it only compares with another distance.
   @VisibleForTesting
   static float perceptualDistance(final int red, final int green, final int blue, final int color) {
     final int otherRed = (color >> RED_SHIFT) & CHANNEL_MASK;

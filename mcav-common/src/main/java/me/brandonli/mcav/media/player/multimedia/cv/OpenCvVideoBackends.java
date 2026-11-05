@@ -27,8 +27,7 @@ import org.bytedeco.opencv.global.opencv_core;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-// Whether the OpenCV build of this machine has a video file backend; the Linux build of the bundled presets has none,
-// so players read files with JavaCV's FFmpeg reader.
+// Whether this machine's OpenCV build has a video file backend; the bundled Linux build has none, so files go through FFmpeg.
 final class OpenCvVideoBackends {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(OpenCvVideoBackends.class);
@@ -45,8 +44,7 @@ final class OpenCvVideoBackends {
     throw new UnsupportedOperationException(message);
   }
 
-  // The reader that opens video files on this machine. The answer is worked out once, because it cannot change while the
-  // library runs.
+  // The reader that opens video files here, worked out once because it cannot change while the library runs.
   static VideoFileReader chooseFileReader() {
     return FILE_READER.get();
   }

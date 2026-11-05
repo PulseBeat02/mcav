@@ -204,9 +204,7 @@ public final class VlcPlayer implements VideoPlayerMultiplexer {
     return this.startReservedPlayback(transition, video);
   }
 
-  // Reserves ownership before foreign acquisition code can reenter the player. Reservation and acquisition share one
-  // lock scope; no empty, unclaimed reservation is ever visible to release. The replacement acquires the shared VLC
-  // engine before the previous playback is detached.
+  // Reserves ownership before foreign code can reenter, in the acquisition's lock scope, so release never sees an empty reservation.
   private boolean prepareCandidate(final StartTransition transition, final Source video, final @Nullable Source audio) {
     this.lock.lock();
     try {
