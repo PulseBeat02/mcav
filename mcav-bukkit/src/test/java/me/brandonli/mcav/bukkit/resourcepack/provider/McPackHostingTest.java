@@ -84,6 +84,8 @@ final class McPackHostingTest {
   private static final List<String> ONLY_HEAD = List.of("HEAD");
   private static final Duration LOCK_TIMEOUT = Duration.ofSeconds(10);
 
+  private static final int EPHEMERAL_PORT = 0;
+
   private static final String PACK_FILE_NAME = "pack.zip";
   private static final String OTHER_FILE_NAME = "other.zip";
   private static final String CACHE_FILE_NAME = "mc-packs-cache.json";
@@ -334,7 +336,7 @@ final class McPackHostingTest {
   @Test
   void shouldReportUnreachableServices() throws IOException {
     final int port;
-    try (final ServerSocket socket = new ServerSocket(0)) {
+    try (final ServerSocket socket = new ServerSocket(EPHEMERAL_PORT)) {
       port = socket.getLocalPort();
     }
 
@@ -595,7 +597,7 @@ final class McPackHostingTest {
 
     private static PackService start() throws IOException {
       final InetAddress loopback = InetAddress.getLoopbackAddress();
-      final InetSocketAddress address = new InetSocketAddress(loopback, 0);
+      final InetSocketAddress address = new InetSocketAddress(loopback, EPHEMERAL_PORT);
       final HttpServer httpServer = HttpServer.create(address, 0);
       final PackService service = new PackService(httpServer);
       httpServer.createContext(UPLOAD_PATH, exchange -> {
