@@ -49,12 +49,12 @@ object CommentForm {
 
     private fun isOwnLine(source: String, offset: Int): Boolean {
         val lineStart: Int = source.lastIndexOf(NEW_LINE, offset) + 1
-        val indentation: String = source.substring(lineStart, offset)
+        val indentation: CharSequence = source.subSequence(lineStart, offset)
         return indentation.isBlank()
     }
 
     private fun lineOf(source: String, offset: Int): Int {
-        val before: String = source.substring(0, offset)
+        val before: CharSequence = source.subSequence(0, offset)
         val newLines: Int = before.count { it == NEW_LINE }
         return newLines + FIRST_LINE_NUMBER
     }
