@@ -36,12 +36,7 @@ import org.bytedeco.ffmpeg.global.avutil;
 import uk.co.caprica.vlcj.player.base.MediaPlayer;
 import uk.co.caprica.vlcj.player.base.callback.AudioCallbackAdapter;
 
-// Copies audio samples out of VLC and runs the audio pipeline of a player on a render thread. VLC is asked for 16-bit
-// stereo samples at 48 kHz in the byte order of the machine, which is the only 16-bit format every VLC build accepts.
-// The samples are copied into little-endian order, the format the audio pipeline expects, which is a plain copy on
-// little-endian machines and swaps the bytes of every sample on big-endian ones. VLC calls play on its audio output
-// thread, which must not block, so when the pipeline falls far behind, the oldest chunks are dropped to keep the
-// latency bounded. Pausing, seeking, and stopping drop the queued chunks, so no stale audio plays afterward.
+// VLC delivers native-order samples, the only 16-bit format every build accepts; play must not block, so a backlog drops old chunks.
 final class AudioRenderer extends AudioCallbackAdapter {
 
   private static final String THREAD_NAME = "mcav-vlc-render-audio";
@@ -144,8 +139,7 @@ final class AudioRenderer extends AudioCallbackAdapter {
       final AudioPipelineStep pipeline = callback.retrieve();
       pipeline.processAll(samples, METADATA);
     } catch (final RuntimeException | Error exception) {
-      // filters are user code, and native filters can throw a LinkageError, so any failure is reported and the render
-      // thread keeps playing; only a virtual machine error ends the thread, because reporting it would hide it
+      // filters are user code that may throw a LinkageError; only a virtual machine error, which a report would hide, ends the thread
       ThrowableUtils.throwIfFatal(exception);
       reportFailure(this.owner, "Audio filter failed.", exception);
     }

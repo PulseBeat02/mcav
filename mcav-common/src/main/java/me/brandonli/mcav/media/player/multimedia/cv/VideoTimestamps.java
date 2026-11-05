@@ -19,9 +19,7 @@ package me.brandonli.mcav.media.player.multimedia.cv;
 
 import java.util.function.LongSupplier;
 
-// OpenCV's video reader stamps every frame with zero, which would make every frame due at once. A frame that does not
-// come after the previous one gets a derived timestamp instead: one frame period on when the frame rate is known, else
-// the time since the first frame. Not thread-safe: one decoding thread owns it.
+// OpenCV's video reader stamps every frame with zero, so a frame not after the previous one gets a derived timestamp; not thread-safe.
 final class VideoTimestamps {
 
   private static final double MICROSECONDS_PER_SECOND = 1_000_000.0;

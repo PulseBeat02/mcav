@@ -33,9 +33,7 @@ import org.bytedeco.opencv.opencv_core.Mat;
 import org.bytedeco.opencv.opencv_core.Size;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-// Copies decoded frames into pooled images, scaling them to the attached size when the decoder did not: FFmpeg scales
-// while converting the pixel format, other decoders such as OpenCV's file reader ignore the requested size. Once the
-// sizes are settled, no memory is allocated per frame. Not thread-safe: the decoding thread of one session owns it.
+// Copies frames into pooled images and scales those the decoder did not, such as OpenCV's reader; one decoding thread owns it.
 final class VideoFrameCopier {
 
   private final ImagePool pool;
@@ -53,8 +51,7 @@ final class VideoFrameCopier {
     final int height = frame.imageHeight;
     final @Nullable MatImageBuffer pooled = this.pool.acquire();
 
-    // read the size once: a detach between two calls answers with an empty size, and scaling to 0x0 would end playback,
-    // so an empty size copies the frame at its own size like a detached callback
+    // read the size once: a detach in between answers empty, and an empty size copies the frame at its own size
     final Dimension target = this.dimensionCallback.retrieve();
     final int targetWidth = target.getWidth();
     final int targetHeight = target.getHeight();

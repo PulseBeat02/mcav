@@ -21,13 +21,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.bytedeco.opencv.opencv_core.Mat;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-// A matrix a filter reuses for its intermediate results instead of allocating one for every frame. One filter may be
-// attached to several pipelines, whose render threads then call it at the same time, so the matrix is lent to one frame
-// at a time instead of being shared: borrow() hands it out, and a caller that finds it lent out gets a new matrix
-// instead. giveBack(Mat) keeps one matrix for the next frame and frees any other. A filter used by one pipeline, which
-// is the normal case, therefore allocates a matrix only for its first frame, and OpenCV reallocates its pixels only
-// when a frame has another size or type than the frame before. The kept matrix is freed by JavaCPP once the filter is
-// garbage collected, like every other matrix a filter keeps.
+// A filter's scratch matrix, lent to one frame at a time because a filter in several pipelines runs on several threads at once.
 final class ReusableMat {
 
   private final AtomicReference<@Nullable Mat> idle;
@@ -46,8 +40,7 @@ final class ReusableMat {
     return new Mat();
   }
 
-  // Hands a borrowed matrix back. It is kept for the next frame unless another matrix was handed back first, in which
-  // case it is freed.
+  // Keeps the matrix for the next frame unless another one was handed back first, else frees it.
   boolean giveBack(final Mat matrix) {
     final boolean kept = this.idle.compareAndSet(null, matrix);
     if (!kept) {

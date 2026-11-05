@@ -20,8 +20,7 @@ package me.brandonli.mcav.media.player.multimedia.cv;
 import me.brandonli.mcav.media.image.MatImageBuffer;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-// The image comes from the session's ImagePool; it is null while no video pipeline is attached, and the frame then only
-// moves the clock and the position.
+// The image comes from the session's ImagePool; it is null without a video pipeline, and the frame then only moves the clock.
 final class DecodedVideoFrame {
 
   private final @Nullable MatImageBuffer image;

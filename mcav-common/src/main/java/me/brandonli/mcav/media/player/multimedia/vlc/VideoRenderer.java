@@ -42,13 +42,7 @@ import uk.co.caprica.vlcj.player.embedded.videosurface.callback.BufferFormat;
 import uk.co.caprica.vlcj.player.embedded.videosurface.callback.RenderCallback;
 import uk.co.caprica.vlcj.player.embedded.videosurface.callback.format.RV32BufferFormat;
 
-// Copies the pictures VLC renders and runs the video pipeline of a player on a render thread. VLC renders into an RV32
-// buffer and calls display on its video output thread. The visible pixels are copied there, because VLC reuses the
-// buffer right away, and handed to the render thread, which keeps only the newest unrendered frame. When a size is
-// attached to the player, VLC is asked to render at that size, so it scales the picture while converting it; frames
-// that still arrive at another size, because the size was attached after VLC chose the buffer, are resized on the
-// render thread. The pixel arrays and the image buffer are reused from frame to frame, so rendering allocates nothing
-// per frame once the sizes are settled.
+// Copies the visible pixels in display, because VLC reuses its buffer, and renders only the newest frame on a render thread.
 final class VideoRenderer implements RenderCallback {
 
   private static final String THREAD_NAME = "mcav-vlc-render-video";
@@ -97,15 +91,11 @@ final class VideoRenderer implements RenderCallback {
     this.pendingFrame.clear();
   }
 
-  // Chooses the buffer VLC renders into and remembers which part of it holds the picture. Without an attached size, the
-  // buffer has the size VLC decodes at, which may include padding below and right of the visible picture. With an
-  // attached size, VLC scales the visible picture into a buffer of exactly that size.
+  // The buffer has the decoded size, padding included, unless a size is attached, which VLC then scales the picture to.
   BufferFormat createBufferFormat(final int sourceWidth, final int sourceHeight, final int visibleWidth, final int visibleHeight) {
     this.metadata = OriginalVideoMetadata.of(visibleWidth, visibleHeight);
     final DimensionAttachableCallback dimensionCallback = this.owner.getDimensionAttachableCallback();
-    // the size is read once. This runs inside a VLC callback, and asking whether the callback is attached and then
-    // asking it for the size lets a detach in between answer with the empty fallback, which would hand VLC a buffer
-    // format of 0x0
+    // read the size once: a detach between two calls answers with the empty fallback, which would hand VLC a 0x0 buffer format
     final Dimension target = dimensionCallback.retrieve();
     final boolean shouldScale = !target.isEmpty();
     if (!shouldScale) {
@@ -184,9 +174,7 @@ final class VideoRenderer implements RenderCallback {
     return new DecodedFrame(pixels, visibleWidth, visibleHeight);
   }
 
-  // Reads the visible rows of an RV32 buffer as packed ARGB pixels. RV32 is stored as blue, green, red, and a padding
-  // byte, which read as little-endian integers is exactly packed ARGB; the padding byte ends up in the alpha channel,
-  // which images discard.
+  // RV32 stores blue, green, red and padding, which little-endian integers read as packed ARGB, the padding in the discarded alpha.
   @VisibleForTesting
   void readVisibleRows(
     final ByteBuffer nativeBuffer,
@@ -220,9 +208,7 @@ final class VideoRenderer implements RenderCallback {
     return new int[length];
   }
 
-  // Hands a pixel array back once its pixels were copied into the image, so VLC's thread can reuse it. Only as many
-  // arrays are kept as can be in flight at once; an array handed back while that many are already waiting is dropped
-  // and left to the garbage collector, because a later frame would never need it.
+  // Keeps a copied pixel array for VLC's thread to reuse, but only as many as can be in flight; the rest go to the garbage collector.
   @VisibleForTesting
   boolean recyclePixels(final int[] pixels) {
     return this.sparePixels.offer(pixels);
@@ -277,8 +263,7 @@ final class VideoRenderer implements RenderCallback {
 
   private void scaleIfRequested(final ImageBuffer buffer) {
     final DimensionAttachableCallback dimensionCallback = this.owner.getDimensionAttachableCallback();
-    // the size is read once: asking whether the callback is attached and then asking it for the size lets a detach
-    // in between answer with the empty fallback, and a resize filter of 0x0 rejects every frame from then on
+    // read the size once: a detach between two calls answers with the empty fallback, and a 0x0 resize filter rejects every frame
     final Dimension dimension = dimensionCallback.retrieve();
     final boolean empty = dimension.isEmpty();
     if (empty) {
@@ -310,8 +295,7 @@ final class VideoRenderer implements RenderCallback {
       final VideoPipelineStep pipeline = callback.retrieve();
       pipeline.processAll(buffer, currentMetadata);
     } catch (final RuntimeException | Error exception) {
-      // filters are user code, and native filters can throw a LinkageError, so any failure is reported and the render
-      // thread keeps rendering; only a virtual machine error ends the thread, because reporting it would hide it
+      // filters are user code that may throw a LinkageError; only a virtual machine error, which a report would hide, ends the thread
       ThrowableUtils.throwIfFatal(exception);
       reportFailure(this.owner, "Video filter failed.", exception);
     }
