@@ -227,6 +227,17 @@ final class PlaybackClockTest {
   }
 
   @Test
+  void shouldNotWaitWhenTheTimeoutIsZero() throws InterruptedException {
+    final PlaybackClock clock = new PlaybackClock(System::nanoTime);
+    final AtomicLong reads = new AtomicLong();
+    clock.pause();
+    clock.awaitResume(0L, reads::getAndIncrement);
+
+    final long readCount = reads.get();
+    assertEquals(1L, readCount, "only the start is read, because no wait begins");
+  }
+
+  @Test
   void shouldReanchorOnlyBeyondTheExactTwoSecondBoundary() {
     final AtomicLong now = new AtomicLong(7_000_000_000L);
     final PlaybackClock clock = new PlaybackClock(now::get);

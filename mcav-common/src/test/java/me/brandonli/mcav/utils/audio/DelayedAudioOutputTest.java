@@ -539,6 +539,19 @@ class DelayedAudioOutputTest {
   }
 
   @Test
+  void shouldSendNoSilenceBeforeQuietWhenTheClockIsAtTheLowestLong() {
+    final AtomicLong now = new AtomicLong(Long.MIN_VALUE);
+    final AtomicInteger reads = new AtomicInteger();
+    final DelayedAudioOutput waiting = this.quietOutput(() -> this.countClockRead(reads, now), SILENCE_LIMIT_MILLISECONDS);
+    waiting.accept(new byte[SOUND_CHUNK_BYTES], SOUND_CHUNK_BYTES);
+    final int seen = reads.get();
+    waitUntil(() -> reads.get() >= seen + 2);
+
+    final boolean nothingProcessed = this.processed.isEmpty();
+    assertTrue(nothingProcessed, "the sound is not due yet and no silence was asked for");
+  }
+
+  @Test
   void shouldSleepUntilTheNextChunkIsDueWhileNotQuiet() throws InterruptedException {
     final AtomicLong now = new AtomicLong();
     final AtomicInteger reads = new AtomicInteger();
