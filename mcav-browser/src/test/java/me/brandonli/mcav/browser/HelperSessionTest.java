@@ -286,6 +286,9 @@ class HelperSessionTest {
     final boolean loggedWithinBudget = reports >= LogBudget.BURST && reports <= LogBudget.BURST + 5;
     assertTrue(loggedWithinBudget, "logged " + reports + " of " + sent + " reports");
 
+    final boolean logsTheFirstLoadError = log.contains("Page https://example.com/noise/0?<hidden> failed to load");
+    assertTrue(logsTheFirstLoadError, log);
+
     final boolean leaksTheToken = log.contains("token=secret");
     assertFalse(leaksTheToken, log);
 
@@ -1269,6 +1272,9 @@ class HelperSessionTest {
     delivery.join(10_000L);
     final boolean deliveryAlive = delivery.isAlive();
     assertFalse(deliveryAlive);
+
+    final boolean deliveryInterrupted = delivery.isInterrupted();
+    assertTrue(deliveryInterrupted);
 
     first.close();
     final HelperSession second = this.open(ScriptedEngine.class.getName(), PAGE);
