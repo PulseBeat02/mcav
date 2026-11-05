@@ -494,6 +494,17 @@ class NetworkGuardTest {
   }
 
   @Test
+  void shouldCloseATargetItCannotRelayThrough() throws IOException {
+    final Socket unconnected = new Socket();
+    final NetworkGuard guard = this.guard(InetAddress::isLoopbackAddress, _ -> unconnected, CONNECT_TIMEOUT_MILLISECONDS);
+    final Socket client = this.connectThrough(guard, ECHO_HOST, this.echo.getLocalPort());
+    this.assertEnded(client);
+
+    final boolean targetClosed = unconnected.isClosed();
+    assertTrue(targetClosed);
+  }
+
+  @Test
   void shouldDisconnectAClientTurnedAway() throws IOException {
     final NetworkGuard guard = this.loopbackGuard();
     final Socket client = this.client(guard);
