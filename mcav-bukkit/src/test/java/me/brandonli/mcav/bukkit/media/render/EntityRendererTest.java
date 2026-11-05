@@ -24,6 +24,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -405,6 +406,30 @@ final class EntityRendererTest {
     verify(this.viewer, times(2)).showEntity(plugin, respawned);
 
     renderer.hide();
+  }
+
+  @Test
+  void shouldShowAReplacementDisplayOnItsFirstTickToAViewerWhoCannotSeeIt() {
+    final EntityConfiguration configuration = this.createConfiguration(this.position);
+    final EntityRenderer renderer = new EntityRenderer(configuration);
+    final Plugin plugin = this.server.getPlugin();
+    try {
+      renderer.show();
+      final List<CraftTextDisplay> spawnedBefore = this.world.getSpawnedDisplays();
+      final CraftTextDisplay discarded = spawnedBefore.getFirst();
+      final World configuredWorld = this.world.getWorld();
+      when(discarded.isValid()).thenReturn(false);
+      when(configuredWorld.isChunkLoaded(0, 0)).thenReturn(true);
+      doReturn(false).when(this.viewer).canSee(any(Entity.class));
+
+      renderer.onTick();
+
+      final List<CraftTextDisplay> spawnedAfter = this.world.getSpawnedDisplays();
+      final CraftTextDisplay replacement = spawnedAfter.get(1);
+      verify(this.viewer, times(2)).showEntity(plugin, replacement);
+    } finally {
+      renderer.hide();
+    }
   }
 
   @Test

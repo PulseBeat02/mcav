@@ -46,8 +46,11 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.Callable;
@@ -112,6 +115,11 @@ final class Mcv2ResultTest {
   private static final int WAIT_TIMEOUT_MILLISECONDS = 5000;
   private static final int SLOW_ENCODE_SECONDS = 2;
   private static final int SEARCH_DURATION_MILLISECONDS = 300;
+
+  private static final int PIPELINE_TIMEOUT_SECONDS = 10;
+
+  private static final long HANDOFF_DURATION_NANOSECONDS = TimeUnit.MILLISECONDS.toNanos(25);
+  private static final long HANDOFF_INTERVAL_NANOSECONDS = TimeUnit.SECONDS.toNanos(1);
 
   private static final int FRAME_COLOR = 0xFF336699;
   private static final int BLACK = 0xFF000000;
@@ -1235,6 +1243,204 @@ final class Mcv2ResultTest {
     }
 
     return found;
+  }
+
+  @Test
+  void shouldKeepTheEncodingThreadInterruptedAfterAnInterruptedTake() {
+    final Mcv2Result result = this.result(this.configuration, null);
+    final Thread current = Thread.currentThread();
+    try {
+      result.start();
+      current.interrupt();
+      result.encodeLoop(mock(Mcv2.class));
+
+      final boolean interrupted = Thread.interrupted();
+      assertTrue(interrupted);
+    } finally {
+      final boolean _ = Thread.interrupted();
+      result.release();
+    }
+  }
+
+  @Test
+  void shouldLeaveTheSenderInterruptedAfterRelease() {
+    final Map<Thread, StackTraceElement[]> stackTraces = Thread.getAllStackTraces();
+    final Set<Thread> knownThreads = stackTraces.keySet();
+    final Set<Thread> before = Set.copyOf(knownThreads);
+    final Mcv2Result result = this.result(this.configuration, null);
+    try {
+      result.start();
+      final Set<Thread> senders = threads(SENDER_THREAD_NAME, before);
+      final Iterator<Thread> iterator = senders.iterator();
+      final Thread sender = iterator.next();
+      result.release();
+
+      final boolean senderAlive = sender.isAlive();
+      final boolean senderInterrupted = sender.isInterrupted();
+      assertFalse(senderAlive);
+      assertTrue(senderInterrupted);
+    } finally {
+      result.release();
+    }
+  }
+
+  @Test
+  void shouldExcludeLiveKeyframeHandoffsFromPacing() throws InterruptedException {
+    final Mcv2Pacer.Rung rung = this.rungAfterSlowHandoffs(Mcv2FrameKind.KEYFRAME);
+    final int divisor = rung.getDivisor();
+    assertEquals(1, divisor);
+  }
+
+  @Test
+  void shouldPaceLivePredictedFrameHandoffs() throws InterruptedException {
+    final Mcv2Pacer.Rung rung = this.rungAfterSlowHandoffs(Mcv2FrameKind.PREDICTED);
+    final int divisor = rung.getDivisor();
+    assertEquals(2, divisor);
+  }
+
+  private Mcv2Pacer.Rung rungAfterSlowHandoffs(final Mcv2FrameKind kind) throws InterruptedException {
+    final AtomicLong clock = new AtomicLong();
+    final Pool budget = this.interruptibleBudget();
+    final Mcv2Configuration configuration = this.pooledScreen(budget);
+    final Mcv2Channel channel = mock(Mcv2Channel.class);
+    when(channel.send(any())).thenReturn(OptionalInt.of(0));
+    final Mcv2 encoder = mock(Mcv2.class);
+    final Mcv2.Pending pending = mock(Mcv2.Pending.class);
+    when(pending.isKeyframe()).thenReturn(kind == Mcv2FrameKind.KEYFRAME);
+    when(encoder.begin(any(), anyInt(), anyInt(), anyLong())).thenAnswer(_ -> this.advanceHandoffClock(clock, pending));
+    final Mcv2.Encoded encoded = this.completedFrame(kind);
+    when(encoder.finish(pending)).thenReturn(encoded);
+    final Mcv2Result result = new Mcv2Result(configuration, channel, null, clock::get, Runnable::run, _ -> encoder);
+    try (final ImageBuffer frame = Images.solid(64, 32, FRAME_COLOR)) {
+      result.start();
+      result.applyFilter(frame, this.metadata);
+      clock.set(FRAME_INTERVAL_NANOSECONDS);
+      result.applyFilter(frame, this.metadata);
+      this.sendSlowHandoffs(result, encoder, clock);
+
+      final Optional<Mcv2Pacer.Rung> rung = result.getRung();
+      return rung.orElseThrow();
+    } finally {
+      result.release();
+    }
+  }
+
+  private Mcv2.Pending advanceHandoffClock(final AtomicLong clock, final Mcv2.Pending pending) {
+    clock.addAndGet(HANDOFF_DURATION_NANOSECONDS);
+
+    return pending;
+  }
+
+  private void sendSlowHandoffs(final Mcv2Result result, final Mcv2 encoder, final AtomicLong clock) throws InterruptedException {
+    final Mcv2Result.Arrival arrival = new Mcv2Result.Arrival(new byte[64 * 32 * 3], 64, 32, 0, Mcv2Pacer.Preset.ONLY);
+    for (int frameNumber = 0; frameNumber < 16; frameNumber++) {
+      clock.addAndGet(HANDOFF_INTERVAL_NANOSECONDS);
+      result.send(encoder, arrival, frameNumber);
+    }
+  }
+
+  private Pool interruptibleBudget() throws InterruptedException {
+    final Pool budget = mock(Pool.class);
+    when(budget.runInterruptibly(any())).thenAnswer(invocation -> invocation.<Callable<?>>getArgument(0).call());
+
+    return budget;
+  }
+
+  private Mcv2Configuration pooledScreen(final Pool budget) {
+    return Mcv2Configuration.builder()
+      .viewers(List.of(WITH_PACK))
+      .origin(new Location(WORLD, 0, 64, 0))
+      .facing(BlockFace.SOUTH)
+      .map(WALL_MAP)
+      .columns(1)
+      .rows(1)
+      .video(64, 32)
+      .pageMap(PAGE_MAP)
+      .settings(Settings.FAST)
+      .encoderPool(budget)
+      .maximumFrameRate(0)
+      .build();
+  }
+
+  private Mcv2.Encoded completedFrame(final Mcv2FrameKind kind) {
+    final Mcv2.Encoded encoded = mock(Mcv2.Encoded.class);
+    when(encoded.getData()).thenReturn(Mcv2ChannelTest.keyframe());
+    when(encoded.getStatistics()).thenReturn(Mcv2.Statistics.of(1, kind == Mcv2FrameKind.KEYFRAME, 1, 1, LAMBDA));
+
+    return encoded;
+  }
+
+  @Test
+  void shouldInterruptTheScreenWhenAnotherEncoderStopsThePipeline() throws InterruptedException {
+    final Pool budget = this.interruptibleBudget();
+    final Mcv2Configuration configuration = this.pooledScreen(budget);
+    final Mcv2Channel channel = mock(Mcv2Channel.class);
+    when(channel.getRecipients()).thenReturn(Set.of(WITH_PACK));
+    when(channel.send(any())).thenReturn(OptionalInt.of(0));
+    final CountDownLatch finishing = new CountDownLatch(1);
+    final CountDownLatch finishMayReturn = new CountDownLatch(1);
+    final CountDownLatch secondSearch = new CountDownLatch(1);
+    final CountDownLatch searchMayReturn = new CountDownLatch(1);
+    final AtomicReference<Thread> searching = new AtomicReference<>();
+    final AtomicInteger searches = new AtomicInteger();
+    final Mcv2 encoder = mock(Mcv2.class);
+    when(encoder.getSettings()).thenReturn(Settings.FAST);
+    final Mcv2.Pending pending = mock(Mcv2.Pending.class);
+    when(encoder.begin(any(), anyInt(), anyInt(), anyLong())).thenAnswer(_ ->
+      this.blockSecondSearch(searches, searching, secondSearch, searchMayReturn, pending)
+    );
+    final Mcv2.Encoded encoded = this.completedFrame(Mcv2FrameKind.KEYFRAME);
+    when(encoder.finish(pending)).thenAnswer(_ -> this.holdDelivery(finishing, finishMayReturn, encoded));
+    final Mcv2Result result = new Mcv2Result(configuration, channel, null, System::nanoTime, Runnable::run, _ -> encoder);
+    try (final ImageBuffer frame = Images.solid(64, 32, FRAME_COLOR)) {
+      result.start();
+      result.applyFilter(frame, this.metadata);
+      final boolean deliveryStarted = finishing.await(PIPELINE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+      assertTrue(deliveryStarted);
+
+      result.applyFilter(frame, this.metadata);
+      final boolean secondSearchStarted = secondSearch.await(PIPELINE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+      assertTrue(secondSearchStarted);
+
+      final Thread current = Thread.currentThread();
+      current.interrupt();
+      result.encodeLoop(mock(Mcv2.class));
+      final boolean interrupted = Thread.interrupted();
+      assertTrue(interrupted);
+
+      final Thread worker = requireNonNull(searching.get());
+      worker.join(TimeUnit.SECONDS.toMillis(PIPELINE_TIMEOUT_SECONDS));
+      final boolean workerAlive = worker.isAlive();
+      assertFalse(workerAlive);
+    } finally {
+      final boolean _ = Thread.interrupted();
+      finishMayReturn.countDown();
+      searchMayReturn.countDown();
+      result.release();
+    }
+  }
+
+  private Mcv2.Pending blockSecondSearch(
+    final AtomicInteger searches,
+    final AtomicReference<Thread> searching,
+    final CountDownLatch secondSearch,
+    final CountDownLatch searchMayReturn,
+    final Mcv2.Pending pending
+  ) throws InterruptedException {
+    if (searches.getAndIncrement() == 1) {
+      searching.set(Thread.currentThread());
+      secondSearch.countDown();
+      searchMayReturn.await();
+    }
+
+    return pending;
+  }
+
+  private Mcv2.Encoded holdDelivery(final CountDownLatch finishing, final CountDownLatch finishMayReturn, final Mcv2.Encoded encoded) {
+    finishing.countDown();
+    this.awaitUninterruptibly(finishMayReturn);
+
+    return encoded;
   }
 
   @Test

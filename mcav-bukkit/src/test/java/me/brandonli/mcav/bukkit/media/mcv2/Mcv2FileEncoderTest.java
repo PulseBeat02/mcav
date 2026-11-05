@@ -17,6 +17,7 @@
  */
 package me.brandonli.mcav.bukkit.media.mcv2;
 
+import static java.util.Objects.requireNonNull;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -388,10 +389,15 @@ final class Mcv2FileEncoderTest {
   void shouldCloseAVideoThatCannotStart() throws Exception {
     final FFmpegFrameGrabber grabber = mock(FFmpegFrameGrabber.class);
     doThrow(new FFmpegFrameGrabber.Exception("no stream!")).when(grabber).start();
-    doThrow(new FFmpegFrameGrabber.Exception("not open!")).when(grabber).close();
+    final FFmpegFrameGrabber.Exception closeFailure = new FFmpegFrameGrabber.Exception("not open!");
+    doThrow(closeFailure).when(grabber).close();
     final Mcv2Exception thrown = assertThrows(Mcv2Exception.class, () -> Mcv2FileEncoder.open(grabber, VIDEO_FILE_NAME, 8, 8));
     final String message = thrown.getMessage();
     assertEquals("Video clip.mp4 could not be opened!", message);
+
+    final Throwable cause = requireNonNull(thrown.getCause());
+    final Throwable[] suppressed = cause.getSuppressed();
+    assertArrayEquals(new Throwable[] { closeFailure }, suppressed);
 
     verify(grabber).close();
   }
