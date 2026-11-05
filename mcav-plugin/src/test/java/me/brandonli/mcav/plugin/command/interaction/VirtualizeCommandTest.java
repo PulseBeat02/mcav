@@ -462,6 +462,7 @@ final class VirtualizeCommandTest {
 
   @Test
   void shouldLetGoOfTheSoundWhenTheMachineFailsToEndWhileThePluginDisables() {
+    this.makeVoiceChatReady();
     when(this.provider.constructFilter(eq(AudioArgument.SIMPLE_VOICE_CHAT), any(), any(), eq(this.machine))).thenReturn(
       mock(AudioFilter.class)
     );
@@ -487,6 +488,11 @@ final class VirtualizeCommandTest {
     verify(this.callback).detach();
     verify(sound).detach();
     verify(this.machine, timeout(RELEASE_MILLISECONDS)).release();
+  }
+
+  private void makeVoiceChatReady() {
+    when(this.provider.isSimpleVoiceChatEnabled()).thenReturn(true);
+    when(this.provider.isSimpleVoiceChatReady()).thenReturn(true);
   }
 
   @Test
@@ -709,6 +715,7 @@ final class VirtualizeCommandTest {
 
   @Test
   void shouldPlayTheSoundOfAMachineIntoTheChosenOutputAndLetGoOfItOnRelease() {
+    this.makeVoiceChatReady();
     final AudioFilter output = mock(AudioFilter.class);
     when(this.provider.constructFilter(eq(AudioArgument.SIMPLE_VOICE_CHAT), any(), any(), eq(this.machine))).thenReturn(output);
     final AudioAttachableCallback audio = mock(AudioAttachableCallback.class);

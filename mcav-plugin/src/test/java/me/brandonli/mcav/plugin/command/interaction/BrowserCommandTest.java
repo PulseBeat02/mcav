@@ -221,6 +221,7 @@ final class BrowserCommandTest {
 
   @Test
   void shouldPlayTheSoundOfThePageIntoTheChosenOutputAndLetGoOfItOnRelease() {
+    this.makeVoiceChatReady();
     final AudioFilter output = mock(AudioFilter.class);
     when(this.provider.constructFilter(eq(AudioArgument.SIMPLE_VOICE_CHAT), any(), any(), eq(this.browser))).thenReturn(output);
     final AudioAttachableCallback audio = mock(AudioAttachableCallback.class);
@@ -240,8 +241,14 @@ final class BrowserCommandTest {
     verify(this.provider).releaseAudioFilter(this.browser);
   }
 
+  private void makeVoiceChatReady() {
+    when(this.provider.isSimpleVoiceChatEnabled()).thenReturn(true);
+    when(this.provider.isSimpleVoiceChatReady()).thenReturn(true);
+  }
+
   @Test
   void shouldLetGoOfTheSoundWhenTheReleaseFailsAndWhileThePluginDisables() {
+    this.makeVoiceChatReady();
     when(this.provider.constructFilter(eq(AudioArgument.SIMPLE_VOICE_CHAT), any(), any(), eq(this.browser))).thenReturn(
       mock(AudioFilter.class)
     );

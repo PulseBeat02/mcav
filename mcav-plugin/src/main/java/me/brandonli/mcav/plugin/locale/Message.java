@@ -688,12 +688,21 @@ public interface Message extends LocaleTools {
   NullComponent VM_ERROR = LocaleTools.direct("mcav.command.vm.error");
 
   /**
-   * Key {@code mcav.command.audio.not_ready}: a video command chose the Discord bot or the HTTP server as the audio
-   * output, which is enabled but still starting or failed to start.
+   * Key {@code mcav.command.audio.not_ready}: a video command chose the Discord bot, the HTTP server or Simple Voice
+   * Chat as the audio output, which is enabled but still starting or failed to start.
    *
    * @since 1.0.0
    */
   NullComponent AUDIO_NOT_READY = LocaleTools.direct("mcav.command.audio.not_ready");
+
+  /**
+   * Key {@code mcav.command.audio.simple_voice_chat.off}: a command chose Simple Voice Chat as the audio output while
+   * {@code simple-voice-chat.enabled} is {@code false} in {@code config.yml}, so MCAV never registered with Simple
+   * Voice Chat, which may not be installed either.
+   *
+   * @since 1.0.0
+   */
+  NullComponent SIMPLE_VOICE_CHAT_OFF = LocaleTools.direct("mcav.command.audio.simple_voice_chat.off");
 
   /**
    * Key {@code mcav.command.scoreboard.lines.error}: a scoreboard video or image asked for more lines than the

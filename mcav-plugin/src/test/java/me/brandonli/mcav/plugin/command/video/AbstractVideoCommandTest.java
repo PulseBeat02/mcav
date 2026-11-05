@@ -651,6 +651,7 @@ final class AbstractVideoCommandTest {
 
   @Test
   void shouldTakeTheAudioFromTheVideoStreamWhenThePageHasNoSeparateAudio() {
+    this.makeVoiceChatReady();
     final String videoFile = this.createVideoFormat(PAGE_VIDEO_FILE);
     this.resolveWebPageTo(videoFile);
 
@@ -660,8 +661,14 @@ final class AbstractVideoCommandTest {
     this.assertStartedWithStreamsAt(file, file);
   }
 
+  private void makeVoiceChatReady() {
+    when(this.provider.isSimpleVoiceChatEnabled()).thenReturn(true);
+    when(this.provider.isSimpleVoiceChatReady()).thenReturn(true);
+  }
+
   @Test
   void shouldKeepTheBestSeparateAudioStreamWhenThePageHasOne() {
+    this.makeVoiceChatReady();
     final String videoOnly = this.createVideoFormat(PAGE_VIDEO_FILE);
     final String audioOnly = this.createAudioFormat(PAGE_AUDIO_FILE);
     this.resolveWebPageTo(videoOnly, audioOnly);
@@ -1031,11 +1038,22 @@ final class AbstractVideoCommandTest {
 
   @Test
   void shouldSendNoLinkForVoiceChatAudio() {
+    this.makeVoiceChatReady();
     this.play(PlayerArgument.FFMPEG, AudioArgument.SIMPLE_VOICE_CHAT, MRL, "");
 
     final Component loading = Message.LOAD_VIDEO.build();
     this.assertViewerReceived(loading);
     this.verifyPlayedWithDump(AudioArgument.SIMPLE_VOICE_CHAT);
+  }
+
+  @Test
+  void shouldRefuseVoiceChatAudioWhileItIsOff() {
+    this.play(PlayerArgument.FFMPEG, AudioArgument.SIMPLE_VOICE_CHAT, MRL, "");
+
+    final Component error = Message.SIMPLE_VOICE_CHAT_OFF.build();
+    this.assertSenderReceived(error);
+    verify(this.manager, never()).getService();
+    this.assertNotStarting();
   }
 
   @Test

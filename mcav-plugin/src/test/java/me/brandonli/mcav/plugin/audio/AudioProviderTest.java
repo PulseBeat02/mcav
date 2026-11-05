@@ -35,6 +35,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.google.common.util.concurrent.MoreExecutors;
+import de.maxhenkel.voicechat.api.VoicechatServerApi;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
@@ -57,6 +58,7 @@ import me.brandonli.mcav.plugin.testing.StandardErrorCapture;
 import me.brandonli.mcav.plugin.testing.TestServer;
 import me.brandonli.mcav.plugin.utils.AudioArgument;
 import me.brandonli.mcav.voicechat.SvcFilter;
+import me.brandonli.mcav.voicechat.SvcModule;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;
 import net.dv8tion.jda.api.entities.Guild;
@@ -200,15 +202,20 @@ final class AudioProviderTest {
   void shouldReportWhichOutputsAreEnabled() {
     final boolean discordEnabledBefore = this.provider.isDiscordBotEnabled();
     final boolean httpEnabledBefore = this.provider.isHttpEnabled();
+    final boolean voiceChatEnabledBefore = this.provider.isSimpleVoiceChatEnabled();
     assertFalse(discordEnabledBefore);
     assertFalse(httpEnabledBefore);
+    assertFalse(voiceChatEnabledBefore);
 
     this.enableDiscord();
     this.enableHttp();
+    this.enableVoiceChat();
     final boolean discordEnabledAfter = this.provider.isDiscordBotEnabled();
     final boolean httpEnabledAfter = this.provider.isHttpEnabled();
+    final boolean voiceChatEnabledAfter = this.provider.isSimpleVoiceChatEnabled();
     assertTrue(discordEnabledAfter);
     assertTrue(httpEnabledAfter);
+    assertTrue(voiceChatEnabledAfter);
   }
 
   private void enableDiscord() {
@@ -217,6 +224,28 @@ final class AudioProviderTest {
 
   private void enableHttp() {
     when(this.configuration.isHttpEnabled()).thenReturn(true);
+  }
+
+  private void enableVoiceChat() {
+    when(this.configuration.isSimpleVoiceChatEnabled()).thenReturn(true);
+  }
+
+  @Test
+  void shouldBeReadyForVoiceChatOnlyWhileTheLibraryHoldsItsServer() {
+    final SvcModule module = new SvcModule();
+    module.stop();
+
+    final boolean readyBefore = this.provider.isSimpleVoiceChatReady();
+    assertFalse(readyBefore);
+
+    final VoicechatServerApi api = mock(VoicechatServerApi.class);
+    module.inject(api);
+    try {
+      final boolean ready = this.provider.isSimpleVoiceChatReady();
+      assertTrue(ready);
+    } finally {
+      module.stop();
+    }
   }
 
   @Test
