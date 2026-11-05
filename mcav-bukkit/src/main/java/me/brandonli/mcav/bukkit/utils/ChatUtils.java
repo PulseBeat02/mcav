@@ -50,6 +50,8 @@ public final class ChatUtils {
 
   private static final int CHARACTERS_PER_DIGIT = 2;
 
+  private static final int MAXIMUM_PRESIZE = 1 << 20;
+
   private static final int HIGHEST_NIBBLE_SHIFT = 20;
   private static final int BITS_PER_NIBBLE = 4;
   private static final int NIBBLE_MASK = 0xF;
@@ -111,9 +113,10 @@ public final class ChatUtils {
     Preconditions.checkArgument(width > 0, "Width must be positive!");
     Preconditions.checkArgument(row >= 0 && (row + 1L) * width <= data.length, "Row is outside of the image!");
 
-    final int characterLength = character.length();
-    final int capacity = width * (HEXADECIMAL_COLOR_LENGTH + characterLength);
-    final StringBuilder builder = new StringBuilder(capacity);
+    final long characterLength = character.length();
+    final long capacity = width * (HEXADECIMAL_COLOR_LENGTH + characterLength);
+    final int presize = (int) Math.min(capacity, MAXIMUM_PRESIZE);
+    final StringBuilder builder = new StringBuilder(presize);
     appendRow(builder, data, character, width, row);
     return builder.toString();
   }
@@ -139,9 +142,10 @@ public final class ChatUtils {
     Preconditions.checkArgument(width > 0 && height > 0, "Image must not be empty!");
     Preconditions.checkArgument((long) width * height <= data.length, "Image dimensions exceed the pixel data!");
 
-    final int characterLength = character.length();
-    final int capacity = width * height * (HEXADECIMAL_COLOR_LENGTH + characterLength) + height;
-    final StringBuilder builder = new StringBuilder(capacity);
+    final long characterLength = character.length();
+    final long capacity = (long) width * height * (HEXADECIMAL_COLOR_LENGTH + characterLength) + height;
+    final int presize = (int) Math.min(capacity, MAXIMUM_PRESIZE);
+    final StringBuilder builder = new StringBuilder(presize);
     for (int row = 0; row < height; row++) {
       if (row > 0) {
         builder.append(LINE_SEPARATOR);
