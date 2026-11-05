@@ -32,6 +32,8 @@ import org.junit.jupiter.api.Test;
 
 final class ByteUtilsTest {
 
+  private static final String SOURCE_UNCONSUMED_MESSAGE = "the source must not be consumed";
+
   private static byte[] remainingBytes(final ByteBuffer buffer) {
     final ByteBuffer view = buffer.duplicate();
     final int remaining = view.remaining();
@@ -49,7 +51,7 @@ final class ByteUtilsTest {
     final int position = samples.position();
     assertEquals(ByteOrder.LITTLE_ENDIAN, order);
     assertArrayEquals(new byte[] { 0x02, 0x01, 0x04, 0x03 }, bytes);
-    assertEquals(0, position, "the source must not be consumed");
+    assertEquals(0, position, SOURCE_UNCONSUMED_MESSAGE);
   }
 
   @Test
@@ -95,7 +97,7 @@ final class ByteUtilsTest {
     final int position = littleEndian.position();
     assertEquals(ByteOrder.BIG_ENDIAN, order);
     assertEquals(0x0102, sample);
-    assertEquals(0, position, "the source must not be consumed");
+    assertEquals(0, position, SOURCE_UNCONSUMED_MESSAGE);
   }
 
   @Test

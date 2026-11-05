@@ -72,6 +72,8 @@ final class AudioExtractorTest {
   private static final String KEPT_FILE_NAME = "keep.ogg";
   private static final String OGG_EXTENSION = ".ogg";
 
+  private static final String USER_HOME_PROPERTY = "user.home";
+
   @TempDir
   private Path directory;
 
@@ -88,14 +90,14 @@ final class AudioExtractorTest {
 
   @BeforeEach
   void useTemporaryHome() {
-    this.previousHome = System.getProperty("user.home");
+    this.previousHome = System.getProperty(USER_HOME_PROPERTY);
     final String temporaryHome = this.directory.toString();
-    System.setProperty("user.home", temporaryHome);
+    System.setProperty(USER_HOME_PROPERTY, temporaryHome);
   }
 
   @AfterEach
   void restoreHome() {
-    System.setProperty("user.home", this.previousHome);
+    System.setProperty(USER_HOME_PROPERTY, this.previousHome);
   }
 
   private Path writeTone() throws IOException {

@@ -52,6 +52,18 @@ final class FfmpegTemplatesTest {
 
   private static final String VIDEO_BITRATE = "1M";
 
+  private static final String INPUT_FLAG = "-i";
+  private static final String OVERWRITE_FLAG = "-y";
+  private static final String NO_VIDEO_FLAG = "-vn";
+  private static final String SEEK_FLAG = "-ss";
+  private static final String VIDEO_CODEC_FLAG = "-c:v";
+  private static final String AUDIO_CODEC_FLAG = "-c:a";
+  private static final String STRICTNESS_FLAG = "-strict";
+  private static final String EXPERIMENTAL_STRICTNESS = "-2";
+
+  private static final String AAC_CODEC = "aac";
+  private static final String COPY_CODEC = "copy";
+
   @TempDir
   private Path directory;
 
@@ -59,7 +71,17 @@ final class FfmpegTemplatesTest {
   void shouldKeepOnlyTheAudioTrackWhenExtractingAudio() {
     final FfmpegCommand command = FfmpegTemplates.extractAudio(INPUT_NAME, "libopus", AUDIO_OUTPUT_NAME);
     final List<String> arguments = command.getArguments();
-    final List<String> expected = List.of("-i", INPUT_NAME, "-vn", "-strict", "-2", "-c:a", "libopus", "-y", AUDIO_OUTPUT_NAME);
+    final List<String> expected = List.of(
+      INPUT_FLAG,
+      INPUT_NAME,
+      NO_VIDEO_FLAG,
+      STRICTNESS_FLAG,
+      EXPERIMENTAL_STRICTNESS,
+      AUDIO_CODEC_FLAG,
+      "libopus",
+      OVERWRITE_FLAG,
+      AUDIO_OUTPUT_NAME
+    );
     assertEquals(expected, arguments);
   }
 
@@ -71,7 +93,19 @@ final class FfmpegTemplatesTest {
     final String outputPath = output.toString();
     final FfmpegCommand command = FfmpegTemplates.extractOggVorbis(videoPath, outputPath);
     final List<String> arguments = command.getArguments();
-    final List<String> expected = List.of("-i", videoPath, "-vn", "-strict", "-2", "-c:a", "vorbis", "-ac", "2", "-y", outputPath);
+    final List<String> expected = List.of(
+      INPUT_FLAG,
+      videoPath,
+      NO_VIDEO_FLAG,
+      STRICTNESS_FLAG,
+      EXPERIMENTAL_STRICTNESS,
+      AUDIO_CODEC_FLAG,
+      "vorbis",
+      "-ac",
+      "2",
+      OVERWRITE_FLAG,
+      outputPath
+    );
     final CommandTask task = command.createTask();
     final int exitCode = task.run();
     final String errorOutput = task.getErrorOutput();
@@ -129,17 +163,17 @@ final class FfmpegTemplatesTest {
     final FfmpegCommand command = FfmpegTemplates.compressVideo(INPUT_NAME, OUTPUT_NAME, VIDEO_BITRATE, "96k");
     final List<String> arguments = command.getArguments();
     final List<String> expected = List.of(
-      "-i",
+      INPUT_FLAG,
       INPUT_NAME,
-      "-c:v",
+      VIDEO_CODEC_FLAG,
       "libx264",
       "-b:v",
       VIDEO_BITRATE,
-      "-c:a",
-      "aac",
+      AUDIO_CODEC_FLAG,
+      AAC_CODEC,
       "-b:a",
       "96k",
-      "-y",
+      OVERWRITE_FLAG,
       OUTPUT_NAME
     );
     assertEquals(expected, arguments);
@@ -150,17 +184,17 @@ final class FfmpegTemplatesTest {
     final FfmpegCommand command = FfmpegTemplates.extractClip(INPUT_NAME, OUTPUT_NAME, "00:00:10", "5");
     final List<String> arguments = command.getArguments();
     final List<String> expected = List.of(
-      "-ss",
+      SEEK_FLAG,
       "00:00:10",
-      "-i",
+      INPUT_FLAG,
       INPUT_NAME,
       "-t",
       "5",
-      "-c:v",
-      "copy",
-      "-c:a",
-      "copy",
-      "-y",
+      VIDEO_CODEC_FLAG,
+      COPY_CODEC,
+      AUDIO_CODEC_FLAG,
+      COPY_CODEC,
+      OVERWRITE_FLAG,
       OUTPUT_NAME
     );
     assertEquals(expected, arguments);
@@ -170,7 +204,7 @@ final class FfmpegTemplatesTest {
   void shouldWriteOneFrameWhenCreatingAThumbnail() {
     final FfmpegCommand command = FfmpegTemplates.createThumbnail(INPUT_NAME, THUMBNAIL_NAME, "3");
     final List<String> arguments = command.getArguments();
-    final List<String> expected = List.of("-ss", "3", "-i", INPUT_NAME, "-frames:v", "1", "-y", THUMBNAIL_NAME);
+    final List<String> expected = List.of(SEEK_FLAG, "3", INPUT_FLAG, INPUT_NAME, "-frames:v", "1", OVERWRITE_FLAG, THUMBNAIL_NAME);
     assertEquals(expected, arguments);
   }
 
@@ -178,15 +212,24 @@ final class FfmpegTemplatesTest {
   void shouldCopyBothStreamsWhenRemuxingVideo() {
     final FfmpegCommand command = FfmpegTemplates.remuxVideo(MATROSKA_INPUT_NAME, OUTPUT_NAME);
     final List<String> arguments = command.getArguments();
-    final List<String> expected = List.of("-i", MATROSKA_INPUT_NAME, "-c:v", "copy", "-c:a", "copy", "-y", OUTPUT_NAME);
+    final List<String> expected = List.of(
+      INPUT_FLAG,
+      MATROSKA_INPUT_NAME,
+      VIDEO_CODEC_FLAG,
+      COPY_CODEC,
+      AUDIO_CODEC_FLAG,
+      COPY_CODEC,
+      OVERWRITE_FLAG,
+      OUTPUT_NAME
+    );
     assertEquals(expected, arguments);
   }
 
   @Test
   void shouldRejectMissingArguments() {
-    assertThrows(NullPointerException.class, () -> FfmpegTemplates.extractAudio(null, "aac", PLACEHOLDER_OUTPUT));
+    assertThrows(NullPointerException.class, () -> FfmpegTemplates.extractAudio(null, AAC_CODEC, PLACEHOLDER_OUTPUT));
     assertThrows(NullPointerException.class, () -> FfmpegTemplates.extractAudio(PLACEHOLDER_INPUT, null, PLACEHOLDER_OUTPUT));
-    assertThrows(NullPointerException.class, () -> FfmpegTemplates.extractAudio(PLACEHOLDER_INPUT, "aac", null));
+    assertThrows(NullPointerException.class, () -> FfmpegTemplates.extractAudio(PLACEHOLDER_INPUT, AAC_CODEC, null));
     assertThrows(NullPointerException.class, () -> FfmpegTemplates.extractOggVorbis(null, PLACEHOLDER_OUTPUT));
     assertThrows(NullPointerException.class, () -> FfmpegTemplates.extractOggVorbis(PLACEHOLDER_INPUT, null));
     assertThrows(NullPointerException.class, () -> FfmpegTemplates.compressVideo(null, PLACEHOLDER_OUTPUT, VIDEO_BITRATE, "1k"));
