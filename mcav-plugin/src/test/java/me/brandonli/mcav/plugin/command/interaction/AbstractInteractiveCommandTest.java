@@ -1606,8 +1606,7 @@ final class AbstractInteractiveCommandTest {
     final CountDownLatch loggedFailure = new CountDownLatch(1);
     final CountDownLatch resumeFailure = new CountDownLatch(1);
     final IllegalStateException failure = Mockito.spy(new IllegalStateException("startup failed!"));
-    // Logging is after the cancellation check and before the ownership lock. Pause only that observable
-    // boundary so the main thread can really replace the screen while its completion worker is in flight.
+    // Logging falls between the cancellation check and the ownership lock, so pausing it lets the main thread replace the screen.
     Mockito.doAnswer(invocation -> this.pauseFailureLogging(invocation, loggedFailure, resumeFailure, callbackFailure))
       .when(failure)
       .printStackTrace(any(PrintStream.class));

@@ -426,8 +426,7 @@ final class MapUtilsTest {
     final Location occupied = this.fakeWorld.createLocation(0.5, BLOCK_CENTER_Y, 0.5);
     final ItemFrame existing = this.fakeWorld.addFrame(occupied, BlockFace.SOUTH);
     MapUtils.buildMapScreen(console, location, Material.OBSIDIAN, 1, 1, 0);
-    // the old frame has to go: a block holds one frame per side, so leaving it would push the new frame onto the
-    // opposite side of the same block, back turned, right in front of the map
+    // a block holds one frame per side, so a frame left in place would push the new one onto the opposite side
     verify(existing).remove();
 
     final List<ItemFrame> frames = this.fakeWorld.getSpawnedFrames();

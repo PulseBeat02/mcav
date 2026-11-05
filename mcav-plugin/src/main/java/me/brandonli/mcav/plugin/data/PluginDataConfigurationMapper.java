@@ -229,8 +229,7 @@ public final class PluginDataConfigurationMapper {
   }
 
   private int readPort(final FileConfiguration configuration, final String key, final int fallback) {
-    // only a YAML int is taken: getInt cuts a longer number down to its low 32 bits (4294967376 reads as port 80) and
-    // a fraction down to a whole number
+    // only a YAML int is taken: getInt cuts a longer number down to its low 32 bits and a fraction down to a whole number
     final Object value = configuration.get(key, fallback);
     if (!(value instanceof final Integer port) || port < 1 || port > MAXIMUM_PORT) {
       LOGGER.warn(INVALID_SETTING, key, value, fallback);

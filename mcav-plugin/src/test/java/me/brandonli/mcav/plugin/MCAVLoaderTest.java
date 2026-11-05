@@ -179,8 +179,7 @@ final class MCAVLoaderTest {
     final Path staleParent = stale.getParent();
     Files.createDirectories(staleParent);
     Files.write(stale, EMPTY_ZIP_ARCHIVE);
-    // Gremlin deletes a cached jar only once it was last used longer ago than its retention window of one hour, which
-    // it reads from a file next to the jar; a jar without that file is always kept
+    // Gremlin deletes a cached jar only when the last-used file beside it is older than an hour; without the file it is kept
     final Path staleLastUsed = this.cache.resolve(STALE_LIBRARY_LAST_USED_PATH);
     final Duration beyondTheWindow = Duration.ofHours(2);
     final long windowMilliseconds = beyondTheWindow.toMillis();

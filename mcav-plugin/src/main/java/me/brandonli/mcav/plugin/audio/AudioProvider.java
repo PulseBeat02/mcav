@@ -387,8 +387,7 @@ public final class AudioProvider {
     }
 
     synchronized (this.outputLock) {
-      // the speakers of the previous source stop only once the new source has its output, so a takeover that fails,
-      // such as one through a bot that is not ready, leaves the previous source playing
+      // the previous speakers stop only once the new source has its output, so a failed takeover leaves them playing
       final SvcFilter previousSpeakers = this.voiceChatFilter;
       final Claim claim = new Claim(source, argument, dump, players);
       claim.output = this.connect(claim);

@@ -134,8 +134,7 @@ final class Mcv2ImageTest {
     final ArgumentCaptor<Runnable> feeds = ArgumentCaptor.forClass(Runnable.class);
     verify(TestServer.getScheduler()).runTaskTimerAsynchronously(eq(this.plugin), feeds.capture(), eq(0L), eq(Mcv2Image.PERIOD_TICKS));
 
-    // a client that missed the keyframe its viewer started with shows nothing until the next, which a video of 30
-    // frames a second has four seconds later, and the encoder's own every 120 frames, a minute at two a second
+    // a client that missed its first keyframe shows nothing until the next, so the image requests one after four seconds
     final int fourSeconds = (int) ((4 * 20) / Mcv2Image.PERIOD_TICKS);
     for (int feed = 1; feed < fourSeconds; feed++) {
       feeds.getValue().run();
