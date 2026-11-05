@@ -144,6 +144,7 @@ final class IoUtilsTest {
   private static final String TARGET_NAME = "target";
   private static final String TREE_DIRECTORY = "tree";
   private static final String NESTED_DIRECTORY = "nested";
+  private static final String LOCKED_DIRECTORY = "locked";
   private static final String MISSING_NAME = "missing";
 
   private static final String FOLDER_ENTRY = "folder/";
@@ -1263,6 +1264,33 @@ final class IoUtilsTest {
     final boolean directoryExists = Files.isDirectory(this.directory);
     assertFalse(missingExists);
     assertTrue(directoryExists, "only the specified path is deleted");
+  }
+
+  @Test
+  void shouldReportATreeThatCannotBeDeleted() throws IOException {
+    final Path tree = this.directory.resolve(TREE_DIRECTORY);
+    final Path locked = tree.resolve(LOCKED_DIRECTORY);
+    final Path file = locked.resolve(FILE_NAME);
+    Files.createDirectories(locked);
+    Files.writeString(file, FILE_CONTENT);
+    final Os operatingSystem = OsUtils.getOs();
+    final boolean posix = operatingSystem != Os.WINDOWS;
+    Assumptions.assumeTrue(posix, POSIX_PERMISSIONS_MESSAGE);
+
+    Files.setPosixFilePermissions(locked, READ_ONLY_PERMISSIONS);
+    try {
+      final boolean writable = Files.isWritable(locked);
+      Assumptions.assumeFalse(writable, WRITABLE_EVERYWHERE_MESSAGE);
+
+      final FileOperationException thrown = assertThrows(FileOperationException.class, () -> IoUtils.deleteRecursively(tree));
+      final Throwable cause = thrown.getCause();
+      assertInstanceOf(AccessDeniedException.class, cause);
+
+      final boolean fileExists = Files.exists(file);
+      assertTrue(fileExists);
+    } finally {
+      Files.setPosixFilePermissions(locked, OWNER_DIRECTORY_PERMISSIONS);
+    }
   }
 
   @Test
