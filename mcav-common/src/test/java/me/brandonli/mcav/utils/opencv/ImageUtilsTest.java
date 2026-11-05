@@ -46,14 +46,16 @@ final class ImageUtilsTest {
   void shouldPadShortComponentArraysWithZeros() {
     final double[] components = { 1.0, 2.0, 3.0 };
     final double[] values = convert(components);
-    assertArrayEquals(new double[] { 1.0, 2.0, 3.0, 0.0 }, values);
+    final double[] expected = new double[] { 1.0, 2.0, 3.0, 0.0 };
+    assertArrayEquals(expected, values);
   }
 
   @Test
   void shouldIgnoreComponentsBeyondTheFourth() {
     final double[] components = { 1.0, 2.0, 3.0, 4.0, 5.0 };
     final double[] values = convert(components);
-    assertArrayEquals(new double[] { 1.0, 2.0, 3.0, 4.0 }, values);
+    final double[] expected = new double[] { 1.0, 2.0, 3.0, 4.0 };
+    assertArrayEquals(expected, values);
   }
 
   @Test
@@ -124,7 +126,9 @@ final class ImageUtilsTest {
     final int[] translucent = { 0x00123456 };
     final int[] enlarged = ImageUtils.resizeIntArrayImage(translucent, 1, 1, 2, 2);
     final int opaque = OPAQUE_COLOR;
-    assertArrayEquals(new int[] { red, blue }, resized, "the left and the right half keep their colors");
-    assertArrayEquals(new int[] { opaque, opaque, opaque, opaque }, enlarged, "the result is fully opaque");
+    final int[] expectedResized = new int[] { red, blue };
+    final int[] expectedEnlarged = new int[] { opaque, opaque, opaque, opaque };
+    assertArrayEquals(expectedResized, resized, "the left and the right half keep their colors");
+    assertArrayEquals(expectedEnlarged, enlarged, "the result is fully opaque");
   }
 }

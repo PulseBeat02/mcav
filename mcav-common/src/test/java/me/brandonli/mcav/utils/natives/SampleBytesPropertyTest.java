@@ -120,7 +120,8 @@ final class SampleBytesPropertyTest {
     final int floatBytes = fromFloats.remaining();
     final int shortStart = shorts.position();
     final int floatStart = floats.position();
-    assertEquals(shortCount * Short.BYTES, shortBytes);
+    final int expectedShortBytes = shortCount * Short.BYTES;
+    assertEquals(expectedShortBytes, shortBytes);
 
     for (int index = 0; index < shortCount; index++) {
       final short expected = shorts.get(shortStart + index);
@@ -128,7 +129,8 @@ final class SampleBytesPropertyTest {
       assertEquals(expected, actual, "short " + index);
     }
 
-    assertEquals(floatCount * Float.BYTES, floatBytes);
+    final int expectedFloatBytes = floatCount * Float.BYTES;
+    assertEquals(expectedFloatBytes, floatBytes);
 
     for (int index = 0; index < floatCount; index++) {
       final float expectedValue = floats.get(floatStart + index);
@@ -263,8 +265,9 @@ final class SampleBytesPropertyTest {
       final int position = buffer.position();
       final int limit = buffer.limit();
       final ByteOrder bufferOrder = buffer.order();
+      final int expectedLimit = start + this.content.length;
       assertEquals(start, position, "position");
-      assertEquals(start + this.content.length, limit, "limit");
+      assertEquals(expectedLimit, limit, "limit");
       assertSame(this.order, bufferOrder, "order");
 
       final byte[] left = new byte[this.content.length];

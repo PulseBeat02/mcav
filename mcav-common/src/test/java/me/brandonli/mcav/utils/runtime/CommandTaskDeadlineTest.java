@@ -186,7 +186,8 @@ final class CommandTaskDeadlineTest {
       }
 
       final Optional<Process> launched = task.getProcess();
-      assertTrue(launched.isPresent());
+      final boolean launchedFound = launched.isPresent();
+      assertTrue(launchedFound);
 
       final Process parent = launched.orElseThrow();
       final boolean parentAlive = parent.isAlive();

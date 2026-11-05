@@ -147,8 +147,9 @@ final class CommandTaskTest {
     final ProcessException exception = assertThrows(ProcessException.class, task::run);
     final Throwable cause = exception.getCause();
     final Optional<Process> process = task.getProcess();
+    final boolean processMissing = process.isEmpty();
     assertInstanceOf(IOException.class, cause);
-    assertTrue(process.isEmpty());
+    assertTrue(processMissing);
     assertThrows(IllegalStateException.class, task::getExitCode);
 
     assertThrows(ProcessException.class, task::run);
@@ -187,8 +188,9 @@ final class CommandTaskTest {
     final CommandTask waiting = new CommandTask(command, RunMode.ON_DEMAND);
     final int exitCode = ran.getExitCode();
     final Optional<Process> process = waiting.getProcess();
+    final boolean processMissing = process.isEmpty();
     assertEquals(0, exitCode);
-    assertTrue(process.isEmpty());
+    assertTrue(processMissing);
     assertThrows(IllegalStateException.class, waiting::getExitCode);
   }
 
@@ -205,7 +207,8 @@ final class CommandTaskTest {
       final Optional<Process> process = task.getProcess();
       final String output = task.getOutput();
       final String errorOutput = task.getErrorOutput();
-      assertTrue(process.isEmpty());
+      final boolean processMissing = process.isEmpty();
+      assertTrue(processMissing);
       assertEquals("", output);
       assertEquals("", errorOutput);
       assertThrows(IllegalStateException.class, task::getExitCode);
@@ -219,7 +222,8 @@ final class CommandTaskTest {
     task.run();
     final Optional<Process> process = task.getProcess();
     final List<String> command = task.getCommand();
-    assertTrue(process.isPresent());
+    final boolean processFound = process.isPresent();
+    assertTrue(processFound);
 
     final List<String> expectedCommand = List.of(java, VERSION_OPTION);
     assertEquals(expectedCommand, command);
@@ -348,7 +352,8 @@ final class CommandTaskTest {
     final long elapsed = System.nanoTime() - start;
     final String message = exception.getMessage();
     final Optional<Process> launched = task.getProcess();
-    assertTrue(launched.isPresent());
+    final boolean launchedFound = launched.isPresent();
+    assertTrue(launchedFound);
 
     final Process process = launched.orElseThrow();
     final boolean exited = process.waitFor(EXIT_TIMEOUT_SECONDS, TimeUnit.SECONDS);
@@ -391,7 +396,8 @@ final class CommandTaskTest {
     assertThrows(IllegalArgumentException.class, () -> task.runChecked(Duration.ZERO));
 
     final Optional<Process> process = task.getProcess();
-    assertTrue(process.isEmpty(), "an invalid timeout does not start the program");
+    final boolean processMissing = process.isEmpty();
+    assertTrue(processMissing, "an invalid timeout does not start the program");
   }
 
   @Test
@@ -407,7 +413,8 @@ final class CommandTaskTest {
     final long elapsed = System.nanoTime() - start;
     final boolean interrupted = Thread.interrupted();
     final Optional<Process> launched = task.getProcess();
-    assertTrue(launched.isPresent());
+    final boolean launchedFound = launched.isPresent();
+    assertTrue(launchedFound);
 
     final Process process = launched.orElseThrow();
     final boolean exited = process.waitFor(EXIT_TIMEOUT_SECONDS, TimeUnit.SECONDS);

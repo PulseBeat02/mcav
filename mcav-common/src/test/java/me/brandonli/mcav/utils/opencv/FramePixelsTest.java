@@ -82,8 +82,9 @@ final class FramePixelsTest {
     final Frame padded = frame(1, 2, 8, data);
     final ByteBuffer pixels = FramePixels.copyBgr(padded);
     final byte[] copied = remaining(pixels);
+    final byte[] expected = new byte[] { 1, 2, 3, 4, 5, 6 };
     assertEquals(8, padded.imageChannels, "JavaCV would read eight channels from this frame");
-    assertArrayEquals(new byte[] { 1, 2, 3, 4, 5, 6 }, copied);
+    assertArrayEquals(expected, copied);
   }
 
   @Test
@@ -100,8 +101,10 @@ final class FramePixelsTest {
     target.get(0, second);
     final int position = target.position();
     final int limit = target.limit();
-    assertArrayEquals(new byte[] { 1, 2, 3, 4, 5, 6 }, first);
-    assertArrayEquals(new byte[] { 7, 8, 9, 10, 11, 12 }, second, "the same buffer receives every frame");
+    final byte[] expectedFirst = new byte[] { 1, 2, 3, 4, 5, 6 };
+    final byte[] expectedSecond = new byte[] { 7, 8, 9, 10, 11, 12 };
+    assertArrayEquals(expectedFirst, first);
+    assertArrayEquals(expectedSecond, second, "the same buffer receives every frame");
     assertEquals(5, position, "the position of the target does not change");
     assertEquals(8, limit);
   }

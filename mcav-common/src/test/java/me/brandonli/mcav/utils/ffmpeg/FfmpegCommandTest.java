@@ -62,9 +62,10 @@ final class FfmpegCommandTest {
     final FfmpegCommandBuilder builder = FfmpegCommand.builder();
     final FfmpegCommand command = builder.build();
     final Path executable = command.getExecutable();
-    final String expected = executable.toString();
+    final String executablePath = executable.toString();
     final String[] actual = command.toCommandArray();
-    assertArrayEquals(new String[] { expected }, actual);
+    final String[] expected = new String[] { executablePath };
+    assertArrayEquals(expected, actual);
   }
 
   @Test
@@ -154,8 +155,10 @@ final class FfmpegCommandTest {
     final String output = task.getOutput();
     final List<String> expectedTaskCommand = List.of(commandArray);
     final boolean printsTheVersion = output.startsWith("ffmpeg version");
-    assertArrayEquals(new String[] { executablePath, VERSION_ARGUMENT }, commandArray);
-    assertEquals(executablePath + " -version", text);
+    final String[] expectedCommandArray = new String[] { executablePath, VERSION_ARGUMENT };
+    final String expectedText = executablePath + " -version";
+    assertArrayEquals(expectedCommandArray, commandArray);
+    assertEquals(expectedText, text);
     assertEquals(expectedTaskCommand, taskCommand);
     assertEquals(0, exitCode);
     assertTrue(printsTheVersion, output);

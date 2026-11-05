@@ -234,7 +234,8 @@ final class AudioExtractorTest {
   private void assertCacheHoldsOnly(final Path cache, final Path existing) throws IOException {
     try (final Stream<Path> cacheFiles = Files.list(cache)) {
       final List<Path> cachedFiles = cacheFiles.toList();
-      assertEquals(List.of(existing), cachedFiles);
+      final List<Path> expected = List.of(existing);
+      assertEquals(expected, cachedFiles);
     }
   }
 
