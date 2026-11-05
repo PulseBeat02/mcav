@@ -35,10 +35,7 @@ import java.util.Map;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Tag;
 
-// Fuzzes the extraction of zip archives, which the installers of MCAV run on archives they download: whatever the
-// archive, nothing is written outside the destination, and a bad archive fails with one of the exceptions
-// IoUtils.unzip(Path, Path) documents. The seeds are archives shaped like those the tests of the method build: an
-// ordinary one, one that escapes with .., one with an absolute entry, a nested one and an empty one.
+// Fuzzes the extraction of zip archives, which the installers of MCAV run on archives they download.
 @Tag("fuzz")
 final class UnzipFuzzTest {
 

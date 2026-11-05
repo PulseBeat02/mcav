@@ -47,9 +47,6 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-// Checks the bundled yt-dlp downloads against the real 2026.08.19 release on GitHub. These tests download files from
-// the internet, so they only run when the mcav.networkTests system property is true, which ./gradlew test
-// -Pmcav.networkTests=true sets.
 final class YtdlpReleaseTest {
 
   private static final String RELEASE = "2026.08.19";

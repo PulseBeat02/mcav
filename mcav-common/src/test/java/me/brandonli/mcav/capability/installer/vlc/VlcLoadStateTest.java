@@ -156,8 +156,7 @@ final class VlcLoadStateTest {
     assertEquals(expected, result);
   }
 
-  // Waits until a thread blocks on the lock of the load state. Nothing signals that a thread started to wait for a
-  // monitor, so the state of the thread is checked in a spin loop that gives up at a deadline.
+  // nothing signals that a thread blocks on a monitor, so its state is checked in a spin loop until a deadline
   private static boolean awaitBlocked(final AtomicReference<Thread> threadReference) {
     final long start = System.nanoTime();
     final long timeout = BLOCK_TIMEOUT.toNanos();

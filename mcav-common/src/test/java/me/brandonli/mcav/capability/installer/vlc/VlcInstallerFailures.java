@@ -17,8 +17,7 @@
  */
 package me.brandonli.mcav.capability.installer.vlc;
 
-// Creates the failures of the VLC installer for tests in other packages, whose constructors are package-private so that
-// only the installer throws them.
+// For tests in other packages: the installer's failures have package-private constructors, so that only the installer throws them.
 public final class VlcInstallerFailures {
 
   private VlcInstallerFailures() {

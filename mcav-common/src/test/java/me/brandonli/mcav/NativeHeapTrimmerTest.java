@@ -461,8 +461,7 @@ final class NativeHeapTrimmerTest {
     assertTrue(mostlyReturned, "kept " + (after - before) + " KiB of the " + freed + " KiB the threads freed");
   }
 
-  // glibc maps the first frame on its own and raises its thresholds when it is freed; the second comes from the thread's
-  // arena and joins its top when it is freed
+  // glibc maps the first frame alone and raises its thresholds when freeing it; the second, from the thread's arena, joins its top
   @SuppressWarnings("restricted") // the Linker downcalls are restricted methods of the foreign function API
   private static void freeFramesIntoTheArenaTop(final MethodHandle malloc, final MethodHandle free) {
     try {

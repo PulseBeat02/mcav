@@ -37,10 +37,7 @@ import net.jqwik.api.arbitraries.ByteArbitrary;
 import net.jqwik.api.arbitraries.IntegerArbitrary;
 import net.jqwik.api.arbitraries.ListArbitrary;
 
-// Properties of the sample conversions of the audio paths for every layout a buffer can have: heap or native memory, a
-// view that starts inside a larger buffer, bytes that do not belong to the samples around it, read-only, and either
-// byte order flag. The samples must come out unchanged, the caller's buffer must be left as it was, and the result must
-// be a copy the caller's buffer cannot change afterwards.
+// Every buffer layout: heap or native, a view inside a larger buffer with foreign bytes around it, read-only, either byte order flag.
 final class SampleBytesPropertyTest {
 
   private static final String SEED = "20260925";
@@ -68,8 +65,7 @@ final class SampleBytesPropertyTest {
     return buffers.as(SampleBuffer::new);
   }
 
-  // Creates integers in a range from a fresh arbitrary: jqwik 1.10 shares the range between an arbitrary and the ones
-  // configured from it, so one base configured twice would hand every user the last range.
+  // A fresh arbitrary per call: jqwik 1.10 shares a range with arbitraries configured from it, so a reused base hands out the last range.
   private static Arbitrary<Integer> between(final int minimum, final int maximum) {
     final IntegerArbitrary integers = Arbitraries.integers();
     return integers.between(minimum, maximum);

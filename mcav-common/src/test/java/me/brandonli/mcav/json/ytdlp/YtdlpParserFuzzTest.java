@@ -40,13 +40,7 @@ import me.brandonli.mcav.media.source.uri.UriSource;
 import me.brandonli.mcav.utils.runtime.CommandTask;
 import org.junit.jupiter.api.Tag;
 
-// Fuzzes the reading of what yt-dlp prints about a page: the metadata of a video comes from the site that hosts it,
-// titles, formats and their URLs included. Whatever yt-dlp prints, the parser returns the metadata of its first line or
-// refuses it with the YtdlpParseException it documents, and nothing else escapes; every strategy then picks only a
-// stream of the metadata that it accepts, and the stream it picked becomes a source or is refused as
-// Format.toUriSource() documents. The first byte of an input is the exit code of yt-dlp, the rest what it printed. The
-// seeds are a real dump of a video, on one line as yt-dlp prints it, and dumps whose fields have other types, are
-// missing or are followed by more text.
+// Fuzzes what yt-dlp prints about a page, whose metadata comes from the site hosting the video, titles, formats and URLs included.
 @Tag("fuzz")
 final class YtdlpParserFuzzTest {
 
