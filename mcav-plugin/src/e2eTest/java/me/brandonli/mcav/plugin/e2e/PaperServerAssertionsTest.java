@@ -71,8 +71,8 @@ final class PaperServerAssertionsTest {
       "[render/WARN]: Audio filter failed",
       "[render/WARN]: Failed to decode media",
       "[render/WARN]: Failed to render a frame",
-      "[render/WARN]: Failed to start playback of clip.mp4",
-      "[render/WARN]: Failed to start VLC playback of clip.mp4",
+      "[render/WARN]: Playback of clip.mp4 could not be started.",
+      "[render/WARN]: VLC playback of clip.mp4 could not be started.",
     }
   )
   void shouldRefusePlaybackFailuresAndUncaughtExceptions(final String line) {

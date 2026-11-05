@@ -66,13 +66,14 @@ final class PaperServerAssertions {
   static void assertNoErrors(final List<String> output) {
     final List<String> errors = new ArrayList<>();
     for (final String line : output) {
+      final boolean startFailure =
+        (line.contains("Playback of ") || line.contains("VLC playback of ")) && line.contains(" could not be started.");
       final boolean playbackFailure =
         line.contains("Failed to decode media") ||
         line.contains("Video filter failed") ||
         line.contains("Audio filter failed") ||
         line.contains("Failed to render a frame") ||
-        line.contains("Failed to start playback") ||
-        line.contains("Failed to start VLC playback");
+        startFailure;
       final boolean error =
         line.contains(" ERROR]") ||
         line.contains("/ERROR]") ||
