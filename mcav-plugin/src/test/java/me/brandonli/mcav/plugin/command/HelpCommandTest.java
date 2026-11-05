@@ -51,7 +51,9 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.ComponentLike;
 import net.kyori.adventure.text.event.HoverEvent;
 import org.bukkit.command.CommandSender;
+import org.incendo.cloud.Command;
 import org.incendo.cloud.annotations.AnnotationParser;
+import org.incendo.cloud.parser.standard.StringParser;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -60,22 +62,28 @@ final class HelpCommandTest {
   private static final String DUMP_COMMAND = "/mcav dump";
   private static final String HELP_COMMAND = "/mcav help";
   private static final String DUMP_QUERY = "dump";
+  private static final String VIDEO_QUERY = "video";
+  private static final String VIDEO_BLOCK_COMMAND = "/mcav video block";
 
   private static final String DUMP_DESCRIPTION = "Creates a dump of the current server information";
   private static final String HELP_DESCRIPTION = "Shows the commands of the plugin and how to use them";
 
   private static final String MESSAGE_KEY_PREFIX = "mcav.command.";
 
+  private static final String HELP_PERMISSION = "mcav.command.help";
+  private static final String VIDEO_BLOCK_PERMISSION = "mcav.command.video.block";
+
+  private TestCommandManager manager;
   private HelpCommand help;
   private CommandSender sender;
 
   @BeforeEach
   void registerCommands() {
-    final TestCommandManager manager = new TestCommandManager();
-    final AnnotationParser<CommandSender> parser = new AnnotationParser<>(manager, CommandSender.class);
+    this.manager = new TestCommandManager();
+    final AnnotationParser<CommandSender> parser = new AnnotationParser<>(this.manager, CommandSender.class);
     final AnnotationParserHandler handler = mock(AnnotationParserHandler.class, CALLS_REAL_METHODS);
     parser.descriptionMapper(handler::describe);
-    this.help = new HelpCommand(manager);
+    this.help = new HelpCommand(this.manager);
     parser.parse(this.help);
     final DumpCommand dump = new DumpCommand(() -> "unused");
     parser.parse(dump);
@@ -142,6 +150,46 @@ final class HelpCommandTest {
     assertFalse(helpListed, text);
     assertFalse(describesHelp, text);
     assertFalse(untranslated, text);
+  }
+
+  @Test
+  void shouldHideTheSubcommandsOfABranchThatTheSenderMayNotRun() {
+    this.registerVideoCommands();
+    when(this.sender.hasPermission(anyString())).thenReturn(false);
+    when(this.sender.hasPermission(HELP_PERMISSION)).thenReturn(true);
+    this.help.commandHelp(this.sender, VIDEO_QUERY);
+    final String text = this.helpText();
+    final boolean blockListed = text.contains(VIDEO_BLOCK_COMMAND);
+    final boolean noResults = text.contains("No results for query");
+    assertFalse(blockListed, text);
+    assertTrue(noResults, text);
+  }
+
+  private void registerVideoCommands() {
+    final Command.Builder<CommandSender> root = this.manager.commandBuilder("mcav");
+    final Command.Builder<CommandSender> video = root.literal(VIDEO_QUERY);
+    final Command.Builder<CommandSender> block = video.literal("block");
+    final Command.Builder<CommandSender> blockWithMrl = block.required("mrl", StringParser.stringParser());
+    final Command.Builder<CommandSender> permittedBlock = blockWithMrl.permission(VIDEO_BLOCK_PERMISSION);
+    this.manager.command(permittedBlock);
+
+    final Command.Builder<CommandSender> pause = video.literal("pause");
+    final Command.Builder<CommandSender> permittedPause = pause.permission("mcav.command.video.pause");
+    this.manager.command(permittedPause);
+  }
+
+  @Test
+  void shouldListOnlyTheSubcommandsOfABranchThatTheSenderMayRun() {
+    this.registerVideoCommands();
+    when(this.sender.hasPermission(anyString())).thenReturn(false);
+    when(this.sender.hasPermission(HELP_PERMISSION)).thenReturn(true);
+    when(this.sender.hasPermission(VIDEO_BLOCK_PERMISSION)).thenReturn(true);
+    this.help.commandHelp(this.sender, VIDEO_QUERY);
+    final String text = this.helpText();
+    final boolean blockListed = text.contains(VIDEO_BLOCK_COMMAND);
+    final boolean pauseListed = text.contains("/mcav video pause");
+    assertTrue(blockListed, text);
+    assertFalse(pauseListed, text);
   }
 
   @Test
