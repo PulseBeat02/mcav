@@ -64,7 +64,7 @@ public final class LocalHttpServer implements AutoCloseable {
       final InetSocketAddress address = new InetSocketAddress(loopback, EPHEMERAL_PORT);
       final HttpServer httpServer = HttpServer.create(address, DEFAULT_BACKLOG);
       final LocalHttpServer localServer = new LocalHttpServer(httpServer);
-      httpServer.createContext(ROOT_PATH, localServer::handle);
+      httpServer.createContext(ROOT_PATH, localServer::serveNextResponse);
       httpServer.start();
       return localServer;
     } catch (final IOException exception) {
@@ -91,7 +91,7 @@ public final class LocalHttpServer implements AutoCloseable {
     return count == null ? 0 : count.get();
   }
 
-  private void handle(final HttpExchange exchange) throws IOException {
+  private void serveNextResponse(final HttpExchange exchange) throws IOException {
     final URI requestUri = exchange.getRequestURI();
     final String path = requestUri.getPath();
     final AtomicInteger requestCount = this.requestCounts.computeIfAbsent(path, _ -> new AtomicInteger());

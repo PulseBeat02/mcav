@@ -98,7 +98,7 @@ final class Mcv2DecoderTest {
   }
 
   @Test
-  void shouldPredictAPFrameFromItsReference() {
+  void shouldDecodeAPredictedFrameFromItsReference() {
     final byte[] reference = new byte[2 * 1 * 3];
     for (int index = 0; index < reference.length; index++) {
       reference[index] = (byte) (index * 10);
@@ -143,7 +143,7 @@ final class Mcv2DecoderTest {
   }
 
   @Test
-  void shouldDecodeAPFrameIntoThePictureItIsPredictedFrom() {
+  void shouldDecodeAPredictedFrameIntoThePictureItIsPredictedFrom() {
     final String stream = Mcv2Fixtures.readDigests(CONFORMANCE_FOLDER).keySet().iterator().next();
     final List<byte[]> frames = Mcv2Fixtures.splitFrames(Mcv2Fixtures.read(CONFORMANCE_PREFIX + stream));
     byte[] reference = null;
