@@ -37,7 +37,7 @@ public final class OverlayImageFilter extends MatVideoFilter {
   private final int top;
 
   /**
-   * Constructs a new overlay filter.
+   * Creates a new overlay filter.
    *
    * @param overlay the image to draw
    * @param left    the x coordinate of the top left corner of the image inside the frame

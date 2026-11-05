@@ -32,7 +32,7 @@ public final class ZeroFilter extends MatVideoFilter {
   private static final Scalar BLACK = new Scalar(0, 0, 0, 0);
 
   /**
-   * Constructs a new zero filter.
+   * Creates a new zero filter.
    *
    * @since 1.0.0
    */

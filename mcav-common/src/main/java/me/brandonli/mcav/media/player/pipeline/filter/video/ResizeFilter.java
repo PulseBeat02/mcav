@@ -49,7 +49,7 @@ public final class ResizeFilter extends MatVideoFilter {
   private final Size size;
 
   /**
-   * Constructs a new resize filter.
+   * Creates a new resize filter.
    *
    * @param width  the target width in pixels
    * @param height the target height in pixels

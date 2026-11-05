@@ -35,7 +35,7 @@ public final class DilationFilter extends MatVideoFilter {
   private final Mat kernel;
 
   /**
-   * Constructs a new dilation filter.
+   * Creates a new dilation filter.
    *
    * @param kernelSize the size of the structuring element in pixels, which must be positive
    * @throws IllegalArgumentException if {@code kernelSize} is not positive

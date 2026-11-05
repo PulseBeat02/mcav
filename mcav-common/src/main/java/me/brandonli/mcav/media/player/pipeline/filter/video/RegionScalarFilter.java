@@ -40,7 +40,7 @@ public final class RegionScalarFilter extends MatVideoFilter {
   private final Scalar color;
 
   /**
-   * Constructs a new region fill filter.
+   * Creates a new region fill filter.
    *
    * @param left   the x coordinate of the top left corner
    * @param top    the y coordinate of the top left corner

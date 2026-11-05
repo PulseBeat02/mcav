@@ -36,7 +36,7 @@ public final class MapPalette extends ColorPalette {
   public static final int TRANSPARENT_INDICES = 4;
 
   /**
-   * Constructs a new map palette and builds its lookup tables, which takes about a second.
+   * Creates a new map palette and builds its lookup tables, which takes about a second.
    *
    * @since 1.0.0
    */

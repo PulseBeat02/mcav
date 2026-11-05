@@ -43,7 +43,7 @@ public final class CropFilter extends MatVideoFilter {
   private final int height;
 
   /**
-   * Constructs a new crop filter.
+   * Creates a new crop filter.
    *
    * @param left   the x coordinate of the top left corner of the rectangle
    * @param top    the y coordinate of the top left corner of the rectangle

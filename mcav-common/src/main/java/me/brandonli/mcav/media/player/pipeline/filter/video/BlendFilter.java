@@ -36,7 +36,7 @@ public final class BlendFilter extends MatVideoFilter {
   private final Mat other;
 
   /**
-   * Constructs a new blend filter.
+   * Creates a new blend filter.
    *
    * @param other the image to blend with
    * @param alpha the weight of the frame from 0 to 1; the image gets the remaining weight

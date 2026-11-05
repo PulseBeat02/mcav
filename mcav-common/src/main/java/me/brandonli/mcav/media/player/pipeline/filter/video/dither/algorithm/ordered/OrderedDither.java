@@ -56,7 +56,7 @@ public final class OrderedDither extends AbstractDitherAlgorithm implements Baye
   private final int patternHeight;
 
   /**
-   * Constructs a new ordered dithering algorithm.
+   * Creates a new ordered dithering algorithm.
    *
    * @param palette the palette to reduce images to
    * @param mapper  the threshold pattern

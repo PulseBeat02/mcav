@@ -37,7 +37,7 @@ public final class LineFilter extends MatVideoFilter {
   private final Scalar color;
 
   /**
-   * Constructs a new line filter.
+   * Creates a new line filter.
    *
    * @param startX the x coordinate of the start of the line
    * @param startY the y coordinate of the start of the line

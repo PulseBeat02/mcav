@@ -33,7 +33,7 @@ public abstract class AbstractDitherAlgorithm implements DitherAlgorithm {
   private final DitherPalette palette;
 
   /**
-   * Constructs a new algorithm for the specified palette.
+   * Creates a new algorithm for the specified palette.
    *
    * @param palette the palette to reduce images to
    * @throws NullPointerException if {@code palette} is null
@@ -46,7 +46,7 @@ public abstract class AbstractDitherAlgorithm implements DitherAlgorithm {
   }
 
   /**
-   * Constructs a new algorithm for the Minecraft map palette.
+   * Creates a new algorithm for the Minecraft map palette.
    *
    * @since 1.0.0
    */

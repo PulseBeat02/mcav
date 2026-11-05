@@ -41,7 +41,7 @@ public final class BilateralFilter extends MatVideoFilter {
   private final double sigmaSpace;
 
   /**
-   * Constructs a new bilateral filter.
+   * Creates a new bilateral filter.
    *
    * @param diameter   the diameter of the pixel neighborhood used for filtering, which must be positive
    * @param sigmaColor how far apart colors may be to still be mixed; larger values blur more

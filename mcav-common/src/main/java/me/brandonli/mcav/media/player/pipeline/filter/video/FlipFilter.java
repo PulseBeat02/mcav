@@ -33,7 +33,7 @@ public final class FlipFilter extends MatVideoFilter {
   private final int flipCode;
 
   /**
-   * Constructs a new flip filter.
+   * Creates a new flip filter.
    *
    * @param direction the direction to mirror in
    * @throws NullPointerException if {@code direction} is null

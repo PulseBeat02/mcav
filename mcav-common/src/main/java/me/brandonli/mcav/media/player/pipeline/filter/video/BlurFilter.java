@@ -41,7 +41,7 @@ public final class BlurFilter extends MatVideoFilter {
   private final double sigmaY;
 
   /**
-   * Constructs a new blur filter.
+   * Creates a new blur filter.
    *
    * @param type       the blur algorithm
    * @param kernelSize the size of the blur kernel, which must be positive, and odd for every type but
@@ -71,7 +71,7 @@ public final class BlurFilter extends MatVideoFilter {
   }
 
   /**
-   * Constructs a new blur filter with derived Gaussian parameters.
+   * Creates a new blur filter with derived Gaussian parameters.
    *
    * @param type       the blur algorithm
    * @param kernelSize the size of the blur kernel, which must be positive, and odd for every type but

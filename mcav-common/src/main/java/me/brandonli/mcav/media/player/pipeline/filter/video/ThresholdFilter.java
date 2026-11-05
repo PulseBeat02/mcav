@@ -39,7 +39,7 @@ public final class ThresholdFilter extends MatVideoFilter {
   private final int type;
 
   /**
-   * Constructs a new threshold filter.
+   * Creates a new threshold filter.
    *
    * @param threshold    the threshold value, from 0 to 255
    * @param maximumValue the value assigned to channels that pass the threshold, from 0 to 255

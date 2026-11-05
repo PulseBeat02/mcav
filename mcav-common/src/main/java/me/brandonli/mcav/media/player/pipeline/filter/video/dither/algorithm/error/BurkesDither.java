@@ -30,7 +30,7 @@ import me.brandonli.mcav.media.player.pipeline.filter.video.dither.palette.Dithe
 public final class BurkesDither extends ErrorDiffusionDither {
 
   /**
-   * Constructs a new Burkes algorithm for the specified palette.
+   * Creates a new Burkes algorithm for the specified palette.
    *
    * @param palette the palette to reduce images to
    * @throws NullPointerException if {@code palette} is null
@@ -41,7 +41,7 @@ public final class BurkesDither extends ErrorDiffusionDither {
   }
 
   /**
-   * Constructs a new Burkes algorithm for the Minecraft map palette.
+   * Creates a new Burkes algorithm for the Minecraft map palette.
    *
    * @since 1.0.0
    */

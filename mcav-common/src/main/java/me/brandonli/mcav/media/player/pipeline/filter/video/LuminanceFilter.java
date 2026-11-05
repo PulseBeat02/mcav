@@ -36,7 +36,7 @@ public final class LuminanceFilter extends MatVideoFilter {
   private final double brightness;
 
   /**
-   * Constructs a new luminance filter.
+   * Creates a new luminance filter.
    *
    * @param contrast   the factor every channel is multiplied by; 1 keeps the contrast, values above 1 increase it
    * @param brightness the offset added to every channel, from -255 to 255; 0 keeps the brightness

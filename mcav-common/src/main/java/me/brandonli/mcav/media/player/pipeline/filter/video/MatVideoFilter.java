@@ -44,7 +44,7 @@ import org.bytedeco.opencv.opencv_core.Mat;
 public abstract class MatVideoFilter implements VideoFilter {
 
   /**
-   * Constructs a new filter.
+   * Creates a new filter.
    *
    * @since 1.0.0
    */
