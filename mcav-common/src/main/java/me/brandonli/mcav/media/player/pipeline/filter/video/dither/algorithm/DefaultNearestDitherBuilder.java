@@ -37,7 +37,7 @@ final class DefaultNearestDitherBuilder implements NearestDitherBuilder {
   }
 
   @Override
-  public NearestDitherBuilder withPalette(final DitherPalette palette) {
+  public NearestDitherBuilder palette(final DitherPalette palette) {
     Preconditions.checkNotNull(palette, "Palette must not be null!");
 
     this.palette = palette;

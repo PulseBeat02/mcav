@@ -212,6 +212,18 @@ Error-strength and temporal settings belong to the error-diffusion builder, rath
 builder interfaces no longer take type parameters, and their implementations are internal: get a builder from the
 `DitherAlgorithm` factories, such as `DitherAlgorithm.errorDiffusion()`.
 
+Builder setters take the name of the property they set, without the `with` prefix:
+
+| Former name | Current name |
+| --- | --- |
+| `withAlgorithm` | `algorithm` |
+| `withDitherMatrix` | `ditherMatrix` |
+| `withErrorStrength` | `errorStrength` |
+| `withErrorThreshold` | `errorThreshold` |
+| `withPalette` | `palette` |
+| `withTemporalThreshold` | `temporalThreshold` |
+| `withWeight` | `weight` |
+
 `BayerDither` constants now contain `ThresholdMatrix` values instead of `int[][]`. Pass the matrix to the current
 mapper API, or call `toArray()` when you need an independent array; create a custom matrix with
 `ThresholdMatrix.of(...)`. Custom `PixelMapper` implementations must supply `getStrength`, and custom

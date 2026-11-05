@@ -709,7 +709,7 @@ public enum DitheringArgument {
   private static DitherAlgorithm ordered(final ThresholdMatrix matrix, final int maximum, final float strength) {
     final PixelMapper mapper = PixelMapper.ofPixelMapper(matrix, maximum, strength);
     final OrderedDitherBuilder builder = DitherAlgorithm.ordered();
-    builder.withDitherMatrix(mapper);
+    builder.ditherMatrix(mapper);
     return builder.build();
   }
 
@@ -720,13 +720,13 @@ public enum DitheringArgument {
 
   private static DitherAlgorithm random(final int weight) {
     final RandomDitherBuilder builder = DitherAlgorithm.random();
-    builder.withWeight(weight);
+    builder.weight(weight);
     return builder.build();
   }
 
   private static DitherAlgorithm errorDiffusion(final ErrorDiffusionDitherBuilder.Algorithm type) {
     final ErrorDiffusionDitherBuilder builder = DitherAlgorithm.errorDiffusion();
-    builder.withAlgorithm(type);
+    builder.algorithm(type);
     return builder.build();
   }
 

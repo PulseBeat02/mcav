@@ -69,7 +69,7 @@ final class DefaultErrorDiffusionDitherBuilder implements ErrorDiffusionDitherBu
   }
 
   @Override
-  public ErrorDiffusionDitherBuilder withPalette(final DitherPalette palette) {
+  public ErrorDiffusionDitherBuilder palette(final DitherPalette palette) {
     Preconditions.checkNotNull(palette, "Palette must not be null!");
 
     this.palette = palette;
@@ -77,7 +77,7 @@ final class DefaultErrorDiffusionDitherBuilder implements ErrorDiffusionDitherBu
   }
 
   @Override
-  public ErrorDiffusionDitherBuilder withAlgorithm(final Algorithm algorithm) {
+  public ErrorDiffusionDitherBuilder algorithm(final Algorithm algorithm) {
     Preconditions.checkNotNull(algorithm, "Algorithm must not be null!");
 
     this.algorithm = algorithm;
@@ -85,7 +85,7 @@ final class DefaultErrorDiffusionDitherBuilder implements ErrorDiffusionDitherBu
   }
 
   @Override
-  public ErrorDiffusionDitherBuilder withTemporalThreshold(final int threshold) {
+  public ErrorDiffusionDitherBuilder temporalThreshold(final int threshold) {
     Preconditions.checkArgument(
       threshold >= 0 && threshold <= MAXIMUM_TEMPORAL_THRESHOLD,
       "Temporal threshold must be between 0 and 255 inclusive!"
@@ -96,7 +96,7 @@ final class DefaultErrorDiffusionDitherBuilder implements ErrorDiffusionDitherBu
   }
 
   @Override
-  public ErrorDiffusionDitherBuilder withErrorThreshold(final int threshold) {
+  public ErrorDiffusionDitherBuilder errorThreshold(final int threshold) {
     Preconditions.checkArgument(threshold >= 0, "Error threshold must not be negative!");
 
     this.errorThreshold = threshold;
@@ -104,7 +104,7 @@ final class DefaultErrorDiffusionDitherBuilder implements ErrorDiffusionDitherBu
   }
 
   @Override
-  public ErrorDiffusionDitherBuilder withErrorStrength(final float strength) {
+  public ErrorDiffusionDitherBuilder errorStrength(final float strength) {
     Preconditions.checkArgument(strength >= 0 && strength <= 1, "Error strength must be between 0 and 1 inclusive!");
 
     this.errorStrength = strength;

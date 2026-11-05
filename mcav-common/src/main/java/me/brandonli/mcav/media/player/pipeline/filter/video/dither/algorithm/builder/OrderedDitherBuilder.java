@@ -47,7 +47,7 @@ public interface OrderedDitherBuilder extends DitherAlgorithmBuilder {
    * @since 1.0.0
    */
   @Override
-  OrderedDitherBuilder withPalette(final DitherPalette palette);
+  OrderedDitherBuilder palette(final DitherPalette palette);
 
   /**
    * Sets the threshold pattern. Defaults to a 2x2 Bayer matrix at normal strength.
@@ -57,5 +57,5 @@ public interface OrderedDitherBuilder extends DitherAlgorithmBuilder {
    * @throws NullPointerException if {@code mapper} is null
    * @since 1.0.0
    */
-  OrderedDitherBuilder withDitherMatrix(final PixelMapper mapper);
+  OrderedDitherBuilder ditherMatrix(final PixelMapper mapper);
 }

@@ -25,8 +25,8 @@ import me.brandonli.mcav.media.player.pipeline.filter.video.dither.palette.Dithe
  *
  * {@snippet :
  * final ErrorDiffusionDitherBuilder builder = DitherAlgorithm.errorDiffusion();
- * builder.withAlgorithm(ErrorDiffusionDitherBuilder.Algorithm.FLOYD_STEINBERG);
- * builder.withPalette(DitherPalette.DEFAULT_MAP_PALETTE);
+ * builder.algorithm(ErrorDiffusionDitherBuilder.Algorithm.FLOYD_STEINBERG);
+ * builder.palette(DitherPalette.DEFAULT_MAP_PALETTE);
  * final ErrorDiffusionDither algorithm = builder.build();
  * }
  *
@@ -51,5 +51,5 @@ public interface DitherAlgorithmBuilder {
    * @throws NullPointerException if {@code palette} is null
    * @since 1.0.0
    */
-  DitherAlgorithmBuilder withPalette(final DitherPalette palette);
+  DitherAlgorithmBuilder palette(final DitherPalette palette);
 }

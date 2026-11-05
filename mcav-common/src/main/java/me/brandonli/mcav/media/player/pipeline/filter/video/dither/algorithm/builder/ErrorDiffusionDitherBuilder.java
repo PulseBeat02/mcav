@@ -48,7 +48,7 @@ public interface ErrorDiffusionDitherBuilder extends DitherAlgorithmBuilder {
    * @since 1.0.0
    */
   @Override
-  ErrorDiffusionDitherBuilder withPalette(final DitherPalette palette);
+  ErrorDiffusionDitherBuilder palette(final DitherPalette palette);
 
   /**
    * Sets the error diffusion algorithm. Defaults to {@link Algorithm#FILTER_LITE}.
@@ -58,7 +58,7 @@ public interface ErrorDiffusionDitherBuilder extends DitherAlgorithmBuilder {
    * @throws NullPointerException if {@code algorithm} is null
    * @since 1.0.0
    */
-  ErrorDiffusionDitherBuilder withAlgorithm(final Algorithm algorithm);
+  ErrorDiffusionDitherBuilder algorithm(final Algorithm algorithm);
 
   /**
    * Sets how far a pixel may drift per channel before its color is recomputed. Only used by
@@ -69,7 +69,7 @@ public interface ErrorDiffusionDitherBuilder extends DitherAlgorithmBuilder {
    * @throws IllegalArgumentException if the threshold is outside 0 through 255
    * @since 1.0.0
    */
-  ErrorDiffusionDitherBuilder withTemporalThreshold(final int threshold);
+  ErrorDiffusionDitherBuilder temporalThreshold(final int threshold);
 
   /**
    * Sets the total error below which nothing is diffused. Only used by {@link Algorithm#TEMPORAL_FLOYD_STEINBERG}.
@@ -79,7 +79,7 @@ public interface ErrorDiffusionDitherBuilder extends DitherAlgorithmBuilder {
    * @throws IllegalArgumentException if the threshold is negative
    * @since 1.0.0
    */
-  ErrorDiffusionDitherBuilder withErrorThreshold(final int threshold);
+  ErrorDiffusionDitherBuilder errorThreshold(final int threshold);
 
   /**
    * Sets the fraction of the error that is diffused. Only used by {@link Algorithm#TEMPORAL_FLOYD_STEINBERG}.
@@ -89,7 +89,7 @@ public interface ErrorDiffusionDitherBuilder extends DitherAlgorithmBuilder {
    * @throws IllegalArgumentException if the strength is outside 0 through 1 or is NaN
    * @since 1.0.0
    */
-  ErrorDiffusionDitherBuilder withErrorStrength(final float strength);
+  ErrorDiffusionDitherBuilder errorStrength(final float strength);
 
   /**
    * The error diffusion algorithms that can be built.
