@@ -20,10 +20,7 @@ package me.brandonli.mcav.testing;
 import com.google.common.base.Preconditions;
 import org.bytedeco.javacpp.Loader;
 
-// Checks what the OpenCV natives bundled with JavaCV can do on this machine, so tests of features that need a missing
-// part skip themselves. The object detection and GUI natives link GTK 2 on Linux, which most servers lack. The video
-// reader does not need GTK, but the Linux build of OpenCV has no video file backend at all: it only captures from
-// cameras through V4L2.
+// Lets tests skip what the bundled OpenCV cannot do here: on Linux, object detection and GUI need GTK 2, and video files have no backend.
 public final class OpenCvModules {
 
   private OpenCvModules() {

@@ -331,8 +331,7 @@ final class DependencyLoaderTest {
     assertNull(aliasCache, "JavaCPP reads the other spelling of the property as well");
   }
 
-  // configures JavaCPP with the user home and temporary directory moved and the given properties set, and returns the
-  // cache folder it was told to use
+  // returns the cache folder JavaCPP was told to use
   private @Nullable String configureJavaCppIn(final Path home, final Path temporary, final Map<String, String> properties) {
     final @Nullable String previousCache = System.getProperty(CACHE);
     final @Nullable String previousAlias = System.getProperty(CACHE_ALIAS);
@@ -788,8 +787,7 @@ final class DependencyLoaderTest {
 
   @Test
   void shouldKeepEveryRemovalWhenVlcAndYtdlpFailAtTheSameTime() throws Exception {
-    // MCAV installs VLC and yt-dlp on two threads; a removal lost by an unsafe set would report a missing program as
-    // available. The race is timing dependent, so it is repeated many times.
+    // MCAV installs VLC and yt-dlp on two threads, so an unsafe set could lose a removal; the race depends on timing and is repeated.
     final Installer unsupported = mock(Installer.class);
     when(unsupported.isSupported()).thenReturn(false);
     try (final ExecutorService executor = Executors.newFixedThreadPool(2)) {

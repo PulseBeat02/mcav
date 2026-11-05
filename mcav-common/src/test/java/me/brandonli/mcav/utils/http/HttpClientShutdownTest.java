@@ -36,9 +36,7 @@ import me.brandonli.mcav.testing.LocalHttpServer;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.Isolated;
 
-// Every HTTP client runs a selector thread until it is closed or collected, so a client that the downloader forgets to
-// close shows as a selector thread that outlives the call. The class runs alone because it watches every thread of the
-// JVM, and a client another test creates meanwhile would look like a leak.
+// A client the downloader forgets to close leaves its selector thread running; isolated, as another test's client would look like a leak.
 @Isolated
 final class HttpClientShutdownTest {
 

@@ -24,8 +24,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Optional;
 import org.junit.jupiter.api.Tag;
 
-// Fuzzes the mapping of pinned snapshot URLs to the live Debian pool: no string throws, and a URL it finds starts with
-// the live archive, keeps the archive of the pin and ends with the pool path of the pin.
+// Fuzzes the mapping of pinned snapshot URLs to the live Debian pool.
 @Tag("fuzz")
 final class DebianSourcesFuzzTest {
 

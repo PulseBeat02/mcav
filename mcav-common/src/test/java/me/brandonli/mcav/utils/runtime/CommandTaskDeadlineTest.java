@@ -213,9 +213,7 @@ final class CommandTaskDeadlineTest {
 
   private static final class StringFuture extends CompletableFuture<String> {}
 
-  // A parent that starts a child sharing its standard streams and ends, while the child holds the pipes for 30 seconds.
-  // With three arguments, the Java executable, the class path and the file for the child's pid, it is the parent; with
-  // one, the child.
+  // A parent that starts a child sharing its standard streams and ends, while the child holds the pipes; one argument makes the child.
   static final class InheritedPipes {
 
     private InheritedPipes() {}

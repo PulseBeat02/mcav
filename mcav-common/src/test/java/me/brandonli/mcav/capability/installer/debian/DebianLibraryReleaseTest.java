@@ -42,8 +42,6 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.EnumSource;
 
-// Installs the pinned package lists from the real archive, checking every hash. The download of about 290 MiB
-// runs only with -Pmcav.networkTests=true; only this machine's architecture is loaded.
 final class DebianLibraryReleaseTest {
 
   private static final String VLC_RESOURCE = "mcav/common/installers/debian-vlc.json";

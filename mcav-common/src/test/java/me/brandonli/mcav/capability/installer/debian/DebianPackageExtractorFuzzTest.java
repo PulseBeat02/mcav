@@ -32,11 +32,7 @@ import java.util.stream.Stream;
 import me.brandonli.mcav.capability.installer.InstallationException;
 import org.junit.jupiter.api.Tag;
 
-// Fuzzes the extraction of Debian packages, which mcav runs on packages it downloads: whatever the package, nothing is
-// written outside the destination, no symbolic link leads out of it, and a bad package fails only with an
-// InstallationException. The limits are small so that a compressed bomb cannot fill the heap. The seeds are packages
-// with xz, gzip and uncompressed data, GNU and pax long names, a symbolic link that escapes, a chain of links, a hard
-// link and a program with its library.
+// Fuzzes the extraction of the Debian packages MCAV downloads; the limits are small so that a compressed bomb cannot fill the heap.
 @Tag("fuzz")
 final class DebianPackageExtractorFuzzTest {
 

@@ -31,11 +31,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import uk.co.caprica.vlcj.factory.discovery.NativeDiscovery;
 
-// Tests NativeVlcDiscovery against the VLC the installer of the library downloads, never the one installed on this
-// machine, so the tests behave alike on every host. The system strategies are supplied by each test.
-// vlcj remembers a successful discovery in a static field for the rest of the JVM's lifetime. Each test clears that
-// memory first, so it sees a fresh discovery no matter which tests ran before. Loading libvlc a second time is
-// harmless, because the library stays loaded.
+// vlcj keeps a successful discovery in a static field, which each test clears first; a second libvlc load is harmless, as it stays loaded.
 final class NativeVlcDiscoveryTest {
 
   private boolean previouslyFound;

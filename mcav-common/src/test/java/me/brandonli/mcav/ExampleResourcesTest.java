@@ -225,8 +225,7 @@ final class ExampleResourcesTest {
   @Test
   void shouldLetAFatalWindowCreationReachTheWaitingCallerWithoutStrandingIt() throws Exception {
     final OutOfMemoryError fatal = new OutOfMemoryError("synthetic window failure!");
-    // the first static and construction mocks of a class instrument it, which takes seconds on a busy machine: done
-    // here, outside the waits below, which then measure only the hand-over of the failure
+    // the first mocks of a class instrument it, which is slow: done here, so the waits below measure only the failure's hand-over
     try (
       final MockedStatic<SwingUtilities> warmSwing = mockStatic(SwingUtilities.class);
       final MockedConstruction<JFrame> warmFrames = mockConstruction(JFrame.class)
