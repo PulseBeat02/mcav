@@ -55,13 +55,13 @@ import me.brandonli.mcav.utils.os.Os;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.tukaani.xz.XZInputStream;
 
-// Generates the pinned Debian package lists that MCAV fetches libraries and programs from. For each bundle that the
-// generateDebianPins task of a module names, it resolves the dependency closure of the root packages in the bookworm
-// and bookworm-security indexes of one snapshot of each Debian archive, the newest version of a package winning, so
-// every URL stays valid after later point releases, and writes each package with the SHA-256 its index lists,
-// dependencies before their dependents. Packages every glibc system has (libc6 and the GCC runtime) are left out, and
-// so are architecture-independent packages unless the task includes them, as programs need them for their data. Run
-// the task of the module after a Debian point release or security update.
+/*
+ * Pins each bundle a module's generateDebianPins task names: the dependency closure of its roots in the bookworm and
+ * bookworm-security indexes of one snapshot of each Debian archive, newest versions winning, so every URL stays valid
+ * after later point releases. Packages every glibc system has are left out, and so are architecture-independent ones
+ * unless the task includes them, as programs need them for their data. Run the task again after a Debian point release
+ * or security update.
+ */
 final class DebianPinGenerator {
 
   private static final DateTimeFormatter SNAPSHOT_DAY = DateTimeFormatter.ofPattern("yyyyMMdd'T000000Z/'", Locale.ROOT).withZone(
@@ -251,8 +251,7 @@ final class DebianPinGenerator {
     return download;
   }
 
-  // Resolves the packages that the roots need, each after the packages it depends on. Only the first alternative of
-  // a dependency is followed, and a virtual package resolves to its first provider in the indexes.
+  // Dependencies come first; only a dependency's first alternative is followed, and a virtual package resolves to its first provider.
   List<IndexEntry> resolveClosure(final List<Index> indexes, final List<String> roots) {
     final Map<String, IndexEntry> entries = this.parseIndexes(indexes);
     final Map<String, String> providers = this.findProviders(entries);

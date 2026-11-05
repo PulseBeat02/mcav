@@ -70,8 +70,7 @@ public final class Images {
     return ImageBuffer.buffer(pixels, width, height);
   }
 
-  // Creates an image whose pixel at index i has the opaque color i, so every pixel is unique and its original position
-  // can be read from its color.
+  // The pixel at index i has the opaque color i, so every pixel is unique and its original position can be read from its color.
   public static ImageBuffer indexed(final int width, final int height) {
     final int[] pixels = indexedPixels(width, height);
     return ImageBuffer.buffer(pixels, width, height);

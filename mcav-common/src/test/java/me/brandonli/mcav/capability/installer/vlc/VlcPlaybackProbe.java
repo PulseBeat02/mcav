@@ -37,10 +37,7 @@ import me.brandonli.mcav.media.source.Source;
 import me.brandonli.mcav.media.source.file.FileSource;
 import uk.co.caprica.vlcj.binding.lib.LibVlc;
 
-// The second half of VlcReleaseTest, run in a JVM of its own because libvlc can be loaded only once per JVM and other
-// tests load the system's VLC: loads the VLC installed in the folder it is given, never the system's, and plays a video
-// through it. Arguments: the installation folder given to VlcInstaller.create(Path), and a video with sound. It prints
-// PASSED and exits with 0 once frames and sound arrived.
+// The second half of VlcReleaseTest, in a JVM of its own because libvlc loads only once per JVM and other tests load the system's VLC.
 final class VlcPlaybackProbe {
 
   static final String PASSED = "VLC PLAYBACK PASSED";

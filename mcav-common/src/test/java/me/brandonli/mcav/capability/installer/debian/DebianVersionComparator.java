@@ -24,9 +24,7 @@ import java.util.regex.MatchResult;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-// Compares Debian versions as dpkg does: by epoch, then upstream version, then revision. Each part is a series of
-// runs of non-digits, compared character by character with ~ before everything, even the end, and letters before
-// other characters, each followed by a run of digits, compared as a number.
+// Compares Debian versions as dpkg does: epoch, then upstream version, then revision; ~ sorts before everything, even the end.
 final class DebianVersionComparator implements Comparator<String> {
 
   private static final long DEFAULT_EPOCH = 0L;

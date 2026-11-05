@@ -45,8 +45,7 @@ import org.mockito.stubbing.Answer;
 import org.mockito.stubbing.Stubber;
 import org.slf4j.Logger;
 
-// Tests BackgroundInstallation with a mocked DependencyLoader and a mocked logger, so the failures the installation
-// threads report can be checked. Blocked steps wait for latches; nothing sleeps.
+// The logger is a mock, so the failures the installation threads report can be checked; blocked steps wait for latches, nothing sleeps.
 final class BackgroundInstallationTest {
 
   private static final long WAIT_SECONDS = 10;

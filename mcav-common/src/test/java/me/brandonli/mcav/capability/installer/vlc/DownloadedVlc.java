@@ -26,8 +26,7 @@ import me.brandonli.mcav.utils.os.Platform;
 import org.junit.jupiter.api.Assumptions;
 import uk.co.caprica.vlcj.factory.discovery.strategy.NativeDiscoveryStrategy;
 
-// The VLC of the installation kit, never this machine's, so every host behaves alike: the pinned Debian packages on
-// 64-bit x86 and ARM Linux, the VlcInstaller download elsewhere, installed once per machine.
+// The VLC of the installation kit, never this machine's, so every host behaves alike.
 public final class DownloadedVlc {
 
   private DownloadedVlc() {
