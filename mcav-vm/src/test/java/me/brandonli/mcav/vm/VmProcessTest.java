@@ -598,8 +598,7 @@ final class VmProcessTest {
   void shouldOpenThePasswordFolderOnlyToTheServersUser() throws IOException {
     final Map<String, String> posixZip = Map.of("create", "true", "enablePosixFileAttributes", "true");
     try (final FileSystem zipped = FileSystems.newFileSystem(this.directory.resolve(ZIP_FILE), posixZip)) {
-      // Windows' own file system has no POSIX permissions (VmProcess asks for them only where it has), so there the
-      // owner-only branch makes its folder in the zip file system, which has them
+      // Windows' file system has no POSIX permissions, so there the owner-only branch runs in the zip file system
       final FileSystem fileSystem = this.directory.getFileSystem();
       final Set<String> views = fileSystem.supportedFileAttributeViews();
       final boolean posixHere = views.contains("posix");

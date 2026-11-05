@@ -59,8 +59,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-// A QEMU process with a VNC display on the local machine. The port must be free before QEMU starts, and QEMU must
-// still run a moment after the port accepts connections, so the player never connects to another server on it.
+// a QEMU process with a VNC display on the local machine
 final class VmProcess {
 
   static final int FIRST_VNC_PORT = 5900;
@@ -368,8 +367,7 @@ final class VmProcess {
   }
 
   private List<String> machineValues(final VmConfiguration configuration) {
-    // in the order of the arguments QEMU gets: grouped by spelling, -M q35 -machine microvm would read as q35 where QEMU
-    // runs microvm; and by option name, as a scan of every argument would read -name -M -cpu host as the machine -cpu
+    // in argument order, as QEMU runs the last machine option, and by option name, as the -M of -name -M is a value
     return configuration.valuesOf(MACHINE_OPTIONS);
   }
 
@@ -485,8 +483,7 @@ final class VmProcess {
   }
 
   private void addRestrictedNetwork(final List<String> command) {
-    // QEMU's own default network lets the guest reach every service of the host's loopback address (10.0.2.2 inside
-    // the guest), so a machine that chose no network gets one that reaches neither the host nor the internet
+    // QEMU's default network reaches the host's loopback, so a machine without one gets one reaching neither host nor internet
     final boolean hasNetwork = NETWORK_OPTIONS.stream().anyMatch(this.configuration::has);
     if (!hasNetwork) {
       command.add("-nic");
@@ -662,8 +659,7 @@ final class VmProcess {
       this.checkAlive(started);
       final boolean reachable = this.isReachable(address);
       if (reachable) {
-        // QEMU exits at once when it cannot open its display, so a moment later it must still run, or the
-        // listener belongs to another program
+        // QEMU exits at once when it cannot open its display; if it no longer runs, the listener is another program's
         this.waitBeforeNextAttempt(started);
         this.checkAlive(started);
         return;

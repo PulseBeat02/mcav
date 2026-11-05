@@ -30,8 +30,7 @@ import javax.crypto.Cipher;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
-// The RFB subset of the audio connection: a second, shared client that asks for QEMU's audio extension and never for
-// the picture. Every length is checked before anything is allocated, and an unexpected message ends the connection.
+// the RFB subset of the audio connection: a second, shared client that asks for QEMU's audio extension, never the picture
 final class QemuAudioProtocol {
 
   static final int AUDIO_ENCODING = -259;

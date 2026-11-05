@@ -50,8 +50,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.opentest4j.AssertionFailedError;
 
-// The guests are boot sectors in /guests/ beside their sources: beep.asm plays 1000 Hz on the PC speaker, and toggle.asm
-// switches that tone and a red screen on and off together at irregular times.
+// the guests are boot sectors in /guests/: beep.asm plays the tone, toggle.asm switches it and a red screen together
 final class VmSoundTest {
 
   private static final int TONE_HERTZ = 1000;
@@ -392,8 +391,7 @@ final class VmSoundTest {
     return onsets;
   }
 
-  // a change of the picture without sound counts against every rate: leaving those out let a stream out of sync for
-  // most of its changes pass on the few that matched
+  // a picture change without sound counts against every rate, so a stream out of sync cannot pass on a few matches
   record SyncJudgement(int changes, List<Double> offsets) {
     static SyncJudgement of(final List<Long> pictureOnsets, final List<Long> soundOnsets, final long windowNanoseconds) {
       final List<Double> offsets = new ArrayList<>();
