@@ -23,8 +23,7 @@ import com.code_intelligence.jazzer.junit.FuzzTest
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Tag
 
-// The class files of a plugin are read byte by byte, so any bytes must be searched without a failure, and every
-// class found must be an MCAV class that the bytes name.
+// The class files of a plugin are read byte by byte, so any bytes must be searched without a failure.
 @Tag("fuzz")
 class ModuleClassesFuzzTest {
 

@@ -23,8 +23,7 @@ import com.code_intelligence.jazzer.junit.FuzzTest
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Tag
 
-// The qualifiedNames task reads every Java source of a module, so any text must be searched without a failure, and
-// every name it reports must stand on the line it names.
+// The qualifiedNames task reads every Java source of a module, so any text must be searched without a failure.
 @Tag("fuzz")
 class QualifiedNamesFuzzTest {
 

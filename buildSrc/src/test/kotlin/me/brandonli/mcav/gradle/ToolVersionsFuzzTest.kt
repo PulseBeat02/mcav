@@ -33,8 +33,7 @@ import org.gradle.process.JavaExecSpec
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Tag
 
-// A tool prints its version as it likes, so any output must either pass or fail as a GradleException: it passes only
-// when it holds the expected version after the prefix, and always when it starts with them.
+// A tool prints its version as it likes, so any output must either pass or fail as a GradleException.
 @Tag("fuzz")
 class ToolVersionsFuzzTest {
 
@@ -86,8 +85,7 @@ class ToolVersionsFuzzTest {
         return true
     }
 
-    // Mockito's inline mocks retransform classes under Jazzer's agent and crash the fuzzing JVM, so a JDK proxy stands
-    // in for the process instead
+    // Mockito's inline mocks crash the fuzzing JVM under Jazzer's agent, so a JDK proxy stands in for the process
     private class PrintingProcesses(private val output: String) : ExecOperations {
 
         override fun exec(action: Action<in ExecSpec>): ExecResult {

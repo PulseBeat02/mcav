@@ -23,8 +23,7 @@ import com.code_intelligence.jazzer.junit.FuzzTest
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Tag
 
-// The logMessages task reads every Java source of a module, so any text must be searched without a failure, and
-// every message it reports must name a call that the source holds, on one of its lines.
+// The logMessages task reads every Java source of a module, so any text must be searched without a failure.
 @Tag("fuzz")
 class LogMessagesFuzzTest {
 

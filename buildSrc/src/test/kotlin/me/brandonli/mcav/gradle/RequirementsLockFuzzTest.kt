@@ -24,8 +24,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Tag
 
-// The lock file of the Python requirements is written by uv, so any text must be read without a failure: the missing
-// pins are pins of the catalog, and adding them to the lock leaves none missing.
+// The lock file of the Python requirements is written by uv, so any text must be read without a failure.
 @Tag("fuzz")
 class RequirementsLockFuzzTest {
 
