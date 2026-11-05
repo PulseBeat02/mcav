@@ -91,7 +91,7 @@ class BrowserSoundTest {
       options,
       new CefBrowserPlayer.HelperSessionFactory(new JcefNatives(), HelperCoverage.jvmOptions())
     );
-    player.setExceptionHandler((message, error) -> this.failures.add(message + ": " + error.getMessage()));
+    player.setExceptionHandler((message, failure) -> this.failures.add(message + ": " + failure.getMessage()));
     this.players.add(player);
 
     return player;

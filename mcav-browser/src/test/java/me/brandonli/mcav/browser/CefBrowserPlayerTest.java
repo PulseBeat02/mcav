@@ -114,7 +114,7 @@ class CefBrowserPlayerTest {
   private RuntimeException startFailure;
 
   CefBrowserPlayerTest() {
-    this.player.setExceptionHandler((message, error) -> this.reports.add(message + INPUT_SEPARATOR + error.getMessage()));
+    this.player.setExceptionHandler((message, failure) -> this.reports.add(message + INPUT_SEPARATOR + failure.getMessage()));
     this.attachRecorder(this.player);
   }
 
@@ -343,7 +343,7 @@ class CefBrowserPlayerTest {
     final List<String> reports = new ArrayList<>();
     final CefBrowserPlayer.SessionFactory factory = (_, _, sessionListener) -> this.openSessionThatEndsFirst(sessionListener, opened);
     final CefBrowserPlayer player = new CefBrowserPlayer(BrowserOptions.DEFAULT, factory);
-    player.setExceptionHandler((message, error) -> reports.add(message));
+    player.setExceptionHandler((message, failure) -> reports.add(message));
     final boolean firstStarted = player.start(SOURCE);
     assertFalse(firstStarted);
 
@@ -425,7 +425,7 @@ class CefBrowserPlayerTest {
 
     final CefBrowserPlayer.SessionFactory factory = (_, _, sessionListener) -> this.openSessionThatEnds(sessionListener);
     final CefBrowserPlayer early = new CefBrowserPlayer(BrowserOptions.DEFAULT, factory);
-    early.setExceptionHandler((message, error) -> {});
+    early.setExceptionHandler((message, failure) -> {});
     final boolean earlyStarted = early.start(SOURCE);
     assertFalse(earlyStarted);
 
