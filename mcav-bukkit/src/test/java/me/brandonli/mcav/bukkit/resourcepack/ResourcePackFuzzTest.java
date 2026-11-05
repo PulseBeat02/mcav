@@ -51,6 +51,8 @@ final class ResourcePackFuzzTest {
   private static final String ZIP_EXTENSION = ".zip";
   private static final String SOUND_EXTENSION = ".ogg";
 
+  private static final int KEEP_TRAILING_EMPTY_PARTS = -1;
+
   private static final String ASSETS_FOLDER = "assets/";
   private static final String SOUNDS_FILE = "/sounds.json";
   private static final String SOUNDS_FOLDER = "/sounds/";
@@ -125,7 +127,7 @@ final class ResourcePackFuzzTest {
       assertFalse(absolute, () -> "an absolute entry " + name);
       final boolean hasBackslash = name.contains("\\");
       assertFalse(hasBackslash, () -> "an entry with a backslash " + name);
-      for (final String segment : name.split(PATH_SEPARATOR, -1)) {
+      for (final String segment : name.split(PATH_SEPARATOR, KEEP_TRAILING_EMPTY_PARTS)) {
         final boolean unsafe = segment.isEmpty() || segment.equals(".") || segment.equals("..");
         assertFalse(unsafe, () -> "an entry with an empty, dot or parent segment " + name);
       }
