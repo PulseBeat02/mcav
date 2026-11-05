@@ -56,8 +56,8 @@ public final class ScreenCommand implements AnnotationCommandFeature {
    *
    * <p>The wall is made of blocks of the chosen material with an item frame on every block. The frames hold the maps
    * from the map id on, counted row by row from the top left corner as seen by the sender. Players build the wall
-   * facing the direction they look; the console builds it facing north. Use the same block dimensions and map id in
-   * the command that shows media on it.
+   * facing the direction they look; the console builds it north of the location, facing south. Use the same block
+   * dimensions and map id in the command that shows media on it.
    *
    * <p>Requires the permission {@code mcav.command.screen}; players and the console can run it. The sender is told
    * when the wall is built, or gets an error message if the dimensions are invalid or the map ids cannot be used. No
