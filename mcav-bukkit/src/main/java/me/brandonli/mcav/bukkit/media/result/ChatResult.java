@@ -42,7 +42,7 @@ import net.minecraft.network.protocol.game.ClientboundSystemChatPacket;
  *
  * @since 1.0.0
  */
-public class ChatResult implements FunctionalVideoFilter {
+public final class ChatResult implements FunctionalVideoFilter {
 
   private static final boolean OVERLAY = false;
 

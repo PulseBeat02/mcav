@@ -37,7 +37,7 @@ import me.brandonli.mcav.media.player.pipeline.filter.video.FunctionalVideoFilte
  *
  * @since 1.0.0
  */
-public class BlockResult implements FunctionalVideoFilter {
+public final class BlockResult implements FunctionalVideoFilter {
 
   private final BlockRenderer renderer;
 
