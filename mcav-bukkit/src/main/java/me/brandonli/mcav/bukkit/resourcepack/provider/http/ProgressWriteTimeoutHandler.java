@@ -36,6 +36,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 // progress inside a zero-copy file region resets the write deadline
 final class ProgressWriteTimeoutHandler extends WriteTimeoutHandler {
 
+  private static final boolean DO_NOT_INTERRUPT = false;
+
   private final int timeoutSeconds;
   private final Set<PendingWrite> writes;
 
@@ -88,7 +90,7 @@ final class ProgressWriteTimeoutHandler extends WriteTimeoutHandler {
     private void cancel() {
       final ScheduledFuture<?> scheduled = this.timeout;
       if (scheduled != null) {
-        scheduled.cancel(false);
+        scheduled.cancel(DO_NOT_INTERRUPT);
         this.timeout = null;
       }
     }

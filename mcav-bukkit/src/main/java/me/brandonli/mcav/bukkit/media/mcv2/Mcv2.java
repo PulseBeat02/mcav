@@ -4077,6 +4077,8 @@ public final class Mcv2 {
    */
   public static final class Pool implements AutoCloseable {
 
+    private static final boolean INTERRUPT_IF_RUNNING = true;
+
     /**
      * Maximum worker count.
      *
@@ -4240,7 +4242,7 @@ public final class Mcv2 {
       try {
         return job.get();
       } catch (final InterruptedException exception) {
-        job.cancel(true);
+        job.cancel(INTERRUPT_IF_RUNNING);
         throw exception;
       } catch (final ExecutionException exception) {
         final Throwable cause = requireNonNull(exception.getCause()); // checker framework
