@@ -42,8 +42,7 @@ import java.util.zip.GZIPOutputStream;
 import me.brandonli.mcav.utils.IoUtils;
 import org.junit.jupiter.api.Tag;
 
-// The fuzz target compresses the tar streams, so the fuzzer works on the tar format, not on gzip. The natives jar is
-// pinned by its hash, so this fuzzes a second line of defense.
+// The target gzips the tar streams, so the fuzzer works on tar, not gzip; behind the jar's pinned hash, this is a second line of defense.
 @Tag("fuzz")
 final class ArchiveExtractorFuzzTest {
 

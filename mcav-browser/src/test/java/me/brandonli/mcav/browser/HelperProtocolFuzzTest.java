@@ -28,8 +28,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Set;
 import org.junit.jupiter.api.Tag;
 
-// A helper runs web content, so the server treats what it sends as untrusted. The fuzz target never hands out more
-// pixel bytes than the input still holds, so a claimed size cannot make it allocate more.
+// Helper messages are untrusted; the target never hands out more pixel bytes than the input holds, whatever size a message claims.
 @Tag("fuzz")
 final class HelperProtocolFuzzTest {
 

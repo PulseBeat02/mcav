@@ -24,8 +24,7 @@ import java.util.List;
 import java.util.Set;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-// Running sessions, so a module stop ends every helper, even of players nobody released. A stop starts a new generation,
-// so a session that began before it is refused even after the module started again.
+// Running sessions, so a module stop ends every helper, released or not, and starts a generation refusing older sessions after a restart.
 final class HelperProcesses {
 
   private static final Equivalence<Object> FAILURE_IDENTITY = Equivalence.identity();

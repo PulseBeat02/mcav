@@ -42,8 +42,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-// Installs jcefmaven's CEF natives, checked against a pinned SHA-256: jcefmaven's own downloader verifies nothing and
-// extracts entries outside its target folder.
+// Installs jcefmaven's CEF natives checked against a pinned SHA-256: its own downloader verifies nothing and extracts outside its target.
 final class JcefNatives {
 
   static final String JCEFMAVEN_VERSION = "152.0.6";

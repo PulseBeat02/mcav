@@ -44,8 +44,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
-// Plays page sound through real Chromium. The A/V sync measurement runs only with -Pmcav.sync_measurement=true: a busy
-// machine delays the real events it times.
+// Plays page sound through real Chromium; the A/V sync measurement needs -Pmcav.sync_measurement=true, as load delays the events it times.
 @Tag("cef")
 class BrowserSoundTest {
 
@@ -122,7 +121,7 @@ class BrowserSoundTest {
     assertEquals(List.of(), this.failures);
   }
 
-  // the first sound of a helper can take 30 s on a busy machine
+  // the first sound of a helper is slow on a busy machine
   private void awaitSound(final Recording recording, final int bytes, final String what) throws InterruptedException {
     final long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(30);
     while (recording.size() < bytes) {
@@ -522,8 +521,7 @@ class BrowserSoundTest {
     }
   }
 
-  // Matches each change of the picture with the nearest change of the sound within half the shortest period of the
-  // fixture. An unmatched change counts against every rate, so a stream out of sync cannot pass on its few matches.
+  // Pairs picture and sound changes within half the shortest fixture period; a miss counts against all rates, so few matches cannot pass.
   record SyncJudgement(int changes, List<Double> offsets) {
     static SyncJudgement of(final List<Long> pictureOnsets, final List<Long> soundOnsets, final long windowNanoseconds) {
       final List<Double> offsets = new ArrayList<>();

@@ -51,8 +51,7 @@ import java.util.concurrent.Semaphore;
 import java.util.function.IntPredicate;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-// Answers X connections for JCEF, which aborts the helper without a display although CEF draws off-screen. Listens on
-// loopback only, admits only clients with the cookie of its authority file, and bounds requests, connections and atoms.
+// An X display for JCEF, which aborts without one even off-screen: loopback, cookie clients only, bounded requests, connections and atoms.
 final class NullDisplay implements AutoCloseable {
 
   private static final String ACCEPT_THREAD_NAME = "mcav-browser-null-display";
@@ -429,8 +428,7 @@ final class NullDisplay implements AutoCloseable {
     Files.write(authority, entry);
   }
 
-  // family, address, display number, method name and cookie, each after a big-endian 16-bit length; this family matches
-  // every host and the empty display number every display
+  // family, address, display, method name and cookie, each after a big-endian 16-bit length; this family and the empty display match all
   @VisibleForTesting
   static byte[] createAuthorityEntry(final byte[] cookie) {
     final byte[] name = COOKIE_NAME.getBytes(StandardCharsets.US_ASCII);
@@ -858,8 +856,10 @@ final class NullDisplay implements AutoCloseable {
   }
 
   private static ByteBuffer answerGetWindowAttributes(final int sequence, final ByteOrder order) {
-    // backing store NotUseful, the visual, class InputOutput, gravities, planes, pixel, save under, map installed,
-    // map state Unmapped, override redirect, colormap and event masks
+    /*
+     * backing store NotUseful, the visual, class InputOutput, gravities, planes, pixel, save under, map installed, map
+     * state Unmapped, override redirect, colormap and event masks
+     */
     final ByteBuffer reply = reply(sequence, order, 0, WINDOW_ATTRIBUTES_EXTRA_BYTES);
     reply.putInt(REPLY_BODY_OFFSET, VISUAL);
     reply.putShort(WINDOW_CLASS_OFFSET, (short) INPUT_OUTPUT);

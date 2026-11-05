@@ -46,10 +46,12 @@ import java.util.function.Consumer;
 import java.util.function.Predicate;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-// A SOCKS 5 proxy through which the browser makes every connection. Chromium sends host names, so the guard resolves
-// them itself and connects to the very address it checked. Besides private addresses it refuses this machine's own,
-// whose services a firewall hides from the internet but not from the machine, and addresses a NAT64 translator of the
-// network turns private.
+/*
+ * A SOCKS 5 proxy through which the browser makes every connection. Chromium sends host names, so the guard resolves
+ * them itself and connects to the very address it checked. Besides private addresses it refuses this machine's own,
+ * whose services a firewall hides from the internet but not from the machine, and addresses a NAT64 translator of the
+ * network turns private.
+ */
 final class NetworkGuard implements Closeable {
 
   private static final boolean DO_NOT_INTERRUPT = false;
@@ -367,8 +369,7 @@ final class NetworkGuard implements Closeable {
     return this.server;
   }
 
-  // IPv6 addresses wait for the NAT64 prefixes and are refused while the resolver fails, since any of them may be a
-  // private address behind a translator
+  // IPv6 addresses wait for the NAT64 prefixes and are refused while the resolver fails: any may be private behind a translator
   static final class PublicAddresses implements Predicate<InetAddress> {
 
     private final Resolver resolver;

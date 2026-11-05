@@ -31,8 +31,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-// Java stand-ins for the Seatbelt functions, so a Seatbelt runs its real calls on any system without a sandbox.
-// upcall stubs and native function handles are restricted; the tests run with native access enabled
+// Java stand-ins for the Seatbelt functions, so Seatbelt's real calls run anywhere; the tests enable native access for the restricted calls
 @SuppressWarnings("restricted")
 final class SeatbeltLibrary implements AutoCloseable {
 

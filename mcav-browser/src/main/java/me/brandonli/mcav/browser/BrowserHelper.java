@@ -386,8 +386,7 @@ public final class BrowserHelper {
       this.send(output -> HelperProtocol.writeText(output, HelperProtocol.NOTICE, text));
     }
 
-    // sound passes only after a press on this page, unless the options allow it, so a page that gets around Chromium's own
-    // rule or the capture script cannot play to the server before anyone touched it
+    // a second gate: a page that gets around Chromium's autoplay rule or the capture script cannot play before anyone touched it
     @Override
     public void onAudio(final byte[] samples) {
       if (BrowserHelper.this.configuration.isAutoplay() || BrowserHelper.this.activated) {

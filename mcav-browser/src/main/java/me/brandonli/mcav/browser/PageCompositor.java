@@ -25,8 +25,7 @@ import java.util.function.LongSupplier;
 import org.cef.browser.MCAVOffscreenBrowser;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-// The paint buffer of CEF is valid only during the paint, so the page is copied; damage is merged, never dropped, so the
-// receiver ends up with the page. A settle delay sends the last change of a page that stops changing.
+// CEF's paint buffer lives only during the paint, so the page is copied; damage merges, never drops; a settle delay sends the last change.
 final class PageCompositor implements MCAVOffscreenBrowser.PaintListener {
 
   private static final byte FULL_CHANNEL = (byte) 0xFF;

@@ -45,8 +45,7 @@ import me.brandonli.mcav.utils.interaction.MouseClick;
 import me.brandonli.mcav.utils.os.Os;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-// Frames and failures of a helper that is no longer the current one are ignored, so a late frame of a replaced browser
-// never reaches the pipeline.
+// Frames and failures of a helper that is no longer current are ignored, so a replaced browser's late frame never reaches the pipeline.
 final class CefBrowserPlayer implements BrowserPlayer {
 
   private static final int NO_SCROLL = 0;
@@ -58,8 +57,7 @@ final class CefBrowserPlayer implements BrowserPlayer {
   // the first start after a download can be slow, for example while a virus scanner checks the new files
   private static final long START_TIMEOUT_MILLISECONDS = 180_000L;
 
-  // the page hands over its sound slightly ahead of its picture, and an output plays a chunk only once it arrives, so a
-  // hold would only make the sound late (BrowserSoundTest)
+  // the page sends its sound slightly ahead of its picture and outputs play a chunk only on arrival, so a hold would only delay the sound
   private static final int AUDIO_DELAY_MILLISECONDS = 0;
 
   static final int MAXIMUM_QUEUED_AUDIO_MILLISECONDS = AUDIO_DELAY_MILLISECONDS + 120;
@@ -83,8 +81,7 @@ final class CefBrowserPlayer implements BrowserPlayer {
   private final Object starter;
   private final LogBudget dropReports;
 
-  // a release interrupts the starting thread instead of waiting up to START_TIMEOUT_MILLISECONDS for its lock; guarded by
-  // starter, so no interrupt reaches the thread after its start
+  // release() interrupts the starting thread rather than await its lock; guarded by starter, so no interrupt lands after the start
   private @Nullable Thread starting;
   // guarded by starter; the starting thread clears the interrupt of release()
   private boolean startInterrupted;

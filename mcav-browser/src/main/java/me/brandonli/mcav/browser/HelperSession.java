@@ -77,10 +77,12 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-// One browser helper process: its private folder, the token-authenticated connection, the frames it streams and the
-// input sent to it. A slow listener skips pictures instead of queuing them; a settled page repeats its last picture, so
-// an encoder that spreads a change over frames can finish it. A helper exits when its standard input ends, so it never
-// outlives the server.
+/*
+ * One browser helper process: its private folder, the token-authenticated connection, the frames it streams and the
+ * input sent to it. A slow listener skips pictures instead of queuing them; a settled page repeats its last picture, so
+ * an encoder that spreads a change over frames can finish it. A helper exits when its standard input ends, so it never
+ * outlives the server.
+ */
 final class HelperSession implements BrowserSession {
 
   private static final String TEMPORARY_DIRECTORY_PROPERTY = "java.io.tmpdir";

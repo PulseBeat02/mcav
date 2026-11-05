@@ -47,10 +47,12 @@ import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-// Extracts the pinned, hash-checked CEF archive, refusing anything that could write outside the target: links, special
-// files, names that leave it, and too many entries or bytes. Archive permissions are not copied, as the macOS archive
-// makes everything world-writable. The library reads metadata such as a PAX header without a bound, which only the
-// pinned hash makes acceptable.
+/*
+ * Extracts the pinned, hash-checked CEF archive, refusing anything that could write outside the target: links, special
+ * files, names that leave it, and too many entries or bytes. Archive permissions are not copied, as the macOS archive
+ * makes everything world-writable. The library reads metadata such as a PAX header without a bound, which only the
+ * pinned hash makes acceptable.
+ */
 final class ArchiveExtractor {
 
   private static final char WINDOWS_SEPARATOR = '\\';

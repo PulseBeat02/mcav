@@ -25,8 +25,7 @@ import java.util.Map;
 import java.util.Objects;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-// Input as DevTools calls, which act alike on every system, unlike JCEF's key events, which are translated per platform
-// and lose keys such as Page Down.
+// Input as DevTools calls, alike on every system, unlike JCEF's per-platform key events, which lose keys such as Page Down.
 final class DevToolsInput {
 
   static final String MOUSE_METHOD = "Input.dispatchMouseEvent";
@@ -35,8 +34,11 @@ final class DevToolsInput {
   static final String ADD_SCRIPT_METHOD = "Page.addScriptToEvaluateOnNewDocument";
   static final String ENABLE_PAGE_METHOD = "Page.enable";
 
-  // An off-screen JCEF browser cancels every popup, so this script sends window.open and other-window links and forms to
-  // the page itself during a click or key, as Chromium's popup blocker would allow; navigations still meet the policy.
+  /*
+   * An off-screen JCEF browser cancels every popup, so this script sends window.open and other-window links and forms
+   * to the page itself during a click or key, as Chromium's popup blocker would allow; navigations still meet the
+   * policy.
+   */
   static final String OPEN_IN_PLACE_SCRIPT = """
   (() => {
     // the helper may place the script twice; once is enough

@@ -17,8 +17,7 @@
  */
 package me.brandonli.mcav.browser;
 
-// The user name, password, query and fragment of an address often carry secrets, and /mcav dump may publish the log,
-// so it shows the scheme, host and path only, and an address without a host only its scheme.
+// Keeps an address's scheme, host and path only, or its scheme without a host: the rest may hold secrets, and /mcav dump may publish logs.
 final class AddressText {
 
   static final String HIDDEN = "<hidden>";

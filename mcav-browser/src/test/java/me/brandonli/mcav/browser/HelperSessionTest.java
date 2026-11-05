@@ -542,8 +542,7 @@ class HelperSessionTest {
 
   @Test
   void shouldEndTheThreadsTheConnectionAndThePictureAndRemoveTheFolderOnClose() {
-    // the folder is not read from the helper's command line: Linux shows no arguments of a command line longer than a
-    // page, which the class path of a test run is
+    // the folder does not come from the command line: Linux hides the arguments of one longer than a page, as a test run's class path is
     final HelperSession session = this.open(ScriptedEngine.class.getName(), PAGE);
     Await.until(FIRST_FRAME_MESSAGE, () -> !this.listener.frames.isEmpty());
     final List<Thread> threads = session.getThreads();
