@@ -34,13 +34,16 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 import me.brandonli.mcav.media.player.pipeline.filter.audio.AudioFilter;
 
-// QEMU converts the sound to the format of the audio pipeline itself. Only the handshake has a deadline: afterwards
-// the reader waits as long as the guest stays silent, and an end nobody asked for is reported once.
+// QEMU converts the sound to the pipeline's format; only the handshake has a deadline
 final class VmAudioClient implements Closeable {
 
   static final int HANDSHAKE_TIMEOUT_MILLISECONDS = 5_000;
 
-  private static final String UNSTARTED_READER_NAME = "mcav-vm-audio-not-started";
+  private static final int READER_JOIN_TIMEOUT_MILLISECONDS = 5_000;
+
+  private static final boolean DO_NOT_INTERRUPT = false;
+
+  private static final String UNSTARTED_READER_THREAD_NAME = "mcav-vm-audio-not-started";
   private static final String READER_THREAD_NAME = "mcav-vm-audio";
   private static final String DEADLINE_THREAD_NAME = "mcav-vm-audio-deadline";
 
@@ -57,7 +60,7 @@ final class VmAudioClient implements Closeable {
     this.input = input;
     this.sink = sink;
     this.failures = failures;
-    this.reader = new Thread(UNSTARTED_READER_NAME);
+    this.reader = new Thread(UNSTARTED_READER_THREAD_NAME);
   }
 
   static VmAudioClient connect(
@@ -76,7 +79,7 @@ final class VmAudioClient implements Closeable {
       final OutputStream rawOutput = socket.getOutputStream();
       final DataOutputStream output = new DataOutputStream(new BufferedOutputStream(rawOutput));
       handshake(input, output, password);
-      deadline.cancel(false);
+      deadline.cancel(DO_NOT_INTERRUPT);
 
       final VmAudioClient client = new VmAudioClient(socket, input, sink, failures);
       client.startReading();
@@ -89,13 +92,11 @@ final class VmAudioClient implements Closeable {
   }
 
   private static CompletableFuture<Void> scheduleHandshakeDeadline(final Socket socket) {
-    // the read timeout only limits a pause, so a server that trickles its handshake is cut off once it took too long;
-    // a deadline cancelled in time never runs, and one that runs gets a thread of its own, as the common pool of the
-    // server may be busy with the tasks of other plugins for longer than the deadline
+    // a read timeout bounds one pause, not a trickled handshake; own thread, as the common pool may be busy
     final Executor later = CompletableFuture.delayedExecutor(
       HANDSHAKE_TIMEOUT_MILLISECONDS,
       TimeUnit.MILLISECONDS,
-      VmAudioClient::onOwnThread
+      VmAudioClient::startDeadlineThread
     );
     return CompletableFuture.runAsync(() -> closeQuietly(socket), later);
   }
@@ -140,20 +141,23 @@ final class VmAudioClient implements Closeable {
     } catch (final IOException | RuntimeException exception) {
       if (!this.closed) {
         closeQuietly(this.socket);
-        this.failures.accept("The audio connection of the virtual machine ended", exception);
+        this.failures.accept("The audio connection of the virtual machine ended.", exception);
       }
     }
   }
 
   private void deliver(final QemuAudioProtocol.Message message) {
     final QemuAudioProtocol.Kind kind = message.getKind();
-    if (kind == QemuAudioProtocol.Kind.DATA) {
-      final byte[] samples = message.getSamples();
-      final int length = message.getLength();
-      this.sink.accept(samples, length);
-    } else if (kind == QemuAudioProtocol.Kind.END) {
+    switch (kind) {
+      case DATA -> {
+        final byte[] samples = message.getSamples();
+        final int length = message.getLength();
+        this.sink.accept(samples, length);
+      }
       // QEMU sends nothing until the guest plays again, so the sink keeps the time of the pause itself
-      this.sink.quiet();
+      case END -> this.sink.quiet();
+      case IGNORED, ACKNOWLEDGED, BEGIN -> {
+      }
     }
   }
 
@@ -164,22 +168,22 @@ final class VmAudioClient implements Closeable {
     join(this.reader);
   }
 
-  private static void onOwnThread(final Runnable task) {
+  private static void startDeadlineThread(final Runnable task) {
     Thread.ofVirtual().name(DEADLINE_THREAD_NAME).start(task);
   }
 
   // a filter or failure callback that releases the player runs on the thread it would wait for
   static void join(final Thread thread) {
-    final Thread caller = Thread.currentThread();
-    final boolean ownThread = thread.equals(caller);
+    final Thread current = Thread.currentThread();
+    final boolean ownThread = thread.equals(current);
     if (ownThread) {
       return;
     }
 
     try {
-      thread.join(HANDSHAKE_TIMEOUT_MILLISECONDS);
+      thread.join(READER_JOIN_TIMEOUT_MILLISECONDS);
     } catch (final InterruptedException exception) {
-      caller.interrupt();
+      current.interrupt();
     }
   }
 
@@ -203,7 +207,7 @@ final class VmAudioClient implements Closeable {
   @FunctionalInterface
   interface Sink {
     // the buffer is reused for the next message, so the samples must be copied
-    void accept(byte[] samples, int length);
+    void accept(final byte[] samples, final int length);
 
     // the guest stopped playing: nothing arrives until it plays again
     default void quiet() {}

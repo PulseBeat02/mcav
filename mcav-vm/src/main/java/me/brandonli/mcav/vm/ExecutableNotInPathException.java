@@ -39,7 +39,7 @@ public final class ExecutableNotInPathException extends VmException {
   private static final String EXECUTABLE_NULL_MESSAGE = "Executable must not be null!";
 
   /**
-   * Constructs a new exception.
+   * Creates an exception for a program that is not installed or not on the {@code PATH}.
    *
    * @param executable the name of the missing program
    * @throws NullPointerException if the name is null
@@ -65,11 +65,11 @@ public final class ExecutableNotInPathException extends VmException {
     Preconditions.checkNotNull(platform, "Platform must not be null!");
 
     final Os os = platform.getOs();
-    final Arch arch = platform.getArch();
-    final String message = "Program %s is not installed or not on the PATH, and MCAV cannot install it on %s %s!".formatted(
+    final Arch architecture = platform.getArch();
+    final String message = "Program %s is not installed or not on the PATH, and on %s %s MCAV cannot install it!".formatted(
       executable,
       os,
-      arch
+      architecture
     );
     super(message);
   }

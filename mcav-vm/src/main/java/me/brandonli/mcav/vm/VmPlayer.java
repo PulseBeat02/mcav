@@ -46,20 +46,22 @@ import me.brandonli.mcav.utils.interaction.MouseClick;
  * on background threads and must not retain borrowed buffers without copying them.
  *
  * {@snippet :
- * final VmPlayer player = VmPlayer.create();
- * final VideoAttachableCallback video = player.getVideoAttachableCallback();
- * video.attach(videoPipeline);
- * final String isoPath = "alpine.iso";
- * final int memoryMegabytes = 1024;
- * final VmConfigurationBuilder builder = VmConfiguration.builder();
- * final VmConfiguration configuration = builder.cdrom(isoPath).memory(memoryMegabytes).build();
- * final int width = 1024;
- * final int height = 768;
- * final int targetFrameRate = 30;
- * final VmSettings settings = VmSettings.of(width, height, targetFrameRate);
- * player.start(settings, VmPlayer.Architecture.X86_64, configuration);
- * // when done
- * player.release();
+ * void runMachine(final VideoPipelineStep videoPipeline) {
+ *   final VmPlayer player = VmPlayer.create();
+ *   final VideoAttachableCallback video = player.getVideoAttachableCallback();
+ *   video.attach(videoPipeline);
+ *   final String isoPath = "alpine.iso";
+ *   final int memoryMegabytes = 1024;
+ *   final VmConfigurationBuilder builder = VmConfiguration.builder();
+ *   final VmConfiguration configuration = builder.cdrom(isoPath).memory(memoryMegabytes).build();
+ *   final int width = 1024;
+ *   final int height = 768;
+ *   final int targetFrameRate = 30;
+ *   final VmSettings settings = VmSettings.of(width, height, targetFrameRate);
+ *   player.start(settings, VmPlayer.Architecture.X86_64, configuration);
+ *   // when done
+ *   player.release();
+ * }
  * }
  *
  * <p>Implementations in this library are thread-safe.
@@ -205,6 +207,8 @@ public interface VmPlayer extends ControllablePlayer, ReleasablePlayer, Exceptio
 
   /**
    * The guest architectures QEMU can emulate, each with its own program.
+   *
+   * <p>This enum is immutable and thread-safe.
    *
    * @since 1.0.0
    */

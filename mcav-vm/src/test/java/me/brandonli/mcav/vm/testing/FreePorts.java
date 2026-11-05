@@ -26,15 +26,16 @@ public final class FreePorts {
 
   private static final InetAddress LOOPBACK = InetAddress.ofLiteral("127.0.0.1");
 
-  private static final int ANY_PORT = 0;
+  private static final int EPHEMERAL_PORT = 0;
   private static final int BACKLOG = 1;
 
   private FreePorts() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   public static int find() {
-    try (final ServerSocket socket = new ServerSocket(ANY_PORT, BACKLOG, LOOPBACK)) {
+    try (final ServerSocket socket = new ServerSocket(EPHEMERAL_PORT, BACKLOG, LOOPBACK)) {
       return socket.getLocalPort();
     } catch (final IOException exception) {
       throw new UncheckedIOException(exception);

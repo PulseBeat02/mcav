@@ -73,22 +73,22 @@ public interface VmConfigurationBuilder {
   /**
    * Attaches a disk image as the first hard disk ({@code -hda}).
    *
-   * @param hdaPath the path of the image
+   * @param imagePath the path of the image
    * @return this builder
-   * @throws NullPointerException if {@code hdaPath} is null
+   * @throws NullPointerException if {@code imagePath} is null
    * @since 1.0.0
    */
-  VmConfigurationBuilder hda(final String hdaPath);
+  VmConfigurationBuilder firstHardDisk(final String imagePath);
 
   /**
    * Attaches a disk image as the second hard disk ({@code -hdb}).
    *
-   * @param hdbPath the path of the image
+   * @param imagePath the path of the image
    * @return this builder
-   * @throws NullPointerException if {@code hdbPath} is null
+   * @throws NullPointerException if {@code imagePath} is null
    * @since 1.0.0
    */
-  VmConfigurationBuilder hdb(final String hdbPath);
+  VmConfigurationBuilder secondHardDisk(final String imagePath);
 
   /**
    * Sets the boot order ({@code -boot}).

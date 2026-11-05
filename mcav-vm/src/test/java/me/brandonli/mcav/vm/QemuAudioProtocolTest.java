@@ -128,18 +128,20 @@ final class QemuAudioProtocolTest {
     final byte[] clientInitialization = bytes(QemuAudioProtocol::writeClientInitialization);
     assertArrayEquals(expectedClientInitialization, clientInitialization);
 
-    final byte[] serverInitialization = bytes(output -> {
-      output.writeShort(720);
-      output.writeShort(400);
-      output.write(new byte[PIXEL_FORMAT_BYTES]);
-      output.writeInt(4);
-      output.write("QEMU".getBytes(StandardCharsets.US_ASCII));
-      output.writeByte(42);
-    });
+    final byte[] serverInitialization = bytes(this::writeServerInitialization);
     final DataInputStream initialization = this.input(serverInitialization);
     QemuAudioProtocol.readServerInitialization(initialization);
     final int byteAfterDescription = initialization.readUnsignedByte();
     assertEquals(42, byteAfterDescription, "the whole description was read");
+  }
+
+  private void writeServerInitialization(final DataOutputStream output) throws IOException {
+    output.writeShort(720);
+    output.writeShort(400);
+    output.write(new byte[PIXEL_FORMAT_BYTES]);
+    output.writeInt(4);
+    output.write("QEMU".getBytes(StandardCharsets.US_ASCII));
+    output.writeByte(42);
   }
 
   @Test
@@ -185,7 +187,7 @@ final class QemuAudioProtocolTest {
     for (final String password : List.of(PASSWORD, "pw", "a much longer password")) {
       final ByteArrayOutputStream answer = new ByteArrayOutputStream();
       QemuAudioProtocol.answerChallenge(this.input(challenge), new DataOutputStream(answer), password);
-      final byte[] expected = VncPasswords.response(challenge, password);
+      final byte[] expected = VncPasswords.computeResponse(challenge, password);
       final byte[] response = answer.toByteArray();
       assertArrayEquals(expected, response, password);
     }
@@ -241,16 +243,12 @@ final class QemuAudioProtocolTest {
 
   @Test
   void shouldEndTheHandshakeWhenTheServerRefusesOrAsksForAPassword() throws IOException {
-    final byte[] refusal = bytes(output -> {
-      output.writeByte(0);
-      output.writeInt(4);
-      output.write("full".getBytes(StandardCharsets.US_ASCII));
-    });
+    final byte[] refusal = bytes(this::writeConnectionRefusal);
     final ProtocolException refused = assertThrows(ProtocolException.class, () ->
       QemuAudioProtocol.negotiateSecurity(this.input(refusal), new DataOutputStream(new ByteArrayOutputStream()), "")
     );
     final String refusedMessage = refused.getMessage();
-    assertEquals("VNC server refused the connection because of \"full\"!", refusedMessage);
+    assertEquals("Because of \"full\", VNC server refused the connection!", refusedMessage);
 
     final ProtocolException password = assertThrows(ProtocolException.class, () ->
       QemuAudioProtocol.negotiateSecurity(
@@ -262,20 +260,30 @@ final class QemuAudioProtocolTest {
     final String passwordMessage = password.getMessage();
     assertEquals("VNC server asks for authentication, which the audio connection does not do!", passwordMessage);
 
-    final byte[] failed = bytes(output -> {
-      output.writeInt(1);
-      output.writeInt(2);
-      output.write("no".getBytes(StandardCharsets.US_ASCII));
-    });
+    final byte[] failed = bytes(this::writeAuthenticationFailure);
     assertThrows(ProtocolException.class, () -> QemuAudioProtocol.readSecurityResult(this.input(failed)));
 
-    final byte[] huge = bytes(output -> {
-      output.writeInt(1);
-      output.writeInt(-1);
-    });
+    final byte[] huge = bytes(this::writeOversizedSecurityResult);
     final ProtocolException tooLong = assertThrows(ProtocolException.class, () -> QemuAudioProtocol.readSecurityResult(this.input(huge)));
     final String tooLongMessage = tooLong.getMessage();
     assertEquals("VNC server sent a text of 4294967295 bytes, more than the 4096 bytes allowed!", tooLongMessage);
+  }
+
+  private void writeConnectionRefusal(final DataOutputStream output) throws IOException {
+    output.writeByte(0);
+    output.writeInt(4);
+    output.write("full".getBytes(StandardCharsets.US_ASCII));
+  }
+
+  private void writeAuthenticationFailure(final DataOutputStream output) throws IOException {
+    output.writeInt(1);
+    output.writeInt(2);
+    output.write("no".getBytes(StandardCharsets.US_ASCII));
+  }
+
+  private void writeOversizedSecurityResult(final DataOutputStream output) throws IOException {
+    output.writeInt(1);
+    output.writeInt(-1);
   }
 
   @Test
@@ -303,29 +311,31 @@ final class QemuAudioProtocolTest {
 
   @Test
   void shouldSkipMessagesAVncServerSendsUnasked() throws IOException {
-    final byte[] stream = bytes(output -> {
-      output.writeByte(QemuAudioProtocol.SERVER_BELL);
-      output.writeByte(QemuAudioProtocol.SERVER_COLOUR_MAP);
-      output.writeByte(0);
-      output.writeShort(0);
-      output.writeShort(2);
-      output.write(new byte[12]);
-      output.writeByte(QemuAudioProtocol.SERVER_CUT_TEXT);
-      output.write(new byte[CUT_TEXT_PADDING_BYTES]);
-      output.writeInt(5);
-      output.write("hello".getBytes(StandardCharsets.US_ASCII));
-      writeData(output, new byte[] { 9, 9, 9, 9 });
-    });
+    final byte[] stream = bytes(this::writeUnrequestedMessages);
     final DataInputStream input = this.input(stream);
     final QemuAudioProtocol.Message bell = QemuAudioProtocol.readMessage(input, FRAME, byte[]::new);
-    final QemuAudioProtocol.Message colourMap = QemuAudioProtocol.readMessage(input, FRAME, byte[]::new);
+    final QemuAudioProtocol.Message colorMap = QemuAudioProtocol.readMessage(input, FRAME, byte[]::new);
     final QemuAudioProtocol.Message cutText = QemuAudioProtocol.readMessage(input, FRAME, byte[]::new);
     final QemuAudioProtocol.Message audio = QemuAudioProtocol.readMessage(input, FRAME, byte[]::new);
     final int audioLength = audio.getLength();
     assertSame(QemuAudioProtocol.Message.IGNORED, bell);
-    assertSame(QemuAudioProtocol.Message.IGNORED, colourMap);
+    assertSame(QemuAudioProtocol.Message.IGNORED, colorMap);
     assertSame(QemuAudioProtocol.Message.IGNORED, cutText);
     assertEquals(4, audioLength);
+  }
+
+  private void writeUnrequestedMessages(final DataOutputStream output) throws IOException {
+    output.writeByte(QemuAudioProtocol.SERVER_BELL);
+    output.writeByte(QemuAudioProtocol.SERVER_COLOR_MAP);
+    output.writeByte(0);
+    output.writeShort(0);
+    output.writeShort(2);
+    output.write(new byte[12]);
+    output.writeByte(QemuAudioProtocol.SERVER_CUT_TEXT);
+    output.write(new byte[CUT_TEXT_PADDING_BYTES]);
+    output.writeInt(5);
+    output.write("hello".getBytes(StandardCharsets.US_ASCII));
+    writeData(output, new byte[] { 9, 9, 9, 9 });
   }
 
   @Test
@@ -334,51 +344,38 @@ final class QemuAudioProtocolTest {
     final String typeMessage = type.getMessage();
     assertEquals("VNC server sent message type 7, which the audio connection does not expect!", typeMessage);
 
-    final ProtocolException picture = assertThrows(ProtocolException.class, () ->
-      this.read(output -> {
-        output.writeByte(0);
-        output.writeByte(0);
-        output.writeShort(1);
-        output.write(new byte[RECTANGLE_BYTES]);
-        output.writeInt(0);
-      })
-    );
+    final ProtocolException picture = assertThrows(ProtocolException.class, () -> this.read(this::writeUnexpectedRectangle));
     final String pictureMessage = picture.getMessage();
     assertEquals("VNC server sent a rectangle of encoding 0, which the audio connection never asks for!", pictureMessage);
 
-    final ProtocolException many = assertThrows(ProtocolException.class, () ->
-      this.read(output -> {
-        output.writeByte(0);
-        output.writeByte(0);
-        output.writeShort(QemuAudioProtocol.MAXIMUM_RECTANGLES + 1);
-      })
-    );
+    final ProtocolException many = assertThrows(ProtocolException.class, () -> this.read(this::writeTooManyRectangles));
     final String manyMessage = many.getMessage();
     assertEquals("VNC server announced 17 rectangles, more than the 16 allowed!", manyMessage);
     assertThrows(ProtocolException.class, () -> this.read(output -> output.write(new byte[] { (byte) 255, 2, 0, 0 })));
     assertThrows(ProtocolException.class, () -> this.read(output -> output.write(new byte[] { (byte) 255, 1, 0, 9 })));
   }
 
+  private void writeUnexpectedRectangle(final DataOutputStream output) throws IOException {
+    output.writeByte(0);
+    output.writeByte(0);
+    output.writeShort(1);
+    output.write(new byte[RECTANGLE_BYTES]);
+    output.writeInt(0);
+  }
+
+  private void writeTooManyRectangles(final DataOutputStream output) throws IOException {
+    output.writeByte(0);
+    output.writeByte(0);
+    output.writeShort(QemuAudioProtocol.MAXIMUM_RECTANGLES + 1);
+  }
+
   @Test
   void shouldAllowTheLimitsThemselves() throws IOException {
-    final QemuAudioProtocol.Message sixteen = this.read(output -> {
-      output.writeByte(QemuAudioProtocol.SERVER_UPDATE);
-      output.writeByte(0);
-      output.writeShort(QemuAudioProtocol.MAXIMUM_RECTANGLES);
-      for (int index = 0; index < QemuAudioProtocol.MAXIMUM_RECTANGLES; index++) {
-        output.write(new byte[RECTANGLE_BYTES]);
-        output.writeInt(QemuAudioProtocol.AUDIO_ENCODING);
-      }
-    });
+    final QemuAudioProtocol.Message sixteen = this.read(this::writeMaximumRectangles);
     final QemuAudioProtocol.Kind sixteenKind = sixteen.getKind();
     assertEquals(QemuAudioProtocol.Kind.ACKNOWLEDGED, sixteenKind);
 
-    final QemuAudioProtocol.Message clipboard = this.read(output -> {
-      output.writeByte(QemuAudioProtocol.SERVER_CUT_TEXT);
-      output.write(new byte[CUT_TEXT_PADDING_BYTES]);
-      output.writeInt(QemuAudioProtocol.MAXIMUM_CUT_TEXT_BYTES);
-      output.write(new byte[QemuAudioProtocol.MAXIMUM_CUT_TEXT_BYTES]);
-    });
+    final QemuAudioProtocol.Message clipboard = this.read(this::writeMaximumClipboard);
     final QemuAudioProtocol.Kind clipboardKind = clipboard.getKind();
     assertEquals(QemuAudioProtocol.Kind.IGNORED, clipboardKind);
 
@@ -386,47 +383,66 @@ final class QemuAudioProtocolTest {
     final int largestLength = largest.getLength();
     assertEquals(QemuAudioProtocol.MAXIMUM_AUDIO_BYTES, largestLength);
 
-    final byte[] longestName = bytes(output -> {
-      output.write(new byte[FRAMEBUFFER_SIZE_BYTES + PIXEL_FORMAT_BYTES]);
-      output.writeInt(QemuAudioProtocol.MAXIMUM_TEXT_BYTES);
-      output.write(new byte[QemuAudioProtocol.MAXIMUM_TEXT_BYTES]);
-    });
+    final byte[] longestName = bytes(this::writeMaximumServerName);
     QemuAudioProtocol.readServerInitialization(this.input(longestName));
+  }
+
+  private void writeMaximumRectangles(final DataOutputStream output) throws IOException {
+    output.writeByte(QemuAudioProtocol.SERVER_UPDATE);
+    output.writeByte(0);
+    output.writeShort(QemuAudioProtocol.MAXIMUM_RECTANGLES);
+    for (int index = 0; index < QemuAudioProtocol.MAXIMUM_RECTANGLES; index++) {
+      output.write(new byte[RECTANGLE_BYTES]);
+      output.writeInt(QemuAudioProtocol.AUDIO_ENCODING);
+    }
+  }
+
+  private void writeMaximumClipboard(final DataOutputStream output) throws IOException {
+    output.writeByte(QemuAudioProtocol.SERVER_CUT_TEXT);
+    output.write(new byte[CUT_TEXT_PADDING_BYTES]);
+    output.writeInt(QemuAudioProtocol.MAXIMUM_CUT_TEXT_BYTES);
+    output.write(new byte[QemuAudioProtocol.MAXIMUM_CUT_TEXT_BYTES]);
+  }
+
+  private void writeMaximumServerName(final DataOutputStream output) throws IOException {
+    output.write(new byte[FRAMEBUFFER_SIZE_BYTES + PIXEL_FORMAT_BYTES]);
+    output.writeInt(QemuAudioProtocol.MAXIMUM_TEXT_BYTES);
+    output.write(new byte[QemuAudioProtocol.MAXIMUM_TEXT_BYTES]);
   }
 
   @Test
   void shouldBoundAudioAndClipboardLengths() {
-    final ProtocolException audio = assertThrows(ProtocolException.class, () ->
-      this.read(output -> {
-        output.write(new byte[] { (byte) 255, 1, 0, 2 });
-        output.writeInt(QemuAudioProtocol.MAXIMUM_AUDIO_BYTES + FRAME);
-      })
-    );
+    final ProtocolException audio = assertThrows(ProtocolException.class, () -> this.read(this::writeOversizedAudio));
     final String audioMessage = audio.getMessage();
     assertEquals("VNC server sent 65540 bytes of audio, not whole frames of at most 65536 bytes!", audioMessage);
-    assertThrows(ProtocolException.class, () ->
-      this.read(output -> {
-        output.write(new byte[] { (byte) 255, 1, 0, 2 });
-        output.writeInt(3);
-      })
-    );
+    assertThrows(ProtocolException.class, () -> this.read(this::writeIncompleteAudioFrame));
 
-    final ProtocolException clipboard = assertThrows(ProtocolException.class, () ->
-      this.read(output -> {
-        output.writeByte(QemuAudioProtocol.SERVER_CUT_TEXT);
-        output.write(new byte[CUT_TEXT_PADDING_BYTES]);
-        output.writeInt(-1);
-      })
-    );
+    final ProtocolException clipboard = assertThrows(ProtocolException.class, () -> this.read(this::writeOversizedClipboard));
     final String clipboardMessage = clipboard.getMessage();
     assertEquals("VNC server sent 4294967295 bytes of clipboard text, more than the 1048576 bytes allowed!", clipboardMessage);
-    assertThrows(EOFException.class, () ->
-      this.read(output -> {
-        output.write(new byte[] { (byte) 255, 1, 0, 2 });
-        output.writeInt(8);
-        output.write(new byte[3]);
-      })
-    );
+    assertThrows(EOFException.class, () -> this.read(this::writeTruncatedAudio));
+  }
+
+  private void writeOversizedAudio(final DataOutputStream output) throws IOException {
+    output.write(new byte[] { (byte) 255, 1, 0, 2 });
+    output.writeInt(QemuAudioProtocol.MAXIMUM_AUDIO_BYTES + FRAME);
+  }
+
+  private void writeIncompleteAudioFrame(final DataOutputStream output) throws IOException {
+    output.write(new byte[] { (byte) 255, 1, 0, 2 });
+    output.writeInt(3);
+  }
+
+  private void writeOversizedClipboard(final DataOutputStream output) throws IOException {
+    output.writeByte(QemuAudioProtocol.SERVER_CUT_TEXT);
+    output.write(new byte[CUT_TEXT_PADDING_BYTES]);
+    output.writeInt(-1);
+  }
+
+  private void writeTruncatedAudio(final DataOutputStream output) throws IOException {
+    output.write(new byte[] { (byte) 255, 1, 0, 2 });
+    output.writeInt(8);
+    output.write(new byte[3]);
   }
 
   @Test
@@ -441,6 +457,6 @@ final class QemuAudioProtocolTest {
 
   @FunctionalInterface
   interface Writer {
-    void write(DataOutputStream output) throws IOException;
+    void write(final DataOutputStream output) throws IOException;
   }
 }

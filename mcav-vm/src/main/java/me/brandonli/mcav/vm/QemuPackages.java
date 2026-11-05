@@ -32,6 +32,10 @@ final class QemuPackages {
 
   private static final List<String> TREES = List.of("usr/bin", "usr/share/qemu", "usr/share/seabios");
 
+  private static final String X86_PACKAGE_LIST = "debian-qemu-x86";
+  private static final String ARM_PACKAGE_LIST = "debian-qemu-arm";
+  private static final String MISC_PACKAGE_LIST = "debian-qemu-misc";
+
   private final BooleanSupplier supported;
   private final Function<FileMode, Path> downloader;
   private final Supplier<List<Path>> libraryFolders;
@@ -44,16 +48,16 @@ final class QemuPackages {
 
   static QemuPackages create(final VmPlayer.Architecture architecture) {
     final String name = listNameOf(architecture);
-    final String resource = RESOURCE_FOLDER + name + RESOURCE_SUFFIX;
+    final String resource = "%s%s%s".formatted(RESOURCE_FOLDER, name, RESOURCE_SUFFIX);
     final DebianProgramInstaller installer = DebianProgramInstaller.create(resource, name, TREES);
     return new QemuPackages(installer::isSupported, installer::download, installer::listLibraryFolders);
   }
 
   static String listNameOf(final VmPlayer.Architecture architecture) {
     return switch (architecture) {
-      case X86_64 -> "debian-qemu-x86";
-      case ARM, AARCH64 -> "debian-qemu-arm";
-      case RISCV64 -> "debian-qemu-misc";
+      case X86_64 -> X86_PACKAGE_LIST;
+      case ARM, AARCH64 -> ARM_PACKAGE_LIST;
+      case RISCV64 -> MISC_PACKAGE_LIST;
     };
   }
 

@@ -56,7 +56,8 @@ public final class QemuVmPlayer implements VmPlayer {
   // QEMU refreshes the VNC picture 30 ms or more after a change, so sound without this delay runs ahead of it
   private static final int AUDIO_DELAY_MILLISECONDS = 70;
 
-  private static final int MAXIMUM_QUEUED_AUDIO_MILLISECONDS = AUDIO_DELAY_MILLISECONDS + 60;
+  private static final int AUDIO_QUEUE_HEADROOM_MILLISECONDS = 60;
+  private static final int MAXIMUM_QUEUED_AUDIO_MILLISECONDS = AUDIO_DELAY_MILLISECONDS + AUDIO_QUEUE_HEADROOM_MILLISECONDS;
 
   private final VncPlayer vncPlayer;
   private final ExecutableFinder finder;
@@ -146,9 +147,9 @@ public final class QemuVmPlayer implements VmPlayer {
 
   // the caller holds the lock
   private void launchMachine(final VmSettings settings, final Architecture architecture, final VmConfiguration configuration) {
-    final QemuProgram program = this.findProgram(architecture);
+    final QemuProgram program = this.findOrInstallProgram(architecture);
     final VmProcess qemu = this.processFactory.create(settings, architecture, program, configuration);
-    // start() can fail after creating a live child. Keep ownership before invoking any process lifecycle code.
+    // start() can fail after spawning QEMU, so own the process first
     this.process = qemu;
 
     try {
@@ -193,13 +194,13 @@ public final class QemuVmPlayer implements VmPlayer {
   private void shutdownAfterFailure(final Throwable failure) {
     try {
       this.shutdownMachine();
-    } catch (final RuntimeException | Error cleanupException) {
-      ThrowableUtils.throwIfFatal(cleanupException);
+    } catch (final RuntimeException | Error exception) {
+      ThrowableUtils.throwIfFatal(exception);
 
       final Equivalence<Object> identity = Equivalence.identity();
-      final boolean sameFailure = identity.equivalent(failure, cleanupException);
+      final boolean sameFailure = identity.equivalent(failure, exception);
       if (!sameFailure) {
-        failure.addSuppressed(cleanupException);
+        failure.addSuppressed(exception);
       }
     }
   }
@@ -243,7 +244,7 @@ public final class QemuVmPlayer implements VmPlayer {
       this.audioClient = this.audioConnector.connect(address, password, sink, this::report);
     } catch (final IOException exception) {
       this.disconnectAudio();
-      this.report("The sound of the virtual machine could not be connected, it runs without sound", exception);
+      this.report("The sound of the virtual machine could not be connected, so it runs without sound.", exception);
     }
   }
 
@@ -266,7 +267,7 @@ public final class QemuVmPlayer implements VmPlayer {
     handler.accept(message, failure);
   }
 
-  private QemuProgram findProgram(final Architecture architecture) {
+  private QemuProgram findOrInstallProgram(final Architecture architecture) {
     final String command = architecture.getCommand();
     final Optional<Path> found = this.finder.find(command);
     final Optional<QemuProgram> system = found.map(QemuProgram::of);
@@ -308,7 +309,7 @@ public final class QemuVmPlayer implements VmPlayer {
         this.releaseDisplay();
       }
 
-      // A repeated release still owns cleanup if QEMU survived the preceding bounded termination attempt.
+      // a repeated release retries a QEMU that survived the last termination
       this.shutdownMachine();
 
       return first;
@@ -495,7 +496,12 @@ public final class QemuVmPlayer implements VmPlayer {
 
   @FunctionalInterface
   interface ProcessFactory {
-    VmProcess create(VmSettings settings, Architecture architecture, QemuProgram program, VmConfiguration configuration);
+    VmProcess create(
+      final VmSettings settings,
+      final Architecture architecture,
+      final QemuProgram program,
+      final VmConfiguration configuration
+    );
   }
 
   private static final class OutputSink implements VmAudioClient.Sink {
@@ -519,7 +525,11 @@ public final class QemuVmPlayer implements VmPlayer {
 
   @FunctionalInterface
   interface AudioConnector {
-    VmAudioClient connect(InetSocketAddress address, String password, VmAudioClient.Sink sink, BiConsumer<String, Throwable> failures)
-      throws IOException;
+    VmAudioClient connect(
+      final InetSocketAddress address,
+      final String password,
+      final VmAudioClient.Sink sink,
+      final BiConsumer<String, Throwable> failures
+    ) throws IOException;
   }
 }
