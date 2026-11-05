@@ -17,6 +17,7 @@
  */
 package me.brandonli.mcav.bukkit.utils;
 
+import static java.util.Objects.requireNonNull;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
@@ -37,7 +38,6 @@ import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.channel.epoll.EpollChannelOption;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import me.brandonli.mcav.bukkit.media.map.MapPacketFactory;
@@ -241,7 +241,7 @@ final class PacketUtilsTest {
 
   private Connection useConnection() {
     final Connection connection = FakeServer.mockConnection();
-    final CraftPlayer player = (CraftPlayer) Objects.requireNonNull(Bukkit.getPlayer(FIRST));
+    final CraftPlayer player = (CraftPlayer) requireNonNull(Bukkit.getPlayer(FIRST));
     FakeServer.connect(player.getHandle().connection, connection);
     return connection;
   }

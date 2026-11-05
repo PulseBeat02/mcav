@@ -17,6 +17,7 @@
  */
 package me.brandonli.mcav.bukkit.media.mcv2;
 
+import static java.util.Objects.requireNonNull;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -46,7 +47,6 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -1330,7 +1330,7 @@ final class Mcv2ResultTest {
     final UUID far = UUID.fromString(OTHER_VIEWER_ID);
     final UUID otherWorld = UUID.fromString("00000000-0000-0000-0000-000000000044");
     final AtomicReference<Location> farPosition = new AtomicReference<>(new Location(WORLD, 400, 64, 0));
-    this.seesSixChunksFrom(Objects.requireNonNull(Bukkit.getPlayer(WITHOUT)), new AtomicReference<>(new Location(WORLD, 0, 64, 5)));
+    this.seesSixChunksFrom(requireNonNull(Bukkit.getPlayer(WITHOUT)), new AtomicReference<>(new Location(WORLD, 0, 64, 5)));
     this.seesSixChunksFrom(this.server.addPlayer(far), farPosition);
     this.seesSixChunksFrom(this.server.addPlayer(otherWorld), new AtomicReference<>(new Location(ELSEWHERE, 0, 64, 0)));
     PacketUtils.initialize();

@@ -17,6 +17,7 @@
  */
 package me.brandonli.mcav.bukkit.resourcepack.provider.http;
 
+import static java.util.Objects.requireNonNull;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -41,7 +42,6 @@ import java.nio.channels.WritableByteChannel;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.jupiter.api.Test;
@@ -240,7 +240,7 @@ final class FileDownloadProgressTest {
     }
 
     private ChannelProgressivePromise promise() {
-      return Objects.requireNonNull(this.pending);
+      return requireNonNull(this.pending);
     }
   }
 

@@ -19,6 +19,7 @@ package me.brandonli.mcav.bukkit.media.mcv2;
 
 import static java.lang.foreign.ValueLayout.JAVA_INT;
 import static java.lang.foreign.ValueLayout.JAVA_LONG;
+import static java.util.Objects.requireNonNull;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -54,7 +55,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ForkJoinPool;
@@ -619,10 +619,10 @@ final class Mcv2NativesTest {
     final SymbolLookup library = NativeTesting.library();
     final int levels = NativeTesting.resolution().levels();
     // The resolution's platform, as bind passes the library the hardware capabilities (SVE's permission) only for Linux
-    final String platform = Objects.requireNonNull(Natives.platform(System.getProperty("os.name", ""), System.getProperty("os.arch", "")));
+    final String platform = requireNonNull(Natives.platform(System.getProperty("os.name", ""), System.getProperty("os.arch", "")));
     final Resolution best = Natives.bind(library, platform, null, Natives.ABI_VERSION);
     final Level expectedLevel = Natives.selectLevel(levels, null);
-    final Level bestLevel = Objects.requireNonNull(best.binding()).getLevel();
+    final Level bestLevel = requireNonNull(best.binding()).getLevel();
     assertEquals(expectedLevel, bestLevel);
 
     final String expectedDescription = NATIVE_DESCRIPTION_PREFIX + Natives.selectLevel(levels, null).getSymbol() + " (" + platform + ")";
@@ -633,7 +633,7 @@ final class Mcv2NativesTest {
     final Object kernels = NativeTesting.factory(best).get();
     assertInstanceOf(expectedKernelsType, kernels);
 
-    final Level scalarLevel = Objects.requireNonNull(Natives.bind(library, "here", SCALAR_LEVEL, Natives.ABI_VERSION).binding()).getLevel();
+    final Level scalarLevel = requireNonNull(Natives.bind(library, "here", SCALAR_LEVEL, Natives.ABI_VERSION).binding()).getLevel();
     assertEquals(Level.SCALAR, scalarLevel);
 
     final Resolution unversioned = Natives.bind(

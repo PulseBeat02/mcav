@@ -17,6 +17,7 @@
  */
 package me.brandonli.mcav.bukkit.media.mcv2;
 
+import static java.util.Objects.requireNonNull;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.MODE_SKIP;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.MODE_SOLID;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
@@ -27,7 +28,6 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.util.Objects;
 import java.util.Optional;
 import java.util.Random;
 import java.util.concurrent.ForkJoinPool;
@@ -499,7 +499,7 @@ final class Mcv2FrameTest {
     private final Mcv2Receiver receiver = new Mcv2Receiver();
 
     private byte[] decode(final byte[] data) {
-      return Objects.requireNonNull(this.receiver.accept(data));
+      return requireNonNull(this.receiver.accept(data));
     }
   }
 }
