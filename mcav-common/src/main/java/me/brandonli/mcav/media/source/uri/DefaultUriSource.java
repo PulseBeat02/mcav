@@ -38,7 +38,7 @@ public final class DefaultUriSource implements UriSource {
   DefaultUriSource(final URI uri) {
     this.uri = uri;
     final String raw = uri.toString();
-    this.direct = SourceUtils.isDirectVideo(raw);
+    this.direct = SourceUtils.isDirectMedia(raw);
   }
 
   /**

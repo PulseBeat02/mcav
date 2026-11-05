@@ -170,7 +170,7 @@ public final class SourceUtils {
    * @return true if the path of the URL ends with a media extension, false for null, empty, or malformed URLs
    * @since 1.0.0
    */
-  public static boolean isDirectVideo(final @Nullable String url) {
+  public static boolean isDirectMedia(final @Nullable String url) {
     if (url == null || url.isEmpty()) {
       return false;
     }

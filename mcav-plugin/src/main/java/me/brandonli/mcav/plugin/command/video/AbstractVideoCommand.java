@@ -484,7 +484,7 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
   // yt-dlp is prepared in the background, so it may still be downloading or unavailable
   private @Nullable Component findYtdlpProblem(final String mrl) {
     final boolean url = SourceUtils.isUri(mrl);
-    final boolean direct = SourceUtils.isDirectVideo(mrl);
+    final boolean direct = SourceUtils.isDirectMedia(mrl);
     if (!url || direct) {
       return null;
     }
