@@ -52,6 +52,8 @@ import org.junit.jupiter.api.Tag;
 @Tag("fuzz")
 final class FileServerHandlerFuzzTest {
 
+  private static final int UNSIGNED_BYTE_MASK = 0xFF;
+
   private static final int MAXIMUM_HEADER_BYTES = 8192;
   private static final int MAXIMUM_SPLITS = 8;
   private static final int MAXIMUM_FILLER = 12_000;
@@ -82,7 +84,7 @@ final class FileServerHandlerFuzzTest {
       return;
     }
 
-    final int options = input[0] & 0xFF;
+    final int options = input[0] & UNSIGNED_BYTE_MASK;
     final OpenMode mode = OpenMode.values()[(options & 0b11) % OpenMode.values().length];
     final ReadTimeout readTimeout = (options & 0b100) != 0 ? ReadTimeout.INSTALLED : ReadTimeout.ABSENT;
     final byte[] content = (options & 0b1000) != 0 ? new byte[0] : PACK;
@@ -343,7 +345,7 @@ final class FileServerHandlerFuzzTest {
     }
 
     private static Request of(final byte[] input, final FillerPlace fillerPlace) {
-      final int splits = (input[1] & 0xFF) % (MAXIMUM_SPLITS + 1);
+      final int splits = (input[1] & UNSIGNED_BYTE_MASK) % (MAXIMUM_SPLITS + 1);
       final int header = 2 + 2 * splits + 3;
       final int fillerLength = ((byteAt(input, header - 3) << 8) | byteAt(input, header - 2)) % (MAXIMUM_FILLER + 1);
       final byte[] filler = new byte[fillerLength];
@@ -373,7 +375,7 @@ final class FileServerHandlerFuzzTest {
     }
 
     private static int byteAt(final byte[] input, final int index) {
-      return index >= 2 && index < input.length ? input[index] & 0xFF : 0;
+      return index >= 2 && index < input.length ? input[index] & UNSIGNED_BYTE_MASK : 0;
     }
   }
 

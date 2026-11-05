@@ -39,6 +39,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 // made by mcv2_tools.py fixtures and edge_streams with the Python reference
 public final class Mcv2Fixtures {
 
+  private static final String RESOURCE_PATH_FORMAT = "%s%s";
+
   private static final String DIGESTS_FILE = "/digests.json";
   private static final String ROOT = "/mcv2/";
 
@@ -53,7 +55,7 @@ public final class Mcv2Fixtures {
   }
 
   public static byte[] read(final String path) {
-    final String resource = "%s%s".formatted(ROOT, path);
+    final String resource = RESOURCE_PATH_FORMAT.formatted(ROOT, path);
     final String missingMessage = "Fixture %s is missing!".formatted(path);
     final @Nullable InputStream resourceStream = Mcv2Fixtures.class.getResourceAsStream(resource);
     try (final InputStream stream = requireNonNull(resourceStream, missingMessage)) {
@@ -80,7 +82,7 @@ public final class Mcv2Fixtures {
   }
 
   static Map<String, List<String>> readDigests(final String folder) {
-    final byte[] bytes = read("%s%s".formatted(folder, DIGESTS_FILE));
+    final byte[] bytes = read(RESOURCE_PATH_FORMAT.formatted(folder, DIGESTS_FILE));
     final String text = new String(bytes, StandardCharsets.UTF_8);
     final JsonElement parsed = JsonParser.parseString(text);
     final JsonObject root = parsed.getAsJsonObject();

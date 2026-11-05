@@ -35,6 +35,14 @@ import org.junit.jupiter.api.Test;
 
 final class Mcv2PacerTest {
 
+  private static final int VIDEO_FRAMES_PER_SECOND = 50;
+
+  private static final int ENCODING_MILLISECONDS = 25;
+  private static final int SLOW_ENCODING_MILLISECONDS = 38;
+  private static final int OVERLOADED_ENCODING_MILLISECONDS = 61;
+
+  private static final String PRESET_NAME = "FAST";
+
   private static final long SECOND = 1_000_000_000L;
 
   private static final int FULL_WIDTH = 1920;
@@ -250,7 +258,7 @@ final class Mcv2PacerTest {
     final Driver driver = new Driver(pacer, 60, 0);
     driver.play(5, 5);
     // 25 ms per frame is more than the 16.7 ms a frame has at 60 fps, and fits in 30 fps' 33.3 ms
-    final Mcv2Pacer.Change change = driver.play(2, 25);
+    final Mcv2Pacer.Change change = driver.play(2, ENCODING_MILLISECONDS);
     assertNotNull(change);
 
     final boolean stepsDown = change.isDown();
@@ -284,7 +292,7 @@ final class Mcv2PacerTest {
   @Test
   void shouldStepDownThePresetsBeforeTheFrameRate() {
     final Mcv2Pacer pacer = new Mcv2Pacer(List.of(FULL, SMALL), List.of(LIVE, FAST), Mcv2Pacer.Floor.DITHERED_MAPS);
-    final Driver driver = new Driver(pacer, 50, 0);
+    final Driver driver = new Driver(pacer, VIDEO_FRAMES_PER_SECOND, 0);
     driver.play(5, 5);
     // 22 ms per frame is more than the 20 ms a frame has at 50 fps; the faster preset's predicted 11 ms fits 17 ms
     final Mcv2Pacer.Change change = driver.play(2, 22);
@@ -332,10 +340,10 @@ final class Mcv2PacerTest {
   @Test
   void shouldTakeAFasterPresetThatOnlyKeepsUpBeforeALowerFrameRate() {
     final Mcv2Pacer pacer = new Mcv2Pacer(List.of(FULL, SMALL), List.of(LIVE, FAST), Mcv2Pacer.Floor.DITHERED_MAPS);
-    final Driver driver = new Driver(pacer, 50, 0);
+    final Driver driver = new Driver(pacer, VIDEO_FRAMES_PER_SECOND, 0);
     driver.play(5, 5);
     // 38 ms per frame: the faster preset's 19 ms keeps up with 20 ms without fitting 17 ms, and keeps every frame
-    final Mcv2Pacer.Change change = driver.play(2, 38);
+    final Mcv2Pacer.Change change = driver.play(2, SLOW_ENCODING_MILLISECONDS);
     assertNotNull(change);
 
     final Mcv2Pacer.Rung expectedTo = Mcv2Pacer.Rung.of(FULL_WIDTH, FULL_HEIGHT, 1, FAST);
@@ -346,7 +354,7 @@ final class Mcv2PacerTest {
   @Test
   void shouldStepDownTheFrameRateAtTheFastestPreset() {
     final Mcv2Pacer pacer = new Mcv2Pacer(List.of(FULL, SMALL), List.of(LIVE, FAST), Mcv2Pacer.Floor.DITHERED_MAPS);
-    final Driver driver = new Driver(pacer, 50, 0);
+    final Driver driver = new Driver(pacer, VIDEO_FRAMES_PER_SECOND, 0);
     driver.play(5, 5);
     // 44 ms per frame: the faster preset's 22 ms does not keep up with 20 ms at 50 fps, and fits 34 ms at 25 fps
     final Mcv2Pacer.Change change = driver.play(2, 44);
@@ -372,10 +380,10 @@ final class Mcv2PacerTest {
   @Test
   void shouldStepDownToALowerFrameRateOnlyWhereItFitsWithRoom() {
     final Mcv2Pacer pacer = new Mcv2Pacer(List.of(FULL, SMALL));
-    final Driver driver = new Driver(pacer, 50, 0);
+    final Driver driver = new Driver(pacer, VIDEO_FRAMES_PER_SECOND, 0);
     driver.play(5, 5);
     // 38 ms per frame keeps up with every other frame's 40 ms without fitting 34 ms; every third frame's 51 ms fits
-    final Mcv2Pacer.Change change = driver.play(2, 38);
+    final Mcv2Pacer.Change change = driver.play(2, SLOW_ENCODING_MILLISECONDS);
     assertNotNull(change);
 
     final Mcv2Pacer.Rung expectedTo = Mcv2Pacer.Rung.of(FULL_WIDTH, FULL_HEIGHT, 3);
@@ -531,7 +539,7 @@ final class Mcv2PacerTest {
     final Mcv2Pacer pacer = new Mcv2Pacer(List.of(FULL));
     final Driver driver = new Driver(pacer, 60, 0);
     driver.play(5, 5);
-    driver.play(2, 25);
+    driver.play(2, ENCODING_MILLISECONDS);
     final Mcv2Pacer.Rung expectedAfterStep = Mcv2Pacer.Rung.of(FULL_WIDTH, FULL_HEIGHT, 2);
     final Mcv2Pacer.Rung rungAfterStep = pacer.getRung();
     assertEquals(expectedAfterStep, rungAfterStep);
@@ -547,7 +555,7 @@ final class Mcv2PacerTest {
     assertEquals(expectedAfterWait, rungAfterWait);
 
     // leaving it again keeps it off twice as long
-    driver.play(2, 25);
+    driver.play(2, ENCODING_MILLISECONDS);
     final Mcv2Pacer.Rung expectedAfterSecondStep = Mcv2Pacer.Rung.of(FULL_WIDTH, FULL_HEIGHT, 2);
     final Mcv2Pacer.Rung rungAfterSecondStep = pacer.getRung();
     assertEquals(expectedAfterSecondStep, rungAfterSecondStep);
@@ -564,7 +572,7 @@ final class Mcv2PacerTest {
 
     // holding the top rung as long as it would next be kept off, forty seconds, makes the wait short again
     driver.play(41, 11);
-    driver.play(2, 25);
+    driver.play(2, ENCODING_MILLISECONDS);
     final Mcv2Pacer.Rung expectedAfterThirdStep = Mcv2Pacer.Rung.of(FULL_WIDTH, FULL_HEIGHT, 2);
     final Mcv2Pacer.Rung rungAfterThirdStep = pacer.getRung();
     assertEquals(expectedAfterThirdStep, rungAfterThirdStep);
@@ -820,7 +828,7 @@ final class Mcv2PacerTest {
     final Mcv2Pacer pacer = new Mcv2Pacer(List.of(FULL));
     final Exact clock = new Exact(pacer, FRAME_62, 0);
     final Mcv2Pacer.Rung expectedTo = Mcv2Pacer.Rung.of(FULL_WIDTH, FULL_HEIGHT, 2);
-    final Mcv2Pacer.Rung to = clock.until(25, 1000).getTo();
+    final Mcv2Pacer.Rung to = clock.until(ENCODING_MILLISECONDS, 1000).getTo();
     assertEquals(expectedTo, to);
 
     final long stepped = clock.now;
@@ -872,7 +880,7 @@ final class Mcv2PacerTest {
       assertNull(change);
     }
 
-    final Mcv2Pacer.Change left = clock.until(61, 1000);
+    final Mcv2Pacer.Change left = clock.until(OVERLOADED_ENCODING_MILLISECONDS, 1000);
     final boolean stepsDown = left.isDown();
     assertTrue(stepsDown);
 
@@ -902,7 +910,7 @@ final class Mcv2PacerTest {
       assertNull(change);
     }
 
-    final boolean stepsDown = clock.until(61, 1000).isDown();
+    final boolean stepsDown = clock.until(OVERLOADED_ENCODING_MILLISECONDS, 1000).isDown();
     assertTrue(stepsDown);
 
     final long stepped = clock.now;
@@ -1034,21 +1042,21 @@ final class Mcv2PacerTest {
 
   @Test
   void shouldComparePresetsByEveryPart() {
-    final Mcv2Pacer.Preset preset = Mcv2Pacer.Preset.of("FAST", 1);
+    final Mcv2Pacer.Preset preset = Mcv2Pacer.Preset.of(PRESET_NAME, 1);
     EqualityAssertions.assertEqualityContract(
       preset,
-      Mcv2Pacer.Preset.of("FAST", 1),
+      Mcv2Pacer.Preset.of(PRESET_NAME, 1),
       Mcv2Pacer.Preset.of("SLOW", 1),
-      Mcv2Pacer.Preset.of("FAST", 2)
+      Mcv2Pacer.Preset.of(PRESET_NAME, 2)
     );
   }
 
   @Test
   void shouldHashPresetsByEveryPart() {
-    final Mcv2Pacer.Preset preset = Mcv2Pacer.Preset.of("FAST", 1);
+    final Mcv2Pacer.Preset preset = Mcv2Pacer.Preset.of(PRESET_NAME, 1);
 
     final int hash = preset.hashCode();
-    final int expected = Objects.hash("FAST", 1.0);
+    final int expected = Objects.hash(PRESET_NAME, 1.0);
     assertEquals(expected, hash);
   }
 
@@ -1060,15 +1068,15 @@ final class Mcv2PacerTest {
 
   @Test
   void shouldReturnThePresetName() {
-    final Mcv2Pacer.Preset preset = Mcv2Pacer.Preset.of("FAST", 1);
+    final Mcv2Pacer.Preset preset = Mcv2Pacer.Preset.of(PRESET_NAME, 1);
 
     final String name = preset.getName();
-    assertEquals("FAST", name);
+    assertEquals(PRESET_NAME, name);
   }
 
   @Test
   void shouldCompareRungsByEveryPart() {
-    final Mcv2Pacer.Preset fast = Mcv2Pacer.Preset.of("FAST", 1);
+    final Mcv2Pacer.Preset fast = Mcv2Pacer.Preset.of(PRESET_NAME, 1);
     final Mcv2Pacer.Rung rung = Mcv2Pacer.Rung.of(16, 9, 1, fast);
     EqualityAssertions.assertEqualityContract(
       rung,

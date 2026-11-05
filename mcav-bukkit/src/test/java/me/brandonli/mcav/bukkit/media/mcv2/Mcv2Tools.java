@@ -66,6 +66,8 @@ import org.lwjgl.util.spvc.SpvcReflectedResource;
 
 final class Mcv2Tools {
 
+  private static final String ARCHIVE_SUMMARY_FORMAT = "%s: %s frames, %s bytes";
+
   private static final String PROXY_DEFAULT_STREAM = "proxy-default.mcs";
   private static final String PROXY_KEYFRAMES_STREAM = "proxy-keyframes.mcs";
   private static final String PROXY_ODD_STREAM = "proxy-odd.mcs";
@@ -674,7 +676,7 @@ final class Mcv2Tools {
     expected.put("crop", List.of((SOURCE_WIDTH - width) / 2, (SOURCE_HEIGHT - height) / 2, width, height));
     expected.put(Mcv2Fixtures.FRAME_DIGESTS_KEY, hashes);
     digests.put(name, expected);
-    System.out.println("%s: %s frames, %s bytes".formatted(name, hashes.size(), archive.size()));
+    System.out.println(ARCHIVE_SUMMARY_FORMAT.formatted(name, hashes.size(), archive.size()));
   }
 
   private static void crop(final RandomAccessFile input, final int frame, final byte[] rgb, final int width, final int height)
@@ -704,7 +706,7 @@ final class Mcv2Tools {
     }
 
     Files.write(fixtures.resolve("%s%s".formatted(ENCODER_FOLDER, name)), archive.toByteArray());
-    System.out.println("%s: %s frames, %s bytes".formatted(name, GOLDEN_FRAMES, archive.size()));
+    System.out.println(ARCHIVE_SUMMARY_FORMAT.formatted(name, GOLDEN_FRAMES, archive.size()));
   }
 
   private static void appendFrame(final ByteArrayOutputStream output, final byte[] data) {

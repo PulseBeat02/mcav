@@ -66,6 +66,8 @@ import org.mockito.ArgumentCaptor;
 
 final class RendererResultsTest {
 
+  private static final int POSITION_HEIGHT = 64;
+
   private static final UUID VIEWER = UUID.fromString("00000000-0000-0000-0000-000000000001");
   private static final int BROWN = (102 << 16) | (76 << 8) | 51;
 
@@ -93,7 +95,7 @@ final class RendererResultsTest {
 
   private Location createPosition() {
     final World configuredWorld = this.world.getWorld();
-    return new Location(configuredWorld, 0, 64, 0);
+    return new Location(configuredWorld, 0, POSITION_HEIGHT, 0);
   }
 
   @Test
@@ -111,9 +113,9 @@ final class RendererResultsTest {
     final boolean handled = result.applyFilter(image, this.metadata);
     this.server.runTasks();
     result.release();
-    final Position block = Position.block(0, 64, 0);
+    final Position block = Position.block(0, POSITION_HEIGHT, 0);
     final BlockData brown = BlockPaletteLookup.getBlockData(BROWN);
-    final BlockData original = this.world.getOriginalBlock(0, 64, 0);
+    final BlockData original = this.world.getOriginalBlock(0, POSITION_HEIGHT, 0);
     final Map<Position, BlockData> shown = Map.of(block, brown);
     final Map<Position, BlockData> restored = Map.of(block, original);
 

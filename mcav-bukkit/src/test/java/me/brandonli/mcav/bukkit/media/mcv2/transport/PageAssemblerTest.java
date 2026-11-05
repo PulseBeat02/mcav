@@ -36,6 +36,11 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 final class PageAssemblerTest {
 
+  private static final int REFERENCE_ID_OFFSET = 20;
+  private static final int FRAME_ID_OFFSET = 12;
+
+  private static final int FRAME_DIMENSIONS_OFFSET = 40;
+
   private static final String FRAME_ID_FIELD = "frame id";
   private static final String REFERENCE_ID_FIELD = "reference id";
   private static final String FRAME_TYPE_FIELD = "frame type";
@@ -109,7 +114,7 @@ final class PageAssemblerTest {
   private static Stream<Arguments> disagreements() {
     return Stream.of(
       Arguments.of("page count", page(1), pages(TINY).get(0)),
-      Arguments.of(REFERENCE_ID_FIELD, page(0), rewritten(page(1), 20, 9)),
+      Arguments.of(REFERENCE_ID_FIELD, page(0), rewritten(page(1), REFERENCE_ID_OFFSET, 9)),
       Arguments.of("frame length", page(1), rewritten(page(0), 24, BIG.length - 1)),
       Arguments.of(FRAME_TYPE_FIELD, page(0), rewritten(page(1), 6, 0))
     );
@@ -135,7 +140,7 @@ final class PageAssemblerTest {
   void shouldDropAFrameOnAConflictingDuplicate() {
     final PageAssembler assembler = new PageAssembler(3, 6);
     assembler.push(page(0));
-    final byte[] conflicting = rewritten(page(0), 40, 0x12345678L);
+    final byte[] conflicting = rewritten(page(0), FRAME_DIMENSIONS_OFFSET, 0x12345678L);
     final Mcv2Exception exception = assertThrows(Mcv2Exception.class, () -> assembler.push(conflicting));
     final String message = exception.getMessage();
     assertEquals("Conflicting page duplicate!", message);
@@ -148,7 +153,7 @@ final class PageAssemblerTest {
   void shouldKeepAtMostFourFramesPendingAndEvictTheOldest() {
     final PageAssembler assembler = new PageAssembler(3, 6);
     for (int id = 1; id <= 4; id++) {
-      final Optional<byte[]> pending = assembler.push(rewritten(page(0), 12, id));
+      final Optional<byte[]> pending = assembler.push(rewritten(page(0), FRAME_ID_OFFSET, id));
       final boolean framePending = pending.isEmpty();
       assertTrue(framePending);
     }
@@ -161,7 +166,7 @@ final class PageAssemblerTest {
     final int pendingCountAfterFirstEviction = assembler.getPendingCount();
     assertEquals(PageAssembler.MAXIMUM_PENDING, pendingCountAfterFirstEviction);
 
-    final Optional<byte[]> secondEviction = assembler.push(rewritten(page(1), 12, 1));
+    final Optional<byte[]> secondEviction = assembler.push(rewritten(page(1), FRAME_ID_OFFSET, 1));
     final boolean secondEvictionIncomplete = secondEviction.isEmpty();
     assertTrue(secondEvictionIncomplete);
 
@@ -176,7 +181,11 @@ final class PageAssemblerTest {
   }
 
   private static Stream<Arguments> contradictions() {
-    return Stream.of(Arguments.of(FRAME_ID_FIELD, 12, 9L), Arguments.of(REFERENCE_ID_FIELD, 20, 9L), Arguments.of(FRAME_TYPE_FIELD, 6, 0L));
+    return Stream.of(
+      Arguments.of(FRAME_ID_FIELD, FRAME_ID_OFFSET, 9L),
+      Arguments.of(REFERENCE_ID_FIELD, REFERENCE_ID_OFFSET, 9L),
+      Arguments.of(FRAME_TYPE_FIELD, 6, 0L)
+    );
   }
 
   @ParameterizedTest(name = "{0}")
@@ -194,7 +203,7 @@ final class PageAssemblerTest {
   void shouldRefuseACompleteFrameThatIsNotValid() {
     final PageAssembler assembler = new PageAssembler(3, 6);
     // the payload starts with the frame header; a zero width makes the frame invalid
-    assembler.push(rewritten(page(0), 40, 0));
+    assembler.push(rewritten(page(0), FRAME_DIMENSIONS_OFFSET, 0));
     assertThrows(Mcv2Exception.class, () -> assembler.push(page(1)));
 
     final int pendingCount = assembler.getPendingCount();

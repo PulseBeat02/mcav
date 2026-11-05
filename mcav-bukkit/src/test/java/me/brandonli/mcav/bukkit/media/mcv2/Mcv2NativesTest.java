@@ -74,6 +74,8 @@ import org.junit.jupiter.api.io.TempDir;
 
 final class Mcv2NativesTest {
 
+  private static final char FIELD_SEPARATOR = ' ';
+
   private static final byte[] NOT_A_LIBRARY = "not a library".getBytes(StandardCharsets.US_ASCII);
 
   private static final String LEVEL_PROPERTY = "mcv2.native.level";
@@ -181,7 +183,7 @@ final class Mcv2NativesTest {
       assertNotNull(sums);
 
       for (final String line : new String(sums.readAllBytes(), StandardCharsets.US_ASCII).lines().toList()) {
-        final List<String> fields = Splitter.on(' ').omitEmptyStrings().splitToList(line);
+        final List<String> fields = Splitter.on(FIELD_SEPARATOR).omitEmptyStrings().splitToList(line);
         listed.put(fields.get(1).substring(0, fields.get(1).indexOf('/')), fields.get(0));
       }
     }
@@ -560,7 +562,7 @@ final class Mcv2NativesTest {
       // x86-64 lists its features as flags, AArch64 as Features
       if (line.startsWith("flags") || line.startsWith("Features")) {
         flags.addAll(
-          Splitter.on(' ')
+          Splitter.on(FIELD_SEPARATOR)
             .omitEmptyStrings()
             .splitToList(line.substring(line.indexOf(':') + 1))
         );

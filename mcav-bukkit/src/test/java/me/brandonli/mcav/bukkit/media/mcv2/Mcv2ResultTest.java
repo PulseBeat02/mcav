@@ -94,6 +94,12 @@ import org.mockito.invocation.InvocationOnMock;
 
 final class Mcv2ResultTest {
 
+  private static final int ADAPTATION_FRAMES = 90;
+
+  private static final int PROFILE_CHANGE_FRAMES = 120;
+
+  private static final int PREDICTED_MAP_BYTES = 256;
+
   private static final UUID WITH_PACK = UUID.fromString("00000000-0000-0000-0000-000000000041");
 
   private static final UUID WITHOUT = UUID.fromString("00000000-0000-0000-0000-000000000042");
@@ -575,7 +581,7 @@ final class Mcv2ResultTest {
 
     // at 25 ms a frame the screen steps down to every other frame, and says why
     encodeNanoseconds.set(TimeUnit.MILLISECONDS.toNanos(25));
-    this.play(result, clock, encoder, frame, 90);
+    this.play(result, clock, encoder, frame, ADAPTATION_FRAMES);
 
     final int changesAfterSteppingDown = changes.size();
     assertEquals(1, changesAfterSteppingDown);
@@ -592,7 +598,7 @@ final class Mcv2ResultTest {
 
     // at two seconds a frame nothing fits: every viewer is dithered for, and the page frames go
     encodeNanoseconds.set(TimeUnit.SECONDS.toNanos(2));
-    this.play(result, clock, encoder, frame, 90);
+    this.play(result, clock, encoder, frame, ADAPTATION_FRAMES);
 
     final int changesAfterDithering = changes.size();
     assertEquals(2, changesAfterDithering);
@@ -676,7 +682,7 @@ final class Mcv2ResultTest {
     this.server.runTasks();
     this.play(result, clock, encoder, frame, 300);
     fullNanoseconds.set(TimeUnit.MILLISECONDS.toNanos(100));
-    this.play(result, clock, encoder, frame, 120);
+    this.play(result, clock, encoder, frame, PROFILE_CHANGE_FRAMES);
 
     // no frame rate of 64x32 fits 100 ms with room; 16x32 at 30 fps does
     final Mcv2Pacer.Rung expectedSmallRung = Mcv2Pacer.Rung.of(16, 32, 2);
@@ -973,7 +979,7 @@ final class Mcv2ResultTest {
   void shouldCountTheKeyframesItSent() {
     final Mcv2Result.Statistics statistics = new Mcv2Result.Statistics();
     statistics.add(Mcv2.Statistics.of(10, true, 1, 5, LAMBDA), 128);
-    statistics.add(Mcv2.Statistics.of(20, false, 1, 7, LAMBDA), 256);
+    statistics.add(Mcv2.Statistics.of(20, false, 1, 7, LAMBDA), PREDICTED_MAP_BYTES);
 
     final long frames = statistics.getFrames();
     assertEquals(2, frames);
@@ -985,7 +991,7 @@ final class Mcv2ResultTest {
   @Test
   void shouldCountNoKeyframeForAPredictedFrame() {
     final Mcv2Result.Statistics statistics = new Mcv2Result.Statistics();
-    statistics.add(Mcv2.Statistics.of(20, false, 1, 7, LAMBDA), 256);
+    statistics.add(Mcv2.Statistics.of(20, false, 1, 7, LAMBDA), PREDICTED_MAP_BYTES);
 
     final long frames = statistics.getFrames();
     assertEquals(1, frames);
@@ -1883,7 +1889,7 @@ final class Mcv2ResultTest {
 
     // FAST is estimated at 16.2 ms, inside the 16.7 ms frame interval.
     encodeNanoseconds.set(TimeUnit.MILLISECONDS.toNanos(18));
-    encoder = this.playSwitching(result, clock, encoder, frame, 120);
+    encoder = this.playSwitching(result, clock, encoder, frame, PROFILE_CHANGE_FRAMES);
     final int changeCount = changes.size();
     assertEquals(1, changeCount);
 
@@ -1984,7 +1990,7 @@ final class Mcv2ResultTest {
       this.play(result, clock, encoder, frame, 300);
       // 25 ms a frame steps down to every other frame; 5 ms a frame climbs back once the top is free and has room
       encodeNanoseconds.set(TimeUnit.MILLISECONDS.toNanos(25));
-      this.play(result, clock, encoder, frame, 90);
+      this.play(result, clock, encoder, frame, ADAPTATION_FRAMES);
       encodeNanoseconds.set(TimeUnit.MILLISECONDS.toNanos(5));
       this.play(result, clock, encoder, frame, 20 * 60);
       final List<Level> expectedLevels = List.of(Level.WARN, Level.DEBUG);

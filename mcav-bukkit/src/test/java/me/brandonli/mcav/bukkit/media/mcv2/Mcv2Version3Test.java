@@ -33,6 +33,14 @@ import org.junit.jupiter.api.Test;
 
 final class Mcv2Version3Test {
 
+  private static final long MAXIMUM_UNSIGNED_INTEGER = 0xFFFFFFFFL;
+
+  private static final int SMALL_PALETTE_RECORD_BYTES = 14;
+
+  private static final int MAXIMUM_CHANNEL_VALUE = 255;
+
+  private static final int SOLID_BLUE = 30;
+
   @Test
   void shouldRefuseOldVersionsWithAReencodeMessage() {
     final byte[] data = block(32, 0, 0, new byte[0], Mcv2FrameKind.KEYFRAME);
@@ -59,7 +67,7 @@ final class Mcv2Version3Test {
     final boolean keyframeBefore = Mcv2Decoder.parse(data).isKeyframe();
     assertFalse(keyframeBefore);
 
-    for (final long id : new long[] { 0, 1, 0xFFFFFFFFL }) {
+    for (final long id : new long[] { 0, 1, MAXIMUM_UNSIGNED_INTEGER }) {
       put(data, 12, id, 4);
       put(data, 16, id, 4);
 
@@ -94,7 +102,7 @@ final class Mcv2Version3Test {
 
   @Test
   void shouldRefuseEveryTruncationAndTrailingBytes() {
-    final byte[] valid = block(8, 3, 0, new byte[14], Mcv2FrameKind.KEYFRAME);
+    final byte[] valid = block(8, 3, 0, new byte[SMALL_PALETTE_RECORD_BYTES], Mcv2FrameKind.KEYFRAME);
     for (int length = 0; length < valid.length; length++) {
       final byte[] bad = Arrays.copyOf(valid, length);
       assertThrows(Mcv2Exception.class, () -> Mcv2Decoder.parse(bad));
@@ -123,7 +131,7 @@ final class Mcv2Version3Test {
 
     for (final int offset : new int[] { 28, 32, 36 }) {
       final byte[] bad = valid.clone();
-      put(bad, offset, 0xFFFFFFFFL, 4);
+      put(bad, offset, MAXIMUM_UNSIGNED_INTEGER, 4);
       assertThrows(Mcv2Exception.class, () -> Mcv2Decoder.parse(bad));
     }
   }
@@ -185,8 +193,8 @@ final class Mcv2Version3Test {
 
   private void assertPatternDecodes(final int size, final int orientation) {
     final byte[] record = new byte[7 + size / 8];
-    record[0] = (byte) 255;
-    record[5] = (byte) 255;
+    record[0] = (byte) MAXIMUM_CHANNEL_VALUE;
+    record[5] = (byte) MAXIMUM_CHANNEL_VALUE;
     record[6] = (byte) orientation;
     Arrays.fill(record, 7, record.length, (byte) 85);
     final byte[] data = block(size, 4, 0, record, Mcv2FrameKind.KEYFRAME);
@@ -194,7 +202,7 @@ final class Mcv2Version3Test {
     for (int row = 0; row < size; row++) {
       for (int column = 0; column < size; column++) {
         final boolean blue = ((orientation == 0 ? column : row) & 1) == 0;
-        this.pixel(decoded, size, column, row, blue ? 0 : 255, 0, blue ? 255 : 0);
+        this.pixel(decoded, size, column, row, blue ? 0 : MAXIMUM_CHANNEL_VALUE, 0, blue ? MAXIMUM_CHANNEL_VALUE : 0);
       }
     }
 
@@ -204,26 +212,26 @@ final class Mcv2Version3Test {
 
   @Test
   void shouldDecodeSolidPaletteAndBlackKeyframeSkipsExactly() {
-    final byte[] solid = Mcv2Decoder.decode(block(8, 2, 0, new byte[] { 10, 20, 30 }, Mcv2FrameKind.KEYFRAME), null, 0);
+    final byte[] solid = Mcv2Decoder.decode(block(8, 2, 0, new byte[] { 10, 20, SOLID_BLUE }, Mcv2FrameKind.KEYFRAME), null, 0);
     for (int offset = 0; offset < solid.length; offset += 3) {
-      final byte[] expectedPixel = new byte[] { 10, 20, 30 };
+      final byte[] expectedPixel = new byte[] { 10, 20, SOLID_BLUE };
       final byte[] decodedPixel = Arrays.copyOfRange(solid, offset, offset + 3);
       assertArrayEquals(expectedPixel, decodedPixel);
     }
 
-    final byte[] palette = new byte[14];
+    final byte[] palette = new byte[SMALL_PALETTE_RECORD_BYTES];
     palette[0] = 10;
     palette[1] = 20;
-    palette[2] = 30;
+    palette[2] = SOLID_BLUE;
     palette[3] = 40;
     palette[4] = 50;
     palette[5] = 60;
     palette[6] = (byte) 129;
     final byte[] picture = Mcv2Decoder.decode(block(8, 3, 0, palette, Mcv2FrameKind.KEYFRAME), null, 0);
     this.pixel(picture, 8, 0, 0, 40, 50, 60);
-    this.pixel(picture, 8, 1, 0, 10, 20, 30);
+    this.pixel(picture, 8, 1, 0, 10, 20, SOLID_BLUE);
     this.pixel(picture, 8, 7, 0, 40, 50, 60);
-    this.pixel(picture, 8, 0, 1, 10, 20, 30);
+    this.pixel(picture, 8, 0, 1, 10, 20, SOLID_BLUE);
     final byte[] skipped = frame(3, 2, Mcv2FrameKind.KEYFRAME, new byte[0], new byte[0][], new int[3]);
     final byte[] expectedSkippedPicture = new byte[18];
     final byte[] skippedPicture = Mcv2Decoder.decode(skipped, null, 0);
@@ -270,7 +278,7 @@ final class Mcv2Version3Test {
   @Test
   void shouldApplyAllQuantizersAndSaturatePositiveAndNegativeResiduals() {
     final byte[] reference = new byte[8 * 8 * 3];
-    for (final int base : new int[] { 0, 6, 100, 250, 255 }) {
+    for (final int base : new int[] { 0, 6, 100, 250, MAXIMUM_CHANNEL_VALUE }) {
       Arrays.fill(reference, (byte) base);
       for (int quantizer = 0; quantizer <= 2; quantizer++) {
         this.assertResidualsSaturate(reference, base, quantizer);
@@ -280,7 +288,7 @@ final class Mcv2Version3Test {
 
   private void assertResidualsSaturate(final byte[] reference, final int base, final int quantizer) {
     for (final int delta : new int[] { -8, -1, 0, 1, 7 }) {
-      final int value = Math.min(255, Math.max(0, base + (delta << quantizer)));
+      final int value = Math.min(MAXIMUM_CHANNEL_VALUE, Math.max(0, base + (delta << quantizer)));
       final byte[] record = new byte[10];
       Arrays.fill(record, 2, 10, (byte) ((delta & 15) * 17));
       final byte[] decoded = Mcv2Decoder.decode(block(8, 5, quantizer, record, Mcv2FrameKind.PREDICTED), reference, 0);
@@ -291,11 +299,11 @@ final class Mcv2Version3Test {
 
   @Test
   void shouldValidateInvisibleLeavesAndCropOutput() {
-    final byte[] data = block(16, 2, 0, new byte[] { 10, 20, 30 }, Mcv2FrameKind.KEYFRAME);
+    final byte[] data = block(16, 2, 0, new byte[] { 10, 20, SOLID_BLUE }, Mcv2FrameKind.KEYFRAME);
     put(data, 8, 1, 2);
     put(data, 10, 1, 2);
 
-    final byte[] expectedPicture = new byte[] { 10, 20, 30 };
+    final byte[] expectedPicture = new byte[] { 10, 20, SOLID_BLUE };
     final byte[] picture = Mcv2Decoder.decode(data, null, 0);
     assertArrayEquals(expectedPicture, picture);
 

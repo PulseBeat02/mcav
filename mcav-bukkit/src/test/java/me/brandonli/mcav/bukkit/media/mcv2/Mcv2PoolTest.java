@@ -47,6 +47,8 @@ import org.junit.jupiter.api.Test;
 
 final class Mcv2PoolTest {
 
+  private static final int WAIT_TIMEOUT_SECONDS = 60;
+
   private static final String ENCODER_THREAD_PREFIX = "mcav-mcv2-encoder-";
 
   @Test
@@ -110,7 +112,7 @@ final class Mcv2PoolTest {
       }
 
       for (final Thread caller : callers) {
-        caller.join(TimeUnit.SECONDS.toMillis(60));
+        caller.join(TimeUnit.SECONDS.toMillis(WAIT_TIMEOUT_SECONDS));
         final boolean finished = !caller.isAlive();
         assertTrue(finished);
       }
@@ -284,7 +286,7 @@ final class Mcv2PoolTest {
   private @Nullable Object sleepUntilCancelled(final CountDownLatch started, final CountDownLatch cancelled) {
     started.countDown();
     try {
-      Thread.sleep(TimeUnit.SECONDS.toMillis(60));
+      Thread.sleep(TimeUnit.SECONDS.toMillis(WAIT_TIMEOUT_SECONDS));
     } catch (final InterruptedException exception) {
       cancelled.countDown();
     }

@@ -75,6 +75,8 @@ import org.junit.jupiter.api.parallel.Isolated;
 @Isolated
 final class McPackHostingTest {
 
+  private static final String LOCAL_SERVER_PREFIX = "http://127.0.0.1:";
+
   private static final byte[] PACK = "PK resource pack".getBytes(StandardCharsets.US_ASCII);
   private static final byte[] OTHER_PACK = "PK other resource pack".getBytes(StandardCharsets.US_ASCII);
   private static final String UNREACHABLE_DOWNLOAD_FORMAT = "http://download.test/pack/%s.zip";
@@ -336,7 +338,7 @@ final class McPackHostingTest {
       port = socket.getLocalPort();
     }
 
-    final URI closed = URI.create("http://127.0.0.1:" + port + "/upload");
+    final URI closed = URI.create(LOCAL_SERVER_PREFIX + port + UPLOAD_PATH);
     final McPackHosting hosting = new McPackHosting(this.zip, closed, UNREACHABLE_DOWNLOAD_FORMAT);
 
     final McPacksException exception = assertThrows(McPacksException.class, hosting::start);
@@ -569,6 +571,7 @@ final class McPackHostingTest {
 
     private static final String DOWNLOAD_PATH_FORMAT = "/pack/%s.zip";
 
+    private static final int SUCCESS_STATUS = 200;
     private static final int REJECTED_STATUS = 500;
 
     private final HttpServer server;
@@ -585,7 +588,7 @@ final class McPackHostingTest {
       this.server = server;
       this.uploads = new CopyOnWriteArrayList<>();
       this.downloadMethods = new CopyOnWriteArrayList<>();
-      this.uploadStatus = 200;
+      this.uploadStatus = SUCCESS_STATUS;
       this.downloadsAvailable = true;
       this.uploadHook = () -> {};
     }
@@ -636,7 +639,7 @@ final class McPackHostingTest {
     private void answerDownload(final HttpExchange exchange) throws IOException {
       final String method = exchange.getRequestMethod();
       this.downloadMethods.add(method);
-      final int status = this.downloadsAvailable ? 200 : 404;
+      final int status = this.downloadsAvailable ? SUCCESS_STATUS : 404;
       exchange.sendResponseHeaders(status, -1);
       exchange.close();
     }
@@ -648,12 +651,12 @@ final class McPackHostingTest {
 
     private URI uploadUri() {
       final int port = this.port();
-      return URI.create("http://127.0.0.1:" + port + "/upload");
+      return URI.create(LOCAL_SERVER_PREFIX + port + UPLOAD_PATH);
     }
 
     private String downloadFormat() {
       final int port = this.port();
-      return "http://127.0.0.1:" + port + DOWNLOAD_PATH_FORMAT;
+      return LOCAL_SERVER_PREFIX + port + DOWNLOAD_PATH_FORMAT;
     }
 
     private void rejectUploads() {

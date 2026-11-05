@@ -46,6 +46,9 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 final class TransportPagesTest {
 
+  private static final int FRAME_BYTES_OFFSET = 24;
+  private static final int PAGE_NUMBER_OFFSET = 16;
+
   private static final String PAGES_PATH = "conformance/pages.json";
 
   private static final String INVALID_METADATA_MESSAGE = "Invalid page metadata!";
@@ -260,7 +263,7 @@ final class TransportPagesTest {
   void shouldRefuseInconsistentPageMetadata() {
     final byte[] page = this.page();
     final Mcv2Exception frameBytesFailure = assertThrows(Mcv2Exception.class, () ->
-      TransportPages.readPage(this.withHeaderByte(page, 24, 10))
+      TransportPages.readPage(this.withHeaderByte(page, FRAME_BYTES_OFFSET, 10))
     );
     final String frameBytesMessage = frameBytesFailure.getMessage();
     assertEquals(INVALID_METADATA_MESSAGE, frameBytesMessage);
@@ -275,7 +278,9 @@ final class TransportPagesTest {
     final String countMessage = countFailure.getMessage();
     assertEquals(INVALID_METADATA_MESSAGE, countMessage);
 
-    final Mcv2Exception numberFailure = assertThrows(Mcv2Exception.class, () -> TransportPages.readPage(this.withHeaderByte(page, 16, 1)));
+    final Mcv2Exception numberFailure = assertThrows(Mcv2Exception.class, () ->
+      TransportPages.readPage(this.withHeaderByte(page, PAGE_NUMBER_OFFSET, 1))
+    );
     final String numberMessage = numberFailure.getMessage();
     assertEquals(INVALID_METADATA_MESSAGE, numberMessage);
 
@@ -332,9 +337,9 @@ final class TransportPagesTest {
     Mcv2Decoder.putUnsignedInt(raw, 0, TransportPages.MAGIC);
     raw[4] = 1;
     raw[5] = 6;
-    Mcv2Decoder.putUnsignedShort(raw, 16, number);
+    Mcv2Decoder.putUnsignedShort(raw, PAGE_NUMBER_OFFSET, number);
     Mcv2Decoder.putUnsignedShort(raw, 18, count);
-    Mcv2Decoder.putUnsignedInt(raw, 24, frameBytes);
+    Mcv2Decoder.putUnsignedInt(raw, FRAME_BYTES_OFFSET, frameBytes);
     final CRC32 crc = new CRC32();
     crc.update(raw);
     Mcv2Decoder.putUnsignedInt(raw, 28, crc.getValue());

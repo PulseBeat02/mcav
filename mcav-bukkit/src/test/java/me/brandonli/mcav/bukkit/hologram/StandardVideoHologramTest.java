@@ -68,6 +68,8 @@ import org.mockito.ArgumentMatchers;
 @Isolated
 final class StandardVideoHologramTest {
 
+  private static final String FIRST_ORDINAL_SUFFIX = "st";
+
   private static final PlainTextComponentSerializer PLAIN = PlainTextComponentSerializer.plainText();
   private static final String PROGRESS = "■";
 
@@ -202,7 +204,7 @@ final class StandardVideoHologramTest {
     final TextDisplay current = hologram.getDisplay().orElseThrow();
     final Component text = this.lastText(display);
     final String plain = PLAIN.serialize(text);
-    final String date = this.expectedDate(1, "st");
+    final String date = this.expectedDate(1, FIRST_ORDINAL_SUFFIX);
     assertSame(display, current);
 
     final String expected = "Some Video\nSome Channel (" + date + ")";
@@ -218,7 +220,7 @@ final class StandardVideoHologramTest {
   @Test
   void shouldWriteOrdinalDaysLikeEnglishDoes() {
     final int[] days = { 2, 3, 4, 11, 12, 13, 21, 22, 23, 31 };
-    final String[] suffixes = { "nd", "rd", "th", "th", "th", "th", "st", "nd", "rd", "st" };
+    final String[] suffixes = { "nd", "rd", "th", "th", "th", "th", FIRST_ORDINAL_SUFFIX, "nd", "rd", FIRST_ORDINAL_SUFFIX };
     for (int index = 0; index < days.length; index++) {
       final StandardVideoHologram hologram = new StandardVideoHologram();
       final int timestamp = this.epochSecond(days[index]);
@@ -393,7 +395,7 @@ final class StandardVideoHologramTest {
     final String negativePlain = PLAIN.serialize(negativeText);
     this.server.runTasks();
     final int tasks = this.server.getScheduledTaskCount();
-    final String bar = PROGRESS.repeat(20);
+    final String bar = PROGRESS.repeat(BAR_LENGTH);
     final String expectedLong = UNDATED_TEXT_AT_START + bar + " 02:05";
     assertEquals(expectedLong, longPlain);
 

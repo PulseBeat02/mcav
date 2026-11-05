@@ -39,6 +39,8 @@ import org.junit.jupiter.api.Test;
 
 final class Mcv2DecoderFormatTest {
 
+  private static final int ROOT_BLOCK_SIZE = 32;
+
   @Test
   void shouldBeAUtilityClass() throws ReflectiveOperationException {
     UtilityClassAssertions.assertNotInstantiable(Mcv2Decoder.class);
@@ -65,17 +67,17 @@ final class Mcv2DecoderFormatTest {
 
   @Test
   void shouldSizeEveryFixedRecord() {
-    final int skipSize = recordSize(MODE_SKIP, 32);
+    final int skipSize = recordSize(MODE_SKIP, ROOT_BLOCK_SIZE);
     assertEquals(0, skipSize);
 
-    final int motionSize = recordSize(MODE_MOTION, 32);
+    final int motionSize = recordSize(MODE_MOTION, ROOT_BLOCK_SIZE);
     assertEquals(2, motionSize);
 
     final int solidSize = recordSize(MODE_SOLID, 8);
     assertEquals(3, solidSize);
 
     final int expectedLargePaletteSize = 6 + 128;
-    final int largePaletteSize = recordSize(MODE_PALETTE, 32);
+    final int largePaletteSize = recordSize(MODE_PALETTE, ROOT_BLOCK_SIZE);
     assertEquals(expectedLargePaletteSize, largePaletteSize);
 
     final int expectedSmallPaletteSize = 6 + 8;
@@ -88,17 +90,17 @@ final class Mcv2DecoderFormatTest {
     final int mediumCompactSize = recordSize(MODE_COMPACT, 16);
     assertEquals(10, mediumCompactSize);
 
-    final int largeCompactSize = recordSize(MODE_COMPACT, 32);
+    final int largeCompactSize = recordSize(MODE_COMPACT, ROOT_BLOCK_SIZE);
     assertEquals(10, largeCompactSize);
 
     assertThrows(IllegalArgumentException.class, () -> recordSize(-1, 8));
-    assertThrows(IllegalArgumentException.class, () -> recordSize(7, 32));
+    assertThrows(IllegalArgumentException.class, () -> recordSize(7, ROOT_BLOCK_SIZE));
   }
 
   @Test
   void shouldAcceptOnlyTheThreeLeafSizes() {
     for (int size = -1; size <= 64; size++) {
-      final boolean expectedBlockSize = size == 8 || size == 16 || size == 32;
+      final boolean expectedBlockSize = size == 8 || size == 16 || size == ROOT_BLOCK_SIZE;
       final boolean blockSize = Mcv2Decoder.isBlockSize(size);
       assertEquals(expectedBlockSize, blockSize);
     }
@@ -111,7 +113,7 @@ final class Mcv2DecoderFormatTest {
     assertEquals(expectedSmallSize, smallSize);
 
     final int expectedLargeSize = 6 + 1 + 4;
-    final int largeSize = patternSize(32);
+    final int largeSize = patternSize(ROOT_BLOCK_SIZE);
     assertEquals(expectedLargeSize, largeSize);
 
     final int expectedMediumSize = 6 + 1 + 2;
@@ -125,7 +127,7 @@ final class Mcv2DecoderFormatTest {
       final byte[] modes = new byte[descriptors];
       final byte[] frame = Mcv2WireFrames.frame(
         1280,
-        32,
+        ROOT_BLOCK_SIZE,
         Mcv2FrameKind.KEYFRAME,
         modes,
         new byte[descriptors][0],

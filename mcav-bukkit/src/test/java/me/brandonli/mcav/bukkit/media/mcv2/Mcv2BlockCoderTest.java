@@ -25,6 +25,8 @@ import org.junit.jupiter.api.Test;
 
 final class Mcv2BlockCoderTest {
 
+  private static final int ROOT_SIZE = 32;
+
   private static final double LAMBDA = 65.255994022;
 
   private static final int REFERENCE_LEVEL_BASE = 40;
@@ -180,7 +182,7 @@ final class Mcv2BlockCoderTest {
 
   @Test
   void shouldGiveABlockBelowTheSearchSizeItsParentsVectorWhicheverWayItPoints() {
-    final byte[] reference = new byte[32 * 32 * 3];
+    final byte[] reference = new byte[ROOT_SIZE * ROOT_SIZE * 3];
     final Random random = new Random(45);
     for (int index = 0; index < reference.length; index++) {
       reference[index] = (byte) (REFERENCE_LEVEL_BASE + random.nextInt(REFERENCE_LEVEL_SPREAD));
@@ -196,8 +198,8 @@ final class Mcv2BlockCoderTest {
       final Mcv2BlockState job = new Mcv2BlockState(
         source,
         reference,
-        32,
-        32,
+        ROOT_SIZE,
+        ROOT_SIZE,
         Mcv2FrameKind.PREDICTED,
         Mcv2BlockState.Thresholds.STANDARD,
         LAMBDA,
@@ -211,7 +213,7 @@ final class Mcv2BlockCoderTest {
 
   @Test
   void shouldLetLargerBlocksSearchForTheirOwnMotion() {
-    final byte[] reference = new byte[32 * 32 * 3];
+    final byte[] reference = new byte[ROOT_SIZE * ROOT_SIZE * 3];
     final Random random = new Random(658);
     for (int index = 0; index < reference.length; index++) {
       reference[index] = (byte) (REFERENCE_LEVEL_BASE + random.nextInt(REFERENCE_LEVEL_SPREAD));
@@ -222,12 +224,12 @@ final class Mcv2BlockCoderTest {
       source[index] = (byte) (source[index] + 16);
     }
 
-    for (final int size : new int[] { 16, 32 }) {
+    for (final int size : new int[] { 16, ROOT_SIZE }) {
       final Mcv2BlockState job = new Mcv2BlockState(
         source,
         reference,
-        32,
-        32,
+        ROOT_SIZE,
+        ROOT_SIZE,
         Mcv2FrameKind.PREDICTED,
         Mcv2BlockState.Thresholds.STANDARD,
         LAMBDA,

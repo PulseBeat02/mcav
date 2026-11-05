@@ -94,6 +94,8 @@ import org.mockito.Mockito;
 
 final class Mcv2PackServerTest {
 
+  private static final String SECOND_PACK_URL = "http://127.0.0.1:25565/mcav/mcav-mcv2-2.zip";
+
   private static final UUID ALICE = UUID.fromString("00000000-0000-0000-0000-00000000a11c");
 
   private static final UUID BOB = UUID.fromString("00000000-0000-0000-0000-000000000b0b");
@@ -108,6 +110,8 @@ final class Mcv2PackServerTest {
   private static final int SMALL_SCREEN_HEIGHT = 90;
   private static final int STEPPED_SCREEN_WIDTH = 288;
   private static final int LARGE_SCREEN_WIDTH = 640;
+  private static final int SPARE_SCREEN_WIDTH = 608;
+  private static final int ALTERNATE_SCREEN_WIDTH = 256;
 
   private static final String MANIFEST_ENTRY = "mcav_mcv2.json";
   private static final String SIZE_SEPARATOR = "x";
@@ -395,7 +399,7 @@ final class Mcv2PackServerTest {
     assertEquals(1, hostingCount);
 
     final String uri = this.requestSentTo(alice).packs().getFirst().uri().toString();
-    assertEquals("http://127.0.0.1:25565/mcav/mcav-mcv2-2.zip", uri);
+    assertEquals(SECOND_PACK_URL, uri);
   }
 
   @Test
@@ -430,7 +434,7 @@ final class Mcv2PackServerTest {
     verify(this.hostings.get(1), never()).shutdown();
 
     final String uri = this.requestSentTo(alice).packs().getFirst().uri().toString();
-    assertEquals("http://127.0.0.1:25565/mcav/mcav-mcv2-2.zip", uri);
+    assertEquals(SECOND_PACK_URL, uri);
     verify(alice, never()).removeResourcePacks(any(UUID.class));
   }
 
@@ -448,7 +452,7 @@ final class Mcv2PackServerTest {
     leases.get(6).close();
 
     final Mcv2PackServer.Lease fifth = this.packs.open(this.screen(LARGE_SCREEN_WIDTH, Set.of()));
-    final Mcv2PackServer.Lease third = this.packs.open(this.screen(608, Set.of()));
+    final Mcv2PackServer.Lease third = this.packs.open(this.screen(SPARE_SCREEN_WIDTH, Set.of()));
     final Mcv2PackServer.Lease seventh = this.packs.open(this.screen(576, Set.of()));
 
     final long fifthStreamId = fifth.getConfiguration().getStreamId();
@@ -692,7 +696,7 @@ final class Mcv2PackServerTest {
     // the screen's result asks for the other size with the configuration its slot gave it
     final Mcv2Channel stepped = second.resize(playing.withVideo(SMALL_SCREEN_WIDTH, SMALL_SCREEN_HEIGHT));
     this.settle();
-    final Mcv2PackServer.Lease third = this.packs.open(this.screen(256, Set.of()));
+    final Mcv2PackServer.Lease third = this.packs.open(this.screen(ALTERNATE_SCREEN_WIDTH, Set.of()));
 
     final Mcv2Configuration step = stepped.getConfiguration();
     final long stepStreamId = step.getStreamId();
@@ -1249,7 +1253,7 @@ final class Mcv2PackServerTest {
     final Mcv2PackServer.Lease lease = this.packs.open(this.screen(SCREEN_WIDTH, Set.of()));
     final Mcv2Configuration playing = lease.getConfiguration();
     lease.resize(playing.withVideo(STEPPED_SCREEN_WIDTH, SCREEN_HEIGHT));
-    lease.resize(playing.withVideo(256, SCREEN_HEIGHT));
+    lease.resize(playing.withVideo(ALTERNATE_SCREEN_WIDTH, SCREEN_HEIGHT));
     this.settle();
     final List<String> expectedSlots = List.of("1: 256x96", "2: 288x96");
     final List<String> slots = this.slotsOfTheLastPack();
@@ -1274,7 +1278,7 @@ final class Mcv2PackServerTest {
     this.packs.start();
     final Mcv2PackServer.Lease video = this.packs.open(this.screen(SCREEN_WIDTH, Set.of(ALICE)));
     final Mcv2PackServer.Lease machine = this.packs.open(this.screen(STEPPED_SCREEN_WIDTH, Set.of(ALICE)));
-    final Mcv2PackServer.Lease desktop = this.packs.open(this.screen(256, Set.of(ALICE)));
+    final Mcv2PackServer.Lease desktop = this.packs.open(this.screen(ALTERNATE_SCREEN_WIDTH, Set.of(ALICE)));
     this.settle();
     final UUID threeSlots = this.packOf(this.requestSentTo(alice));
     machine.close();
@@ -1375,7 +1379,7 @@ final class Mcv2PackServerTest {
 
     this.settle();
 
-    final Mcv2PackServer.Lease fifth = this.packs.open(this.screen(608, Set.of()));
+    final Mcv2PackServer.Lease fifth = this.packs.open(this.screen(SPARE_SCREEN_WIDTH, Set.of()));
 
     final long fifthStreamId = fifth.getConfiguration().getStreamId();
     assertEquals(3, fifthStreamId, "the spare left first, behind a newer one");
@@ -1516,7 +1520,7 @@ final class Mcv2PackServerTest {
     this.settle();
 
     // four screens, each in the slot of its size and with the spare of the size it left: every slot is taken
-    final Mcv2PackServer.Lease fifth = this.packs.open(this.screen(608, Set.of()));
+    final Mcv2PackServer.Lease fifth = this.packs.open(this.screen(SPARE_SCREEN_WIDTH, Set.of()));
 
     final long fifthStreamId = fifth.getConfiguration().getStreamId();
     assertEquals(1, fifthStreamId, "the spare left first");

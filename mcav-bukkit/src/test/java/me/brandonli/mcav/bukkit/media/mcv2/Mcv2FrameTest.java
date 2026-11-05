@@ -37,6 +37,16 @@ import org.junit.jupiter.api.Test;
 
 final class Mcv2FrameTest {
 
+  private static final int MAXIMUM_CHANNEL_VALUE = 255;
+
+  private static final int FRAME_SIDE = 64;
+  private static final int WIDE_FRAME_WIDTH = 96;
+
+  private static final int NON_BLOCK_FRAME_WIDTH = 100;
+  private static final int NON_BLOCK_FRAME_HEIGHT = 70;
+
+  private static final int DEFAULT_LAMBDA = 72;
+
   private static final ForkJoinPool POOL = ForkJoinPool.commonPool();
   private static final int LIMIT_TRIES = 5;
 
@@ -104,7 +114,7 @@ final class Mcv2FrameTest {
 
   private void paintTexturePixel(final byte[] rgb, final int offset, final double wave, final Random random) {
     for (int channel = 0; channel < 3; channel++) {
-      rgb[offset + channel] = (byte) Math.min(255, Math.max(0, (int) (120 + wave + 25 * channel + random.nextInt(16))));
+      rgb[offset + channel] = (byte) Math.min(MAXIMUM_CHANNEL_VALUE, Math.max(0, (int) (120 + wave + 25 * channel + random.nextInt(16))));
     }
   }
 
@@ -170,8 +180,8 @@ final class Mcv2FrameTest {
     assertTrue(referenceAbsent);
 
     final Client client = new Client();
-    final byte[] picture = this.texture(64, 64, 1);
-    final byte[] first = encoder.encode(picture, 64, 64, 10);
+    final byte[] picture = this.texture(FRAME_SIDE, FRAME_SIDE, 1);
+    final byte[] first = encoder.encode(picture, FRAME_SIDE, FRAME_SIDE, 10);
     final Mcv2.Statistics key = encoder.getStatistics().orElseThrow();
 
     final boolean keyframe = key.isKeyframe();
@@ -188,7 +198,7 @@ final class Mcv2FrameTest {
     final byte[] firstReference = encoder.getReference().orElseThrow();
     assertArrayEquals(expectedFirst, firstReference);
 
-    final byte[] second = encoder.encode(picture, 64, 64, 11);
+    final byte[] second = encoder.encode(picture, FRAME_SIDE, FRAME_SIDE, 11);
     final Mcv2.Statistics still = encoder.getStatistics().orElseThrow();
     final boolean stillKeyframe = still.isKeyframe();
     assertFalse(stillKeyframe);
@@ -210,37 +220,37 @@ final class Mcv2FrameTest {
 
   @Test
   void shouldStartAgainWithAKeyframeWhenPredictionCannotWork() {
-    final byte[] picture = this.texture(64, 32, 2);
-    final Mcv2 interval = this.encoder(Settings.of(72, false));
+    final byte[] picture = this.texture(FRAME_SIDE, 32, 2);
+    final Mcv2 interval = this.encoder(Settings.of(DEFAULT_LAMBDA, false));
     for (int id = 0; id < 120; id++) {
-      interval.encode(picture, 64, 32, id);
+      interval.encode(picture, FRAME_SIDE, 32, id);
       final boolean expectedKeyframe = id == 0;
       final boolean keyframe = interval.getStatistics().orElseThrow().isKeyframe();
       assertEquals(expectedKeyframe, keyframe);
     }
 
-    interval.encode(picture, 64, 32, 120);
+    interval.encode(picture, FRAME_SIDE, 32, 120);
     final boolean keyframeAtInterval = interval.getStatistics().orElseThrow().isKeyframe();
     assertTrue(keyframeAtInterval);
 
     final Mcv2 wider = this.encoder(Settings.DEFAULT);
-    wider.encode(picture, 64, 32, 0);
-    final boolean keyframeWhenWider = this.keyframeAfter(wider, this.texture(32, 64, 2), 32, 64);
+    wider.encode(picture, FRAME_SIDE, 32, 0);
+    final boolean keyframeWhenWider = this.keyframeAfter(wider, this.texture(32, FRAME_SIDE, 2), 32, FRAME_SIDE);
     assertTrue(keyframeWhenWider);
 
     final Mcv2 taller = this.encoder(Settings.DEFAULT);
-    taller.encode(picture, 64, 32, 0);
-    final boolean keyframeWhenTaller = this.keyframeAfter(taller, this.texture(64, 64, 2), 64, 64);
+    taller.encode(picture, FRAME_SIDE, 32, 0);
+    final boolean keyframeWhenTaller = this.keyframeAfter(taller, this.texture(FRAME_SIDE, FRAME_SIDE, 2), FRAME_SIDE, FRAME_SIDE);
     assertTrue(keyframeWhenTaller);
   }
 
   @Test
   void shouldStartAgainWithAKeyframeOnRequest() {
-    final byte[] picture = this.texture(64, 32, 2);
+    final byte[] picture = this.texture(FRAME_SIDE, 32, 2);
     final Mcv2 encoder = this.encoder(Settings.DEFAULT);
-    encoder.encode(picture, 64, 32, 0);
+    encoder.encode(picture, FRAME_SIDE, 32, 0);
     encoder.requestKeyframe();
-    final boolean keyframe = this.keyframeAfter(encoder, picture, 64, 32);
+    final boolean keyframe = this.keyframeAfter(encoder, picture, FRAME_SIDE, 32);
     assertTrue(keyframe);
   }
 
@@ -265,23 +275,23 @@ final class Mcv2FrameTest {
 
   @Test
   void shouldWriteTheSameBytesWithoutVerification() {
-    final byte[] picture = this.texture(64, 32, 6);
-    final byte[] next = this.panned(picture, 64, 32, 2);
+    final byte[] picture = this.texture(FRAME_SIDE, 32, 6);
+    final byte[] next = this.panned(picture, FRAME_SIDE, 32, 2);
     final Mcv2 checked = new Mcv2(Settings.DEFAULT, POOL, 1, Mcv2.Verification.VERIFIED);
     final Mcv2 unchecked = new Mcv2(Settings.DEFAULT, POOL, 3, Mcv2.Verification.UNVERIFIED);
-    final byte[] expectedFirst = checked.encode(picture, 64, 32, 0);
-    final byte[] uncheckedFirst = unchecked.encode(picture, 64, 32, 0);
+    final byte[] expectedFirst = checked.encode(picture, FRAME_SIDE, 32, 0);
+    final byte[] uncheckedFirst = unchecked.encode(picture, FRAME_SIDE, 32, 0);
     assertArrayEquals(expectedFirst, uncheckedFirst);
 
-    final byte[] expectedNext = checked.encode(next, 64, 32, 1);
-    final byte[] uncheckedNext = unchecked.encode(next, 64, 32, 1);
+    final byte[] expectedNext = checked.encode(next, FRAME_SIDE, 32, 1);
+    final byte[] uncheckedNext = unchecked.encode(next, FRAME_SIDE, 32, 1);
     assertArrayEquals(expectedNext, uncheckedNext);
   }
 
   @Test
   void shouldDecodeEveryFrameOfTheLiveProfile() {
-    this.play(Settings.DEFAULT, 100, 70, 6, 2);
-    this.play(Settings.DEFAULT, 64, 64, 4, 0);
+    this.play(Settings.DEFAULT, NON_BLOCK_FRAME_WIDTH, NON_BLOCK_FRAME_HEIGHT, 6, 2);
+    this.play(Settings.DEFAULT, FRAME_SIDE, FRAME_SIDE, 4, 0);
   }
 
   @Test
@@ -289,39 +299,39 @@ final class Mcv2FrameTest {
     final Settings settings = Settings.DEFAULT;
     // noise that changes from frame to frame but no movement keeps the profile's lambda, which is all a search without
     // the motion's lambda uses
-    final double steadyLambda = this.play(settings, 64, 64, 4, 0).getStatistics().orElseThrow().getLambda();
-    assertEquals(72, steadyLambda);
+    final double steadyLambda = this.play(settings, FRAME_SIDE, FRAME_SIDE, 4, 0).getStatistics().orElseThrow().getLambda();
+    assertEquals(DEFAULT_LAMBDA, steadyLambda);
 
-    final Mcv2 pan = this.play(settings, 100, 70, 6, 9);
-    final boolean raised = pan.getStatistics().orElseThrow().getLambda() > 72;
+    final Mcv2 pan = this.play(settings, NON_BLOCK_FRAME_WIDTH, NON_BLOCK_FRAME_HEIGHT, 6, 9);
+    final boolean raised = pan.getStatistics().orElseThrow().getLambda() > DEFAULT_LAMBDA;
     assertTrue(raised);
   }
 
   @Test
   void shouldDecodeEveryFrameOfTheQuarterResolutionSearch() {
-    this.play(Settings.DEFAULT, 100, 70, 5, 5);
-    this.play(Settings.DEFAULT, 64, 64, 4, 2);
-    this.play(Settings.FAST, 100, 70, 4, 3);
+    this.play(Settings.DEFAULT, NON_BLOCK_FRAME_WIDTH, NON_BLOCK_FRAME_HEIGHT, 5, 5);
+    this.play(Settings.DEFAULT, FRAME_SIDE, FRAME_SIDE, 4, 2);
+    this.play(Settings.FAST, NON_BLOCK_FRAME_WIDTH, NON_BLOCK_FRAME_HEIGHT, 4, 3);
   }
 
   @Test
   void shouldStartAgainAfterASizeChange() {
     final Mcv2 encoder = new Mcv2(Settings.DEFAULT, POOL, 2, Mcv2.Verification.VERIFIED);
     final Client client = new Client();
-    client.decode(encoder.encode(this.scene(64, 64, 0, 0), 64, 64, 0));
-    final byte[] inverted = this.scene(64, 64, 0, 0);
+    client.decode(encoder.encode(this.scene(FRAME_SIDE, FRAME_SIDE, 0, 0), FRAME_SIDE, FRAME_SIDE, 0));
+    final byte[] inverted = this.scene(FRAME_SIDE, FRAME_SIDE, 0, 0);
     for (int index = 0; index < inverted.length; index++) {
-      inverted[index] = (byte) (255 - (inverted[index] & 0xFF));
+      inverted[index] = (byte) (MAXIMUM_CHANNEL_VALUE - (inverted[index] & 0xFF));
     }
 
-    final byte[] expectedInverted = client.decode(encoder.encode(inverted, 64, 64, 1));
+    final byte[] expectedInverted = client.decode(encoder.encode(inverted, FRAME_SIDE, FRAME_SIDE, 1));
     final byte[] invertedReference = encoder.getReference().orElseThrow();
     assertArrayEquals(expectedInverted, invertedReference);
 
     final boolean invertedKeyframe = encoder.getStatistics().orElseThrow().isKeyframe();
     assertFalse(invertedKeyframe);
 
-    final byte[] resized = encoder.encode(this.scene(96, 32, 2, 0), 96, 32, 2);
+    final byte[] resized = encoder.encode(this.scene(WIDE_FRAME_WIDTH, 32, 2, 0), WIDE_FRAME_WIDTH, 32, 2);
     final byte[] expectedResized = client.decode(resized);
     final byte[] resizedReference = encoder.getReference().orElseThrow();
     assertArrayEquals(expectedResized, resizedReference);
@@ -329,7 +339,7 @@ final class Mcv2FrameTest {
     final boolean resizedKeyframe = encoder.getStatistics().orElseThrow().isKeyframe();
     assertTrue(resizedKeyframe);
 
-    final byte[] next = encoder.encode(this.scene(96, 32, 3, 0), 96, 32, 3);
+    final byte[] next = encoder.encode(this.scene(WIDE_FRAME_WIDTH, 32, 3, 0), WIDE_FRAME_WIDTH, 32, 3);
     final byte[] expectedNext = client.decode(next);
     final byte[] nextReference = encoder.getReference().orElseThrow();
     assertArrayEquals(expectedNext, nextReference);
@@ -337,7 +347,7 @@ final class Mcv2FrameTest {
     final boolean nextKeyframe = encoder.getStatistics().orElseThrow().isKeyframe();
     assertFalse(nextKeyframe);
 
-    final byte[] taller = encoder.encode(this.scene(96, 48, 4, 0), 96, 48, 4);
+    final byte[] taller = encoder.encode(this.scene(WIDE_FRAME_WIDTH, 48, 4, 0), WIDE_FRAME_WIDTH, 48, 4);
     final byte[] expectedTaller = client.decode(taller);
     final byte[] tallerReference = encoder.getReference().orElseThrow();
     assertArrayEquals(expectedTaller, tallerReference);
@@ -354,7 +364,9 @@ final class Mcv2FrameTest {
     // the frame's commonest, and a P frame of SKIP everywhere, each decoding to the encoder's own picture
     hurried.setFrameBudget(1);
     final Client client = new Client();
-    final Mcv2Decoder.Frame keyframe = Mcv2Decoder.parse(hurried.encode(this.scene(96, 64, 0, 3), 96, 64, 0));
+    final Mcv2Decoder.Frame keyframe = Mcv2Decoder.parse(
+      hurried.encode(this.scene(WIDE_FRAME_WIDTH, FRAME_SIDE, 0, 3), WIDE_FRAME_WIDTH, FRAME_SIDE, 0)
+    );
     final boolean startsWithKeyframe = keyframe.isKeyframe();
     assertTrue(startsWithKeyframe);
 
@@ -373,7 +385,7 @@ final class Mcv2FrameTest {
     final byte[] decodedKeyframe = client.decode(keyframe.getData());
     assertArrayEquals(expectedKeyframe, decodedKeyframe);
 
-    final byte[] next = hurried.encode(this.scene(96, 64, 1, 3), 96, 64, 1);
+    final byte[] next = hurried.encode(this.scene(WIDE_FRAME_WIDTH, FRAME_SIDE, 1, 3), WIDE_FRAME_WIDTH, FRAME_SIDE, 1);
     final Mcv2Decoder.Frame frame = Mcv2Decoder.parse(next);
     final int frameLeafCount = frame.getLeafCount();
     assertEquals(6, frameLeafCount);
@@ -391,15 +403,15 @@ final class Mcv2FrameTest {
     patient.setFrameBudget(TimeUnit.HOURS.toNanos(1));
     final Mcv2 unbounded = new Mcv2(Settings.DEFAULT, POOL, 2, Mcv2.Verification.VERIFIED);
     for (int frameNumber = 0; frameNumber < 4; frameNumber++) {
-      final byte[] picture = this.scene(96, 64, frameNumber, 3);
-      final byte[] expected = unbounded.encode(picture, 96, 64, frameNumber);
-      final byte[] patientFrame = patient.encode(picture, 96, 64, frameNumber);
+      final byte[] picture = this.scene(WIDE_FRAME_WIDTH, FRAME_SIDE, frameNumber, 3);
+      final byte[] expected = unbounded.encode(picture, WIDE_FRAME_WIDTH, FRAME_SIDE, frameNumber);
+      final byte[] patientFrame = patient.encode(picture, WIDE_FRAME_WIDTH, FRAME_SIDE, frameNumber);
       assertArrayEquals(expected, patientFrame);
     }
 
     patient.setFrameBudget(0);
-    final byte[] expectedUnbudgeted = unbounded.encode(this.scene(96, 64, 4, 3), 96, 64, 4);
-    final byte[] unbudgetedFrame = patient.encode(this.scene(96, 64, 4, 3), 96, 64, 4);
+    final byte[] expectedUnbudgeted = unbounded.encode(this.scene(WIDE_FRAME_WIDTH, FRAME_SIDE, 4, 3), WIDE_FRAME_WIDTH, FRAME_SIDE, 4);
+    final byte[] unbudgetedFrame = patient.encode(this.scene(WIDE_FRAME_WIDTH, FRAME_SIDE, 4, 3), WIDE_FRAME_WIDTH, FRAME_SIDE, 4);
     assertArrayEquals(expectedUnbudgeted, unbudgetedFrame);
   }
 
@@ -415,7 +427,12 @@ final class Mcv2FrameTest {
       } else if (frameNumber == 6) {
         encoder.setSettings(Settings.DEFAULT);
       }
-      final byte[] data = encoder.encode(this.scene(96, 64, frameNumber, 3), 96, 64, frameNumber);
+      final byte[] data = encoder.encode(
+        this.scene(WIDE_FRAME_WIDTH, FRAME_SIDE, frameNumber, 3),
+        WIDE_FRAME_WIDTH,
+        FRAME_SIDE,
+        frameNumber
+      );
       final boolean expectedKeyframe = frameNumber == 0;
       final boolean keyframe = encoder.getStatistics().orElseThrow().isKeyframe();
       assertEquals(expectedKeyframe, keyframe, "frame " + frameNumber);
@@ -429,13 +446,13 @@ final class Mcv2FrameTest {
 
   @Test
   void shouldSearchAFrameOverItsByteBoundAgainAtAHigherLambda() {
-    final byte[] picture = this.noise(96, 64, 5);
+    final byte[] picture = this.noise(WIDE_FRAME_WIDTH, FRAME_SIDE, 5);
     final byte[][] keyframes = new byte[LIMIT_TRIES][];
     for (int attempt = 0; attempt < LIMIT_TRIES; attempt++) {
-      keyframes[attempt] = new Mcv2(Settings.DEFAULT.withLambda(72 << attempt), POOL, 2, Mcv2.Verification.UNVERIFIED).encode(
+      keyframes[attempt] = new Mcv2(Settings.DEFAULT.withLambda(DEFAULT_LAMBDA << attempt), POOL, 2, Mcv2.Verification.UNVERIFIED).encode(
         picture,
-        96,
-        64,
+        WIDE_FRAME_WIDTH,
+        FRAME_SIDE,
         0
       );
     }
@@ -447,23 +464,23 @@ final class Mcv2FrameTest {
       }
       final Mcv2 bounded = new Mcv2(Settings.DEFAULT, POOL, 2, Mcv2.Verification.VERIFIED);
       bounded.setFrameLimit(bound);
-      final byte[] actual = bounded.encode(picture, 96, 64, 0);
+      final byte[] actual = bounded.encode(picture, WIDE_FRAME_WIDTH, FRAME_SIDE, 0);
       if (keyframes[expected].length <= bound) {
         final byte[] expectedKeyframe = keyframes[expected];
         assertArrayEquals(expectedKeyframe, actual, "bound " + bound);
       } else {
         final Mcv2 trivial = new Mcv2(Settings.DEFAULT, POOL, 2, Mcv2.Verification.VERIFIED);
         trivial.setFrameBudget(1);
-        final byte[] expectedTrivial = trivial.encode(picture, 96, 64, 0);
+        final byte[] expectedTrivial = trivial.encode(picture, WIDE_FRAME_WIDTH, FRAME_SIDE, 0);
         assertArrayEquals(expectedTrivial, actual, "bound " + bound);
       }
-      final int expectedLambda = 72 << expected;
+      final int expectedLambda = DEFAULT_LAMBDA << expected;
       final double lambda = bounded.getStatistics().orElseThrow().getLambda();
       assertEquals(expectedLambda, lambda);
 
       final Client client = new Client();
       client.decode(actual);
-      final byte[] next = bounded.encode(this.noise(96, 64, 6), 96, 64, 1);
+      final byte[] next = bounded.encode(this.noise(WIDE_FRAME_WIDTH, FRAME_SIDE, 6), WIDE_FRAME_WIDTH, FRAME_SIDE, 1);
       final byte[] expectedNext = client.decode(next);
       final byte[] reference = bounded.getReference().orElseThrow();
       assertArrayEquals(expectedNext, reference, "bound " + bound);
@@ -472,7 +489,7 @@ final class Mcv2FrameTest {
     final Mcv2 unbounded = new Mcv2(Settings.DEFAULT, POOL, 2, Mcv2.Verification.UNVERIFIED);
     unbounded.setFrameLimit(0);
     final byte[] expectedFirstKeyframe = keyframes[0];
-    final byte[] unboundedKeyframe = unbounded.encode(picture, 96, 64, 0);
+    final byte[] unboundedKeyframe = unbounded.encode(picture, WIDE_FRAME_WIDTH, FRAME_SIDE, 0);
     assertArrayEquals(expectedFirstKeyframe, unboundedKeyframe);
     assertThrows(IllegalArgumentException.class, () -> unbounded.setFrameLimit(-1));
   }

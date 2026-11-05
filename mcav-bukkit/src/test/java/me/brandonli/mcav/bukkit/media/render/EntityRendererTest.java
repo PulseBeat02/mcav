@@ -58,6 +58,8 @@ import org.mockito.ArgumentCaptor;
 
 final class EntityRendererTest {
 
+  private static final int POSITION_HEIGHT = 70;
+
   private static final UUID VIEWER = UUID.fromString("00000000-0000-0000-0000-000000000001");
   private static final UUID OFFLINE = UUID.fromString("00000000-0000-0000-0000-000000000002");
 
@@ -78,7 +80,7 @@ final class EntityRendererTest {
     this.server.injectModule();
     this.world = FakeWorld.create();
     final World configuredWorld = this.world.getWorld();
-    this.position = new Location(configuredWorld, 1, 70, 3);
+    this.position = new Location(configuredWorld, 1, POSITION_HEIGHT, 3);
   }
 
   @AfterEach
@@ -426,7 +428,7 @@ final class EntityRendererTest {
   @Test
   void shouldAskAboutTheChunkThatHoldsANegativeBlockPosition() {
     final World configuredWorld = this.world.getWorld();
-    final Location negative = new Location(configuredWorld, -17, 70, 35);
+    final Location negative = new Location(configuredWorld, -17, POSITION_HEIGHT, 35);
     final EntityConfiguration configuration = this.createConfiguration(negative);
     final EntityRenderer renderer = new EntityRenderer(configuration);
     final Component text = Component.literal(FRAME_TEXT);

@@ -58,6 +58,10 @@ import org.junit.jupiter.api.io.TempDir;
 
 final class SimpleResourcePackTest {
 
+  private static final int GENERATED_PACK_FORMAT = 88;
+
+  private static final String PLAIN_DESCRIPTION = "pack";
+
   private static final byte[] FIRST_SOUND = "first sound".getBytes(StandardCharsets.US_ASCII);
 
   private static final byte[] SECOND_SOUND = "second sound".getBytes(StandardCharsets.US_ASCII);
@@ -309,7 +313,7 @@ final class SimpleResourcePackTest {
   @Test
   void shouldPackageGeneratedContentAndKeepTheLastSourceOfALocation() throws IOException {
     final SimpleResourcePack pack = SimpleResourcePack.pack();
-    pack.metadata(88, "generated");
+    pack.metadata(GENERATED_PACK_FORMAT, "generated");
     final byte[] shader = SHADER_SOURCE.getBytes(StandardCharsets.US_ASCII);
     pack.data(SHADER_ENTRY, shader);
     shader[0] = 'X';
@@ -335,7 +339,7 @@ final class SimpleResourcePackTest {
   @Test
   void shouldZipTheSamePackToTheSameBytes() throws IOException {
     final SimpleResourcePack pack = SimpleResourcePack.pack();
-    pack.metadata(88, "stable");
+    pack.metadata(GENERATED_PACK_FORMAT, "stable");
     pack.sound(FIRST_SOUND_EVENT, this.firstSound);
     pack.external(CREDITS_ENTRY, this.credits);
     pack.data(SHADER_ENTRY, SHADER_SOURCE.getBytes(StandardCharsets.US_ASCII));
@@ -390,7 +394,7 @@ final class SimpleResourcePackTest {
     pack.external(ICON_ENTRY, this.credits);
     pack.external(SOUNDS_README_ENTRY, this.credits);
     pack.external(SOUNDS_TEXT_ENTRY, this.credits);
-    pack.metadata(1, "pack");
+    pack.metadata(1, PLAIN_DESCRIPTION);
     pack.zip(zip);
 
     final String message = meta.getMessage();
@@ -613,7 +617,7 @@ final class SimpleResourcePackTest {
   void shouldRejectInvalidMetadata() {
     final SimpleResourcePack pack = SimpleResourcePack.pack();
 
-    assertThrows(IllegalArgumentException.class, () -> pack.metadata(0, "pack"));
+    assertThrows(IllegalArgumentException.class, () -> pack.metadata(0, PLAIN_DESCRIPTION));
     assertThrows(NullPointerException.class, () -> pack.metadata(1, null));
   }
 
@@ -621,7 +625,7 @@ final class SimpleResourcePackTest {
   void shouldRejectDestinationsWithoutAParent() {
     final SimpleResourcePack pack = SimpleResourcePack.pack();
     final Path root = this.directory.getRoot();
-    pack.metadata(1, "pack");
+    pack.metadata(1, PLAIN_DESCRIPTION);
 
     assertThrows(IllegalArgumentException.class, () -> pack.zip(root));
   }
@@ -631,7 +635,7 @@ final class SimpleResourcePackTest {
     final SimpleResourcePack blocked = SimpleResourcePack.pack();
     final Path file = this.directory.resolve(BLOCKING_FILE_NAME);
     final Path belowFile = file.resolve(PACK_FILE_NAME);
-    blocked.metadata(1, "pack");
+    blocked.metadata(1, PLAIN_DESCRIPTION);
     Files.write(file, CREDITS);
 
     assertThrows(BukkitException.class, () -> blocked.zip(belowFile));
@@ -642,7 +646,7 @@ final class SimpleResourcePackTest {
     final SimpleResourcePack vanished = SimpleResourcePack.pack();
     final Path output = this.directory.resolve(OUTPUT_FOLDER);
     final Path zip = output.resolve(PACK_FILE_NAME);
-    vanished.metadata(1, "pack");
+    vanished.metadata(1, PLAIN_DESCRIPTION);
     vanished.sound(AUDIO_SOUND, this.firstSound);
     Files.delete(this.firstSound);
     Files.createDirectory(output);

@@ -40,6 +40,8 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 final class Mcv2ParserTest {
 
+  private static final int FRAME_SIZE = 40;
+
   private static final String INVALID_LENGTH_MESSAGE = "Invalid frame length!";
   private static final String NOT_A_FRAME_MESSAGE = "Not an MCV2 version 3 frame!";
   private static final String INVALID_DIMENSIONS_MESSAGE = "Invalid dimensions!";
@@ -67,10 +69,10 @@ final class Mcv2ParserTest {
 
   @Test
   void shouldParseTheHeaderAndTheLeavesOfAKeyframe() {
-    final byte[] frame = keyframe(40, 20, solid(1, 2, 3), split(Node.leaf(Mcv2Decoder.MODE_PALETTE, 0, palette())));
+    final byte[] frame = keyframe(FRAME_SIZE, 20, solid(1, 2, 3), split(Node.leaf(Mcv2Decoder.MODE_PALETTE, 0, palette())));
     final Mcv2Decoder.Frame parsed = Mcv2Decoder.parse(frame);
     final int width = parsed.getWidth();
-    assertEquals(40, width);
+    assertEquals(FRAME_SIZE, width);
 
     final int height = parsed.getHeight();
     assertEquals(20, height);
@@ -164,16 +166,16 @@ final class Mcv2ParserTest {
   }
 
   private static Stream<Arguments> headerRules() {
-    final byte[] key = keyframe(40, 40, solid(1, 2, 3), solid(4, 5, 6), solid(1, 2, 3), solid(7, 8, 9));
+    final byte[] key = keyframe(FRAME_SIZE, FRAME_SIZE, solid(1, 2, 3), solid(4, 5, 6), solid(1, 2, 3), solid(7, 8, 9));
     return Stream.of(
       Arguments.of(withWord(key, 4, 0x0104), NOT_A_FRAME_MESSAGE),
       Arguments.of(withWord(key, 4, 0x0303), NOT_A_FRAME_MESSAGE),
       Arguments.of(withWord(key, 4, 0x010103), NOT_A_FRAME_MESSAGE),
       Arguments.of(withWord(key, 4, 0x01000003), NOT_A_FRAME_MESSAGE),
-      Arguments.of(withWord(key, 8, 40L << 16), INVALID_DIMENSIONS_MESSAGE),
-      Arguments.of(withWord(key, 8, 4097 | (40L << 16)), INVALID_DIMENSIONS_MESSAGE),
-      Arguments.of(withWord(key, 8, 40), INVALID_DIMENSIONS_MESSAGE),
-      Arguments.of(withWord(key, 8, 40 | (4097L << 16)), INVALID_DIMENSIONS_MESSAGE)
+      Arguments.of(withWord(key, 8, (long) FRAME_SIZE << 16), INVALID_DIMENSIONS_MESSAGE),
+      Arguments.of(withWord(key, 8, 4097 | ((long) FRAME_SIZE << 16)), INVALID_DIMENSIONS_MESSAGE),
+      Arguments.of(withWord(key, 8, FRAME_SIZE), INVALID_DIMENSIONS_MESSAGE),
+      Arguments.of(withWord(key, 8, FRAME_SIZE | (4097L << 16)), INVALID_DIMENSIONS_MESSAGE)
     );
   }
 

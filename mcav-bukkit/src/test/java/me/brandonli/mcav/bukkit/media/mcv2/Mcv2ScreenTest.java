@@ -73,6 +73,8 @@ import org.mockito.Mockito;
 
 final class Mcv2ScreenTest {
 
+  private static final int ORIGIN_HEIGHT = 64;
+
   private static final UUID VIEWER = UUID.fromString("00000000-0000-0000-0000-000000000011");
 
   private static final int WALL_MAP = 100;
@@ -133,7 +135,7 @@ final class Mcv2ScreenTest {
   private Mcv2Configuration configuration(final BlockFace facing, final int originX) {
     return Mcv2Configuration.builder()
       .viewers(List.of(VIEWER))
-      .origin(new Location(this.world, originX, 64, -4))
+      .origin(new Location(this.world, originX, ORIGIN_HEIGHT, -4))
       .facing(facing)
       .map(WALL_MAP)
       .columns(3)
@@ -153,11 +155,11 @@ final class Mcv2ScreenTest {
     final int frameCount = this.frames.size();
     assertEquals(6, frameCount);
     // facing south, columns count east and the frames hang two blocks north of the wall's frames
-    final Location expectedFirstLocation = new Location(this.world, 10, 64, -6);
+    final Location expectedFirstLocation = new Location(this.world, 10, ORIGIN_HEIGHT, -6);
     final Location firstLocation = this.spawned.get(0);
     assertEquals(expectedFirstLocation, firstLocation);
 
-    final Location expectedThirdLocation = new Location(this.world, 12, 64, -6);
+    final Location expectedThirdLocation = new Location(this.world, 12, ORIGIN_HEIGHT, -6);
     final Location thirdLocation = this.spawned.get(2);
     assertEquals(expectedThirdLocation, thirdLocation);
 
@@ -187,11 +189,11 @@ final class Mcv2ScreenTest {
     new Mcv2Screen(this.configuration(BlockFace.EAST)).build();
 
     // facing east, columns count north and the frames hang two blocks west
-    final Location expectedFirstLocation = new Location(this.world, 8, 64, -4);
+    final Location expectedFirstLocation = new Location(this.world, 8, ORIGIN_HEIGHT, -4);
     final Location firstLocation = this.spawned.get(0);
     assertEquals(expectedFirstLocation, firstLocation);
 
-    final Location expectedThirdLocation = new Location(this.world, 8, 64, -6);
+    final Location expectedThirdLocation = new Location(this.world, 8, ORIGIN_HEIGHT, -6);
     final Location thirdLocation = this.spawned.get(2);
     assertEquals(expectedThirdLocation, thirdLocation);
   }
@@ -455,7 +457,7 @@ final class Mcv2ScreenTest {
       this.items.clear();
       final Mcv2Configuration configuration = Mcv2Configuration.builder()
         .viewers(List.of(VIEWER))
-        .origin(new Location(this.world, 10, 64, -4))
+        .origin(new Location(this.world, 10, ORIGIN_HEIGHT, -4))
         .facing(BlockFace.SOUTH)
         .map(WALL_MAP)
         .columns(wall[0])

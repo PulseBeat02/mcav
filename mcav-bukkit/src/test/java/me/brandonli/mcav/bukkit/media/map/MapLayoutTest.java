@@ -30,6 +30,20 @@ import org.junit.jupiter.api.Test;
 
 final class MapLayoutTest {
 
+  private static final int TWO_MAP_SIZE = 256;
+
+  private static final int SMALL_IMAGE_HEIGHT = 50;
+  private static final int SMALL_IMAGE_TOP = 39;
+
+  private static final int SHORT_IMAGE_HEIGHT = 64;
+  private static final int SHORT_IMAGE_TOP = 32;
+
+  private static final int PARTIAL_MAP_OFFSET = 28;
+
+  private static final int PATCH_LEFT = 20;
+
+  private static final int OVERFLOWING_DIMENSION = 65_536;
+
   private static final int MAP_SIZE = 128;
 
   static byte[] createImage(final int width, final int height) {
@@ -82,7 +96,7 @@ final class MapLayoutTest {
 
   @Test
   void shouldNumberMapsRowByRowFromTheStartId() {
-    final MapLayout layout = MapLayout.of(10, 3, 2, 384, 256);
+    final MapLayout layout = MapLayout.of(10, 3, 2, 384, TWO_MAP_SIZE);
     final int mapCount = layout.getMapCount();
     final int firstId = layout.getMapId(0);
     final int lastId = layout.getMapId(5);
@@ -96,7 +110,7 @@ final class MapLayoutTest {
     assertEquals(10, firstId);
     assertEquals(15, lastId);
     assertEquals(384, imageWidth);
-    assertEquals(256, imageHeight);
+    assertEquals(TWO_MAP_SIZE, imageHeight);
     this.assertRegion(secondRowSecondColumn, 0, 0, MAP_SIZE, MAP_SIZE, MAP_SIZE, MAP_SIZE);
     this.assertRegion(firstRowSecondColumn, 0, 0, MAP_SIZE, MAP_SIZE, MAP_SIZE, 0);
     this.assertRegion(secondRowFirstColumn, 0, 0, MAP_SIZE, MAP_SIZE, 0, MAP_SIZE);
@@ -104,15 +118,15 @@ final class MapLayoutTest {
 
   @Test
   void shouldCenterImagesThatAreSmallerThanTheGrid() {
-    final MapLayout layout = MapLayout.of(0, 1, 1, 100, 50);
+    final MapLayout layout = MapLayout.of(0, 1, 1, 100, SMALL_IMAGE_HEIGHT);
     final MapRegion region = layout.getRegion(0);
 
-    this.assertRegion(region, 14, 39, 100, 50, 0, 0);
+    this.assertRegion(region, 14, SMALL_IMAGE_TOP, 100, SMALL_IMAGE_HEIGHT, 0, 0);
   }
 
   @Test
   void shouldLeaveMapsTheImageDoesNotReachEmpty() {
-    final MapLayout layout = MapLayout.of(0, 3, 1, MAP_SIZE, 64);
+    final MapLayout layout = MapLayout.of(0, 3, 1, MAP_SIZE, SHORT_IMAGE_HEIGHT);
     final MapRegion left = layout.getRegion(0);
     final MapRegion middle = layout.getRegion(1);
     final MapRegion right = layout.getRegion(2);
@@ -123,7 +137,7 @@ final class MapLayoutTest {
     assertTrue(leftEmpty);
     assertFalse(middleEmpty);
     assertTrue(rightEmpty);
-    this.assertRegion(middle, 0, 32, MAP_SIZE, 64, 0, 0);
+    this.assertRegion(middle, 0, SHORT_IMAGE_TOP, MAP_SIZE, SHORT_IMAGE_HEIGHT, 0, 0);
   }
 
   @Test
@@ -140,7 +154,7 @@ final class MapLayoutTest {
     final MapRegion left = layout.getRegion(0);
     final MapRegion right = layout.getRegion(1);
 
-    this.assertRegion(left, 28, 14, 100, 100, 0, 0);
+    this.assertRegion(left, PARTIAL_MAP_OFFSET, 14, 100, 100, 0, 0);
     this.assertRegion(right, 0, 14, 100, 100, 100, 0);
   }
 
@@ -150,15 +164,15 @@ final class MapLayoutTest {
     final MapRegion top = layout.getRegion(0);
     final MapRegion bottom = layout.getRegion(1);
 
-    this.assertRegion(top, 0, 28, MAP_SIZE, 100, 0, 0);
+    this.assertRegion(top, 0, PARTIAL_MAP_OFFSET, MAP_SIZE, 100, 0, 0);
     this.assertRegion(bottom, 0, 0, MAP_SIZE, 100, 0, 100);
   }
 
   @Test
   void shouldExtractRectanglesThatEndExactlyAtTheEdgeOfTheRegion() {
-    final MapLayout layout = MapLayout.of(0, 1, 1, 100, 50);
-    final byte[] image = createImage(100, 50);
-    final MapTilePatch patch = layout.extractPatch(image, 0, 20, 45, 94, 44);
+    final MapLayout layout = MapLayout.of(0, 1, 1, 100, SMALL_IMAGE_HEIGHT);
+    final byte[] image = createImage(100, SMALL_IMAGE_HEIGHT);
+    final MapTilePatch patch = layout.extractPatch(image, 0, PATCH_LEFT, 45, 94, 44);
     final byte[] expected = copyRectangle(image, 100, 6, 6, 94, 44);
     final byte[] colors = patch.getColors();
     final int width = patch.getWidth();
@@ -195,22 +209,22 @@ final class MapLayoutTest {
 
     assertEquals(Integer.MAX_VALUE, lastId);
     assertThrows(IllegalArgumentException.class, () -> MapLayout.of(Integer.MAX_VALUE, 2, 1, 1, 1));
-    assertThrows(IllegalArgumentException.class, () -> MapLayout.of(1, 65_536, 65_536, 1, 1));
+    assertThrows(IllegalArgumentException.class, () -> MapLayout.of(1, OVERFLOWING_DIMENSION, OVERFLOWING_DIMENSION, 1, 1));
     assertThrows(IllegalArgumentException.class, () -> MapLayout.of(0, 16_777_216, 1, 1, 1));
     assertThrows(IllegalArgumentException.class, () -> MapLayout.of(0, 1, 16_777_216, 1, 1));
-    assertThrows(IllegalArgumentException.class, () -> MapLayout.of(0, 1, 1, 65_536, 65_536));
+    assertThrows(IllegalArgumentException.class, () -> MapLayout.of(0, 1, 1, OVERFLOWING_DIMENSION, OVERFLOWING_DIMENSION));
   }
 
   @Test
   void shouldRejectMapCountsThatOverflowEvenWhenTheLastIdFits() {
-    assertThrows(IllegalArgumentException.class, () -> MapLayout.of(0, 65_536, 32_768, 1, 1));
+    assertThrows(IllegalArgumentException.class, () -> MapLayout.of(0, OVERFLOWING_DIMENSION, 32_768, 1, 1));
   }
 
   @Test
   void shouldExtractRectanglesThatFillTheWholeRegion() {
-    final MapLayout layout = MapLayout.of(0, 1, 1, 100, 50);
-    final byte[] image = createImage(100, 50);
-    final MapTilePatch patch = layout.extractPatch(image, 0, 14, 39, 100, 50);
+    final MapLayout layout = MapLayout.of(0, 1, 1, 100, SMALL_IMAGE_HEIGHT);
+    final byte[] image = createImage(100, SMALL_IMAGE_HEIGHT);
+    final MapTilePatch patch = layout.extractPatch(image, 0, 14, SMALL_IMAGE_TOP, 100, SMALL_IMAGE_HEIGHT);
     final byte[] colors = patch.getColors();
 
     assertArrayEquals(image, colors);
@@ -218,27 +232,27 @@ final class MapLayoutTest {
 
   @Test
   void shouldRejectRectanglesThatAreNotInsideTheRegionOfTheMap() {
-    final MapLayout layout = MapLayout.of(0, 1, 1, 100, 50);
-    final byte[] image = createImage(100, 50);
+    final MapLayout layout = MapLayout.of(0, 1, 1, 100, SMALL_IMAGE_HEIGHT);
+    final byte[] image = createImage(100, SMALL_IMAGE_HEIGHT);
     final byte[] wrongSize = new byte[10];
 
-    assertThrows(IllegalArgumentException.class, () -> layout.extractPatch(image, 0, 13, 39, 1, 1));
-    assertThrows(IllegalArgumentException.class, () -> layout.extractPatch(image, 0, 14, 39, 0, 1));
-    assertThrows(IllegalArgumentException.class, () -> layout.extractPatch(image, 0, 14, 39, 101, 1));
-    assertThrows(IllegalArgumentException.class, () -> layout.extractPatch(image, 0, 114, 39, 1, 1));
-    assertThrows(IllegalArgumentException.class, () -> layout.extractPatch(image, 0, Integer.MAX_VALUE, 39, 1, 1));
+    assertThrows(IllegalArgumentException.class, () -> layout.extractPatch(image, 0, 13, SMALL_IMAGE_TOP, 1, 1));
+    assertThrows(IllegalArgumentException.class, () -> layout.extractPatch(image, 0, 14, SMALL_IMAGE_TOP, 0, 1));
+    assertThrows(IllegalArgumentException.class, () -> layout.extractPatch(image, 0, 14, SMALL_IMAGE_TOP, 101, 1));
+    assertThrows(IllegalArgumentException.class, () -> layout.extractPatch(image, 0, 114, SMALL_IMAGE_TOP, 1, 1));
+    assertThrows(IllegalArgumentException.class, () -> layout.extractPatch(image, 0, Integer.MAX_VALUE, SMALL_IMAGE_TOP, 1, 1));
     assertThrows(IllegalArgumentException.class, () -> layout.extractPatch(image, 0, 14, 38, 1, 1));
-    assertThrows(IllegalArgumentException.class, () -> layout.extractPatch(image, 0, 14, 39, 1, 0));
-    assertThrows(IllegalArgumentException.class, () -> layout.extractPatch(image, 0, 14, 39, 1, 51));
+    assertThrows(IllegalArgumentException.class, () -> layout.extractPatch(image, 0, 14, SMALL_IMAGE_TOP, 1, 0));
+    assertThrows(IllegalArgumentException.class, () -> layout.extractPatch(image, 0, 14, SMALL_IMAGE_TOP, 1, 51));
     assertThrows(IllegalArgumentException.class, () -> layout.extractPatch(image, 0, 14, 89, 1, 1));
-    assertThrows(IllegalArgumentException.class, () -> layout.extractPatch(image, 0, 14, 39, -1, -1));
-    assertThrows(IllegalArgumentException.class, () -> layout.extractPatch(wrongSize, 0, 14, 39, 1, 1));
+    assertThrows(IllegalArgumentException.class, () -> layout.extractPatch(image, 0, 14, SMALL_IMAGE_TOP, -1, -1));
+    assertThrows(IllegalArgumentException.class, () -> layout.extractPatch(wrongSize, 0, 14, SMALL_IMAGE_TOP, 1, 1));
   }
 
   @Test
   void shouldRejectMapIndicesOutsideOfTheGrid() {
-    final MapLayout layout = MapLayout.of(0, 2, 1, 256, MAP_SIZE);
-    final byte[] image = new byte[256 * MAP_SIZE];
+    final MapLayout layout = MapLayout.of(0, 2, 1, TWO_MAP_SIZE, MAP_SIZE);
+    final byte[] image = new byte[TWO_MAP_SIZE * MAP_SIZE];
 
     assertThrows(IndexOutOfBoundsException.class, () -> layout.getRegion(2));
     assertThrows(IndexOutOfBoundsException.class, () -> layout.getRegion(-1));
@@ -267,9 +281,9 @@ final class MapLayoutTest {
 
   @Test
   void shouldExtractRectanglesInMapCoordinates() {
-    final MapLayout layout = MapLayout.of(3, 1, 1, 100, 50);
-    final byte[] image = createImage(100, 50);
-    final MapTilePatch patch = layout.extractPatch(image, 0, 20, 40, 3, 2);
+    final MapLayout layout = MapLayout.of(3, 1, 1, 100, SMALL_IMAGE_HEIGHT);
+    final byte[] image = createImage(100, SMALL_IMAGE_HEIGHT);
+    final MapTilePatch patch = layout.extractPatch(image, 0, PATCH_LEFT, 40, 3, 2);
     final byte[] expected = copyRectangle(image, 100, 6, 1, 3, 2);
     final byte[] colors = patch.getColors();
     final int mapId = patch.getMapId();
@@ -280,17 +294,17 @@ final class MapLayoutTest {
 
     assertArrayEquals(expected, colors);
     assertEquals(3, mapId);
-    assertEquals(20, left);
+    assertEquals(PATCH_LEFT, left);
     assertEquals(40, top);
     assertEquals(3, width);
     assertEquals(2, height);
-    assertThrows(NullPointerException.class, () -> layout.extractPatch(null, 0, 20, 40, 3, 2));
+    assertThrows(NullPointerException.class, () -> layout.extractPatch(null, 0, PATCH_LEFT, 40, 3, 2));
   }
 
   @Test
   void shouldExtractOnePatchPerCoveredMap() {
-    final MapLayout layout = MapLayout.of(7, 3, 1, MAP_SIZE, 64);
-    final byte[] image = createImage(MAP_SIZE, 64);
+    final MapLayout layout = MapLayout.of(7, 3, 1, MAP_SIZE, SHORT_IMAGE_HEIGHT);
+    final byte[] image = createImage(MAP_SIZE, SHORT_IMAGE_HEIGHT);
     final List<MapTilePatch> patches = layout.extractAll(image);
     final int patchCount = patches.size();
     final MapTilePatch patch = patches.getFirst();
@@ -304,21 +318,21 @@ final class MapLayoutTest {
     assertEquals(1, patchCount);
     assertEquals(8, mapId);
     assertEquals(0, left);
-    assertEquals(32, top);
+    assertEquals(SHORT_IMAGE_TOP, top);
     assertEquals(MAP_SIZE, width);
-    assertEquals(64, height);
+    assertEquals(SHORT_IMAGE_HEIGHT, height);
     assertArrayEquals(image, colors);
   }
 
   @Test
   void shouldExtractEveryMapOfAFullGrid() {
-    final MapLayout layout = MapLayout.of(0, 2, 2, 256, 256);
-    final byte[] image = createImage(256, 256);
+    final MapLayout layout = MapLayout.of(0, 2, 2, TWO_MAP_SIZE, TWO_MAP_SIZE);
+    final byte[] image = createImage(TWO_MAP_SIZE, TWO_MAP_SIZE);
     final List<MapTilePatch> patches = layout.extractAll(image);
     final int patchCount = patches.size();
     final MapTilePatch lastPatch = patches.getLast();
     final byte[] lastColors = lastPatch.getColors();
-    final byte[] expectedLastColors = copyRectangle(image, 256, MAP_SIZE, MAP_SIZE, MAP_SIZE, MAP_SIZE);
+    final byte[] expectedLastColors = copyRectangle(image, TWO_MAP_SIZE, MAP_SIZE, MAP_SIZE, MAP_SIZE, MAP_SIZE);
     final int lastId = lastPatch.getMapId();
 
     assertEquals(4, patchCount);
@@ -347,13 +361,13 @@ final class MapLayoutTest {
 
   @Test
   void shouldRejectEmptyRectanglesAsOutsideTheRegionOfTheMap() {
-    final MapLayout layout = MapLayout.of(0, 1, 1, 100, 50);
-    final byte[] image = createImage(100, 50);
+    final MapLayout layout = MapLayout.of(0, 1, 1, 100, SMALL_IMAGE_HEIGHT);
+    final byte[] image = createImage(100, SMALL_IMAGE_HEIGHT);
     final IllegalArgumentException noWidth = assertThrows(IllegalArgumentException.class, () ->
-      layout.extractPatch(image, 0, 14, 39, 0, 1)
+      layout.extractPatch(image, 0, 14, SMALL_IMAGE_TOP, 0, 1)
     );
     final IllegalArgumentException noHeight = assertThrows(IllegalArgumentException.class, () ->
-      layout.extractPatch(image, 0, 14, 39, 1, 0)
+      layout.extractPatch(image, 0, 14, SMALL_IMAGE_TOP, 1, 0)
     );
 
     final String noWidthMessage = noWidth.getMessage();

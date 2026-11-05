@@ -30,6 +30,8 @@ import net.jqwik.api.constraints.IntRange;
 
 final class Mcv2KernelPropertyTest {
 
+  private static final int MAXIMUM_CHANNEL_VALUE = 255;
+
   private static final String SEED = "20260925";
 
   private static final int[] SIZES = { 8, 16, 32 };
@@ -59,7 +61,7 @@ final class Mcv2KernelPropertyTest {
     for (int index = 0; index < prediction.length; index++) {
       prediction[index] = switch (random.nextInt(3)) {
         case 0 -> 0;
-        case 1 -> 255;
+        case 1 -> MAXIMUM_CHANNEL_VALUE;
         default -> random.nextInt(BYTE_VALUE_COUNT);
       };
     }
@@ -90,7 +92,7 @@ final class Mcv2KernelPropertyTest {
     final byte[] reference = new byte[prediction.length];
     for (int index = 0; index < reference.length; index++) {
       reference[index] = (byte) prediction[index];
-      prediction[index] = reference[index] & 255;
+      prediction[index] = reference[index] & MAXIMUM_CHANNEL_VALUE;
     }
 
     final int[] wholeExpected = new int[prediction.length];
@@ -98,7 +100,7 @@ final class Mcv2KernelPropertyTest {
     final byte[] decoded = Mcv2Decoder.decode(Mcv2WireFrames.block(size, 5, quantizer, record, Mcv2FrameKind.PREDICTED), reference, 0);
     for (int index = 0; index < decoded.length; index++) {
       final int expectedChannel = wholeExpected[index];
-      final int decodedChannel = decoded[index] & 255;
+      final int decodedChannel = decoded[index] & MAXIMUM_CHANNEL_VALUE;
       assertEquals(expectedChannel, decodedChannel);
     }
 

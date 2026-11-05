@@ -47,6 +47,9 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 final class MapResultTest {
 
+  private static final int RESOLUTION = 64;
+  private static final int CENTERED_FRAME_OFFSET = 32;
+
   private static final UUID VIEWER = UUID.fromString("00000000-0000-0000-0000-000000000001");
 
   private static final int MAP_SIZE = 128;
@@ -80,8 +83,8 @@ final class MapResultTest {
     builder.map(5);
     builder.mapBlockWidth(1);
     builder.mapBlockHeight(1);
-    builder.mapWidthResolution(64);
-    builder.mapHeightResolution(64);
+    builder.mapWidthResolution(RESOLUTION);
+    builder.mapHeightResolution(RESOLUTION);
     builder.resize(sizing == Sizing.RESIZED);
     return builder.build();
   }
@@ -92,8 +95,8 @@ final class MapResultTest {
     builder.map(5);
     builder.mapBlockWidth(columns);
     builder.mapBlockHeight(rows);
-    builder.mapWidthResolution(64);
-    builder.mapHeightResolution(64);
+    builder.mapWidthResolution(RESOLUTION);
+    builder.mapHeightResolution(RESOLUTION);
     builder.resize(false);
     return builder.build();
   }
@@ -134,16 +137,16 @@ final class MapResultTest {
     final ImageBuffer image = Images.solid(MAP_SIZE, MAP_SIZE, FRAME_COLOR);
     result.process(image, this.algorithm);
     final ClientboundMapItemDataPacket packet = this.onlyMapPacket(0);
-    final byte[] picture = MapPackets.pattern(64 * 64, 4);
+    final byte[] picture = MapPackets.pattern(RESOLUTION * RESOLUTION, 4);
     final byte[] colors = new byte[MAP_SIZE * MAP_SIZE];
-    for (int row = 0; row < 64; row++) {
-      System.arraycopy(picture, row * 64, colors, (row + 32) * MAP_SIZE + 32, 64);
+    for (int row = 0; row < RESOLUTION; row++) {
+      System.arraycopy(picture, row * RESOLUTION, colors, (row + CENTERED_FRAME_OFFSET) * MAP_SIZE + CENTERED_FRAME_OFFSET, RESOLUTION);
     }
 
     final int width = image.getWidth();
 
     MapPackets.assertMapPacket(packet, 5, 0, 0, MAP_SIZE, MAP_SIZE, colors);
-    assertEquals(64, width);
+    assertEquals(RESOLUTION, width);
   }
 
   @ParameterizedTest
@@ -153,12 +156,12 @@ final class MapResultTest {
     when(this.algorithm.ditherIntoBytes(any(ImageBuffer.class))).thenAnswer(invocation -> {
       final ImageBuffer frame = invocation.getArgument(0);
       final byte[] pixels = new byte[frame.getWidth() * frame.getHeight()];
-      Arrays.fill(pixels, frame.getWidth() == 64 ? (byte) 9 : (byte) 7);
+      Arrays.fill(pixels, frame.getWidth() == RESOLUTION ? (byte) 9 : (byte) 7);
       return pixels;
     });
     try (
       final ImageBuffer large = Images.solid(columns * MAP_SIZE, MAP_SIZE, FRAME_COLOR);
-      final ImageBuffer small = Images.solid(64, 64, 0xFF304050)
+      final ImageBuffer small = Images.solid(RESOLUTION, RESOLUTION, 0xFF304050)
     ) {
       result.process(large, this.algorithm);
       result.process(small, this.algorithm);
@@ -174,9 +177,9 @@ final class MapResultTest {
     }
 
     final byte[] expected = new byte[actual.length];
-    for (int row = 32; row < 96; row++) {
-      final int offset = row * canvasWidth + (canvasWidth - 64) / 2;
-      Arrays.fill(expected, offset, offset + 64, (byte) 9);
+    for (int row = CENTERED_FRAME_OFFSET; row < 96; row++) {
+      final int offset = row * canvasWidth + (canvasWidth - RESOLUTION) / 2;
+      Arrays.fill(expected, offset, offset + RESOLUTION, (byte) 9);
     }
 
     assertArrayEquals(expected, actual, "the current picture is surrounded by transparent pixels, including uncovered maps");
