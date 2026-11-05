@@ -32,6 +32,7 @@ from mcv2_reference import Node, pack_frame
 from mcv2_tools import archive_bytes as archive
 
 PLACEHOLDER: str = 'unused'
+
 SEED: int = 42
 
 ARCHIVE_NAME: str = 'tree-0000'
@@ -40,6 +41,7 @@ SUMMARY_NAME: str = 'summary.json'
 CORPUS_NAME: str = 'test.mcs'
 
 TOOLS_CLASS: str = 'me.brandonli.mcav.bukkit.media.mcv2.Mcv2Tools'
+
 TOKEN_SEPARATOR: str = ' '
 
 BUILD_ARCHIVES: str = 'differential_build_archives'
@@ -63,6 +65,8 @@ FRAMES_KEY: str = 'frames'
 
 class DifferentialTest(unittest.TestCase):
     def test_should_not_exempt_supported_frames_as_unsupported(self) -> None:
+        status: int
+        result: Any
         status, result = self.report([FRAME], [UNSUPPORTED])
         self.assertEqual(1, status)
 
@@ -76,6 +80,8 @@ class DifferentialTest(unittest.TestCase):
         self.assertEqual(0, decoded)
 
     def test_should_compare_a_supported_control(self) -> None:
+        status: int
+        result: Any
         status, result = self.report([FRAME], [REFERENCE_DIGEST])
         self.assertEqual(0, status)
 
@@ -83,6 +89,8 @@ class DifferentialTest(unittest.TestCase):
         self.assertEqual(1, decoded)
 
     def test_should_compare_every_frame_after_a_disagreement(self) -> None:
+        status: int
+        result: Any
         status, result = self.report([b'one', b'two', b'three'], [UNSUPPORTED, REJECT, REFERENCE_DIGEST])
         self.assertEqual(1, status)
 
@@ -102,6 +110,8 @@ class DifferentialTest(unittest.TestCase):
     def test_should_count_rejections_pixels_and_missing_and_extra_results(self) -> None:
         expected: dict[str, list[str]] = {'same': [REJECT, 'a' * DIGEST_DIGITS, 'b' * DIGEST_DIGITS], 'missing': [REJECT]}
         actual: dict[str, list[str]] = {'same': [REJECT, 'a' * DIGEST_DIGITS, 'c' * DIGEST_DIGITS], 'extra': [REJECT]}
+        counts: dict[str, int]
+        failures: list[dict[str, object]]
         counts, failures = mcv2_tools.differential_compare(expected, actual)
         frames: int = counts[FRAMES_KEY]
         self.assertEqual(4, frames)
@@ -168,9 +178,11 @@ class DifferentialTest(unittest.TestCase):
     def test_should_report_java_failures_as_findings(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             arguments: SimpleNamespace = SimpleNamespace(out=Path(directory), java=PLACEHOLDER, classpath=PLACEHOLDER, seed=SEED)
-            with patch.object(mcv2_tools, BUILD_ARCHIVES, return_value={ARCHIVE_NAME: [FOREIGN_FRAME]}),\
-                    patch.object(mcv2_tools.subprocess, RUN_FUNCTION, return_value=SimpleNamespace(returncode=2, stderr='crash')),\
-                    redirect_stderr(StringIO()):
+            with (
+                patch.object(mcv2_tools, BUILD_ARCHIVES, return_value={ARCHIVE_NAME: [FOREIGN_FRAME]}),
+                patch.object(mcv2_tools.subprocess, RUN_FUNCTION, return_value=SimpleNamespace(returncode=2, stderr='crash')),
+                redirect_stderr(StringIO()),
+            ):
                 status: int = mcv2_tools.differential_run(arguments)
                 self.assertEqual(2, status)
 
@@ -180,11 +192,14 @@ class DifferentialTest(unittest.TestCase):
             arguments: SimpleNamespace = SimpleNamespace(out=output, java=PLACEHOLDER, classpath=PLACEHOLDER, seed=SEED)
             archive_path: str = str(output / ARCHIVE_PATH)
             response: SimpleNamespace = SimpleNamespace(
-                returncode=0, stderr="", stdout=archive_path + TOKEN_SEPARATOR + TOKEN_SEPARATOR.join(tokens)
+                returncode=0, stderr='', stdout=TOKEN_SEPARATOR.join([archive_path, *tokens])
             )
-            with patch.object(mcv2_tools, BUILD_ARCHIVES, return_value={ARCHIVE_NAME: frames}),\
-                    patch.object(mcv2_tools, 'differential_reference_tokens', return_value=[REFERENCE_DIGEST] * len(frames)),\
-                    patch.object(mcv2_tools.subprocess, RUN_FUNCTION, return_value=response) as launch, redirect_stdout(StringIO()):
+            with (
+                patch.object(mcv2_tools, BUILD_ARCHIVES, return_value={ARCHIVE_NAME: frames}),
+                patch.object(mcv2_tools, 'differential_reference_tokens', return_value=[REFERENCE_DIGEST] * len(frames)),
+                patch.object(mcv2_tools.subprocess, RUN_FUNCTION, return_value=response) as launch,
+                redirect_stdout(StringIO()),
+            ):
                 status: int = mcv2_tools.differential_run(arguments)
 
             command: Any = launch.call_args.args[0]

@@ -24,7 +24,7 @@ BYTE_ORDER: str = '<'
 BYTE_CODE: str = 'B'
 HALF_WORD_CODE: str = 'H'
 WORD_CODE: str = 'I'
-WORD: struct.Struct = struct.Struct(BYTE_ORDER + WORD_CODE)
+WORD: struct.Struct = struct.Struct(f'{BYTE_ORDER}{WORD_CODE}')
 
 FRAME_KEY: str = 'frame'
 
@@ -51,9 +51,13 @@ TWO_LEVEL_DESCRIPTORS: int = 1 + mcv2_reference.SPLIT_CHILDREN + mcv2_reference.
 TWO_LEVEL_WALK_OFFSET: int = DESCRIPTORS_OFFSET + TWO_LEVEL_DESCRIPTORS
 
 WALK_SPLIT: int = 1 << mcv2_reference.WALK_CURSOR_BITS
+
 QUANTIZER_STEP: int = 1 << mcv2_reference.QUANTIZER_SHIFT
 QUANTIZER_VALUES: int = 1 << (mcv2_reference.BITS_PER_BYTE - mcv2_reference.QUANTIZER_SHIFT)
+
 INVALID_ORIENTATION: int = mcv2_reference.HORIZONTAL_STRIPES + 1
+
+SUPERBLOCK_PATTERN_BYTES: int = mcv2_reference.PATTERN_HEADER_BYTES + mcv2_reference.SUPERBLOCK_SIZE // mcv2_reference.BITS_PER_BYTE
 
 
 def rejected_frames() -> dict[str, dict[str, str]]:
@@ -62,7 +66,7 @@ def rejected_frames() -> dict[str, dict[str, str]]:
     _add_index_cases(cases)
     _add_walk_cases(cases)
     _add_descriptor_cases(cases)
-    _add(cases, 'payload-gap', _solid_frame() + b'\0', END_RULE, 'records do not end')
+    _add_end_cases(cases)
 
     return cases
 
@@ -72,11 +76,15 @@ def _add_header_cases(cases: dict[Any, Any]) -> None:
     _add(cases, 'short-frame', bytes(mcv2_reference.MINIMUM_FRAME_BYTES - 1), HEADER_RULE, FRAME_LENGTH_REASON)
     _add(cases, 'oversize-frame', bytes(mcv2_reference.MAXIMUM_FRAME_BYTES + 1), HEADER_RULE, FRAME_LENGTH_REASON)
     _add(cases, 'bad-magic', b'ABCD' + empty[len(mcv2_reference.MAGIC):], HEADER_RULE, NOT_MCV2_REASON)
+
     unknown_version: bytes = changed(empty, mcv2_reference.VERSION_OFFSET, mcv2_reference.VERSION + 1)
     _add(cases, 'unknown-version', unknown_version, HEADER_RULE, NOT_MCV2_REASON)
+
     for offset in range(mcv2_reference.VERSION_OFFSET + 1, mcv2_reference.WIDTH_OFFSET):
         _add(cases, f'version-byte-{offset}', changed(empty, offset, 1), HEADER_RULE, NOT_MCV2_REASON)
+
     _add_retired_version_cases(cases)
+
     for offset in (mcv2_reference.WIDTH_OFFSET, mcv2_reference.HEIGHT_OFFSET):
         for value in (0, mcv2_reference.MAXIMUM_DIMENSION + 1):
             _add(cases, f'dimension-{offset}-{value}', changed(empty, offset, value, HALF_WORD_CODE), HEADER_RULE, 'dimensions')
@@ -92,7 +100,7 @@ def _add(cases: dict[Any, Any] | Any | dict[str, dict[str, str]], name: str, dat
 
 def changed(data: bytes, offset: int, value: int, code: str = BYTE_CODE) -> bytes:
     result: bytearray = bytearray(data)
-    struct.pack_into(BYTE_ORDER + code, result, offset, value)
+    struct.pack_into(f'{BYTE_ORDER}{code}', result, offset, value)
     return bytes(result)
 
 
@@ -101,6 +109,7 @@ def _add_retired_version_cases(cases: dict[str, dict[str, str]]) -> None:
         '4d4356310102010001000100090000000900000000000000010000003400000037000000'
         '00000000000000000000000034000002102030')
     _add(cases, 'mcv1', version_1, HEADER_RULE, 'version 1 is no longer supported')
+
     version_2: bytes = bytes.fromhex(
         '4d4356320205730001000100000000000000000000000000010000004500000075000000000000000000000000000000010000000000000001000000'
         '0000010600000000003224e3e9bafb4931c49e41fca6fb71c25d4744121177650106704ecf2c3e8fa04eaa462d163cd0d18bc59cbc0fbaead8')
@@ -110,25 +119,27 @@ def _add_retired_version_cases(cases: dict[str, dict[str, str]]) -> None:
 def _add_index_cases(cases: dict[str, dict[str, str]]) -> None:
     _add_presence_cases(cases)
     _add_count_cases(cases)
-    _add(cases, 'truncated-descriptor-walk', _solid_frame()[:44], INDEX_RULE, TRUNCATED_DESCRIPTORS_REASON)
+    _add_truncated_walk_case(cases)
 
 
 def _add_presence_cases(cases: dict[str, dict[str, str]]) -> None:
     empty: bytes = _frame()
     for length in (20, 24, 28, 32, 36, 39):
         _add(cases, f'truncated-index-{length}', empty[:length], INDEX_RULE, 'truncated index')
+
     _add(cases, 'unused-mask-bit', changed(empty, MASK_OFFSET, 2, WORD_CODE), INDEX_RULE, 'presence mask')
     _add(cases, 'directory-zero', changed(empty, DIRECTORY_OFFSET, 1, WORD_CODE), INDEX_RULE, DIRECTORY_PREFIX_REASON)
 
     wide: bytes = pack_frame(4096, 65, 0, 0, {0: Node(mcv2_reference.SKIP), 256: Node(mcv2_reference.SKIP)})
-    later_prefix: int = MASK_OFFSET + 12 * mcv2_reference.WORD_BYTES + mcv2_reference.WORD_BYTES
-    _add(cases, 'directory-later-prefix', changed(wide, later_prefix, 0, WORD_CODE), INDEX_RULE, DIRECTORY_PREFIX_REASON)
+    later_prefix_offset: int = MASK_OFFSET + 12 * mcv2_reference.WORD_BYTES + mcv2_reference.WORD_BYTES
+    _add(cases, 'directory-later-prefix', changed(wide, later_prefix_offset, 0, WORD_CODE), INDEX_RULE, DIRECTORY_PREFIX_REASON)
 
 
 def _add_count_cases(cases: dict[str, dict[str, str]]) -> None:
     _add(cases, 'n0-popcount', changed(_solid_frame(), COUNTS_OFFSET, 0, WORD_CODE), INDEX_RULE, 'level 0 count')
-    level_one_count: int = COUNTS_OFFSET + mcv2_reference.WORD_BYTES
-    count_overflow: bytes = changed(_frame(), level_one_count, 0xFFFFFFFF, WORD_CODE)
+
+    level_one_count_offset: int = COUNTS_OFFSET + mcv2_reference.WORD_BYTES
+    count_overflow: bytes = changed(_frame(), level_one_count_offset, 0xFFFFFFFF, WORD_CODE)
     _add(cases, 'count-overflow', count_overflow, INDEX_RULE, TRUNCATED_DESCRIPTORS_REASON)
 
     split: Node = _skip_split()
@@ -137,7 +148,7 @@ def _add_count_cases(cases: dict[str, dict[str, str]]) -> None:
 
     deep: bytes = _frame(Node(mcv2_reference.SPLIT, children=(split,) * mcv2_reference.SPLIT_CHILDREN))
     _add(cases, 'n2-children', _without_level_one_split(deep), INDEX_RULE, 'level 2 count')
-    _add(cases, 'split-at-level-2', changed(deep, DESCRIPTORS_OFFSET + 5, mcv2_reference.SPLIT), INDEX_RULE, 'SPLIT in level 2')
+    _add(cases, 'split-at-level-2', changed(deep, DESCRIPTORS_OFFSET + 5, mcv2_reference.SPLIT), INDEX_RULE, 'Level 2 of the frame has a SPLIT')
 
 
 def _solid_frame() -> bytes:
@@ -158,8 +169,13 @@ def _without_level_one_split(deep: bytes) -> bytes:
     return bytes(data)
 
 
+def _add_truncated_walk_case(cases: dict[str, dict[str, str]]) -> None:
+    _add(cases, 'truncated-descriptor-walk', _solid_frame()[:44], INDEX_RULE, TRUNCATED_DESCRIPTORS_REASON)
+
+
 def _add_walk_cases(cases: dict[str, dict[str, str]]) -> None:
     _add(cases, 'walk-zero', changed(_solid_frame(), DESCRIPTORS_OFFSET + 1, 1, WORD_CODE), WALK_RULE, WALK_CHECKPOINT_REASON)
+
     solid_leaves: tuple[Node, ...] = (Node(mcv2_reference.SOLID, record=bytes(mcv2_reference.SOLID_BYTES)),) * mcv2_reference.SPLIT_CHILDREN
     solid_split: Node = Node(mcv2_reference.SPLIT, children=solid_leaves)
     long: bytes = _frame(Node(mcv2_reference.SPLIT, children=(solid_split,) * mcv2_reference.SPLIT_CHILDREN))
@@ -214,16 +230,17 @@ def _add_keyframe_mode_cases(cases: dict[str, dict[str, str]]) -> None:
 
 def _add_truncated_record_cases(cases: dict[str, dict[str, str]]) -> None:
     nodes: list[Node] = [Node(mcv2_reference.MOTION, record=bytes(mcv2_reference.MOTION_BYTES)),
-             Node(mcv2_reference.SOLID, record=bytes(mcv2_reference.SOLID_BYTES)),
-             Node(mcv2_reference.PALETTE, record=bytes(134)), Node(mcv2_reference.PATTERN, record=bytes(11)),
-             Node(mcv2_reference.COMPACT, record=bytes(mcv2_reference.COMPACT_BYTES))]
+                         Node(mcv2_reference.SOLID, record=bytes(mcv2_reference.SOLID_BYTES)),
+                         Node(mcv2_reference.PALETTE, record=bytes(134)),
+                         Node(mcv2_reference.PATTERN, record=bytes(SUPERBLOCK_PATTERN_BYTES)),
+                         Node(mcv2_reference.COMPACT, record=bytes(mcv2_reference.COMPACT_BYTES))]
     for node in nodes:
         data: bytes = _predicted_frame(node)
         _add(cases, f'truncated-record-{node.mode}', data[:-1], DESCRIPTOR_RULE, 'record exceeds')
 
 
 def _add_orientation_cases(cases: dict[str, dict[str, str]]) -> None:
-    pattern: bytes = _frame(Node(mcv2_reference.PATTERN, record=bytes(11)))
+    pattern: bytes = _frame(Node(mcv2_reference.PATTERN, record=bytes(SUPERBLOCK_PATTERN_BYTES)))
     _add(cases, 'pattern-orientation', _with_invalid_orientation(pattern, INVALID_ORIENTATION), DESCRIPTOR_RULE, PATTERN_ORIENTATION_REASON)
 
     offscreen_children: tuple[Node, Node, Node, Node] = (
@@ -236,12 +253,18 @@ def _add_orientation_cases(cases: dict[str, dict[str, str]]) -> None:
     offscreen_orientation: bytes = _with_invalid_orientation(offscreen, INVALID_ORIENTATION)
     _add(cases, 'off-picture-orientation', offscreen_orientation, DESCRIPTOR_RULE, PATTERN_ORIENTATION_REASON)
 
-    skips: tuple[Node, Node, Node] = (Node(mcv2_reference.SKIP),) * 3
+    skips: tuple[Node, ...] = (Node(mcv2_reference.SKIP),) * (mcv2_reference.SPLIT_CHILDREN - 1)
     corner: Node = Node(mcv2_reference.SPLIT, children=(Node(mcv2_reference.PATTERN, record=bytes(8)),) + skips)
     eight: bytes = _frame(Node(mcv2_reference.SPLIT, children=(corner,) + skips))
     _add(cases, 'pattern-orientation-8', _with_invalid_orientation(eight, 255), DESCRIPTOR_RULE, PATTERN_ORIENTATION_REASON)
 
 
 def _with_invalid_orientation(data: bytes, orientation: int) -> bytes:
-    offset: int = parse_frame(data).payload_start + mcv2_reference.PATTERN_ORIENTATION_INDEX
+    frame: mcv2_reference.Frame = parse_frame(data)
+    offset: int = frame.payload_start + mcv2_reference.PATTERN_ORIENTATION_INDEX
     return changed(data, offset, orientation)
+
+
+def _add_end_cases(cases: dict[str, dict[str, str]]) -> None:
+    payload_gap: bytes = _solid_frame() + b'\0'
+    _add(cases, 'payload-gap', payload_gap, END_RULE, 'records do not end')

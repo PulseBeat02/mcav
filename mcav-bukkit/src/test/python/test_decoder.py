@@ -47,7 +47,7 @@ class ReconstructionTest(unittest.TestCase):
             selectors[0], selectors[size // mcv2_reference.BITS_PER_BYTE] = 0b00000101, 0b00000010
             node: Node = Node(mcv2_reference.PALETTE, record=bytes([1, 2, 3, 91, 92, 93]) + selectors)
             expected: numpy.ndarray = numpy.array([[[91, 92, 93], [1, 2, 3], [91, 92, 93]],
-                                 [[1, 2, 3], [91, 92, 93], [1, 2, 3]]], numpy.uint8)
+                                                   [[1, 2, 3], [91, 92, 93], [1, 2, 3]]], numpy.uint8)
             decoded: numpy.ndarray = decode(frame(node, size=size))
             numpy.testing.assert_array_equal(expected, decoded)
 
@@ -65,7 +65,7 @@ class ReconstructionTest(unittest.TestCase):
     def test_should_sign_and_clamp_whole_pixel_motion(self) -> None:
         reference: numpy.ndarray = gray([[1, 2, 3], [4, 5, 6]])
         cases: list[tuple[bytes, list[list[int]]]] = [(b'\1\xff', [[2, 3, 3], [2, 3, 3]]), (b'\x80\x7f', [[4, 4, 4], [4, 4, 4]]),
-                 (b'\x7f\x80', [[3, 3, 3], [3, 3, 3]]), (b'\2\0', [[3, 3, 3], [6, 6, 6]])]
+                                                      (b'\x7f\x80', [[3, 3, 3], [3, 3, 3]]), (b'\2\0', [[3, 3, 3], [6, 6, 6]])]
         for record, expected in cases:
             decoded: numpy.ndarray = decode(frame(Node(mcv2_reference.MOTION, record=record), frame_id=1, reference_id=0), reference, 0)
             numpy.testing.assert_array_equal(gray(expected), decoded)
@@ -102,9 +102,9 @@ class ReconstructionTest(unittest.TestCase):
         record: bytes = ZERO_VECTOR + bytes.fromhex('fe10fe10fe10fe10')
         data: bytes = frame(Node(mcv2_reference.COMPACT, 2, record), width=16, height=16, size=16, frame_id=1, reference_id=0)
         expected_row: list[list[int]] = [[92, 112, 132], [92, 112, 132], [93, 113, 133], [94, 114, 134],
-                        [95, 115, 135], [96, 116, 136], [97, 117, 137], [98, 118, 138],
-                        [99, 119, 139], [100, 120, 140], [101, 121, 141], [102, 122, 142],
-                        [103, 123, 143], [104, 124, 144], [104, 124, 144], [104, 124, 144]]
+                                         [95, 115, 135], [96, 116, 136], [97, 117, 137], [98, 118, 138],
+                                         [99, 119, 139], [100, 120, 140], [101, 121, 141], [102, 122, 142],
+                                         [103, 123, 143], [104, 124, 144], [104, 124, 144], [104, 124, 144]]
         reference: numpy.ndarray = numpy.broadcast_to(numpy.array([100, 120, 140], numpy.uint8), (16, 16, mcv2_reference.CHANNELS)).copy()
         decoded: numpy.ndarray = decode(data, reference, 0)
         numpy.testing.assert_array_equal(numpy.array([expected_row] * 16, numpy.uint8), decoded)
@@ -113,9 +113,9 @@ class ReconstructionTest(unittest.TestCase):
         record: bytes = ZERO_VECTOR + bytes.fromhex('ed0ffe100f211032')
         data: bytes = frame(Node(mcv2_reference.COMPACT, record=record), width=8, height=8, size=8, frame_id=1, reference_id=0)
         expected: list[list[int]] = [[97, 97, 98, 98, 99, 99, 100, 100], [97, 98, 98, 99, 99, 100, 100, 100],
-                    [98, 98, 99, 99, 100, 100, 101, 101], [98, 99, 99, 100, 100, 101, 101, 101],
-                    [99, 99, 100, 100, 101, 101, 102, 102], [99, 100, 100, 101, 101, 102, 102, 102],
-                    [100, 100, 101, 101, 102, 102, 103, 103], [100, 100, 101, 101, 102, 102, 103, 103]]
+                                     [98, 98, 99, 99, 100, 100, 101, 101], [98, 99, 99, 100, 100, 101, 101, 101],
+                                     [99, 99, 100, 100, 101, 101, 102, 102], [99, 100, 100, 101, 101, 102, 102, 102],
+                                     [100, 100, 101, 101, 102, 102, 103, 103], [100, 100, 101, 101, 102, 102, 103, 103]]
         decoded: numpy.ndarray = decode(data, numpy.full((8, 8, mcv2_reference.CHANNELS), 100, numpy.uint8), 0)
         numpy.testing.assert_array_equal(gray(expected), decoded)
 
@@ -144,8 +144,8 @@ class ReconstructionTest(unittest.TestCase):
         data: bytes = frame(frame_id=1, reference_id=0)
         transposed: tuple[int, int, int] = (WIDTH, HEIGHT, mcv2_reference.CHANNELS)
         for reference, reference_id in [(None, 0), (numpy.zeros(PICTURE_SHAPE, numpy.uint8), 2),
-                                  (numpy.zeros(PICTURE_SHAPE, numpy.uint8), None), (numpy.zeros(transposed, numpy.uint8), 0),
-                                  (numpy.zeros(PICTURE_SHAPE, numpy.int32), 0)]:
+                                        (numpy.zeros(PICTURE_SHAPE, numpy.uint8), None), (numpy.zeros(transposed, numpy.uint8), 0),
+                                        (numpy.zeros(PICTURE_SHAPE, numpy.int32), 0)]:
             with self.assertRaises(ValueError):
                 decode(data, reference, reference_id)
 

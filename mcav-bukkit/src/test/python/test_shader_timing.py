@@ -37,6 +37,7 @@ JSON_OPTION: str = "--json"
 
 WIDTH: int = 64
 HEIGHT: int = 32
+
 KEYFRAME_ID: int = 1
 PREDICTED_FRAME_ID: int = 2
 
@@ -53,9 +54,9 @@ GL_VERSION: str = "3.3"
 
 STREAMS_KEY: str = "streams"
 NEW_KEYFRAME_KEY: str = "new_keyframe"
-NEW_PREDICTED_KEY: str = "new_p"
+NEW_PREDICTED_KEY: str = "new_predicted_frame"
 TOTAL_KEY: str = "total"
-COUNT_KEY: str = "n"
+COUNT_KEY: str = "count"
 
 PACKAGE: str = "mcvideo"
 PACKAGE_INIT: str = "__init__.py"
@@ -102,6 +103,8 @@ class TimerAccountingTest(unittest.TestCase):
         drawn: list[Any | str] = []
         chain.draw = lambda program, inputs, output: drawn.append(output)
         chain.target = lambda name: types.SimpleNamespace(read=lambda: b"\x01\x00\x00\x00")
+        decoded: bool
+        times: dict[str, float]
         decoded, times = chain.timed_frame(5)
         self.assertTrue(decoded)
 
@@ -179,10 +182,10 @@ def run(
         (FakeChain,),
         dict(missed=frozenset(missed), again=frozenset(again), changed=frozenset(changed), received=received),
     )
-    argv: list[Any] = [PROGRAM, STREAM_NAME, *options]
+    arguments: list[str] = [PROGRAM, STREAM_NAME, *options]
     with (
         mock.patch.dict(sys.modules, {MODERNGL_MODULE: moderngl}),
-        mock.patch.object(sys, "argv", argv),
+        mock.patch.object(sys, "argv", arguments),
         mock.patch.object(mcv2_tools, "make_pages", lambda data, stream_id, symbol_bits: [data]),
         mock.patch.object(mcv2_tools, "TimedShaderChain", chain),
         mock.patch.object(
@@ -225,6 +228,7 @@ class FakeChain:
         times: dict[str, float] = {"mcv2_decode": DECODE_MILLISECONDS, "mcv2_screen": SCREEN_MILLISECONDS}
         if self.first:
             self.first = False
+
             return key not in self.missed, times
 
         self.first = True
@@ -234,6 +238,7 @@ class FakeChain:
     def target(self, name: str) -> types.SimpleNamespace:
         key: tuple[int, int] = (self.round, self.index)
         self.index += 1
+
         picture: bytes = b"another picture" if key in self.changed else b"picture %d" % key[1]
         return types.SimpleNamespace(read=lambda: picture)
 

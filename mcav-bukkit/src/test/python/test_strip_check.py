@@ -25,16 +25,18 @@ from mcv2_reference import pack_frame
 import mcv2_tools
 
 
-class StripTest(unittest.TestCase):
-    def test_should_return_the_exact_six_bit_symbols_of_an_rgb_strip(self) -> None:
+class StripCheckTest(unittest.TestCase):
+    def test_should_return_the_exact_six_bit_symbols_of_an_rgb_strip_and_read_its_page(self) -> None:
         frame: bytes = pack_frame(1, 1, 7, 7, {})
         symbols: bytes = make_pages(frame, 5)[0]
         padded: numpy.ndarray = numpy.zeros(mcv2_reference.PAGE_SYMBOLS, numpy.uint32)
         padded[:len(symbols)] = numpy.frombuffer(symbols, numpy.uint8)
-        groups: numpy.ndarray = padded.reshape(-1, 4)
+        groups: numpy.ndarray = padded.reshape(-1, mcv2_tools.SYMBOLS_PER_PIXEL)
         words: numpy.ndarray = groups[:, 0] | groups[:, 1] << 6 | groups[:, 2] << 12 | groups[:, 3] << 18
-        image: numpy.ndarray = numpy.stack((words & 255, words >> 8 & 255, words >> 16), axis=1).astype(numpy.uint8).reshape(32, 128, 3)
-        actual: numpy.ndarray = mcv2_tools.strip_check_page_symbols(image, 0, 32)
+        rows: int = mcv2_tools.PAGE_PIXELS // mcv2_reference.MAP_SIDE
+        pixels: numpy.ndarray = numpy.stack((words & 255, words >> 8 & 255, words >> 16), axis=1).astype(numpy.uint8)
+        image: numpy.ndarray = pixels.reshape(rows, mcv2_reference.MAP_SIDE, mcv2_reference.CHANNELS)
+        actual: numpy.ndarray = mcv2_tools.strip_check_page_symbols(image, 0, rows)
         actual_bytes: bytes = actual.tobytes()
         self.assertEqual(padded.astype(numpy.uint8).tobytes(), actual_bytes)
 
@@ -42,8 +44,8 @@ class StripTest(unittest.TestCase):
         payload: bytes = page.payload
         self.assertEqual(frame, payload)
 
-        identifiers: tuple[int, int, int] = (page.stream_id, page.frame_id, page.symbol_bits)
-        self.assertEqual((5, 7, 6), identifiers)
+        fields: tuple[int, int, int] = (page.stream_id, page.frame_id, page.symbol_bits)
+        self.assertEqual((5, 7, 6), fields)
 
     def test_should_reject_invalid_and_truncated_strip_pages(self) -> None:
         for symbols in (numpy.zeros(0, numpy.uint8), numpy.zeros(42, numpy.uint8), numpy.zeros(mcv2_reference.PAGE_SYMBOLS, numpy.uint8)):
