@@ -56,6 +56,11 @@ import org.mockito.ArgumentCaptor;
 
 final class BlockRendererTest {
 
+  private static final int WALL_LEFT = 9;
+  private static final int WALL_RIGHT = 11;
+  private static final int WALL_BOTTOM = 64;
+  private static final int WALL_TOP = 65;
+
   private static final int BROWN = (102 << 16) | (76 << 8) | 51;
   private static final int MAGENTA = (149 << 16) | (88 << 8) | 108;
 
@@ -112,8 +117,8 @@ final class BlockRendererTest {
 
   private Map<Position, BlockData> expectAll(final BlockData block) {
     final Map<Position, BlockData> expected = new HashMap<>();
-    for (int blockX = 9; blockX <= 11; blockX++) {
-      for (int blockY = 64; blockY <= 65; blockY++) {
+    for (int blockX = WALL_LEFT; blockX <= WALL_RIGHT; blockX++) {
+      for (int blockY = WALL_BOTTOM; blockY <= WALL_TOP; blockY++) {
         final Position position = Position.block(blockX, blockY, -6);
         expected.put(position, block);
       }
@@ -124,8 +129,8 @@ final class BlockRendererTest {
 
   private Map<Position, BlockData> expectOriginal() {
     final Map<Position, BlockData> expected = new HashMap<>();
-    for (int blockX = 9; blockX <= 11; blockX++) {
-      for (int blockY = 64; blockY <= 65; blockY++) {
+    for (int blockX = WALL_LEFT; blockX <= WALL_RIGHT; blockX++) {
+      for (int blockY = WALL_BOTTOM; blockY <= WALL_TOP; blockY++) {
         final Position position = Position.block(blockX, blockY, -6);
         final BlockData original = this.world.getOriginalBlock(blockX, blockY, -6);
         expected.put(position, original);
@@ -182,8 +187,8 @@ final class BlockRendererTest {
 
     final List<Map<? extends Position, BlockData>> changes = this.captureChanges(this.viewer, 1);
     final Map<? extends Position, BlockData> sent = changes.getFirst();
-    final Position bottomLeft = Position.block(9, 64, -6);
-    final Position topLeft = Position.block(9, 65, -6);
+    final Position bottomLeft = Position.block(WALL_LEFT, WALL_BOTTOM, -6);
+    final Position topLeft = Position.block(WALL_LEFT, WALL_TOP, -6);
     final BlockData bottomLeftBlock = sent.get(bottomLeft);
     final BlockData topLeftBlock = sent.get(topLeft);
     final BlockData magenta = BlockPaletteLookup.getBlockData(MAGENTA);
@@ -208,7 +213,7 @@ final class BlockRendererTest {
 
     final List<Map<? extends Position, BlockData>> changes = this.captureChanges(this.viewer, 1);
     final Map<? extends Position, BlockData> sent = changes.getFirst();
-    final Position bottomLeft = Position.block(9, 64, -6);
+    final Position bottomLeft = Position.block(WALL_LEFT, WALL_BOTTOM, -6);
     final BlockData block = sent.get(bottomLeft);
     assertNotEquals(air, block, "a color no block has is dithered to the nearest color of the palette");
   }
@@ -232,7 +237,7 @@ final class BlockRendererTest {
     final List<Map<? extends Position, BlockData>> changes = this.captureChanges(this.viewer, 2);
     final Map<? extends Position, BlockData> delta = changes.get(1);
     final BlockData magenta = BlockPaletteLookup.getBlockData(MAGENTA);
-    final Position changedPosition = Position.block(10, 64, -6);
+    final Position changedPosition = Position.block(10, WALL_BOTTOM, -6);
     final Map<Position, BlockData> expectedDelta = Map.of(changedPosition, magenta);
     assertEquals(expectedDelta, delta, "an identical frame sends nothing, and a delta only its block");
   }
@@ -259,7 +264,7 @@ final class BlockRendererTest {
     final Map<? extends Position, BlockData> viewerDelta = viewerChanges.get(1);
     final BlockData brown = BlockPaletteLookup.getBlockData(BROWN);
     final BlockData magenta = BlockPaletteLookup.getBlockData(MAGENTA);
-    final Position changedPosition = Position.block(10, 64, -6);
+    final Position changedPosition = Position.block(10, WALL_BOTTOM, -6);
     final Map<Position, BlockData> expectedWall = this.expectAll(brown);
     expectedWall.put(changedPosition, magenta);
     final Map<Position, BlockData> expectedDelta = Map.of(changedPosition, magenta);
@@ -309,7 +314,7 @@ final class BlockRendererTest {
     final Map<? extends Position, BlockData> wall = rejoinedChanges.getFirst();
     final BlockData brown = BlockPaletteLookup.getBlockData(BROWN);
     final BlockData magenta = BlockPaletteLookup.getBlockData(MAGENTA);
-    final Position changedPosition = Position.block(10, 64, -6);
+    final Position changedPosition = Position.block(10, WALL_BOTTOM, -6);
     final Map<Position, BlockData> expectedWall = this.expectAll(brown);
     expectedWall.put(changedPosition, magenta);
     verify(this.viewer, times(1)).sendMultiBlockChange(anyMap());
@@ -476,7 +481,7 @@ final class BlockRendererTest {
     final List<Map<? extends Position, BlockData>> changes = this.captureChanges(this.viewer, 2);
     final Map<? extends Position, BlockData> delta = changes.getLast();
     final BlockData magenta = BlockPaletteLookup.getBlockData(MAGENTA);
-    final Position changedPosition = Position.block(10, 64, -6);
+    final Position changedPosition = Position.block(10, WALL_BOTTOM, -6);
     final Map<Position, BlockData> expected = Map.of(changedPosition, magenta);
     assertEquals(expected, delta, "old queued cleanup must neither restore the wall nor disable subsequent frames");
 
@@ -570,7 +575,7 @@ final class BlockRendererTest {
     assertEquals(6, returnedWallSize, "the whole wall, not only what changed while they were away");
 
     final Map<Position, BlockData> expected = this.expectAll(BlockPaletteLookup.getBlockData(BROWN));
-    expected.put(Position.block(10, 64, -6), BlockPaletteLookup.getBlockData(MAGENTA));
+    expected.put(Position.block(10, WALL_BOTTOM, -6), BlockPaletteLookup.getBlockData(MAGENTA));
     assertEquals(expected, returnedWall, "returning viewers see every pixel of the newest wall");
   }
 }

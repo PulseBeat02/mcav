@@ -20,7 +20,6 @@ package me.brandonli.mcav.bukkit.media.mcv2;
 import com.google.common.base.Preconditions;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.UncheckedIOException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.DirectoryStream;
@@ -121,24 +120,21 @@ public final class Mcv2PackServer {
 
   private static final String PACK_SERVED = "Serving the MCV2 pack {} with {} at {} to the online players.";
 
-  private static final String PACK_FAILED = "Cannot serve the MCV2 pack with {}.";
+  private static final String PACK_FAILED = "The MCV2 pack with {} cannot be served.";
 
   private static final String PACK_LOADED = "{} loaded the MCV2 pack {} {} ms after it was offered.";
 
   private static final String MODDED_CLIENT_LOADED =
-    "MCV2 pack loaded by {} (client brand {}) without the MCAV MCV2 Client mod, so active shaders cannot be verified. " +
-    "Iris shader packs can prevent decoding: with the mod, such a player sees the dithered maps.";
+    "MCV2 pack loaded by {} (client brand {}) without the MCAV MCV2 Client mod, so active shaders cannot be verified. Iris shader packs can prevent decoding: with the mod, such a player sees the dithered maps.";
 
   private static final String MODDED_CLIENT_ADVISORY =
-    "MCV2: your modded client may replace the video shaders. If video is blank or frozen, install the MCAV MCV2 Client " +
-    "mod, which shows you the dithered maps while Iris shaders are on, or turn off Iris shaders. Without the mod, MCAV " +
-    "cannot detect active shader settings.";
+    "MCV2: your modded client may replace the video shaders. If video is blank or frozen, install the MCAV MCV2 Client mod, which shows you the dithered maps while Iris shaders are on, or turn off Iris shaders. Without the mod, MCAV cannot detect active shader settings.";
 
   private static final String NO_SLOT = "No MCV2 slot is free for a {}x{} video: the screen is dithered at that size.";
 
-  private static final String FOLDER_FAILED = "Cannot clear the old MCV2 packs from {}.";
+  private static final String FOLDER_FAILED = "The old MCV2 packs in {} cannot be cleared.";
 
-  private static final String PACK_WITHDRAWN = "No MCV2 screen plays any more: the players remove the MCV2 pack {}.";
+  private static final String PACK_WITHDRAWN = "The players remove the MCV2 pack {} because no MCV2 screen plays any more.";
 
   private static final String FILE_PREFIX = "mcav-mcv2-";
 
@@ -153,6 +149,8 @@ public final class Mcv2PackServer {
   private static final String VANILLA_BRAND = "vanilla";
 
   private static final String LIST_SEPARATOR = ", ";
+
+  private static final String THREAD_NAME = "mcav-mcv2-pack";
 
   private static final int HASH_BUFFER = 8192;
 
@@ -193,9 +191,9 @@ public final class Mcv2PackServer {
 
   private final List<PackHosting> running;
 
-  private @Nullable Published current;
-
   private final AtomicInteger generation;
+
+  private @Nullable Published current;
 
   private boolean flushing;
 
@@ -208,7 +206,7 @@ public final class Mcv2PackServer {
   private @Nullable Listener listener;
 
   /**
-   * Constructs a server that writes the pack into a folder of its own and hosts it with the given strategy. Nothing is
+   * Creates a server that writes the pack into a folder of its own and hosts it with the given strategy. Nothing is
    * written or served before {@link #start()} and the first {@link #open(Mcv2Configuration)}.
    *
    * @param folder    where the pack is written; files of earlier runs left there are deleted
@@ -234,7 +232,7 @@ public final class Mcv2PackServer {
       debugView,
       onOffered,
       onRefused,
-      Executors.newSingleThreadExecutor(Thread.ofPlatform().daemon().name("mcav-mcv2-pack").factory()),
+      Executors.newSingleThreadExecutor(Thread.ofPlatform().daemon().name(THREAD_NAME).factory()),
       System::currentTimeMillis
     );
   }
@@ -313,10 +311,10 @@ public final class Mcv2PackServer {
       "The first page map must be at most %s, so that the page maps of every slot of the pack are ints!",
       Integer.MAX_VALUE - PAGE_MAPS
     );
-    final boolean sameColour = this.slots.isEmpty() || this.slots.getFirst().template.getOutlineColor().equals(requested.getOutlineColor());
-    Preconditions.checkArgument(sameColour || this.leases.isEmpty(), "The screens of a pack share one outline colour!");
+    final boolean sameColor = this.slots.isEmpty() || this.slots.getFirst().template.getOutlineColor().equals(requested.getOutlineColor());
+    Preconditions.checkArgument(sameColor || this.leases.isEmpty(), "The screens of a pack share one outline color!");
 
-    if (!sameColour) {
+    if (!sameColor) {
       this.slots.clear();
     }
 
@@ -351,7 +349,7 @@ public final class Mcv2PackServer {
     }
   }
 
-  private static int pageMapOf(final Mcv2Configuration configuration, final Slot slot) {
+  private int pageMapOf(final Mcv2Configuration configuration, final Slot slot) {
     return configuration.getPageMap() + (int) (slot.streamId - 1) * Mcv2Configuration.MAXIMUM_PAGE_SLOTS;
   }
 
@@ -372,9 +370,9 @@ public final class Mcv2PackServer {
       if (sameSize) {
         spareOfThatSize = slot;
       } else if (free) {
-        oldestFree = oldestFree == null || slot.released < oldestFree.released ? slot : oldestFree;
+        oldestFree = oldestFree == null || slot.releaseNumber < oldestFree.releaseNumber ? slot : oldestFree;
       } else {
-        oldestSpare = oldestSpare == null || slot.released < oldestSpare.released ? slot : oldestSpare;
+        oldestSpare = oldestSpare == null || slot.releaseNumber < oldestSpare.releaseNumber ? slot : oldestSpare;
       }
     }
 
@@ -426,7 +424,7 @@ public final class Mcv2PackServer {
   private void free(final Slot slot) {
     slot.holder = null;
     slot.spareOf = null;
-    slot.released = ++this.releases;
+    slot.releaseNumber = ++this.releases;
     slot.releasedAt = this.millisecondClock.getAsLong();
     this.trimLater(GRACE_MILLISECONDS);
   }
@@ -585,7 +583,7 @@ public final class Mcv2PackServer {
     this.current = null;
     this.viewers.retarget(NO_PACK);
     this.offered.clear();
-    LOGGER.info(PACK_WITHDRAWN, previousPack.packId());
+    LOGGER.debug(PACK_WITHDRAWN, previousPack.packId());
     for (final Player player : Bukkit.getOnlinePlayers()) {
       player.removeResourcePacks(previousPack.packId());
     }
@@ -599,7 +597,7 @@ public final class Mcv2PackServer {
       return;
     }
 
-    this.viewers.requested(viewerId);
+    this.viewers.recordRequest(viewerId);
     this.offered.put(viewerId, this.millisecondClock.getAsLong());
     this.onOffered.accept(player);
     player.sendResourcePacks(pack.request());
@@ -736,7 +734,8 @@ public final class Mcv2PackServer {
     try {
       this.writer.awaitTermination(SHUTDOWN_SECONDS, TimeUnit.SECONDS);
     } catch (final InterruptedException exception) {
-      Thread.currentThread().interrupt();
+      final Thread current = Thread.currentThread();
+      current.interrupt();
     }
   }
 
@@ -765,9 +764,10 @@ public final class Mcv2PackServer {
 
       return HexFormat.of().formatHex(digest.digest());
     } catch (final IOException exception) {
-      throw new UncheckedIOException("Cannot hash the MCV2 pack!", exception);
+      final String message = "MCV2 pack %s cannot be hashed!".formatted(file);
+      throw new Mcv2Exception(message, exception);
     } catch (final NoSuchAlgorithmException exception) {
-      throw new IllegalStateException(algorithm + " is not available", exception);
+      throw new AssertionError(exception);
     }
   }
 
@@ -775,7 +775,7 @@ public final class Mcv2PackServer {
     try {
       Files.deleteIfExists(file);
     } catch (final IOException exception) {
-      // Startup clears this folder if deletion fails.
+      LOGGER.debug("Could not delete {}, startup clears it.", file, exception);
     }
   }
 
@@ -809,7 +809,7 @@ public final class Mcv2PackServer {
 
     private @Nullable Lease spareOf;
 
-    private long released;
+    private long releaseNumber;
 
     private long releasedAt;
 
@@ -857,7 +857,7 @@ public final class Mcv2PackServer {
     private Lease(final Mcv2Configuration requested, final long firstFrameId, final Slot slot) {
       this.requested = requested;
       this.firstFrameId = firstFrameId;
-      this.configuration = requested.withSlot(slot.streamId, pageMapOf(requested, slot), firstFrameId);
+      this.configuration = requested.withSlot(slot.streamId, Mcv2PackServer.this.pageMapOf(requested, slot), firstFrameId);
       this.playing = slot;
     }
 
@@ -882,16 +882,16 @@ public final class Mcv2PackServer {
       Preconditions.checkNotNull(resized, CONFIGURATION_NULL_MESSAGE);
 
       synchronized (Mcv2PackServer.this) {
-        return this.switchTo(resized);
+        return this.setSettings(resized);
       }
     }
 
-    private Mcv2Channel switchTo(final Mcv2Configuration resized) {
+    private Mcv2Channel setSettings(final Mcv2Configuration resized) {
       Preconditions.checkState(!this.closed, "The lease was closed!");
 
       final Geometry geometry = Geometry.of(resized);
       if (!this.playing.geometry.equals(geometry)) {
-        final Slot slot = this.findSlot(resized, geometry);
+        final Slot slot = this.acquireSlot(resized, geometry);
         if (slot == null) {
           LOGGER.warn(NO_SLOT, resized.getVideoWidth(), resized.getVideoHeight());
           return new Mcv2Channel(resized, Mcv2PackServer.this.nobody);
@@ -901,12 +901,12 @@ public final class Mcv2PackServer {
       }
 
       return new Mcv2Channel(
-        resized.withSlot(this.playing.streamId, pageMapOf(this.requested, this.playing), this.firstFrameId),
+        resized.withSlot(this.playing.streamId, Mcv2PackServer.this.pageMapOf(this.requested, this.playing), this.firstFrameId),
         Mcv2PackServer.this.viewers
       );
     }
 
-    private @Nullable Slot findSlot(final Mcv2Configuration resized, final Geometry geometry) {
+    private @Nullable Slot acquireSlot(final Mcv2Configuration resized, final Geometry geometry) {
       final Slot left = this.ownSpare();
       if (left != null && left.geometry.equals(geometry)) {
         return left;
@@ -926,7 +926,7 @@ public final class Mcv2PackServer {
       // Returning to this size must work without another pack reload.
       this.playing.holder = null;
       this.playing.spareOf = this;
-      this.playing.released = ++Mcv2PackServer.this.releases;
+      this.playing.releaseNumber = ++Mcv2PackServer.this.releases;
       this.spare = this.playing;
       this.playing = slot;
     }

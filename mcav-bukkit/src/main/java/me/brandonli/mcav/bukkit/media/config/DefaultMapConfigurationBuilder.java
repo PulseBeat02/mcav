@@ -22,8 +22,11 @@ import java.util.Collection;
 import java.util.UUID;
 import me.brandonli.mcav.bukkit.media.map.MapLayout;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 final class DefaultMapConfigurationBuilder implements MapConfigurationBuilder {
+
+  private static final int NO_MAP_ID = -1;
 
   private @MonotonicNonNull Collection<UUID> viewers;
   private int map;
@@ -34,7 +37,7 @@ final class DefaultMapConfigurationBuilder implements MapConfigurationBuilder {
   private boolean shouldResize;
 
   DefaultMapConfigurationBuilder() {
-    this.map = -1;
+    this.map = NO_MAP_ID;
   }
 
   @Override
@@ -83,13 +86,17 @@ final class DefaultMapConfigurationBuilder implements MapConfigurationBuilder {
 
   @Override
   public MapConfiguration build() {
-    final Collection<UUID> configuredViewers = Preconditions.checkNotNull(this.viewers, "Viewers must be set!");
+    final @Nullable Collection<UUID> configuredViewers = this.viewers;
+    if (configuredViewers == null) {
+      final String message = "Viewers must be set!";
+      throw new IllegalStateException(message);
+    }
 
-    Preconditions.checkArgument(this.map >= 0, "Map id must be set and non-negative!");
-    Preconditions.checkArgument(this.mapBlockWidth > 0, "Map block width must be positive!");
-    Preconditions.checkArgument(this.mapBlockHeight > 0, "Map block height must be positive!");
-    Preconditions.checkArgument(this.mapWidthResolution >= 0, "Map width resolution must not be negative!");
-    Preconditions.checkArgument(this.mapHeightResolution >= 0, "Map height resolution must not be negative!");
+    Preconditions.checkArgument(this.map >= 0, "Map id %s must be set and must not be negative!", this.map);
+    Preconditions.checkArgument(this.mapBlockWidth > 0, "Map block width %s must be positive!", this.mapBlockWidth);
+    Preconditions.checkArgument(this.mapBlockHeight > 0, "Map block height %s must be positive!", this.mapBlockHeight);
+    Preconditions.checkArgument(this.mapWidthResolution >= 0, "Map width resolution %s must not be negative!", this.mapWidthResolution);
+    Preconditions.checkArgument(this.mapHeightResolution >= 0, "Map height resolution %s must not be negative!", this.mapHeightResolution);
 
     final int widthResolution = this.resolveResolution(this.mapWidthResolution, this.mapBlockWidth);
     final int heightResolution = this.resolveResolution(this.mapHeightResolution, this.mapBlockHeight);

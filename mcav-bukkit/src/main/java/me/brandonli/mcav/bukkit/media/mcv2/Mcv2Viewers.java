@@ -50,7 +50,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * <p>This tracker records client status reports; without the client mod it cannot verify shader compatibility, and it
  * never verifies successful frame decoding. Register/unregister listeners and retarget the pack on the main thread.
  * Reads may occur from media threads. Registration alone does not offer a pack; the caller sends the request and
- * records it with {@link #requested(UUID)}. Unregistering retains recorded state.
+ * records it with {@link #recordRequest(UUID)}. Unregistering retains recorded state.
  *
  * @since 1.0.0
  */
@@ -59,7 +59,7 @@ public final class Mcv2Viewers {
   private static final String PACK_ID_NULL_MESSAGE = "Pack id must not be null!";
   private static final String PLAYER_NULL_MESSAGE = "Player must not be null!";
 
-  private volatile UUID packId;
+  private static final long NO_SESSION = 0L;
 
   private final Consumer<Player> onRefused;
 
@@ -70,10 +70,11 @@ public final class Mcv2Viewers {
 
   private final Mcv2ShaderReports shaderReports;
 
+  private volatile UUID packId;
   private @Nullable Listener listener;
 
   /**
-   * Constructs a new tracker.
+   * Creates a new tracker.
    *
    * @param packId    the id of the pack request, as sent to the players
    * @param onRefused called with a player whose client just refused the pack or failed to load it, for example to
@@ -103,6 +104,7 @@ public final class Mcv2Viewers {
    */
   public synchronized void register() {
     this.unregister();
+
     final Listener events = new Listener() {};
     final PluginManager manager = Bukkit.getPluginManager();
     final EventExecutor status = (_, event) -> this.onResourcePackStatus((PlayerResourcePackStatusEvent) event);
@@ -151,7 +153,7 @@ public final class Mcv2Viewers {
    * @throws NullPointerException if {@code player} is null
    * @since 1.0.0
    */
-  public void requested(final UUID player) {
+  public void recordRequest(final UUID player) {
     Preconditions.checkNotNull(player, PLAYER_NULL_MESSAGE);
 
     this.states.put(player, PackState.REQUESTED);
@@ -179,6 +181,7 @@ public final class Mcv2Viewers {
    * @param player the player's UUID
    * @return true if the tracked client status is LOADED and no report of the client mod rules decoding out; this is not
    *         a playback acknowledgment
+   * @throws NullPointerException if {@code player} is null
    * @since 1.0.0
    */
   public boolean isLoaded(final UUID player) {
@@ -204,7 +207,7 @@ public final class Mcv2Viewers {
   public long getSession(final UUID player) {
     Preconditions.checkNotNull(player, PLAYER_NULL_MESSAGE);
 
-    return this.sessions.getOrDefault(player, 0L);
+    return this.sessions.getOrDefault(player, NO_SESSION);
   }
 
   void onResourcePackStatus(final PlayerResourcePackStatusEvent event) {
@@ -215,23 +218,25 @@ public final class Mcv2Viewers {
     final Player player = event.getPlayer();
     final UUID viewerId = player.getUniqueId();
     switch (event.getStatus()) {
-      case SUCCESSFULLY_LOADED -> this.loaded(viewerId);
+      case SUCCESSFULLY_LOADED -> this.recordLoad(viewerId);
       case ACCEPTED, DOWNLOADED -> this.states.put(viewerId, PackState.REQUESTED);
-      case DECLINED -> this.refuse(player, PackState.DECLINED);
-      default -> this.refuse(player, PackState.REFUSED);
+      case DECLINED -> this.recordRefusal(player, PackState.DECLINED);
+      case FAILED_DOWNLOAD, INVALID_URL, FAILED_RELOAD, DISCARDED -> this.recordRefusal(player, PackState.REFUSED);
     }
   }
 
-  private void loaded(final UUID player) {
+  private void recordLoad(final UUID player) {
     final PackState before = this.states.put(player, PackState.LOADED);
+
     if (before != PackState.LOADED) {
       this.sessions.put(player, this.nextSession.incrementAndGet());
     }
   }
 
-  private void refuse(final Player player, final PackState state) {
+  private void recordRefusal(final Player player, final PackState state) {
     this.sessions.remove(player.getUniqueId());
     final PackState before = this.states.put(player.getUniqueId(), state);
+
     if (before != PackState.REFUSED && before != PackState.DECLINED) {
       this.onRefused.accept(player);
     }

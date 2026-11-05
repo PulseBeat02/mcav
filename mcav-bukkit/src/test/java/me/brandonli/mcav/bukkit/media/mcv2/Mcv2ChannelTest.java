@@ -56,12 +56,14 @@ import org.bukkit.block.BlockFace;
 import org.bukkit.craftbukkit.entity.CraftPlayer;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitTask;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.mockito.invocation.InvocationOnMock;
 
 final class Mcv2ChannelTest {
 
@@ -110,7 +112,7 @@ final class Mcv2ChannelTest {
     when(this.viewers.isLoaded(LOADED)).thenReturn(true);
     when(this.viewers.isLoaded(OFFLINE)).thenReturn(true);
     this.screen = mock(Mcv2Screen.class);
-    when(this.screen.anchors()).thenReturn(List.of(MapTilePatch.of(WALL_MAP, 0, 0, MAP_SIZE, 1, new byte[MAP_SIZE])));
+    when(this.screen.getAnchors()).thenReturn(List.of(MapTilePatch.of(WALL_MAP, 0, 0, MAP_SIZE, 1, new byte[MAP_SIZE])));
     this.configuration = Mcv2Configuration.builder()
       .viewers(new ArrayList<>(List.of(LOADED, WITHOUT, OFFLINE)))
       .origin(new Location(mock(World.class), 0, GROUND_LEVEL, 0))
@@ -244,19 +246,7 @@ final class Mcv2ChannelTest {
   @ValueSource(ints = { 0, 1, 2 })
   void shouldNotKeepALinkForAViewerRetiredDuringShow(final int retirement) {
     final Mcv2Channel channel = new Mcv2Channel(this.configuration, this.viewers, this.screen);
-    doAnswer(_ -> {
-      if (retirement == 2) {
-        this.configuration.getViewers().remove(LOADED);
-      } else {
-        when(this.viewers.isLoaded(LOADED)).thenReturn(false);
-      }
-
-      if (retirement == 0) {
-        channel.update();
-      }
-
-      return null;
-    })
+    doAnswer(_ -> this.retireViewerDuringShow(retirement, channel))
       .when(this.screen)
       .show(this.player);
     channel.update();
@@ -266,20 +256,26 @@ final class Mcv2ChannelTest {
     verify(this.screen).hide(this.player);
   }
 
+  private @Nullable Object retireViewerDuringShow(final int retirement, final Mcv2Channel channel) {
+    if (retirement == 2) {
+      this.configuration.getViewers().remove(LOADED);
+    } else {
+      when(this.viewers.isLoaded(LOADED)).thenReturn(false);
+    }
+
+    if (retirement == 0) {
+      channel.update();
+    }
+
+    return null;
+  }
+
   @Test
   void shouldLetAConcurrentCloseOwnTheCleanupOfAPublishedLink() {
     final Mcv2Channel channel = new Mcv2Channel(this.configuration, this.viewers, this.screen);
     channel.update();
     final AtomicInteger loadedChecks = new AtomicInteger();
-    when(this.viewers.isLoaded(LOADED)).thenAnswer(_ -> {
-      if (loadedChecks.getAndIncrement() == 0) {
-        return true;
-      }
-
-      channel.close();
-
-      return false;
-    });
+    when(this.viewers.isLoaded(LOADED)).thenAnswer(_ -> this.closeChannelAfterFirstCheck(loadedChecks, channel));
     this.server.runTasks();
     final int checks = loadedChecks.get();
     assertEquals(2, checks, "close overlaps the check after link publication");
@@ -295,6 +291,16 @@ final class Mcv2ChannelTest {
 
     final boolean keyframeRequested = channel.takeKeyframeRequest();
     assertFalse(keyframeRequested, "a retired show must not request another frame");
+  }
+
+  private boolean closeChannelAfterFirstCheck(final AtomicInteger loadedChecks, final Mcv2Channel channel) {
+    if (loadedChecks.getAndIncrement() == 0) {
+      return true;
+    }
+
+    channel.close();
+
+    return false;
   }
 
   @Test
@@ -355,20 +361,28 @@ final class Mcv2ChannelTest {
     // whichever viewer the update reaches second
     final List<Runnable> hides = new ArrayList<>();
     final AtomicBoolean closed = new AtomicBoolean();
-    doAnswer(invocation -> {
-      if (closed.compareAndSet(false, true)) {
-        channel.close();
-      }
-
-      hides.add(invocation.getArgument(1));
-      return mock(BukkitTask.class);
-    })
+    doAnswer(invocation -> this.recordHideAfterClosing(invocation, closed, channel, hides))
       .when(this.server.getScheduler())
       .runTask(any(Plugin.class), any(Runnable.class));
     channel.update();
     hides.forEach(Runnable::run);
     verify(this.screen).hide(this.player);
     verify(this.screen).hide(secondPlayer);
+  }
+
+  private BukkitTask recordHideAfterClosing(
+    final InvocationOnMock invocation,
+    final AtomicBoolean closed,
+    final Mcv2Channel channel,
+    final List<Runnable> hides
+  ) {
+    if (closed.compareAndSet(false, true)) {
+      channel.close();
+    }
+
+    hides.add(invocation.getArgument(1));
+
+    return mock(BukkitTask.class);
   }
 
   @Test
@@ -408,7 +422,7 @@ final class Mcv2ChannelTest {
     channel.update();
     this.server.runTasks();
     channel.update();
-    final int colors = channel.send(keyframe());
+    final int colors = channel.send(keyframe()).orElseThrow();
     final boolean positiveWholeRows = colors > 0 && colors % MAP_SIZE == 0;
     assertTrue(positiveWholeRows);
 
@@ -599,7 +613,7 @@ final class Mcv2ChannelTest {
     channel.update();
     this.server.runTasks();
     channel.update();
-    final boolean sentColors = channel.send(large()) > 0;
+    final boolean sentColors = channel.send(large()).orElseThrow() > 0;
     assertTrue(sentColors);
 
     // the two pages on maps 500 and 501, then the keyframe's anchor
@@ -625,8 +639,8 @@ final class Mcv2ChannelTest {
       .pageSlots(1)
       .build();
     final Mcv2Channel channel = new Mcv2Channel(narrow, this.viewers, this.screen);
-    final int colors = channel.send(large());
-    assertEquals(-1, colors);
+    final boolean notSent = channel.send(large()).isEmpty();
+    assertTrue(notSent);
 
     final boolean keyframeRequested = channel.takeKeyframeRequest();
     assertTrue(keyframeRequested);
@@ -758,7 +772,7 @@ final class Mcv2ChannelTest {
     assertEquals(Set.of(), dithered, "too far for the dithered maps as well");
 
     channel.takeKeyframeRequest();
-    final boolean sentColors = channel.send(keyframe()) > 0;
+    final boolean sentColors = channel.send(keyframe()).orElseThrow() > 0;
     assertTrue(sentColors);
 
     final List<Packet<?>> sentWhileAway = this.server.getSentPackets(LOADED);

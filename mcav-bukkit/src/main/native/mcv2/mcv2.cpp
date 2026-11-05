@@ -27,7 +27,7 @@
 #define MCV2_EXPORT __attribute__((visibility("default")))
 #endif
 
-#define MCV2_INTERFACE_VERSION 5
+#define MCV2_ABI_VERSION 5
 
 #define MCV2_LEVEL_SCALAR 1
 #define MCV2_LEVEL_SSE41 2
@@ -70,13 +70,14 @@
 extern "C" {
 
 // Java supplies AT_HWCAP because this library imports no C-library functions.
-MCV2_EXPORT int32_t mcv2_cpu_levels(int64_t kernel_capabilities);
+MCV2_EXPORT int32_t mcv2_cpu_levels(int64_t hardware_capabilities);
 
 MCV2_EXPORT int32_t mcv2_abi(void);
 }
 
 #if !defined(MCV2_DECLARATIONS_ONLY)
 
+#include <algorithm>
 #include <limits.h>
 #include <stdint.h>
 #include <string.h>
@@ -95,7 +96,7 @@ static_assert((-7 >> 1) == -4, "right shifts of negative values must be arithmet
 #include <arm_neon.h>
 #include <arm_sve.h>
 #elif !defined(MCV2_SIMD_SCALAR)
-#error "define one of the MCV2_SIMD_ levels"
+#error "Define one of the MCV2_SIMD_ levels!"
 #endif
 
 namespace mcv2 {
@@ -110,6 +111,18 @@ constexpr int32_t BIT_INDEX_MASK = 7;
 constexpr int32_t SAMPLE_GRID = 4;
 constexpr int32_t WORD_BYTES = (int32_t)sizeof(uint32_t);
 constexpr int32_t SAMPLE_ROW_BYTES = SAMPLE_GRID * WORD_BYTES;
+
+constexpr int32_t CHANNELS = 3;
+
+constexpr int32_t TRUE_LANE = -1;
+constexpr int32_t FALSE_LANE = 0;
+
+#if defined(MCV2_SIMD_SSE2) || defined(MCV2_SIMD_SVE256) || defined(MCV2_SIMD_SVE512)
+constexpr int32_t LANE_BITS = 32;
+#endif
+#if defined(MCV2_SIMD_SVE256) || defined(MCV2_SIMD_SVE512)
+constexpr int32_t DOUBLE_LANE_BITS = 64;
+#endif
 
 // SSE load/store shuffles cost more than the arithmetic in the halving kernel.
 #if defined(MCV2_SIMD_SSE2) || defined(MCV2_SIMD_SSE41)
@@ -211,7 +224,7 @@ struct scalar_int_vector {
   }
 
   static scalar_int_vector less(const scalar_int_vector first, const scalar_int_vector second) {
-    return {first.lanes_ < second.lanes_ ? -1 : 0};
+    return {first.lanes_ < second.lanes_ ? TRUE_LANE : FALSE_LANE};
   }
   int32_t sum() const {
     return lanes_;
@@ -230,7 +243,7 @@ struct scalar_int_vector {
   }
 
   static scalar_int_vector bits(const int8_t* buffer, const int32_t index) {
-    return {((buffer[index >> BYTE_INDEX_SHIFT] >> (index & BIT_INDEX_MASK)) & 1) ? -1 : 0};
+    return {((buffer[index >> BYTE_INDEX_SHIFT] >> (index & BIT_INDEX_MASK)) & 1) ? TRUE_LANE : FALSE_LANE};
   }
 
   static scalar_int_vector evens(const scalar_int_vector first, scalar_int_vector) {
@@ -350,12 +363,12 @@ constexpr int32_t SECOND_LANE_BIT = 2;
 constexpr int32_t THIRD_LANE_BIT = 4;
 constexpr int32_t FOURTH_LANE_BIT = 8;
 
-constexpr int32_t LANE_BITS = 32;
 constexpr int32_t SIGN_SHIFT = LANE_BITS - 1;
 
 template <int BLEND_MASK> inline __m128i blend_integer_lanes(const __m128i first, const __m128i second) {
-  const __m128i mask = _mm_setr_epi32((BLEND_MASK & FIRST_LANE_BIT) ? -1 : 0, (BLEND_MASK & SECOND_LANE_BIT) ? -1 : 0,
-                                      (BLEND_MASK & THIRD_LANE_BIT) ? -1 : 0, (BLEND_MASK & FOURTH_LANE_BIT) ? -1 : 0);
+  const __m128i mask = _mm_setr_epi32(
+      (BLEND_MASK & FIRST_LANE_BIT) ? TRUE_LANE : FALSE_LANE, (BLEND_MASK & SECOND_LANE_BIT) ? TRUE_LANE : FALSE_LANE,
+      (BLEND_MASK & THIRD_LANE_BIT) ? TRUE_LANE : FALSE_LANE, (BLEND_MASK & FOURTH_LANE_BIT) ? TRUE_LANE : FALSE_LANE);
   const __m128i selected_second = _mm_and_si128(mask, second);
   const __m128i selected_first = _mm_andnot_si128(mask, first);
   return _mm_or_si128(selected_second, selected_first);
@@ -700,6 +713,7 @@ struct int_vector {
 
     const __m256i partial_blue = _mm256_blend_epi32(first_vector, second_vector, EVERY_THIRD_LANE_FROM_ZERO);
     const __m256i shuffled_blue = _mm256_blend_epi32(partial_blue, third_vector, EVERY_THIRD_LANE_FROM_ONE);
+
     const __m256i red_order = _mm256_setr_epi32(0, 3, 6, 1, 4, 7, 2, 5);
     const __m256i green_order = _mm256_setr_epi32(1, 4, 7, 2, 5, 0, 3, 6);
     const __m256i blue_order = _mm256_setr_epi32(2, 5, 0, 3, 6, 1, 4, 7);
@@ -715,6 +729,7 @@ struct int_vector {
     const __m256i shuffled_red = _mm256_permutevar8x32_epi32(red_channels.lanes_, red_order);
     const __m256i shuffled_green = _mm256_permutevar8x32_epi32(green_channels.lanes_, green_order);
     const __m256i shuffled_blue = _mm256_permutevar8x32_epi32(blue_channels.lanes_, blue_order);
+
     const __m256i first_red_green = _mm256_blend_epi32(shuffled_red, shuffled_green, EVERY_THIRD_LANE_FROM_ONE);
     const __m256i first_vector = _mm256_blend_epi32(first_red_green, shuffled_blue, EVERY_THIRD_LANE_FROM_TWO);
     _mm256_storeu_si256((__m256i*)buffer, first_vector);
@@ -900,26 +915,28 @@ struct int_vector {
     return {_mm512_movm_epi32((__mmask16)word)};
   }
   static int_vector evens(const int_vector first, const int_vector second) {
-    const __m512i index = _mm512_set_epi32(30, 28, 26, 24, 22, 20, 18, 16, 14, 12, 10, 8, 6, 4, 2, 0);
-    return {_mm512_permutex2var_epi32(first.lanes_, index, second.lanes_)};
+    const __m512i even_indexes = _mm512_set_epi32(30, 28, 26, 24, 22, 20, 18, 16, 14, 12, 10, 8, 6, 4, 2, 0);
+    return {_mm512_permutex2var_epi32(first.lanes_, even_indexes, second.lanes_)};
   }
   static int_vector odds(const int_vector first, const int_vector second) {
-    const __m512i index = _mm512_set_epi32(31, 29, 27, 25, 23, 21, 19, 17, 15, 13, 11, 9, 7, 5, 3, 1);
-    return {_mm512_permutex2var_epi32(first.lanes_, index, second.lanes_)};
+    const __m512i odd_indexes = _mm512_set_epi32(31, 29, 27, 25, 23, 21, 19, 17, 15, 13, 11, 9, 7, 5, 3, 1);
+    return {_mm512_permutex2var_epi32(first.lanes_, odd_indexes, second.lanes_)};
   }
 
 private:
-  alignas(64) static constexpr int32_t GATHER_FIRST[3][16] = {{0, 3, 6, 9, 12, 15, 18, 21, 24, 27, 30, 0, 0, 0, 0, 0},
-                                                              {1, 4, 7, 10, 13, 16, 19, 22, 25, 28, 31, 0, 0, 0, 0, 0},
-                                                              {2, 5, 8, 11, 14, 17, 20, 23, 26, 29, 0, 0, 0, 0, 0, 0}};
-  alignas(64) static constexpr int32_t GATHER_SECOND[3][16] = {{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 17, 20, 23, 26, 29},
-                                                               {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 18, 21, 24, 27, 30},
-                                                               {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 16, 19, 22, 25, 28, 31}};
-  alignas(64) static constexpr int32_t SCATTER_FIRST[3][16] = {
+  alignas(__m512i) static constexpr int32_t GATHER_FIRST[CHANNELS][LANES] = {
+      {0, 3, 6, 9, 12, 15, 18, 21, 24, 27, 30, 0, 0, 0, 0, 0},
+      {1, 4, 7, 10, 13, 16, 19, 22, 25, 28, 31, 0, 0, 0, 0, 0},
+      {2, 5, 8, 11, 14, 17, 20, 23, 26, 29, 0, 0, 0, 0, 0, 0}};
+  alignas(__m512i) static constexpr int32_t GATHER_SECOND[CHANNELS][LANES] = {
+      {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 17, 20, 23, 26, 29},
+      {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 18, 21, 24, 27, 30},
+      {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 16, 19, 22, 25, 28, 31}};
+  alignas(__m512i) static constexpr int32_t SCATTER_FIRST[CHANNELS][LANES] = {
       {0, 16, 0, 1, 17, 1, 2, 18, 2, 3, 19, 3, 4, 20, 4, 5},
       {21, 5, 6, 22, 6, 7, 23, 7, 8, 24, 8, 9, 25, 9, 10, 26},
       {10, 11, 27, 11, 12, 28, 12, 13, 29, 13, 14, 30, 14, 15, 31, 15}};
-  alignas(64) static constexpr int32_t SCATTER_SECOND[3][16] = {
+  alignas(__m512i) static constexpr int32_t SCATTER_SECOND[CHANNELS][LANES] = {
       {0, 1, 16, 3, 4, 17, 6, 7, 18, 9, 10, 19, 12, 13, 20, 15},
       {0, 21, 2, 3, 22, 5, 6, 23, 8, 9, 24, 11, 12, 25, 14, 15},
       {26, 1, 2, 27, 4, 5, 28, 7, 8, 29, 10, 11, 30, 13, 14, 31}};
@@ -931,7 +948,7 @@ private:
     const __m512i second_indexes = _mm512_load_si512(GATHER_SECOND[channel]);
     return _mm512_permutex2var_epi32(low, second_indexes, third_vector);
   }
-  static __m512i scatter(const __m512i red, __m512i green, __m512i blue, const int32_t output_index) {
+  static __m512i scatter(const __m512i red, const __m512i green, const __m512i blue, const int32_t output_index) {
     const __m512i first_indexes = _mm512_load_si512(SCATTER_FIRST[output_index]);
     const __m512i red_green = _mm512_permutex2var_epi32(red, first_indexes, green);
     const __m512i second_indexes = _mm512_load_si512(SCATTER_SECOND[output_index]);
@@ -1170,7 +1187,7 @@ inline int32_t four_pixel_difference(const uint32_t first_pixel, const uint32_t 
 }
 
 struct int_vector {
-  static constexpr int LANES = MCV2_SVE_BITS / 32;
+  static constexpr int LANES = MCV2_SVE_BITS / LANE_BITS;
   sve_int_lanes lanes_;
   static int_vector load(const int32_t* buffer) {
     const svbool_t all_lanes = svptrue_b32();
@@ -1241,8 +1258,8 @@ struct int_vector {
   static int_vector less(const int_vector first, const int_vector second) {
     const svbool_t all_lanes = svptrue_b32();
     const svbool_t less_lanes = svcmplt_s32(all_lanes, first.lanes_, second.lanes_);
-    const svint32_t true_lanes = svdup_n_s32(-1);
-    const svint32_t false_lanes = svdup_n_s32(0);
+    const svint32_t true_lanes = svdup_n_s32(TRUE_LANE);
+    const svint32_t false_lanes = svdup_n_s32(FALSE_LANE);
     return {svsel_s32(less_lanes, true_lanes, false_lanes)};
   }
 
@@ -1277,8 +1294,8 @@ struct int_vector {
     const svuint32_t shifted = svlsr_u32_x(all_lanes, repeated_word, bit_positions);
     const svuint32_t lane_bit = svand_n_u32_x(all_lanes, shifted, 1);
     const svbool_t set_lanes = svcmpne_n_u32(all_lanes, lane_bit, 0);
-    const svint32_t true_lanes = svdup_n_s32(-1);
-    const svint32_t false_lanes = svdup_n_s32(0);
+    const svint32_t true_lanes = svdup_n_s32(TRUE_LANE);
+    const svint32_t false_lanes = svdup_n_s32(FALSE_LANE);
     return {svsel_s32(set_lanes, true_lanes, false_lanes)};
   }
   static int_vector evens(const int_vector first, const int_vector second) {
@@ -1317,7 +1334,7 @@ struct float_vector {
 };
 
 struct double_vector {
-  static constexpr int LANES = MCV2_SVE_BITS / 64;
+  static constexpr int LANES = MCV2_SVE_BITS / DOUBLE_LANE_BITS;
   sve_double_lanes lanes_;
   static double_vector broadcast(const double value) {
     return {svdup_n_f64(value)};
@@ -1351,7 +1368,6 @@ struct double_vector {
 namespace mcv2 {
 namespace {
 
-constexpr int32_t CHANNELS = 3;
 constexpr int32_t MAXIMUM_CHANNEL = 255;
 
 constexpr int32_t RED_SHIFT = 16;
@@ -1368,7 +1384,11 @@ constexpr int32_t SMALLEST_BLOCK_SIZE = 1 << SMALLEST_BLOCK_SHIFT;
 constexpr int32_t MOTION_BYTES = 2;
 constexpr int32_t SELECTORS_AT = 6;
 
+constexpr int32_t NO_MOTION = 0;
+
 constexpr double DISTORTION_SCALE = 96.0;
+
+constexpr int64_t OVER_LIMIT = -1;
 
 constexpr int32_t NIBBLE_BITS = 4;
 constexpr int32_t NIBBLE_MASK = 15;
@@ -1394,7 +1414,8 @@ constexpr int32_t VERTICAL_MOTION_MASK = 0xFFFF;
 
 constexpr int32_t KEY_HORIZONTAL_SHIFT = 32;
 
-constexpr int32_t LUMA_GREEN_WEIGHT = 2;
+constexpr int32_t LUMA_GREEN_SHIFT = 1;
+constexpr int32_t LUMA_GREEN_WEIGHT = 1 << LUMA_GREEN_SHIFT;
 constexpr float LUMA_NORMALIZATION = 0.25f;
 
 inline int32_t logarithm_base_two(const int32_t value) {
@@ -1429,16 +1450,19 @@ constexpr interpolation_axes make_axes() {
   for (int32_t size_index = 0; size_index < BLOCK_SIZES; size_index++) {
     const int32_t size = SMALLEST_BLOCK_SIZE << size_index;
     const int32_t span = 2 * size;
+    interpolation_axis& axis = tables.axes_[size_index];
     for (int32_t pixel_index = 0; pixel_index < size; pixel_index++) {
-      int32_t position = (2 * pixel_index + 1) * GRID - size;
-      position = position < 0 ? 0 : position;
-      position = position > (GRID - 1) * span ? (GRID - 1) * span : position;
+      const int32_t unclamped_position = (2 * pixel_index + 1) * GRID - size;
+      const int32_t maximum_position = (GRID - 1) * span;
+      const int32_t position = std::clamp(unclamped_position, 0, maximum_position);
       const int32_t lower = position / span;
-      tables.axes_[size_index].lower_[pixel_index] = lower;
-      tables.axes_[size_index].upper_[pixel_index] = lower + 1 < GRID - 1 ? lower + 1 : GRID - 1;
-      tables.axes_[size_index].weight_[pixel_index] = position - lower * span;
+      axis.lower_[pixel_index] = lower;
+      const int32_t upper = std::min(lower + 1, GRID - 1);
+      axis.upper_[pixel_index] = upper;
+      axis.weight_[pixel_index] = position - lower * span;
     }
   }
+
   return tables;
 }
 
@@ -1476,12 +1500,14 @@ inline void add_row_distortion(distortion_measure& measure, const int32_t* outpu
     const int_vector red_difference = source_red - reconstructed_red;
     const int_vector green_difference = source_green - reconstructed_green;
     const int_vector blue_difference = source_blue - reconstructed_blue;
-    const int_vector luma = red_difference + green_difference.shift_left(1) + blue_difference;
+    const int_vector luma = red_difference + green_difference.shift_left(LUMA_GREEN_SHIFT) + blue_difference;
     const int_vector red_blue_difference = red_difference - blue_difference;
-    const int_vector green_difference_plane = green_difference.shift_left(1) - red_difference - blue_difference;
+    const int_vector green_difference_plane =
+        green_difference.shift_left(LUMA_GREEN_SHIFT) - red_difference - blue_difference;
     sum = sum + (luma * luma + red_blue_difference * red_blue_difference).shift_left(2) +
           green_difference_plane * green_difference_plane;
   }
+
   measure.distortion_ += sum.sum();
 }
 
@@ -1526,12 +1552,14 @@ int64_t predicted(const int32_t* prediction, const int32_t size, int32_t* output
       const int_vector prediction_lanes = int_vector::load(prediction + offset);
       prediction_lanes.store(output + offset);
     }
+
     add_row_distortion(measure, output, source_position, size);
 
     if (!is_within_limit(measure)) {
-      return -1;
+      return OVER_LIMIT;
     }
   }
+
   return measure.distortion_;
 }
 
@@ -1545,12 +1573,14 @@ int64_t solid(const int32_t color, const int32_t size, int32_t* output, distorti
       int_vector::store_channels(output + source_position + horizontal_position * CHANNELS, red_values, green_values,
                                  blue_values);
     }
+
     add_row_distortion(measure, output, source_position, size);
 
     if (!is_within_limit(measure)) {
-      return -1;
+      return OVER_LIMIT;
     }
   }
+
   return measure.distortion_;
 }
 
@@ -1568,12 +1598,14 @@ int64_t palette(const int8_t* record, const int32_t size, int32_t* output, disto
       int_vector::store_channels(output + pixel * CHANNELS, first_red + (red_delta & bit),
                                  first_green + (green_delta & bit), first_blue + (blue_delta & bit));
     }
+
     add_row_distortion(measure, output, row_index * size * CHANNELS, size);
 
     if (!is_within_limit(measure)) {
-      return -1;
+      return OVER_LIMIT;
     }
   }
+
   return measure.distortion_;
 }
 
@@ -1581,13 +1613,16 @@ int64_t compact(const int32_t* prediction, const int8_t* record, const int32_t q
                 int32_t* output, distortion_measure measure) {
   int32_t nodes[GRID * GRID];
   for (int32_t index = 0; index < GRID * GRID; index++) {
-    const int32_t packed = (uint8_t)record[MOTION_BYTES + index / NIBBLES_PER_BYTE];
-    const int32_t nibble = (packed >> ((index % NIBBLES_PER_BYTE) * NIBBLE_BITS)) & NIBBLE_MASK;
-
+    const int32_t byte_index = MOTION_BYTES + index / NIBBLES_PER_BYTE;
+    const int32_t packed = (uint8_t)record[byte_index];
+    const int32_t nibble_shift = (index % NIBBLES_PER_BYTE) * NIBBLE_BITS;
+    const int32_t nibble = (packed >> nibble_shift) & NIBBLE_MASK;
     nodes[index] = nibble >= NIBBLE_SIGN ? nibble - NIBBLE_RANGE : nibble;
   }
+
   int32_t rows[GRID * ROOT_SIZE];
   interpolate_horizontally(nodes, size, rows);
+
   const int32_t shift = rounding_shift(size);
   const int_vector scale = int_vector::broadcast(4 * size * size);
   int32_t luma[ROOT_SIZE];
@@ -1606,12 +1641,14 @@ int64_t compact(const int32_t* prediction, const int8_t* record, const int32_t q
       const int_vector blue = round(predicted_blue * scale + residual, shift);
       int_vector::store_channels(output_pixels, red, green, blue);
     }
+
     add_row_distortion(measure, output, source_position, size);
 
     if (!is_within_limit(measure)) {
-      return -1;
+      return OVER_LIMIT;
     }
   }
+
   return measure.distortion_;
 }
 
@@ -1636,10 +1673,13 @@ void predict(const uint8_t* reference, const int32_t width, const int32_t height
   const int32_t row_length = size * CHANNELS;
   if (left >= 0 && top >= 0 && left + size <= width && top + size <= height) {
     for (int32_t row_index = 0; row_index < size; row_index++) {
-      const uint8_t* source = reference + ((int64_t)(top + row_index) * width + left) * CHANNELS;
+      const int64_t reference_row = top + row_index;
+      const int64_t source_pixel = reference_row * width + left;
+      const uint8_t* source = reference + source_pixel * CHANNELS;
       int32_t* target = output + row_index * row_length;
       widen_bytes(source, row_length, target);
     }
+
     return;
   }
 
@@ -1647,7 +1687,8 @@ void predict(const uint8_t* reference, const int32_t width, const int32_t height
     const int32_t source_row = clamp_int(top + row_index, 0, height - 1);
     for (int32_t column = 0; column < size; column++) {
       const int32_t source_column = clamp_int(left + column, 0, width - 1);
-      const uint8_t* source = reference + ((int64_t)source_row * width + source_column) * CHANNELS;
+      const int64_t source_pixel = (int64_t)source_row * width + source_column;
+      const uint8_t* source = reference + source_pixel * CHANNELS;
       int32_t* target = output + (row_index * size + column) * CHANNELS;
       copy_pixel(source, target);
     }
@@ -1668,6 +1709,7 @@ inline void sum_four_row_vectors(const float* plane, const float* weights, const
     third_sum = third_sum + double_vector::load_floats(column + 2 * double_vector::LANES) * weight;
     fourth_sum = fourth_sum + double_vector::load_floats(column + 3 * double_vector::LANES) * weight;
   }
+
   first_sum.store(lanes);
   second_sum.store(lanes + double_vector::LANES);
   third_sum.store(lanes + 2 * double_vector::LANES);
@@ -1681,6 +1723,7 @@ inline void sum_row_vector(const float* plane, const float* weights, const int32
     sum = sum + double_vector::load_floats(plane + horizontal_position * size + first_source_row) *
                     double_vector::broadcast((double)weights[horizontal_position]);
   }
+
   sum.store(lanes);
 }
 
@@ -1697,38 +1740,40 @@ inline double sum_weighted_column(const float* weights, const double* scratch, c
   for (int32_t vertical_position = 0; vertical_position < size; vertical_position++) {
     sum += (double)weights[vertical_position] * scratch[vertical_position * GRID + element_index];
   }
+
   return sum;
 }
 
 // Each lane must retain Java's summation order for bit-exact fits.
 void fit(const float* values, const int32_t size, const float* matrix, float* output) {
-  const int32_t grid = GRID;
   float plane[ROOT_SIZE * ROOT_SIZE];
   for (int32_t vertical_position = 0; vertical_position < size; vertical_position++) {
     for (int32_t horizontal_position = 0; horizontal_position < size; horizontal_position++) {
       plane[horizontal_position * size + vertical_position] = values[vertical_position * size + horizontal_position];
     }
   }
+
   double scratch[ROOT_SIZE * GRID];
   const int32_t unrolled_lanes = UNROLLED_VECTORS * double_vector::LANES;
   double lanes[unrolled_lanes];
-  for (int32_t element_index = 0; element_index < grid; element_index++) {
+  for (int32_t element_index = 0; element_index < GRID; element_index++) {
     const float* weights = matrix + element_index * size;
     int32_t first_source_row = 0;
-
     for (; first_source_row + unrolled_lanes <= size; first_source_row += unrolled_lanes) {
       sum_four_row_vectors(plane, weights, size, first_source_row, lanes);
       store_lanes(lanes, unrolled_lanes, first_source_row, element_index, scratch);
     }
+
     for (; first_source_row < size; first_source_row += double_vector::LANES) {
       sum_row_vector(plane, weights, size, first_source_row, lanes);
       store_lanes(lanes, double_vector::LANES, first_source_row, element_index, scratch);
     }
   }
-  for (int32_t index = 0; index < grid; index++) {
+
+  for (int32_t index = 0; index < GRID; index++) {
     const float* weights = matrix + index * size;
-    for (int32_t element_index = 0; element_index < grid; element_index++) {
-      output[index * grid + element_index] = (float)sum_weighted_column(weights, scratch, size, element_index);
+    for (int32_t element_index = 0; element_index < GRID; element_index++) {
+      output[index * GRID + element_index] = (float)sum_weighted_column(weights, scratch, size, element_index);
     }
   }
 }
@@ -1769,6 +1814,7 @@ void cluster_pixels(const int32_t* source, const int32_t size, const int32_t ste
       sums[ENDPOINT_CHANNELS + endpoint]++;
     }
   }
+
   for (int32_t endpoint = 0; endpoint < ENDPOINTS; endpoint++) {
     const int64_t members = sums[ENDPOINT_CHANNELS + endpoint];
     if (members <= 0) {
@@ -1833,6 +1879,7 @@ template <int STEP> void cluster_lanes(const int32_t* source, const int32_t size
       all_blue = all_blue + blue;
     }
   }
+
   const int64_t counts[ENDPOINTS] = {pixels - near_count.sum(), near_count.sum()};
   const int64_t near[CHANNELS] = {near_red.sum(), near_green.sum(), near_blue.sum()};
   const int64_t all[CHANNELS] = {all_red.sum(), all_green.sum(), all_blue.sum()};
@@ -1870,6 +1917,7 @@ template <int STEP> int32_t cluster_extrema(const int32_t* source, const int32_t
       high_at = high_at + ((array_offset - high_at) & higher);
     }
   }
+
   int32_t lows[int_vector::LANES];
   int32_t lows_at[int_vector::LANES];
   int32_t highs[int_vector::LANES];
@@ -1896,10 +1944,12 @@ template <int STEP> int32_t cluster_extrema(const int32_t* source, const int32_t
     }
     all |= combined_lanes[lane];
   }
+
   for (int32_t channel = 0; channel < CHANNELS; channel++) {
     endpoints[channel] = source[low + channel];
     endpoints[CHANNELS + channel] = source[high + channel];
   }
+
   return all;
 }
 
@@ -1920,6 +1970,7 @@ void cluster(const int32_t* source, const int32_t size, int32_t* endpoints) {
     for (int32_t iteration = 0; iteration < CLUSTER_ITERATIONS; iteration++) {
       cluster_lanes_with_step(source, size, step, endpoints);
     }
+
     return;
   }
 
@@ -1952,6 +2003,7 @@ void assign(const int32_t* source, const int32_t count, const int32_t* colors, i
                                        second_blue_difference * second_blue_difference;
     (int_vector::less(second_distance, first_distance) & int_vector::broadcast(1)).store_bytes(selectors + index);
   }
+
   for (; index < count; index++) {
     const int32_t* samples = source + index * CHANNELS;
     const int32_t first_distance = (samples[0] - colors[0]) * (samples[0] - colors[0]) +
@@ -1975,6 +2027,7 @@ int32_t assign_pattern(const int32_t* source, const int32_t size, const int32_t*
       rows &= selectors[index] == selectors[vertical_position * size];
     }
   }
+
   return columns || rows ? 1 : 0;
 }
 
@@ -1998,6 +2051,7 @@ inline int64_t pixel_cost(const uint8_t* reference_pixel, const int32_t* source_
     const int32_t difference = wrapping_subtraction(reference_pixel[channel], source_pixel[channel]);
     sum += difference < 0 ? wrapping_subtraction(0, difference) : difference;
   }
+
   return sum;
 }
 
@@ -2015,6 +2069,7 @@ int64_t interior_cost(const uint8_t* reference, const int32_t width, const int32
       sum += pixel_cost(reference_pixel, source_pixel);
     }
   }
+
   return sum;
 }
 
@@ -2032,6 +2087,7 @@ int64_t packed_interior_cost(const uint8_t* reference, const int32_t width, cons
     sum += four_pixel_difference(first_pixel, second_pixel, third_pixel, fourth_pixel,
                                  packed_samples + SAMPLE_ROW_BYTES * sample_row);
   }
+
   return sum;
 }
 
@@ -2048,6 +2104,7 @@ int64_t cost(const uint8_t* reference, const int32_t width, const int32_t height
                                       motion_y)
                : interior_cost(reference, width, source_samples, block_left, block_top, samples, motion_x, motion_y);
   }
+
   int64_t sum = 0;
   for (int32_t sample_row = 0; sample_row < SAMPLE_GRID; sample_row++) {
     const int32_t reference_row = clamp_int(block_top + samples[sample_row] + motion_y, 0, height - 1);
@@ -2058,6 +2115,7 @@ int64_t cost(const uint8_t* reference, const int32_t width, const int32_t height
       sum += pixel_cost(reference_pixel, source_pixel);
     }
   }
+
   return sum;
 }
 
@@ -2076,6 +2134,7 @@ struct measured_vectors {
         return true;
       }
     }
+
     return false;
   }
   void add(const int32_t motion_x, const int32_t motion_y) {
@@ -2110,6 +2169,7 @@ struct motion_search {
     }
 
     measured_.add(motion_x, motion_y);
+
     const int64_t motion_cost = cost(reference_, width_, height_, source_samples_, packed_samples_, block_left_,
                                      block_top_, samples_, motion_x, motion_y);
     if (motion_cost < best_cost_) {
@@ -2120,15 +2180,23 @@ struct motion_search {
   }
 };
 
-inline bool sample_pixel(const int32_t* source_pixel, int32_t* sample, uint8_t* sample_byte) {
-  bool fits_bytes = true;
+inline void copy_sample(const int32_t* source_pixel, int32_t* sample, uint8_t* sample_byte) {
   for (int32_t channel = 0; channel < CHANNELS; channel++) {
     const int32_t value = source_pixel[channel];
     sample[channel] = value;
-    fits_bytes &= (uint32_t)value <= MAXIMUM_CHANNEL;
     sample_byte[channel] = (uint8_t)value;
   }
-  return fits_bytes;
+}
+
+inline bool is_byte_pixel(const int32_t* source_pixel) {
+  for (int32_t channel = 0; channel < CHANNELS; channel++) {
+    const int32_t value = source_pixel[channel];
+    if ((uint32_t)value > MAXIMUM_CHANNEL) {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 int32_t seeded(const uint8_t* reference, const int32_t width, const int32_t height, const int32_t* source,
@@ -2144,12 +2212,14 @@ int32_t seeded(const uint8_t* reference, const int32_t width, const int32_t heig
       const int32_t* source_pixel = source + (samples[sample_row] * size + samples[sample_column]) * CHANNELS;
       int32_t* sample = source_samples + (sample_row * SAMPLE_GRID + sample_column) * CHANNELS;
       uint8_t* sample_byte = sample_bytes + SAMPLE_ROW_BYTES * sample_row + WORD_BYTES * sample_column;
-      fits_bytes &= sample_pixel(source_pixel, sample, sample_byte);
+      copy_sample(source_pixel, sample, sample_byte);
+      fits_bytes &= is_byte_pixel(source_pixel);
     }
   }
+
   const uint8_t* packed_samples = fits_bytes ? sample_bytes : nullptr;
   motion_search search(reference, width, height, source_samples, packed_samples, block_left, block_top, samples);
-  search.measure_once(0, 0);
+  search.measure_once(NO_MOTION, NO_MOTION);
   for (int32_t seed_index = 0; seed_index < seed_count; seed_index++) {
     const int32_t unpacked_x = unpack_horizontal_motion(seeds[seed_index]);
     const int32_t seed_x = clamp_int(unpacked_x, -range, range);
@@ -2157,6 +2227,7 @@ int32_t seeded(const uint8_t* reference, const int32_t width, const int32_t heig
     const int32_t seed_y = clamp_int(unpacked_y, -range, range);
     search.measure_once(seed_x, seed_y);
   }
+
   for (int32_t step = 0; step < 2 * range; step++) {
     const int32_t center_x = search.best_x_;
     const int32_t center_y = search.best_y_;
@@ -2165,10 +2236,12 @@ int32_t seeded(const uint8_t* reference, const int32_t width, const int32_t heig
       const int32_t candidate_y = clamp_int(center_y + DIRECTIONS[direction][1], -range, range);
       search.measure_once(candidate_x, candidate_y);
     }
+
     if (search.best_x_ == center_x && search.best_y_ == center_y) {
       break;
     }
   }
+
   return pack_motion(search.best_x_, search.best_y_);
 }
 
@@ -2195,7 +2268,7 @@ void load_source(const uint8_t* image, const int32_t width, const int32_t height
 template <class VectorType> void halve_lanes(const int32_t* block, const int32_t size, int32_t* output) {
   const int32_t half = size / 2;
   const int32_t row_length = size * CHANNELS;
-  const VectorType two = VectorType::broadcast(2);
+  const VectorType rounding = VectorType::broadcast(2);
   for (int32_t pixel_row = 0; pixel_row < half; pixel_row++) {
     const int32_t* top = block + 2 * pixel_row * row_length;
     const int32_t* bottom = top + row_length;
@@ -2216,11 +2289,11 @@ template <class VectorType> void halve_lanes(const int32_t* block, const int32_t
       const VectorType first_blue_sum = first_blue + third_blue;
       const VectorType second_blue_sum = second_blue + fourth_blue;
       const VectorType red_sum =
-          VectorType::evens(first_red_sum, second_red_sum) + VectorType::odds(first_red_sum, second_red_sum) + two;
+          VectorType::evens(first_red_sum, second_red_sum) + VectorType::odds(first_red_sum, second_red_sum) + rounding;
       const VectorType green_sum = VectorType::evens(first_green_sum, second_green_sum) +
-                                   VectorType::odds(first_green_sum, second_green_sum) + two;
-      const VectorType blue_sum =
-          VectorType::evens(first_blue_sum, second_blue_sum) + VectorType::odds(first_blue_sum, second_blue_sum) + two;
+                                   VectorType::odds(first_green_sum, second_green_sum) + rounding;
+      const VectorType blue_sum = VectorType::evens(first_blue_sum, second_blue_sum) +
+                                  VectorType::odds(first_blue_sum, second_blue_sum) + rounding;
       int32_t* output_pixels = line + (horizontal_position / 2) * CHANNELS;
       const VectorType red_average = red_sum.shift_right(2);
       const VectorType green_average = green_sum.shift_right(2);
@@ -2233,9 +2306,10 @@ template <class VectorType> void halve_lanes(const int32_t* block, const int32_t
 void halve(const int32_t* block, const int32_t size, int32_t* output) {
   if (SHUFFLED_CHANNEL_LOAD || size < 2 * int_vector::LANES) {
     halve_lanes<scalar_int_vector>(block, size, output);
-  } else {
-    halve_lanes<int_vector>(block, size, output);
+    return;
   }
+
+  halve_lanes<int_vector>(block, size, output);
 }
 
 void residual_target(const int32_t* source, const int32_t* prediction, const int32_t count, float* target) {
@@ -2245,7 +2319,7 @@ void residual_target(const int32_t* source, const int32_t* prediction, const int
   for (; pixel + int_vector::LANES <= count; pixel += int_vector::LANES) {
     int_vector source_red, source_green, source_blue;
     int_vector::load_channels(source + pixel * CHANNELS, source_red, source_green, source_blue);
-    const int_vector weighted_green = source_green.shift_left(1);
+    const int_vector weighted_green = source_green.shift_left(LUMA_GREEN_SHIFT);
     const float_vector luma = float_vector::from_integers(source_red + weighted_green + source_blue) * normalization;
     int_vector predicted_red, predicted_green, predicted_blue;
     int_vector::load_channels(prediction + pixel * CHANNELS, predicted_red, predicted_green, predicted_blue);
@@ -2254,6 +2328,7 @@ void residual_target(const int32_t* source, const int32_t* prediction, const int
     const float_vector blue = float_vector::from_integers(predicted_blue);
     (luma - ((red + green_weight * green) + blue) * normalization).store(target + pixel);
   }
+
   for (; pixel < count; pixel++) {
     const int32_t array_offset = pixel * CHANNELS;
     const float luma =
@@ -2347,6 +2422,7 @@ void MCV2_PREFIX(fit)(const float* values, const int32_t size, const float* matr
     return MCV2_FIT_TO(fit)(values, size, matrix, output);
   }
 #endif
+
   fit(values, size, matrix, output);
 }
 
@@ -2409,24 +2485,26 @@ constexpr unsigned SSE41_BIT = 1u << 19;
 constexpr unsigned OSXSAVE_BIT = 1u << 27;
 constexpr unsigned AVX_BIT = 1u << 28;
 constexpr unsigned AVX2_BIT = 1u << 5;
+#if !defined(__APPLE__)
+constexpr unsigned AVX512_REGISTER_B_BITS = (1u << 16) | (1u << 17) | (1u << 30) | (1u << 31);
+constexpr unsigned AVX512_REGISTER_C_BITS = (1u << 1) | (1u << 6) | (1u << 11) | (1u << 12);
+#endif
 
 constexpr unsigned long long YMM_STATE = 0x6;
 #if !defined(__APPLE__)
-
-constexpr unsigned AVX512_EBX = (1u << 16) | (1u << 17) | (1u << 30) | (1u << 31);
-constexpr unsigned AVX512_ECX = (1u << 1) | (1u << 6) | (1u << 11) | (1u << 12);
-
 constexpr unsigned long long ZMM_STATE = 0xE6;
 #endif
 
 constexpr unsigned EXTENDED_CONTROL_REGISTER = 0;
-constexpr int HIGH_WORD_SHIFT = 32;
+
+constexpr int32_t HIGH_WORD_SHIFT = 32;
 
 unsigned long long extended_control_state() {
   unsigned low;
   unsigned high;
   __asm__ volatile("xgetbv" : "=a"(low), "=d"(high) : "c"(EXTENDED_CONTROL_REGISTER));
-  return ((unsigned long long)high << HIGH_WORD_SHIFT) | low;
+  const unsigned long long shifted_high = (unsigned long long)high << HIGH_WORD_SHIFT;
+  return shifted_high | low;
 }
 
 }
@@ -2444,6 +2522,7 @@ extern "C" int32_t mcv2_cpu_levels(int64_t) {
   if (register_c & SSE41_BIT) {
     levels |= MCV2_LEVEL_SSE41;
   }
+
   const unsigned long long state = (register_c & OSXSAVE_BIT) && (register_c & AVX_BIT) ? extended_control_state() : 0;
   if ((state & YMM_STATE) != YMM_STATE || !__get_cpuid_count(EXTENDED_FEATURES_LEAF, EXTENDED_FEATURES_SUBLEAF,
                                                              &register_a, &register_b, &register_c, &register_d)) {
@@ -2453,13 +2532,15 @@ extern "C" int32_t mcv2_cpu_levels(int64_t) {
   if (register_b & AVX2_BIT) {
     levels |= MCV2_LEVEL_AVX2;
   }
+
 #if !defined(__APPLE__)
   // macOS saves ZMM state lazily, so XCR0 cannot authorize AVX-512.
-  if ((state & ZMM_STATE) == ZMM_STATE && (register_b & AVX512_EBX) == AVX512_EBX &&
-      (register_c & AVX512_ECX) == AVX512_ECX) {
+  if ((state & ZMM_STATE) == ZMM_STATE && (register_b & AVX512_REGISTER_B_BITS) == AVX512_REGISTER_B_BITS &&
+      (register_c & AVX512_REGISTER_C_BITS) == AVX512_REGISTER_C_BITS) {
     levels |= MCV2_LEVEL_AVX512;
   }
 #endif
+
   return levels;
 }
 
@@ -2471,24 +2552,33 @@ namespace {
 constexpr unsigned long long SVE256_VECTOR_BYTES = 32;
 constexpr unsigned long long SVE512_VECTOR_BYTES = 64;
 
+inline int32_t sve_level() {
+  unsigned long long vector_bytes;
+  __asm__ volatile(".arch_extension sve\n\trdvl %0, #1" : "=r"(vector_bytes));
+  if (vector_bytes == SVE256_VECTOR_BYTES) {
+    return MCV2_LEVEL_SVE256;
+  }
+
+  if (vector_bytes == SVE512_VECTOR_BYTES) {
+    return MCV2_LEVEL_SVE512;
+  }
+
+  return 0;
+}
+
 }
 #endif
 
-extern "C" int32_t mcv2_cpu_levels(const int64_t kernel_capabilities) {
+extern "C" int32_t mcv2_cpu_levels(const int64_t hardware_capabilities) {
   int32_t levels = MCV2_LEVEL_SCALAR | MCV2_LEVEL_NEON;
 #if defined(__linux__)
-  if (kernel_capabilities & MCV2_HARDWARE_CAPABILITY_SVE) {
-    unsigned long long vector_bytes;
-    __asm__ volatile(".arch_extension sve\n\trdvl %0, #1" : "=r"(vector_bytes));
-    if (vector_bytes == SVE256_VECTOR_BYTES) {
-      levels |= MCV2_LEVEL_SVE256;
-    } else if (vector_bytes == SVE512_VECTOR_BYTES) {
-      levels |= MCV2_LEVEL_SVE512;
-    }
+  if (hardware_capabilities & MCV2_HARDWARE_CAPABILITY_SVE) {
+    levels |= sve_level();
   }
 #else
-  (void)kernel_capabilities;
+  (void)hardware_capabilities; // only Linux reports hardware capabilities
 #endif
+
   return levels;
 }
 
@@ -2501,7 +2591,7 @@ extern "C" int32_t mcv2_cpu_levels(int64_t) {
 #endif
 
 extern "C" int32_t mcv2_abi(void) {
-  return MCV2_INTERFACE_VERSION;
+  return MCV2_ABI_VERSION;
 }
 #endif
 #endif

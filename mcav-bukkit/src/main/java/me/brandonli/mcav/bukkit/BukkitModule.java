@@ -55,41 +55,6 @@ public final class BukkitModule implements MCAVModule {
   BukkitModule() {}
 
   /**
-   * Injects the plugin used for registering listeners and scheduling tasks, and builds all lookup tables. Call
-   * this method once from {@code onEnable}.
-   *
-   * @param plugin the plugin instance
-   * @throws UnsupportedServerVersionException if the server runs an unsupported Minecraft version
-   * @throws NullPointerException              if the plugin is null
-   * @since 1.0.0
-   */
-  public void inject(final Plugin plugin) {
-    Preconditions.checkNotNull(plugin, "Plugin must not be null!");
-
-    ServerEnvironment.checkSupported();
-
-    injectedPlugin = plugin;
-    BlockPaletteLookup.initialize();
-    PacketUtils.initialize();
-  }
-
-  /**
-   * Returns the injected plugin.
-   *
-   * @return the plugin instance
-   * @throws IllegalStateException if no plugin has been injected yet
-   * @since 1.0.0
-   */
-  public static Plugin getPlugin() {
-    final Plugin plugin = injectedPlugin;
-    if (plugin == null) {
-      throw new IllegalStateException("No plugin has been injected, call BukkitModule#inject(Plugin) first!");
-    }
-
-    return plugin;
-  }
-
-  /**
    * Registers the listeners of the module again if a plugin was injected before, so the module works again after
    * it was stopped. Does nothing before the first injection, because {@link #inject(Plugin)} starts the module
    * once the plugin is known, and does nothing while the injected plugin is disabled, because a disabled plugin
@@ -123,6 +88,42 @@ public final class BukkitModule implements MCAVModule {
     }
 
     PacketUtils.shutdown();
+  }
+
+  /**
+   * Injects the plugin used for registering listeners and scheduling tasks, and builds all lookup tables. Call
+   * this method once from {@code onEnable}.
+   *
+   * @param plugin the plugin instance
+   * @throws UnsupportedServerVersionException if the server runs an unsupported Minecraft version
+   * @throws NullPointerException              if the plugin is null
+   * @since 1.0.0
+   */
+  public void inject(final Plugin plugin) {
+    Preconditions.checkNotNull(plugin, "Plugin must not be null!");
+
+    ServerEnvironment.checkSupported();
+
+    injectedPlugin = plugin;
+    BlockPaletteLookup.initialize();
+    PacketUtils.initialize();
+  }
+
+  /**
+   * Returns the injected plugin.
+   *
+   * @return the plugin instance
+   * @throws IllegalStateException if no plugin has been injected yet
+   * @since 1.0.0
+   */
+  public static Plugin getPlugin() {
+    final Plugin plugin = injectedPlugin;
+    if (plugin == null) {
+      final String message = "No plugin has been injected, call BukkitModule#inject(Plugin) first!";
+      throw new IllegalStateException(message);
+    }
+
+    return plugin;
   }
 
   /**

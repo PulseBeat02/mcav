@@ -50,7 +50,9 @@ final class Mcv2TreePropertyTest {
 
     final int groups = (roots.size() + 31) / 32;
     final int counts = 20 + 4 * (groups + (groups + 7) / 8);
-    final int descriptors = (int) (Mcv2Decoder.u32(data, counts) + Mcv2Decoder.u32(data, counts + 4) + Mcv2Decoder.u32(data, counts + 8));
+    final int descriptors = (int) (Mcv2Decoder.readUnsignedInt(data, counts) +
+      Mcv2Decoder.readUnsignedInt(data, counts + 4) +
+      Mcv2Decoder.readUnsignedInt(data, counts + 8));
     final int walk = counts + 12 + descriptors;
     int splits = 0;
     int cursor = 0;
@@ -58,7 +60,7 @@ final class Mcv2TreePropertyTest {
     for (int descriptor = 0; descriptor < descriptors; descriptor++) {
       if (descriptor % 8 == 0) {
         final long expectedCheckpoint = cursor | ((long) splits << 17);
-        final long checkpoint = Mcv2Decoder.u32(data, walk + (descriptor / 8) * 4);
+        final long checkpoint = Mcv2Decoder.readUnsignedInt(data, walk + (descriptor / 8) * 4);
         assertEquals(expectedCheckpoint, checkpoint);
 
         final byte[] corrupt = data.clone();

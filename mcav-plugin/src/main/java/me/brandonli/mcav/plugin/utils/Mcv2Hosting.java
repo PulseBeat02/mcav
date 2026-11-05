@@ -72,7 +72,7 @@ public enum Mcv2Hosting {
 
   private String resolveHost(final String host) {
     if (host.isEmpty()) {
-      return ServerAddress.getPublicIpAddress();
+      return ServerAddress.getPublicAddress();
     }
 
     return host;

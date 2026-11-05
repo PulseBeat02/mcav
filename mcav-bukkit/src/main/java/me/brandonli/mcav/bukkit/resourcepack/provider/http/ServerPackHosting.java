@@ -36,7 +36,7 @@ import java.nio.file.Path;
  *
  * @since 1.0.0
  */
-public class ServerPackHosting implements HttpHosting {
+public final class ServerPackHosting implements HttpHosting {
 
   private static final int MAXIMUM_PORT = 65535;
 
@@ -46,7 +46,8 @@ public class ServerPackHosting implements HttpHosting {
   private final FileHttpServer server;
 
   /**
-   * Constructs a new {@code ServerPackHosting}. Nothing is served until {@link #start()} is called.
+   * Creates a hosting that serves {@code zip} on {@code port}. Nothing is served until
+   * {@link #start()} is called.
    *
    * @param zip      the path to the resource pack zip to serve
    * @param hostName the host name or address players use to reach this server
@@ -61,10 +62,10 @@ public class ServerPackHosting implements HttpHosting {
 
   @VisibleForTesting
   ServerPackHosting(final Path zip, final String hostName, final int port, final FileHttpServer server) {
-    Preconditions.checkNotNull(zip);
-    Preconditions.checkNotNull(hostName);
-    Preconditions.checkArgument(port > 0 && port <= MAXIMUM_PORT, "Port must be between 1 and 65535!");
-    Preconditions.checkNotNull(server);
+    Preconditions.checkNotNull(zip, "Resource pack path must not be null!");
+    Preconditions.checkNotNull(hostName, "Host name must not be null!");
+    Preconditions.checkArgument(port > 0 && port <= MAXIMUM_PORT, "Port %s must be between 1 and %s inclusive!", port, MAXIMUM_PORT);
+    Preconditions.checkNotNull(server, "Server must not be null!");
 
     this.zip = zip;
     this.hostName = hostName;

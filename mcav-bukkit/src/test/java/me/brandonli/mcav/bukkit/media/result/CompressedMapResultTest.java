@@ -40,6 +40,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ForkJoinPool;
@@ -72,8 +73,18 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
+import org.mockito.invocation.InvocationOnMock;
 
 final class CompressedMapResultTest {
+
+  private static final int LARGE_BYTE_BUDGET = 1 << 20;
+
+  private static final int SMALL_FRAME_LEFT = 96;
+
+  private static final int THREE_MAP_SIZE = 384;
+
+  private static final String CLEAR_EVENT = "clear";
+  private static final String FRAME_EVENT = "frame";
 
   private static final UUID FIRST = UUID.fromString("00000000-0000-0000-0000-000000000001");
   private static final UUID SECOND = UUID.fromString("00000000-0000-0000-0000-000000000002");
@@ -192,7 +203,7 @@ final class CompressedMapResultTest {
   @Test
   void shouldSendTheCompletePictureFirstAndThenOnlyTheChanges() {
     final MapConfiguration configuration = this.createConfiguration(1, 1, Sizing.ORIGINAL);
-    final CompressedMapResult result = new CompressedMapResult(configuration, 1 << 20);
+    final CompressedMapResult result = new CompressedMapResult(configuration, LARGE_BYTE_BUDGET);
     result.start();
     final ImageBuffer image = Images.solid(MAP_SIZE, MAP_SIZE, BLACK);
     final byte[] firstFrame = this.nextFrame.clone();
@@ -221,7 +232,7 @@ final class CompressedMapResultTest {
     this.server.addPlayer(SECOND);
     PacketUtils.initialize();
     final MapConfiguration configuration = this.createConfiguration(1, 1, Sizing.ORIGINAL);
-    final CompressedMapResult result = new CompressedMapResult(configuration, 1 << 20);
+    final CompressedMapResult result = new CompressedMapResult(configuration, LARGE_BYTE_BUDGET);
     final byte[] original = this.nextFrame.clone();
     try (final ImageBuffer image = Images.solid(MAP_SIZE, MAP_SIZE, BLACK)) {
       result.process(image, this.algorithm);
@@ -264,7 +275,7 @@ final class CompressedMapResultTest {
   @Test
   void shouldLetAnotherThreadAcquireTheProcessingLockDuringARefresh() throws ReflectiveOperationException, InterruptedException {
     final MapConfiguration configuration = this.createConfiguration(1, 1, Sizing.ORIGINAL);
-    final CompressedMapResult result = new CompressedMapResult(configuration, 1 << 20);
+    final CompressedMapResult result = new CompressedMapResult(configuration, LARGE_BYTE_BUDGET);
     final Field lockField = CompressedMapResult.class.getDeclaredField("lock");
     lockField.setAccessible(true);
     final Lock lock = (Lock) lockField.get(result);
@@ -288,7 +299,7 @@ final class CompressedMapResultTest {
   @Test
   void shouldRetainHistoricalCleanupOnRefreshWithoutTouchingUnownedPixels() {
     final MapConfiguration configuration = this.createConfiguration(2, 1, Sizing.ORIGINAL);
-    final CompressedMapResult result = new CompressedMapResult(configuration, 1 << 20);
+    final CompressedMapResult result = new CompressedMapResult(configuration, LARGE_BYTE_BUDGET);
     this.nextFrame = MapPackets.pattern(MAP_SIZE * 64, 4);
     try (final ImageBuffer original = Images.solid(MAP_SIZE, 64, BLACK)) {
       result.process(original, this.algorithm);
@@ -307,7 +318,7 @@ final class CompressedMapResultTest {
       final byte[] expected = new byte[256 * MAP_SIZE];
       Arrays.fill(expected, (byte) UNOWNED_COLOR);
       this.placeRectangle(expected, 256, 64, 32, MAP_SIZE, 64, new byte[MAP_SIZE * 64]);
-      this.placeRectangle(expected, 256, 96, 48, 64, 32, smallFrame);
+      this.placeRectangle(expected, 256, SMALL_FRAME_LEFT, 48, 64, 32, smallFrame);
       assertArrayEquals(expected, canvas, "repair clears an old picture restored externally and preserves pixels never owned");
     } finally {
       result.release();
@@ -317,7 +328,7 @@ final class CompressedMapResultTest {
   @Test
   void shouldSendThePictureToViewersThatStartWatchingLater() {
     final MapConfiguration configuration = this.createConfiguration(1, 1, Sizing.ORIGINAL);
-    final CompressedMapResult result = new CompressedMapResult(configuration, 1 << 20);
+    final CompressedMapResult result = new CompressedMapResult(configuration, LARGE_BYTE_BUDGET);
     final ImageBuffer image = Images.solid(MAP_SIZE, MAP_SIZE, BLACK);
     final byte[] firstFrame = this.nextFrame.clone();
 
@@ -348,7 +359,7 @@ final class CompressedMapResultTest {
   @Test
   void shouldForgetViewersThatDisconnected() {
     final MapConfiguration configuration = this.createConfiguration(1, 1, Sizing.ORIGINAL);
-    final CompressedMapResult result = new CompressedMapResult(configuration, 1 << 20);
+    final CompressedMapResult result = new CompressedMapResult(configuration, LARGE_BYTE_BUDGET);
     final ImageBuffer image = Images.solid(MAP_SIZE, MAP_SIZE, BLACK);
     final byte[] firstFrame = this.nextFrame.clone();
 
@@ -372,7 +383,7 @@ final class CompressedMapResultTest {
   @EnumSource(OfflineFrame.class)
   void shouldSendAReconnectedViewerASnapshotWithoutAnInterveningFrame(final OfflineFrame offlineFrame) {
     final MapConfiguration configuration = this.createConfiguration(1, 1, Sizing.ORIGINAL);
-    final CompressedMapResult result = new CompressedMapResult(configuration, 1 << 20);
+    final CompressedMapResult result = new CompressedMapResult(configuration, LARGE_BYTE_BUDGET);
     try (final ImageBuffer image = Images.solid(MAP_SIZE, MAP_SIZE, BLACK)) {
       result.process(image, this.algorithm);
       this.server.removePlayer(FIRST);
@@ -448,7 +459,7 @@ final class CompressedMapResultTest {
   @Test
   void shouldStartOverWhenTheFrameSizeChanges() {
     final MapConfiguration configuration = this.createConfiguration(1, 1, Sizing.ORIGINAL);
-    final CompressedMapResult result = new CompressedMapResult(configuration, 1 << 20);
+    final CompressedMapResult result = new CompressedMapResult(configuration, LARGE_BYTE_BUDGET);
     final ImageBuffer large = Images.solid(MAP_SIZE, MAP_SIZE, BLACK);
     result.process(large, this.algorithm);
 
@@ -479,7 +490,7 @@ final class CompressedMapResultTest {
   @Test
   void shouldPreservePixelsOutsideBothCenteredPictures() {
     final MapConfiguration configuration = this.createConfiguration(2, 1, Sizing.ORIGINAL);
-    final CompressedMapResult result = new CompressedMapResult(configuration, 1 << 20);
+    final CompressedMapResult result = new CompressedMapResult(configuration, LARGE_BYTE_BUDGET);
     final byte[] originalFrame = MapPackets.pattern(MAP_SIZE * 64, 4);
     this.nextFrame = originalFrame;
     try (final ImageBuffer image = Images.solid(MAP_SIZE, 64, BLACK)) {
@@ -502,16 +513,16 @@ final class CompressedMapResultTest {
     Arrays.fill(expected, (byte) UNOWNED_COLOR);
     final byte[] transparent = new byte[MAP_SIZE * 64];
     this.placeRectangle(expected, 256, 64, 32, MAP_SIZE, 64, transparent);
-    this.placeRectangle(expected, 256, 96, 48, 64, 32, smallFrame);
+    this.placeRectangle(expected, 256, SMALL_FRAME_LEFT, 48, 64, 32, smallFrame);
     assertArrayEquals(expected, canvas, "only pixels occupied by the old or new picture may change");
   }
 
   @Test
   void shouldClearFormerlyCoveredMapsForOldAndNewViewersDuringAShrink() {
     final MapConfiguration configuration = this.createConfiguration(3, 1, Sizing.ORIGINAL);
-    final CompressedMapResult result = new CompressedMapResult(configuration, 1 << 20);
-    this.nextFrame = MapPackets.pattern(384 * MAP_SIZE, 4);
-    try (final ImageBuffer image = Images.solid(384, MAP_SIZE, BLACK)) {
+    final CompressedMapResult result = new CompressedMapResult(configuration, LARGE_BYTE_BUDGET);
+    this.nextFrame = MapPackets.pattern(THREE_MAP_SIZE * MAP_SIZE, 4);
+    try (final ImageBuffer image = Images.solid(THREE_MAP_SIZE, MAP_SIZE, BLACK)) {
       result.process(image, this.algorithm);
     }
 
@@ -523,8 +534,8 @@ final class CompressedMapResultTest {
       result.process(image, this.algorithm);
     }
 
-    final byte[] oldViewerCanvas = new byte[384 * MAP_SIZE];
-    final byte[] newViewerCanvas = new byte[384 * MAP_SIZE];
+    final byte[] oldViewerCanvas = new byte[THREE_MAP_SIZE * MAP_SIZE];
+    final byte[] newViewerCanvas = new byte[THREE_MAP_SIZE * MAP_SIZE];
     Arrays.fill(newViewerCanvas, (byte) 118);
     final List<ClientboundMapItemDataPacket> original = this.packetsOf(FIRST, 0);
     final List<ClientboundMapItemDataPacket> oldViewerReset = this.packetsOf(FIRST, 1);
@@ -532,8 +543,8 @@ final class CompressedMapResultTest {
     this.applyPacketsToCanvas(oldViewerCanvas, 3, 1, original);
     this.applyPacketsToCanvas(oldViewerCanvas, 3, 1, oldViewerReset);
     this.applyPacketsToCanvas(newViewerCanvas, 3, 1, newViewerReset);
-    final byte[] expected = new byte[384 * MAP_SIZE];
-    this.placeRectangle(expected, 384, 160, 32, 64, 64, smallFrame);
+    final byte[] expected = new byte[THREE_MAP_SIZE * MAP_SIZE];
+    this.placeRectangle(expected, THREE_MAP_SIZE, 160, 32, 64, 64, smallFrame);
     assertArrayEquals(expected, oldViewerCanvas);
     assertArrayEquals(expected, newViewerCanvas);
 
@@ -582,7 +593,7 @@ final class CompressedMapResultTest {
   @Test
   void shouldClearTheClippedOldPictureWhenAnOversizedFrameShrinks() {
     final MapConfiguration configuration = this.createConfiguration(2, 1, Sizing.ORIGINAL);
-    final CompressedMapResult result = new CompressedMapResult(configuration, 1 << 20);
+    final CompressedMapResult result = new CompressedMapResult(configuration, LARGE_BYTE_BUDGET);
     this.nextFrame = MapPackets.pattern(512 * 256, 4);
     try (final ImageBuffer image = Images.solid(512, 256, BLACK)) {
       result.process(image, this.algorithm);
@@ -600,14 +611,14 @@ final class CompressedMapResultTest {
     this.applyPacketsToCanvas(canvas, 2, 1, original);
     this.applyPacketsToCanvas(canvas, 2, 1, reset);
     final byte[] expected = new byte[256 * MAP_SIZE];
-    this.placeRectangle(expected, 256, 96, 32, 64, 64, smallFrame);
+    this.placeRectangle(expected, 256, SMALL_FRAME_LEFT, 32, 64, 64, smallFrame);
     assertArrayEquals(expected, canvas);
   }
 
   @Test
   void shouldClearHistoricalBordersWhenAViewerMissedTheResize() {
     final MapConfiguration configuration = this.createConfiguration(1, 1, Sizing.ORIGINAL);
-    final CompressedMapResult result = new CompressedMapResult(configuration, 1 << 20);
+    final CompressedMapResult result = new CompressedMapResult(configuration, LARGE_BYTE_BUDGET);
     try (final ImageBuffer image = Images.solid(MAP_SIZE, MAP_SIZE, BLACK)) {
       result.process(image, this.algorithm);
     }
@@ -641,7 +652,7 @@ final class CompressedMapResultTest {
   @Test
   void shouldRetainExactCoverageAcrossSeveralResizesWithoutClaimingUnviewedPixels() {
     final MapConfiguration configuration = this.createConfiguration(1, 1, Sizing.ORIGINAL);
-    final CompressedMapResult result = new CompressedMapResult(configuration, 1 << 20);
+    final CompressedMapResult result = new CompressedMapResult(configuration, LARGE_BYTE_BUDGET);
     this.nextFrame = MapPackets.pattern(MAP_SIZE * 32, 4);
     try (final ImageBuffer image = Images.solid(MAP_SIZE, 32, BLACK)) {
       result.process(image, this.algorithm);
@@ -690,7 +701,7 @@ final class CompressedMapResultTest {
   @Test
   void shouldResizeFramesWhenConfigured() {
     final MapConfiguration configuration = this.createConfiguration(1, 1, Sizing.RESIZED);
-    final CompressedMapResult result = new CompressedMapResult(configuration, 1 << 20);
+    final CompressedMapResult result = new CompressedMapResult(configuration, LARGE_BYTE_BUDGET);
     final byte[] frame = MapPackets.pattern(64 * 64, 7);
     this.nextFrame = frame;
     final ImageBuffer image = Images.solid(MAP_SIZE, MAP_SIZE, BLACK);
@@ -709,8 +720,8 @@ final class CompressedMapResultTest {
   void shouldSendAtMostTheDefaultBudgetPerFrame() {
     final MapConfiguration configuration = this.createConfiguration(3, 3, Sizing.ORIGINAL);
     final CompressedMapResult result = new CompressedMapResult(configuration);
-    this.nextFrame = MapPackets.pattern(384 * 384, 4);
-    final ImageBuffer image = Images.solid(384, 384, BLACK);
+    this.nextFrame = MapPackets.pattern(THREE_MAP_SIZE * THREE_MAP_SIZE, 4);
+    final ImageBuffer image = Images.solid(THREE_MAP_SIZE, THREE_MAP_SIZE, BLACK);
 
     result.process(image, this.algorithm);
 
@@ -748,7 +759,7 @@ final class CompressedMapResultTest {
   @Test
   void shouldDitherParallelAlgorithmsOnItsOwnDaemonThreads() {
     final MapConfiguration configuration = this.createConfiguration(1, 1, Sizing.ORIGINAL);
-    final CompressedMapResult result = new CompressedMapResult(configuration, 1 << 20);
+    final CompressedMapResult result = new CompressedMapResult(configuration, LARGE_BYTE_BUDGET);
     final List<ForkJoinPool> pools = new CopyOnWriteArrayList<>();
     final List<Thread> workers = new CopyOnWriteArrayList<>();
     final ParallelDitherAlgorithm parallel = this.createRecordingAlgorithm(pools, workers);
@@ -782,21 +793,27 @@ final class CompressedMapResultTest {
 
   private ParallelDitherAlgorithm createRecordingAlgorithm(final List<ForkJoinPool> pools, final List<Thread> workers) {
     final ParallelDitherAlgorithm parallel = mock(ParallelDitherAlgorithm.class);
-    when(parallel.ditherIntoBytes(any(ImageBuffer.class), any(ForkJoinPool.class))).thenAnswer(invocation -> {
-      final ForkJoinPool pool = invocation.getArgument(1);
-      final ForkJoinTask<Thread> task = pool.submit(Thread::currentThread);
-      final Thread worker = task.get();
-      pools.add(pool);
-      workers.add(worker);
-      return MapPackets.pattern(MAP_SIZE * MAP_SIZE, 4);
-    });
+    when(parallel.ditherIntoBytes(any(ImageBuffer.class), any(ForkJoinPool.class))).thenAnswer(invocation ->
+      this.recordDitherWorker(invocation, pools, workers)
+    );
     return parallel;
+  }
+
+  private byte[] recordDitherWorker(final InvocationOnMock invocation, final List<ForkJoinPool> pools, final List<Thread> workers)
+    throws InterruptedException, ExecutionException {
+    final ForkJoinPool pool = invocation.getArgument(1);
+    final ForkJoinTask<Thread> task = pool.submit(Thread::currentThread);
+    final Thread worker = task.get();
+    pools.add(pool);
+    workers.add(worker);
+
+    return MapPackets.pattern(MAP_SIZE * MAP_SIZE, 4);
   }
 
   @Test
   void shouldLogExceptionsThatEscapeTheDitherThreads() throws InterruptedException {
     final MapConfiguration configuration = this.createConfiguration(1, 1, Sizing.ORIGINAL);
-    final CompressedMapResult result = new CompressedMapResult(configuration, 1 << 20);
+    final CompressedMapResult result = new CompressedMapResult(configuration, LARGE_BYTE_BUDGET);
     final RuntimeException failure = new RuntimeException("Escaped the dither pool!");
     final ParallelDitherAlgorithm parallel = this.createFailingAlgorithm(failure);
 
@@ -811,7 +828,7 @@ final class CompressedMapResultTest {
 
     final Level level = event.getLevel();
     final String message = event.getMessage();
-    final Throwable thrown = event.getThrown();
+    final Throwable thrown = event.getThrown().orElseThrow();
     final boolean namesTheThread = message.startsWith("Map dithering thread mcav-map-dither-");
     assertEquals(Level.ERROR, level);
     assertTrue(namesTheThread, message);
@@ -820,20 +837,27 @@ final class CompressedMapResultTest {
 
   private ParallelDitherAlgorithm createFailingAlgorithm(final RuntimeException failure) {
     final ParallelDitherAlgorithm parallel = mock(ParallelDitherAlgorithm.class);
-    when(parallel.ditherIntoBytes(any(ImageBuffer.class), any(ForkJoinPool.class))).thenAnswer(invocation -> {
-      final ForkJoinPool pool = invocation.getArgument(1);
-      pool.execute(() -> {
-        throw failure;
-      });
-      return MapPackets.pattern(MAP_SIZE * MAP_SIZE, 4);
-    });
+    when(parallel.ditherIntoBytes(any(ImageBuffer.class), any(ForkJoinPool.class))).thenAnswer(invocation ->
+      this.submitDitherFailure(invocation, failure)
+    );
     return parallel;
+  }
+
+  private byte[] submitDitherFailure(final InvocationOnMock invocation, final RuntimeException failure) {
+    final ForkJoinPool pool = invocation.getArgument(1);
+    pool.execute(() -> this.throwDitherFailure(failure));
+
+    return MapPackets.pattern(MAP_SIZE * MAP_SIZE, 4);
+  }
+
+  private void throwDitherFailure(final RuntimeException failure) {
+    throw failure;
   }
 
   @Test
   void shouldClearTheMapsWhenReleasedAndIgnoreLaterFrames() throws ReflectiveOperationException {
     final MapConfiguration configuration = this.createConfiguration(2, 1, Sizing.ORIGINAL);
-    final CompressedMapResult result = new CompressedMapResult(configuration, 1 << 20);
+    final CompressedMapResult result = new CompressedMapResult(configuration, LARGE_BYTE_BUDGET);
     this.nextFrame = MapPackets.pattern(256 * MAP_SIZE, 4);
     final ImageBuffer image = Images.solid(256, MAP_SIZE, BLACK);
 
@@ -869,7 +893,7 @@ final class CompressedMapResultTest {
   @Test
   void shouldShowASecondVideoAfterItWasReleasedAndStartedAgain() {
     final MapConfiguration configuration = this.createConfiguration(2, 1, Sizing.ORIGINAL);
-    final CompressedMapResult result = new CompressedMapResult(configuration, 1 << 20);
+    final CompressedMapResult result = new CompressedMapResult(configuration, LARGE_BYTE_BUDGET);
     this.nextFrame = MapPackets.pattern(256 * MAP_SIZE, 4);
     final ImageBuffer image = Images.solid(256, MAP_SIZE, BLACK);
 
@@ -895,7 +919,7 @@ final class CompressedMapResultTest {
   @Test
   void shouldClearEveryMapOfTheGridOnTheFirstRelease() {
     final MapConfiguration configuration = this.createConfiguration(2, 2, Sizing.ORIGINAL);
-    final CompressedMapResult result = new CompressedMapResult(configuration, 1 << 20);
+    final CompressedMapResult result = new CompressedMapResult(configuration, LARGE_BYTE_BUDGET);
 
     result.release();
 
@@ -946,13 +970,13 @@ final class CompressedMapResultTest {
       }
       released.get(5, TimeUnit.SECONDS);
       restarted.get(5, TimeUnit.SECONDS);
-      final List<String> expectedOrder = List.of("clear", "frame");
+      final List<String> expectedOrder = List.of(CLEAR_EVENT, FRAME_EVENT);
       assertEquals(expectedOrder, order);
     }
   }
 
   private byte[] recordFrame(final List<String> order) {
-    order.add("frame");
+    order.add(FRAME_EVENT);
     return this.nextFrame.clone();
   }
 
@@ -974,7 +998,7 @@ final class CompressedMapResultTest {
     final boolean clearFinished = finishClear.await(10, TimeUnit.SECONDS);
     assertTrue(clearFinished);
 
-    order.add("clear");
+    order.add(CLEAR_EVENT);
     return null;
   }
 
@@ -987,7 +1011,7 @@ final class CompressedMapResultTest {
   @Test
   void shouldLetAnotherThreadInAgainAfterEveryFrameAndAfterTheRelease() {
     final MapConfiguration configuration = this.createConfiguration(1, 1, Sizing.ORIGINAL);
-    final CompressedMapResult result = new CompressedMapResult(configuration, 1 << 20);
+    final CompressedMapResult result = new CompressedMapResult(configuration, LARGE_BYTE_BUDGET);
     result.start();
     final ImageBuffer image = Images.solid(MAP_SIZE, MAP_SIZE, BLACK);
 

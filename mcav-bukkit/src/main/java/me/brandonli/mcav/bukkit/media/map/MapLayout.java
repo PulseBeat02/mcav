@@ -17,10 +17,13 @@
  */
 package me.brandonli.mcav.bukkit.media.map;
 
+import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import org.checkerframework.checker.initialization.qual.UnderInitialization;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Describes how an image is placed onto a grid of maps.
@@ -40,7 +43,9 @@ import org.checkerframework.checker.initialization.qual.UnderInitialization;
 public final class MapLayout {
 
   private static final String IMAGE_NULL_MESSAGE = "Image must not be null!";
-  private static final String IMAGE_SIZE_MISMATCH_MESSAGE = "Image size does not match layout!";
+  private static final String MAP_INDEX_DESCRIPTION = "Map index";
+
+  private static final String IMAGE_SIZE_MISMATCH_MESSAGE = "Image length %s does not match the layout's %s pixels!";
 
   /**
    * The width and height of a single map in pixels.
@@ -68,21 +73,8 @@ public final class MapLayout {
   private final int offsetY;
   private final MapRegion[] regions;
 
-  /**
-   * Constructs a new layout.
-   *
-   * @param startMapId  the nonnegative id of the top left map
-   * @param columns     the strictly positive number of maps horizontally
-   * @param rows        the strictly positive number of maps vertically
-   * @param imageWidth  the strictly positive width of the image in pixels
-   * @param imageHeight the strictly positive height of the image in pixels
-   * @throws IllegalArgumentException if any argument is out of range, the map count, last map id or the size of the
-   *                                  grid in pixels would exceed {@link Integer#MAX_VALUE}, or the image has more
-   *                                  than {@link Integer#MAX_VALUE} pixels
-   * @since 1.0.0
-   */
-  public MapLayout(final int startMapId, final int columns, final int rows, final int imageWidth, final int imageHeight) {
-    validateDimensions(startMapId, columns, rows, imageWidth, imageHeight);
+  private MapLayout(final int startMapId, final int columns, final int rows, final int imageWidth, final int imageHeight) {
+    this.validateDimensions(startMapId, columns, rows, imageWidth, imageHeight);
 
     this.startMapId = startMapId;
     this.columns = columns;
@@ -97,16 +89,35 @@ public final class MapLayout {
     this.regions = this.computeRegions();
   }
 
-  private static void validateDimensions(
+  /**
+   * Returns a layout of the given grid and image.
+   *
+   * @param startMapId  the nonnegative id of the top left map
+   * @param columns     the strictly positive number of maps horizontally
+   * @param rows        the strictly positive number of maps vertically
+   * @param imageWidth  the strictly positive width of the image in pixels
+   * @param imageHeight the strictly positive height of the image in pixels
+   * @return the layout
+   * @throws IllegalArgumentException if any argument is out of range, the map count, last map id or the size of the
+   *                                  grid in pixels would exceed {@link Integer#MAX_VALUE}, or the image has more
+   *                                  than {@link Integer#MAX_VALUE} pixels
+   * @since 1.0.0
+   */
+  public static MapLayout of(final int startMapId, final int columns, final int rows, final int imageWidth, final int imageHeight) {
+    return new MapLayout(startMapId, columns, rows, imageWidth, imageHeight);
+  }
+
+  private void validateDimensions(
+    @UnderInitialization MapLayout this,
     final int startMapId,
     final int columns,
     final int rows,
     final int imageWidth,
     final int imageHeight
   ) {
-    Preconditions.checkArgument(startMapId >= 0, "Map id must be non-negative!");
-    Preconditions.checkArgument(columns > 0 && rows > 0, "Map grid must be at least 1x1!");
-    Preconditions.checkArgument(imageWidth > 0 && imageHeight > 0, "Image must not be empty!");
+    Preconditions.checkArgument(startMapId >= 0, "Map id %s must not be negative!", startMapId);
+    Preconditions.checkArgument(columns > 0 && rows > 0, "Map grid of %sx%s maps must be at least 1x1!", columns, rows);
+    Preconditions.checkArgument(imageWidth > 0 && imageHeight > 0, "Image of %sx%s pixels must not be empty!", imageWidth, imageHeight);
 
     final long longMapCount = (long) columns * rows;
     Preconditions.checkArgument(longMapCount <= Integer.MAX_VALUE, "Map grid of %sx%s maps has too many maps!", columns, rows);
@@ -164,7 +175,7 @@ public final class MapLayout {
    * @since 1.0.0
    */
   public int getMapId(final int index) {
-    Preconditions.checkElementIndex(index, this.regions.length, "Map index");
+    Preconditions.checkElementIndex(index, this.regions.length, MAP_INDEX_DESCRIPTION);
 
     return this.startMapId + index;
   }
@@ -178,7 +189,7 @@ public final class MapLayout {
    * @since 1.0.0
    */
   public MapRegion getRegion(final int index) {
-    Preconditions.checkElementIndex(index, this.regions.length, "Map index");
+    Preconditions.checkElementIndex(index, this.regions.length, MAP_INDEX_DESCRIPTION);
 
     return this.regions[index];
   }
@@ -219,10 +230,10 @@ public final class MapLayout {
    */
   public MapTilePatch extractPatch(final byte[] image, final int index, final int left, final int top, final int width, final int height) {
     Preconditions.checkNotNull(image, IMAGE_NULL_MESSAGE);
-    Preconditions.checkElementIndex(index, this.regions.length, "Map index");
+    Preconditions.checkElementIndex(index, this.regions.length, MAP_INDEX_DESCRIPTION);
 
     final int expectedLength = this.imageWidth * this.imageHeight;
-    Preconditions.checkArgument(image.length == expectedLength, IMAGE_SIZE_MISMATCH_MESSAGE);
+    Preconditions.checkArgument(image.length == expectedLength, IMAGE_SIZE_MISMATCH_MESSAGE, image.length, expectedLength);
 
     final MapRegion region = this.regions[index];
     this.checkInsideRegion(region, index, left, top, width, height);
@@ -279,7 +290,7 @@ public final class MapLayout {
     Preconditions.checkNotNull(image, IMAGE_NULL_MESSAGE);
 
     final int expectedLength = this.imageWidth * this.imageHeight;
-    Preconditions.checkArgument(image.length == expectedLength, IMAGE_SIZE_MISMATCH_MESSAGE);
+    Preconditions.checkArgument(image.length == expectedLength, IMAGE_SIZE_MISMATCH_MESSAGE, image.length, expectedLength);
 
     final List<MapTilePatch> patches = new ArrayList<>(this.regions.length);
     for (int index = 0; index < this.regions.length; index++) {
@@ -327,5 +338,53 @@ public final class MapLayout {
    */
   public int getImageHeight() {
     return this.imageHeight;
+  }
+
+  /**
+   * Returns whether {@code other} is a layout of the same grid and image.
+   *
+   * @param other the object to compare with
+   * @return whether the start map id, the grid and the image size all match
+   * @since 1.0.0
+   */
+  @Override
+  public boolean equals(final @Nullable Object other) {
+    if (this == other) {
+      return true;
+    }
+
+    if (!(other instanceof final MapLayout layout)) {
+      return false;
+    }
+
+    return this.matches(layout.startMapId, layout.columns, layout.rows, layout.imageWidth, layout.imageHeight);
+  }
+
+  /**
+   * Returns a hash code built from the start map id, the grid and the image size.
+   *
+   * @return the hash code
+   * @since 1.0.0
+   */
+  @Override
+  public int hashCode() {
+    return Objects.hash(this.startMapId, this.columns, this.rows, this.imageWidth, this.imageHeight);
+  }
+
+  /**
+   * Returns a debugging representation with the start map id, the grid and the image size.
+   *
+   * @return the representation
+   * @since 1.0.0
+   */
+  @Override
+  public String toString() {
+    return MoreObjects.toStringHelper(this)
+      .add("startMapId", this.startMapId)
+      .add("columns", this.columns)
+      .add("rows", this.rows)
+      .add("imageWidth", this.imageWidth)
+      .add("imageHeight", this.imageHeight)
+      .toString();
   }
 }

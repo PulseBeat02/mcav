@@ -18,13 +18,14 @@
 /**
  * Hosts resource packs through HTTP connections accepted on the Minecraft server's existing port.
  *
- * <p>{@link me.brandonli.mcav.bukkit.resourcepack.provider.netty.NettyHosting} registers an initializer with
- * Paper and gives each hosting instance a distinct download path. The caller owns the zip file; the host owns
- * only its registration and pack snapshot. Shutdown removes the registration for new connections, leaving
- * existing handlers active. A proxy that terminates or rewrites connections may require another hosting strategy.
+ * <p>{@link me.brandonli.mcav.bukkit.resourcepack.provider.netty.InjectorHosting}, created by
+ * {@link me.brandonli.mcav.bukkit.resourcepack.provider.PackHosting#injector(java.nio.file.Path)} and implemented by
+ * {@link me.brandonli.mcav.bukkit.resourcepack.provider.netty.NettyHosting}, registers an initializer with Paper and
+ * gives each hosting instance a distinct download path. The caller owns the zip file; the host owns only its
+ * registration and pack snapshot. Shutdown removes the registration for new connections, leaving existing handlers
+ * active. A proxy that terminates or rewrites connections may require another hosting strategy.
  *
- * <p>Reference parameters and return values are non-null unless marked {@code @Nullable};
- * nullable values and their meanings are described on the corresponding members.
+ * <p>Reference parameters and return values are non-null unless marked {@code @Nullable}.
  *
  * @since 1.0.0
  */

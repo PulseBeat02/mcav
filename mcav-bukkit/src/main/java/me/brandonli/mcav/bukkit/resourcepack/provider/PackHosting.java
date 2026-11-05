@@ -19,6 +19,7 @@ package me.brandonli.mcav.bukkit.resourcepack.provider;
 
 import com.google.common.base.Preconditions;
 import java.nio.file.Path;
+import me.brandonli.mcav.bukkit.BukkitException;
 import me.brandonli.mcav.bukkit.resourcepack.provider.http.HttpHosting;
 import me.brandonli.mcav.bukkit.resourcepack.provider.http.ServerPackHosting;
 import me.brandonli.mcav.bukkit.resourcepack.provider.netty.InjectorHosting;
@@ -50,7 +51,9 @@ import me.brandonli.mcav.bukkit.resourcepack.provider.netty.NettyHosting;
  * {@snippet :
  * final PackHosting hosting = PackHosting.injector(zip);
  * hosting.start();
+ *
  * final String url = hosting.getRawUrl();
+ *
  * // offer the url to the players; when the pack is no longer needed
  * hosting.shutdown();
  * }
@@ -58,40 +61,6 @@ import me.brandonli.mcav.bukkit.resourcepack.provider.netty.NettyHosting;
  * @since 1.0.0
  */
 public interface PackHosting {
-  /**
-   * Returns the URL players download the resource pack from.
-   *
-   * @return the URL of the resource pack
-   * @throws IllegalStateException if the URL is only known after {@link #start()} and the hosting was not started
-   * @since 1.0.0
-   */
-  String getRawUrl();
-
-  /**
-   * Starts hosting the resource pack. Depending on the strategy, this may block while a server binds or the pack
-   * is uploaded, so avoid calling it on the main thread.
-   *
-   * @since 1.0.0
-   */
-  void start();
-
-  /**
-   * Releases this strategy's local hosting resources. Dedicated HTTP hosting stops its server; injected hosting
-   * stops accepting new HTTP connections; website hosting leaves the uploaded pack available. Source zip files
-   * remain caller-owned and are not deleted. See the strategy's shutdown method for in-flight download behavior.
-   *
-   * @since 1.0.0
-   */
-  void shutdown();
-
-  /**
-   * Returns the resource pack zip that is hosted.
-   *
-   * @return the path to the resource pack zip
-   * @since 1.0.0
-   */
-  Path getZip();
-
   /**
    * Creates a hosting strategy that serves the resource pack from a dedicated HTTP server on its own port.
    *
@@ -137,4 +106,39 @@ public interface PackHosting {
 
     return new NettyHosting(path);
   }
+
+  /**
+   * Starts hosting the resource pack. Depending on the strategy, this may block while a server binds or the pack
+   * is uploaded, so avoid calling it on the main thread.
+   *
+   * @throws BukkitException if the pack cannot be served or uploaded
+   * @since 1.0.0
+   */
+  void start();
+
+  /**
+   * Releases this strategy's local hosting resources. Dedicated HTTP hosting stops its server; injected hosting
+   * stops accepting new HTTP connections; website hosting leaves the uploaded pack available. Source zip files
+   * remain caller-owned and are not deleted. See the strategy's shutdown method for in-flight download behavior.
+   *
+   * @since 1.0.0
+   */
+  void shutdown();
+
+  /**
+   * Returns the URL players download the resource pack from.
+   *
+   * @return the URL of the resource pack
+   * @throws IllegalStateException if the URL is only known after {@link #start()} and the hosting was not started
+   * @since 1.0.0
+   */
+  String getRawUrl();
+
+  /**
+   * Returns the resource pack zip that is hosted.
+   *
+   * @return the path to the resource pack zip
+   * @since 1.0.0
+   */
+  Path getZip();
 }

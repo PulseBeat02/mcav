@@ -62,9 +62,9 @@ final class FileServerHandlerTest {
   private static final byte[] PACK = { 'P', 'K', 3, 4, 7, 7 };
   private static final byte[] REPLACED_PACK = { 'P', 'K', 3, 4, 8, 8, 8, 8 };
   private static final String OK_HEADERS =
-    "HTTP/1.1 200 OK\r\nContent-Type: application/zip\r\nContent-Length: " +
-    PACK.length +
-    "\r\nContent-Disposition: attachment; filename=\"pack.zip\"\r\nCache-Control: no-store\r\nConnection: close\r\n\r\n";
+    "HTTP/1.1 200 OK\r\nContent-Type: application/zip\r\nContent-Length: %s\r\nContent-Disposition: attachment; filename=\"pack.zip\"\r\nCache-Control: no-store\r\nConnection: close\r\n\r\n".formatted(
+      PACK.length
+    );
   private static final String METHOD_NOT_ALLOWED = statusResponse("405 Method Not Allowed");
   private static final String NOT_FOUND = statusResponse("404 Not Found");
   private static final String TOO_LARGE = statusResponse("431 Request Header Fields Too Large");
@@ -142,7 +142,7 @@ final class FileServerHandlerTest {
   }
 
   private static String statusResponse(final String status) {
-    return "HTTP/1.1 " + status + "\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
+    return "HTTP/1.1 %s\r\nContent-Length: 0\r\nConnection: close\r\n\r\n".formatted(status);
   }
 
   private ChannelHandlerContext mockContext(final ChannelPipeline pipeline) {
@@ -313,7 +313,7 @@ final class FileServerHandlerTest {
     final EmbeddedChannel channel = this.createChannel(this.pack);
     final String headersAtTheLimit = LETTER.repeat(8188) + HEADERS_END;
 
-    this.writeRequest(channel, headersAtTheLimit + "b");
+    this.writeRequest(channel, "%sb".formatted(headersAtTheLimit));
     final String response = this.readOutboundText(channel);
 
     assertEquals(METHOD_NOT_ALLOWED, response, "headers that end at the limit are read, whatever follows them");
@@ -489,7 +489,7 @@ final class FileServerHandlerTest {
     final LogCapture.RecordedEvent event = events.getFirst();
     final Level level = event.getLevel();
     final String message = event.getMessage();
-    final Throwable thrown = event.getThrown();
+    final Throwable thrown = event.getThrown().orElseThrow();
     assertEquals(Level.DEBUG, level);
     assertEquals("Could not close a resource pack download connection after an error.", message);
     assertSame(closeFailure, thrown);

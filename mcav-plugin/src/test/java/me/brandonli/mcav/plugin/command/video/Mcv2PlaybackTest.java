@@ -94,7 +94,7 @@ final class Mcv2PlaybackTest {
 
     final List<byte[]> all = frames.getAllValues();
     final byte[] last = all.getLast();
-    return new long[] { Mcv2Decoder.u32(last, 12), Mcv2Decoder.u32(last, 16) };
+    return new long[] { Mcv2Decoder.readUnsignedInt(last, 12), Mcv2Decoder.readUnsignedInt(last, 16) };
   }
 
   @Test

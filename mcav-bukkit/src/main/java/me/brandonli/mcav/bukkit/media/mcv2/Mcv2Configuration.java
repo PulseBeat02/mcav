@@ -40,13 +40,11 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * far above ordinary world allocations to avoid server map updates; callers must still ensure that those ids
  * are not allocated to other maps or streams.
  *
- * <p>The viewers collection is not copied. It is read for every frame, so a concurrent collection can be passed to
- * add or remove viewers while media is playing.
- *
- * <p>Configurations copy their origin and retain their viewer collection, encoder settings and optional pool.
- * Use a concurrent viewer collection when membership changes on another thread. The caller owns any explicitly
- * supplied encoder pool; neither the configuration nor a screen closes it. Creating a configuration does not
- * reserve map ids or build the visible wall.
+ * <p>This class is immutable and thread-safe, except for the viewer collection, which it shares with the caller instead
+ * of copying. The collection is read for every frame, so pass a concurrent collection to add or remove viewers while
+ * media is playing or from another thread. Configurations copy their origin and retain their encoder settings and
+ * optional pool. The caller owns any explicitly supplied encoder pool; neither the configuration nor a screen closes
+ * it. Creating a configuration does not reserve map ids or build the visible wall.
  *
  * {@snippet :
  * final int firstMapId = 0;
@@ -91,7 +89,7 @@ public final class Mcv2Configuration {
    *
    * @since 1.0.0
    */
-  public static final long MAXIMUM_STREAM_ID = 4095;
+  public static final long MAXIMUM_STREAM_ID = 4095L;
 
   private static final int DEFAULT_PAGE_SLOTS = MAXIMUM_PAGE_SLOTS;
 
@@ -117,7 +115,7 @@ public final class Mcv2Configuration {
    *
    * @since 1.0.0
    */
-  public static final long DEFAULT_BACKLOG_LIMIT = 128 * 1024;
+  public static final long DEFAULT_BACKLOG_LIMIT = 128L * 1024;
 
   /**
    * The first page map id when none is set.
@@ -125,6 +123,13 @@ public final class Mcv2Configuration {
    * @since 1.0.0
    */
   public static final int DEFAULT_PAGE_MAP = 2_000_000_000;
+
+  /**
+   * The stream id when none is set.
+   *
+   * @since 1.0.0
+   */
+  public static final long DEFAULT_STREAM_ID = 1L;
 
   /**
    * The cap on the bytes a viewer's operating system may hold unsent when none is set: 32 KiB, so a slow viewer's video
@@ -140,39 +145,28 @@ public final class Mcv2Configuration {
   private static final int FACING_NORTH = 3;
 
   private final Collection<UUID> viewers;
-
   private final Location origin;
-
   private final BlockFace facing;
 
   private final int map;
-
   private final int columns;
-
   private final int rows;
 
   private final int videoWidth;
-
   private final int videoHeight;
 
   private final int pageMap;
-
   private final int pageSlots;
 
   private final long streamId;
-
   private final long firstFrameId;
-
   private final double maximumFrameRate;
 
   private final Settings settings;
-
   private final NamedTextColor outlineColor;
 
   private final long backlogLimit;
-
   private final @Nullable Pool encoderPool;
-
   private final int unsentLimit;
 
   Mcv2Configuration(
@@ -214,36 +208,6 @@ public final class Mcv2Configuration {
 
   static int videoSize(final int size, final int maps) {
     return size > 0 ? size : MapLayout.MAP_SIZE * maps;
-  }
-
-  /**
-   * Returns the direction the maps' right edge points to, as seen by a viewer in front of the wall.
-   *
-   * @return the direction columns count along
-   * @since 1.0.0
-   */
-  public BlockFace getRight() {
-    return switch (this.facing) {
-      case SOUTH -> BlockFace.EAST;
-      case WEST -> BlockFace.SOUTH;
-      case NORTH -> BlockFace.WEST;
-      default -> BlockFace.NORTH;
-    };
-  }
-
-  /**
-   * Returns the anchor's facing code: 0 when the maps' right edge points east, 1 south, 2 west and 3 north.
-   *
-   * @return the code the shader reads
-   * @since 1.0.0
-   */
-  public int getFacingCode() {
-    return switch (this.getRight()) {
-      case EAST -> FACING_EAST;
-      case SOUTH -> FACING_SOUTH;
-      case WEST -> FACING_WEST;
-      default -> FACING_NORTH;
-    };
   }
 
   static int defaultPageSlots(final int maps) {
@@ -348,6 +312,75 @@ public final class Mcv2Configuration {
   }
 
   /**
+   * Returns the direction the maps' right edge points to, as seen by a viewer in front of the wall.
+   *
+   * @return the direction columns count along
+   * @since 1.0.0
+   */
+  public BlockFace getRight() {
+    return switch (this.facing) {
+      case SOUTH -> BlockFace.EAST;
+      case WEST -> BlockFace.SOUTH;
+      case NORTH -> BlockFace.WEST;
+      case EAST -> BlockFace.NORTH;
+      case
+        UP,
+        DOWN,
+        NORTH_EAST,
+        NORTH_WEST,
+        SOUTH_EAST,
+        SOUTH_WEST,
+        WEST_NORTH_WEST,
+        NORTH_NORTH_WEST,
+        NORTH_NORTH_EAST,
+        EAST_NORTH_EAST,
+        EAST_SOUTH_EAST,
+        SOUTH_SOUTH_EAST,
+        SOUTH_SOUTH_WEST,
+        WEST_SOUTH_WEST,
+        SELF -> {
+        final String message = "Facing %s is not a wall direction!".formatted(this.facing);
+        throw new IllegalStateException(message);
+      }
+    };
+  }
+
+  /**
+   * Returns the anchor's facing code: 0 when the maps' right edge points east, 1 south, 2 west and 3 north.
+   *
+   * @return the code the shader reads
+   * @since 1.0.0
+   */
+  public int getFacingCode() {
+    final BlockFace right = this.getRight();
+    return switch (right) {
+      case EAST -> FACING_EAST;
+      case SOUTH -> FACING_SOUTH;
+      case WEST -> FACING_WEST;
+      case NORTH -> FACING_NORTH;
+      case
+        UP,
+        DOWN,
+        NORTH_EAST,
+        NORTH_WEST,
+        SOUTH_EAST,
+        SOUTH_WEST,
+        WEST_NORTH_WEST,
+        NORTH_NORTH_WEST,
+        NORTH_NORTH_EAST,
+        EAST_NORTH_EAST,
+        EAST_SOUTH_EAST,
+        SOUTH_SOUTH_EAST,
+        SOUTH_SOUTH_WEST,
+        WEST_SOUTH_WEST,
+        SELF -> {
+        final String message = "Right edge %s is not a wall direction!".formatted(right);
+        throw new IllegalStateException(message);
+      }
+    };
+  }
+
+  /**
    * Returns the id of the top-left map of the wall.
    *
    * @return the first map id
@@ -439,12 +472,12 @@ public final class Mcv2Configuration {
   }
 
   /**
-   * Returns the team colour of the hidden page frames. They glow, which is what makes the client run the pack's post
-   * chain, and the pack removes outlines of exactly this colour, so glowing entities of other teams with this colour
+   * Returns the team color of the hidden page frames. They glow, which is what makes the client run the pack's post
+   * chain, and the pack removes outlines of exactly this color, so glowing entities of other teams with this color
    * lose their outline too; the default, dark purple, is rarely used for glowing. It is never black, whose RGB value
    * of zero means "no outline" to the client.
    *
-   * @return the colour
+   * @return the color
    * @since 1.0.0
    */
   public NamedTextColor getOutlineColor() {

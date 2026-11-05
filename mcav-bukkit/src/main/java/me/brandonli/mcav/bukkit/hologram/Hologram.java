@@ -92,11 +92,12 @@ public interface Hologram {
   Optional<TextDisplay> getDisplay();
 
   /**
-   * Replaces the display entity of this hologram. The previous entity is not removed. The caller must remove any replaced or detached entity.
-   * A non-null replacement becomes owned by this hologram and is removed by {@link #kill()}.
+   * Replaces the display entity of this hologram. The previous entity is not removed. The caller must remove any
+   * replaced or detached entity. A non-null replacement becomes owned by this hologram and is removed by
+   * {@link #kill()}.
    *
    * @param display the display entity, or null to detach the hologram from its entity
    * @since 1.0.0
    */
-  void setDisplay(@Nullable TextDisplay display);
+  void setDisplay(final @Nullable TextDisplay display);
 }

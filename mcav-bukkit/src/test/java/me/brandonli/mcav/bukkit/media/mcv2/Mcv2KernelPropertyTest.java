@@ -30,6 +30,8 @@ import net.jqwik.api.constraints.IntRange;
 
 final class Mcv2KernelPropertyTest {
 
+  private static final int MAXIMUM_CHANNEL_VALUE = 255;
+
   private static final String SEED = "20260925";
 
   private static final int[] SIZES = { 8, 16, 32 };
@@ -59,7 +61,7 @@ final class Mcv2KernelPropertyTest {
     for (int index = 0; index < prediction.length; index++) {
       prediction[index] = switch (random.nextInt(3)) {
         case 0 -> 0;
-        case 1 -> 255;
+        case 1 -> MAXIMUM_CHANNEL_VALUE;
         default -> random.nextInt(BYTE_VALUE_COUNT);
       };
     }
@@ -90,7 +92,7 @@ final class Mcv2KernelPropertyTest {
     final byte[] reference = new byte[prediction.length];
     for (int index = 0; index < reference.length; index++) {
       reference[index] = (byte) prediction[index];
-      prediction[index] = reference[index] & 255;
+      prediction[index] = reference[index] & MAXIMUM_CHANNEL_VALUE;
     }
 
     final int[] wholeExpected = new int[prediction.length];
@@ -98,7 +100,7 @@ final class Mcv2KernelPropertyTest {
     final byte[] decoded = Mcv2Decoder.decode(Mcv2WireFrames.block(size, 5, quantizer, record, Mcv2FrameKind.PREDICTED), reference, 0);
     for (int index = 0; index < decoded.length; index++) {
       final int expectedChannel = wholeExpected[index];
-      final int decodedChannel = decoded[index] & 255;
+      final int decodedChannel = decoded[index] & MAXIMUM_CHANNEL_VALUE;
       assertEquals(expectedChannel, decodedChannel);
     }
 
@@ -119,12 +121,12 @@ final class Mcv2KernelPropertyTest {
     assertArrayEquals(expected, actual);
   }
 
-  private long distortion(final int[] source, final int[] out) {
+  private long distortion(final int[] source, final int[] output) {
     long sum = 0;
     for (int offset = 0; offset < source.length; offset += 3) {
-      final int redDifference = source[offset] - out[offset];
-      final int greenDifference = source[offset + 1] - out[offset + 1];
-      final int blueDifference = source[offset + 2] - out[offset + 2];
+      final int redDifference = source[offset] - output[offset];
+      final int greenDifference = source[offset + 1] - output[offset + 1];
+      final int blueDifference = source[offset + 2] - output[offset + 2];
       final int luma = redDifference + 2 * greenDifference + blueDifference;
       final int chromaOrange = redDifference - blueDifference;
       final int chromaGreen = 2 * greenDifference - redDifference - blueDifference;
@@ -154,7 +156,7 @@ final class Mcv2KernelPropertyTest {
     assertArrayEquals(reconstruction, repeated);
 
     final long distortion = this.distortion(source, reconstruction);
-    final long measured = kernels.distortion();
+    final long measured = kernels.getDistortion();
     assertEquals(distortion, measured);
 
     final double cost = distortion / 96.0 + rate;
@@ -166,7 +168,7 @@ final class Mcv2KernelPropertyTest {
     final boolean finishedPastTheLimit = kernel.run(kernels, new int[source.length]);
     assertTrue(finishedPastTheLimit);
 
-    final long measuredPastTheLimit = kernels.distortion();
+    final long measuredPastTheLimit = kernels.getDistortion();
     assertEquals(distortion, measuredPastTheLimit);
   }
 
@@ -183,16 +185,16 @@ final class Mcv2KernelPropertyTest {
     final int[] prediction = this.prediction(random, size);
     final int color = random.nextInt(1 << 24);
     final Kernel run = switch (kernel) {
-      case 0 -> (kernels, out) -> kernels.predicted(prediction, size, out);
-      case 1 -> (kernels, out) -> kernels.solid(color, size, out);
-      case 2 -> (kernels, out) -> kernels.palette(record, size, out);
-      default -> (kernels, out) -> kernels.compact(prediction, record, quantizer, size, out);
+      case 0 -> (kernels, output) -> kernels.predicted(prediction, size, output);
+      case 1 -> (kernels, output) -> kernels.solid(color, size, output);
+      case 2 -> (kernels, output) -> kernels.palette(record, size, output);
+      default -> (kernels, output) -> kernels.compact(prediction, record, quantizer, size, output);
     };
     this.assertMeasured(random, size, run);
   }
 
   @FunctionalInterface
   private interface Kernel {
-    boolean run(Kernels kernels, int[] out);
+    boolean run(Kernels kernels, int[] output);
   }
 }

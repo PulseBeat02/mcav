@@ -61,6 +61,9 @@ final class Mcv2FileEncoderTest {
 
   private static final int HEIGHT = 48;
 
+  private static final String VIDEO_FILE_NAME = "clip.mp4";
+  private static final String MISSING_VIDEO_FILE_NAME = "missing.mp4";
+
   @TempDir
   private Path directory;
 
@@ -79,7 +82,7 @@ final class Mcv2FileEncoderTest {
   @Test
   void shouldEncodeAVideoFileLikeAFrameByFrameEncode() throws Exception {
     final Path video = TestMedia.video();
-    final ByteArrayOutputStream out = new ByteArrayOutputStream();
+    final ByteArrayOutputStream output = new ByteArrayOutputStream();
     final List<Long> progress = new ArrayList<>();
     final Mcv2FileEncoder.Result result;
     try (final Pool budget = new Pool(2)) {
@@ -89,7 +92,7 @@ final class Mcv2FileEncoderTest {
         HEIGHT,
         Settings.DEFAULT,
         budget,
-        out,
+        output,
         progress::add
       );
     }
@@ -113,7 +116,7 @@ final class Mcv2FileEncoderTest {
     final boolean tookTimePerFrame = result.millisecondsPerFrame() > 0;
     assertTrue(tookTimePerFrame);
 
-    final List<byte[]> frames = frames(out.toByteArray());
+    final List<byte[]> frames = frames(output.toByteArray());
     final int writtenFrameCount = frames.size();
     assertEquals(count, writtenFrameCount);
 
@@ -133,7 +136,8 @@ final class Mcv2FileEncoderTest {
         assertTrue(readPicture);
         final byte[] expectedFrame = alone.encode(rgb, WIDTH, HEIGHT, frameNumber);
         final byte[] writtenFrame = frames.get(frameNumber);
-        assertArrayEquals(expectedFrame, writtenFrame, "frame " + frameNumber);
+        assertArrayEquals(expectedFrame, writtenFrame, "frame %s".formatted(frameNumber));
+
         final long frameId = Mcv2Decoder.parse(frames.get(frameNumber)).getFrameId();
         assertEquals(frameNumber, frameId);
       }
@@ -153,18 +157,18 @@ final class Mcv2FileEncoderTest {
     final boolean unlimitedFrameTooLarge = unlimited.encode(checkerboard, width, height, 0).length > limit;
     assertTrue(unlimitedFrameTooLarge);
 
-    final ByteArrayOutputStream out = new ByteArrayOutputStream();
+    final ByteArrayOutputStream output = new ByteArrayOutputStream();
     try (final Pool budget = new Pool(1)) {
-      Mcv2FileEncoder.encode(this.repeating(checkerboard, 2), width, height, Settings.DEFAULT, budget, out, count -> {});
+      Mcv2FileEncoder.encode(this.repeating(checkerboard, 2), width, height, Settings.DEFAULT, budget, output, count -> {});
     }
 
-    final List<byte[]> frames = frames(out.toByteArray());
+    final List<byte[]> frames = frames(output.toByteArray());
     final int frameCount = frames.size();
     assertEquals(2, frameCount);
 
     for (final byte[] frame : frames) {
       final boolean withinLimit = frame.length <= limit;
-      assertTrue(withinLimit, "a frame of " + frame.length + " bytes");
+      assertTrue(withinLimit, "a frame of %s bytes".formatted(frame.length));
     }
 
     final int expectedLength = checkerboard.length;
@@ -188,19 +192,21 @@ final class Mcv2FileEncoderTest {
   void shouldAskForRgbPicturesScaledByAreaAndDecodedOnEveryCore() throws Exception {
     final Path video = TestMedia.video();
     final FFmpegFrameGrabber grabber = new FFmpegFrameGrabber(video.toFile());
-    try (final Mcv2FileEncoder.FrameReader _ = Mcv2FileEncoder.open(grabber, "clip.mp4", WIDTH, HEIGHT)) {
+    try (final Mcv2FileEncoder.FrameReader _ = Mcv2FileEncoder.open(grabber, VIDEO_FILE_NAME, WIDTH, HEIGHT)) {
       final int pixelFormat = grabber.getPixelFormat();
       final int scalingFlags = grabber.getImageScalingFlags();
       final String threads = grabber.getVideoOption("threads");
-      assertEquals(avutil.AV_PIX_FMT_RGB24, pixelFormat);
-      assertEquals(swscale.SWS_AREA, scalingFlags);
+      final int expectedPixelFormat = avutil.AV_PIX_FMT_RGB24;
+      final int expectedScalingFlags = swscale.SWS_AREA;
+      assertEquals(expectedPixelFormat, pixelFormat);
+      assertEquals(expectedScalingFlags, scalingFlags);
       assertEquals("auto", threads);
     }
   }
 
   @Test
   void shouldCountTheKeyframesOfTheStreamItWrites() throws Exception {
-    final ByteArrayOutputStream out = new ByteArrayOutputStream();
+    final ByteArrayOutputStream output = new ByteArrayOutputStream();
     final Mcv2FileEncoder.Result result;
     try (final Pool budget = new Pool(1)) {
       result = Mcv2FileEncoder.encode(
@@ -209,13 +215,13 @@ final class Mcv2FileEncoderTest {
         HEIGHT,
         Settings.DEFAULT,
         budget,
-        out,
+        output,
         _ -> {}
       );
     }
 
     long keyframes = 0;
-    for (final byte[] frame : frames(out.toByteArray())) {
+    for (final byte[] frame : frames(output.toByteArray())) {
       if (Mcv2Decoder.parse(frame).isKeyframe()) {
         keyframes++;
       }
@@ -246,7 +252,7 @@ final class Mcv2FileEncoderTest {
 
     final long elapsed = System.nanoTime() - started;
     final boolean withinTheCall = result.getNanoseconds() >= 0 && result.getNanoseconds() <= elapsed;
-    assertTrue(withinTheCall, result.getNanoseconds() + " ns in a call of " + elapsed + " ns");
+    assertTrue(withinTheCall, "%s ns in a call of %s ns".formatted(result.getNanoseconds(), elapsed));
   }
 
   @Test
@@ -295,7 +301,8 @@ final class Mcv2FileEncoderTest {
     final Mcv2FileEncoder.FrameReader interrupting = new Mcv2FileEncoder.FrameReader() {
       @Override
       public boolean read(final byte[] rgb) {
-        Thread.currentThread().interrupt();
+        final Thread current = Thread.currentThread();
+        current.interrupt();
 
         return true;
       }
@@ -354,15 +361,15 @@ final class Mcv2FileEncoderTest {
   @Test
   void shouldRefuseWhatItCannotEncode() {
     final Mcv2FileEncoder.FrameReader none = mock(Mcv2FileEncoder.FrameReader.class);
-    final ByteArrayOutputStream out = new ByteArrayOutputStream();
+    final ByteArrayOutputStream output = new ByteArrayOutputStream();
     try (final Pool budget = new Pool(1)) {
-      assertThrows(NullPointerException.class, () -> Mcv2FileEncoder.encode(null, 1, 1, Settings.DEFAULT, budget, out, _ -> {}));
-      assertThrows(IllegalArgumentException.class, () -> Mcv2FileEncoder.encode(none, 0, 1, Settings.DEFAULT, budget, out, _ -> {}));
-      assertThrows(IllegalArgumentException.class, () -> Mcv2FileEncoder.encode(none, 1, 0, Settings.DEFAULT, budget, out, _ -> {}));
-      assertThrows(NullPointerException.class, () -> Mcv2FileEncoder.encode(none, 1, 1, null, budget, out, _ -> {}));
-      assertThrows(NullPointerException.class, () -> Mcv2FileEncoder.encode(none, 1, 1, Settings.DEFAULT, null, out, _ -> {}));
+      assertThrows(NullPointerException.class, () -> Mcv2FileEncoder.encode(null, 1, 1, Settings.DEFAULT, budget, output, _ -> {}));
+      assertThrows(IllegalArgumentException.class, () -> Mcv2FileEncoder.encode(none, 0, 1, Settings.DEFAULT, budget, output, _ -> {}));
+      assertThrows(IllegalArgumentException.class, () -> Mcv2FileEncoder.encode(none, 1, 0, Settings.DEFAULT, budget, output, _ -> {}));
+      assertThrows(NullPointerException.class, () -> Mcv2FileEncoder.encode(none, 1, 1, null, budget, output, _ -> {}));
+      assertThrows(NullPointerException.class, () -> Mcv2FileEncoder.encode(none, 1, 1, Settings.DEFAULT, null, output, _ -> {}));
       assertThrows(NullPointerException.class, () -> Mcv2FileEncoder.encode(none, 1, 1, Settings.DEFAULT, budget, null, _ -> {}));
-      assertThrows(NullPointerException.class, () -> Mcv2FileEncoder.encode(none, 1, 1, Settings.DEFAULT, budget, out, null));
+      assertThrows(NullPointerException.class, () -> Mcv2FileEncoder.encode(none, 1, 1, Settings.DEFAULT, budget, output, null));
     }
 
     assertThrows(NullPointerException.class, () -> Mcv2FileEncoder.ffmpeg(null, 1, 1));
@@ -370,10 +377,10 @@ final class Mcv2FileEncoderTest {
     assertThrows(IllegalArgumentException.class, () -> Mcv2FileEncoder.ffmpeg(this.directory, 1, 0));
 
     final Mcv2Exception missing = assertThrows(Mcv2Exception.class, () ->
-      Mcv2FileEncoder.ffmpeg(this.directory.resolve("missing.mp4"), 8, 8)
+      Mcv2FileEncoder.ffmpeg(this.directory.resolve(MISSING_VIDEO_FILE_NAME), 8, 8)
     );
     final String message = missing.getMessage();
-    final boolean reportsTheOpen = message.startsWith("Cannot open ");
+    final boolean reportsTheOpen = message.startsWith("Video ") && message.endsWith(" could not be opened!");
     assertTrue(reportsTheOpen);
   }
 
@@ -382,10 +389,9 @@ final class Mcv2FileEncoderTest {
     final FFmpegFrameGrabber grabber = mock(FFmpegFrameGrabber.class);
     doThrow(new FFmpegFrameGrabber.Exception("no stream!")).when(grabber).start();
     doThrow(new FFmpegFrameGrabber.Exception("not open!")).when(grabber).close();
-    final Mcv2Exception thrown = assertThrows(Mcv2Exception.class, () -> Mcv2FileEncoder.open(grabber, "clip.mp4", 8, 8));
+    final Mcv2Exception thrown = assertThrows(Mcv2Exception.class, () -> Mcv2FileEncoder.open(grabber, VIDEO_FILE_NAME, 8, 8));
     final String message = thrown.getMessage();
-    final boolean reportsTheStart = message.startsWith("Cannot open clip.mp4 (no stream");
-    assertTrue(reportsTheStart, thrown.getMessage());
+    assertEquals("Video clip.mp4 could not be opened!", message);
 
     verify(grabber).close();
   }
@@ -398,13 +404,11 @@ final class Mcv2FileEncoderTest {
     final Mcv2FileEncoder.GrabberReader reader = new Mcv2FileEncoder.GrabberReader(grabber, 8, 8);
     final Mcv2Exception decodeFailure = assertThrows(Mcv2Exception.class, () -> reader.read(new byte[192]));
     final String decodeMessage = decodeFailure.getMessage();
-    final boolean reportsTheDecode = decodeMessage.startsWith("Cannot decode the video (broken");
-    assertTrue(reportsTheDecode);
+    assertEquals("The video could not be decoded!", decodeMessage);
 
     final Mcv2Exception closeFailure = assertThrows(Mcv2Exception.class, reader::close);
     final String closeMessage = closeFailure.getMessage();
-    final boolean reportsTheClose = closeMessage.startsWith("Cannot close the video (stuck");
-    assertTrue(reportsTheClose);
+    assertEquals("The video could not be closed!", closeMessage);
   }
 
   @Test

@@ -49,10 +49,10 @@ public final class PageAssembler {
 
   private final long streamId;
 
-  private final Map<Long, Map<Integer, TransportPage>> pending = new LinkedHashMap<>();
+  private final Map<Long, Map<Integer, TransportPage>> pending;
 
   /**
-   * Constructs a new assembler.
+   * Creates a new assembler.
    *
    * @param streamId   the unsigned 32-bit stream id to accept, from 0 through 4,294,967,295; not checked here
    * @param symbolBits the negotiated width, 6 bits per symbol
@@ -63,6 +63,7 @@ public final class PageAssembler {
     Preconditions.checkArgument(symbolBits == MapAlphabet.SYMBOL_BITS, "Symbol width %s is unsupported!", symbolBits);
 
     this.streamId = streamId;
+    this.pending = new LinkedHashMap<>();
   }
 
   /**
@@ -82,17 +83,40 @@ public final class PageAssembler {
   public Optional<byte[]> push(final byte[] symbols) {
     final TransportPage page = TransportPages.readPage(symbols);
     if (page.getStreamId() != this.streamId) {
-      throw new Mcv2Exception("Wrong stream!");
+      final String message = "Wrong stream!";
+      throw new Mcv2Exception(message);
     }
 
     final long frameId = page.getFrameId();
+    this.evictOldestWhenFull(frameId);
+
+    final Map<Integer, TransportPage> parts = this.pending.computeIfAbsent(frameId, _ -> new HashMap<>());
+    this.checkConsistentWithFrame(parts, page, frameId);
+    this.checkNotConflicting(parts, page, frameId);
+    parts.put(page.getNumber(), page);
+
+    if (parts.size() != page.getCount()) {
+      return Optional.empty();
+    }
+
+    final byte[] data = this.assemble(parts, page);
+    this.pending.remove(frameId);
+
+    final Frame parsed = Mcv2Decoder.parse(data);
+    this.checkIdentity(parsed, page, frameId);
+
+    return Optional.of(data);
+  }
+
+  private void evictOldestWhenFull(final long frameId) {
     if (!this.pending.containsKey(frameId) && this.pending.size() >= MAXIMUM_PENDING) {
       final Iterator<Long> oldest = this.pending.keySet().iterator();
       oldest.next();
       oldest.remove();
     }
+  }
 
-    final Map<Integer, TransportPage> parts = this.pending.computeIfAbsent(frameId, _ -> new HashMap<>());
+  private void checkConsistentWithFrame(final Map<Integer, TransportPage> parts, final TransportPage page, final long frameId) {
     if (!parts.isEmpty()) {
       final TransportPage first = parts.values().iterator().next();
       final boolean consistent =
@@ -102,22 +126,22 @@ public final class PageAssembler {
         page.getFlags() == first.getFlags();
       if (!consistent) {
         this.pending.remove(frameId);
-        throw new Mcv2Exception("Inconsistent pages!");
+        final String message = "Inconsistent pages!";
+        throw new Mcv2Exception(message);
       }
     }
+  }
 
+  private void checkNotConflicting(final Map<Integer, TransportPage> parts, final TransportPage page, final long frameId) {
     final TransportPage previous = parts.get(page.getNumber());
     if (previous != null && !previous.equals(page)) {
       this.pending.remove(frameId);
-      throw new Mcv2Exception("Conflicting page duplicate!");
+      final String message = "Conflicting page duplicate!";
+      throw new Mcv2Exception(message);
     }
+  }
 
-    parts.put(page.getNumber(), page);
-
-    if (parts.size() != page.getCount()) {
-      return Optional.empty();
-    }
-
+  private byte[] assemble(final Map<Integer, TransportPage> parts, final TransportPage page) {
     // Distinct validated page numbers filling the count cover exactly 0..count-1.
     final TransportPage[] ordered = new TransportPage[page.getCount()];
     for (final TransportPage part : parts.values()) {
@@ -129,16 +153,15 @@ public final class PageAssembler {
       frame.writeBytes(part.payload());
     }
 
-    this.pending.remove(frameId);
-    final byte[] data = frame.toByteArray();
-    final Frame parsed = Mcv2Decoder.parse(data);
-    if (
-      parsed.getFrameId() != frameId || parsed.getReferenceId() != page.getReferenceId() || (parsed.isKeyframe() ? 1 : 0) != page.getFlags()
-    ) {
-      throw new Mcv2Exception("Frame and page identity mismatch!");
-    }
+    return frame.toByteArray();
+  }
 
-    return Optional.of(data);
+  private void checkIdentity(final Frame parsed, final TransportPage page, final long frameId) {
+    final int expectedFlags = parsed.isKeyframe() ? TransportPages.KEYFRAME_FLAGS : TransportPages.PREDICTED_FRAME_FLAGS;
+    if (parsed.getFrameId() != frameId || parsed.getReferenceId() != page.getReferenceId() || expectedFlags != page.getFlags()) {
+      final String message = "Frame and page identity mismatch!";
+      throw new Mcv2Exception(message);
+    }
   }
 
   /**

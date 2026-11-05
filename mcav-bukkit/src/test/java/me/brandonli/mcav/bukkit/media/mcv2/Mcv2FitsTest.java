@@ -44,7 +44,7 @@ final class Mcv2FitsTest {
     for (int nodeIndex = 0; nodeIndex < nodes.length; nodeIndex++) {
       final float expected = nodes[nodeIndex];
       final float fittedNode = fitted[nodeIndex];
-      assertEquals(expected, fittedNode, 1e-3, "size " + size + " grid " + grid + " node " + nodeIndex);
+      assertEquals(expected, fittedNode, 1e-3, "size %s grid %s node %s".formatted(size, grid, nodeIndex));
     }
   }
 
@@ -84,7 +84,7 @@ final class Mcv2FitsTest {
       for (int column = 0; column < 4; column++) {
         final int expected = column - 3;
         final float fittedNode = fitted[row * 4 + column];
-        assertEquals(expected, fittedNode, 3e-7, "row " + row + " column " + column);
+        assertEquals(expected, fittedNode, 3e-7, "row %s column %s".formatted(row, column));
       }
     }
   }

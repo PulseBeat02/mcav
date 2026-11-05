@@ -19,9 +19,12 @@ package me.brandonli.mcav.bukkit.media.config;
 
 import java.util.Collection;
 import java.util.UUID;
+import me.brandonli.mcav.bukkit.media.image.MapImage;
+import me.brandonli.mcav.bukkit.media.result.CompressedMapResult;
+import me.brandonli.mcav.bukkit.media.result.MapResult;
 
 /**
- * Describes a screen made of maps, for use with the map images and map results.
+ * Describes a screen made of maps, for use with {@link MapImage}, {@link MapResult} and {@link CompressedMapResult}.
  *
  * <p>The screen is a grid of {@code mapBlockWidth x mapBlockHeight} maps with consecutive ids, starting at
  * {@link #getMap()} for the top left map and counting row by row. A map holds 128x128 pixels, so the screen has a

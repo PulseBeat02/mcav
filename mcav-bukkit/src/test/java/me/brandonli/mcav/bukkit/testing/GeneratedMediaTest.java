@@ -44,6 +44,11 @@ final class GeneratedMediaTest {
 
   private static final String VIDEO_FILE_NAME = "video.mp4";
 
+  private static final String FIXTURE_SOURCE_FILE_NAME = "FixtureWriter.java";
+
+  private static final String WINDOWS_JAVA_EXECUTABLE_FILE_NAME = "java.exe";
+  private static final String BINARY_DIRECTORY = "bin";
+
   private static final String SUCCESS_ARGUMENT = "success";
   private static final String FAILURE_ARGUMENT = "failure";
   private static final String TIMEOUT_ARGUMENT = "timeout";
@@ -56,7 +61,7 @@ final class GeneratedMediaTest {
 
   @BeforeEach
   void compileFixtureOutsideTheSubprocessDeadline() throws Exception {
-    final Path source = this.directory.resolve("FixtureWriter.java");
+    final Path source = this.directory.resolve(FIXTURE_SOURCE_FILE_NAME);
     Files.writeString(
       source,
       """
@@ -83,8 +88,8 @@ final class GeneratedMediaTest {
 
   private List<String> command(final Path temporary, final String mode) {
     final String home = System.getProperty("java.home");
-    final String executable = File.separatorChar == '\\' ? "java.exe" : "java";
-    final String java = Path.of(home, "bin", executable).toString();
+    final String executable = File.separatorChar == '\\' ? WINDOWS_JAVA_EXECUTABLE_FILE_NAME : "java";
+    final String java = Path.of(home, BINARY_DIRECTORY, executable).toString();
     final String classes = this.directory.toString();
     return List.of(java, "-cp", classes, "FixtureWriter", mode, temporary.toString());
   }
@@ -102,11 +107,7 @@ final class GeneratedMediaTest {
     Files.writeString(output, "partial from a failed older attempt");
     final AtomicInteger invocations = new AtomicInteger();
     final AtomicReference<Path> temporary = new AtomicReference<>();
-    final Path generated = GeneratedMedia.generate(output, path -> {
-      invocations.incrementAndGet();
-      temporary.set(path);
-      return this.command(path, SUCCESS_ARGUMENT);
-    });
+    final Path generated = GeneratedMedia.generate(output, path -> this.recordGenerationCommand(path, invocations, temporary));
     final String content = Files.readString(generated);
     assertEquals(COMPLETED_MEDIA, content);
 
@@ -119,14 +120,24 @@ final class GeneratedMediaTest {
     final boolean stagedAtTheOutput = staged.equals(output);
     assertFalse(stagedAtTheOutput, "the encoder writes into a temporary sibling");
 
-    final Path cached = GeneratedMedia.generate(output, _ -> {
-      throw new AssertionError("Successfully generated media must be reused!");
-    });
+    final Path cached = GeneratedMedia.generate(output, this::rejectCachedGeneration);
     final int commands = invocations.get();
     assertEquals(generated, cached);
     assertEquals(1, commands);
 
     this.assertNoPartialFiles();
+  }
+
+  private List<String> recordGenerationCommand(final Path path, final AtomicInteger invocations, final AtomicReference<Path> temporary) {
+    invocations.incrementAndGet();
+    temporary.set(path);
+
+    return this.command(path, SUCCESS_ARGUMENT);
+  }
+
+  private List<String> rejectCachedGeneration(final Path path) {
+    final String message = "Successfully generated media must be reused!";
+    throw new AssertionError(message);
   }
 
   @Test

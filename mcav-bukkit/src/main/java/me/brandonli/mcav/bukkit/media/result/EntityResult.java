@@ -38,12 +38,12 @@ import org.bukkit.entity.TextDisplay;
  *
  * @since 1.0.0
  */
-public class EntityResult implements FunctionalVideoFilter {
+public final class EntityResult implements FunctionalVideoFilter {
 
   private final EntityRenderer renderer;
 
   /**
-   * Constructs a new {@code EntityResult}.
+   * Creates a result that shows frames in a text display.
    *
    * @param configuration the configuration describing the viewers, character, position, and size of the entity
    * @throws NullPointerException if {@code configuration} is null
@@ -66,6 +66,17 @@ public class EntityResult implements FunctionalVideoFilter {
   }
 
   /**
+   * Removes the text display. Call this method on the main thread during shutdown, because a disabled plugin cannot
+   * schedule the removal anymore.
+   *
+   * @since 1.0.0
+   */
+  @Override
+  public void release() {
+    this.renderer.hide();
+  }
+
+  /**
    * Converts the frame into colored text and queues it for the next server tick.
    *
    * @param data     the frame to display, which may be resized by the renderer
@@ -82,16 +93,5 @@ public class EntityResult implements FunctionalVideoFilter {
     this.renderer.render(data);
 
     return true;
-  }
-
-  /**
-   * Removes the text display. Call this method on the main thread during shutdown, because a disabled plugin cannot
-   * schedule the removal anymore.
-   *
-   * @since 1.0.0
-   */
-  @Override
-  public void release() {
-    this.renderer.hide();
   }
 }

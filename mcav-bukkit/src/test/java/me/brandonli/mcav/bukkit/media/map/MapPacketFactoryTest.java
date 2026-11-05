@@ -195,17 +195,17 @@ final class MapPacketFactoryTest {
       MapPacketFactory.clear(viewers, Integer.MAX_VALUE, 2)
     );
     final String overflowMessage = overflow.getMessage();
-    assertEquals("Map ids exceed the integer range!", overflowMessage);
+    assertEquals("Map ids 2147483647 to 2147483648 exceed the largest map id!", overflowMessage);
 
     final IllegalArgumentException negativeId = assertThrows(IllegalArgumentException.class, () -> MapPacketFactory.clear(viewers, -1, 0));
     final String negativeIdMessage = negativeId.getMessage();
-    assertEquals("Map id must be non-negative!", negativeIdMessage);
+    assertEquals("Map id -1 must not be negative!", negativeIdMessage);
 
     final IllegalArgumentException negativeCount = assertThrows(IllegalArgumentException.class, () ->
       MapPacketFactory.clear(viewers, 0, -1)
     );
     final String negativeCountMessage = negativeCount.getMessage();
-    assertEquals("Map count must be non-negative!", negativeCountMessage);
+    assertEquals("Map count -1 must not be negative!", negativeCountMessage);
 
     final List<Packet<?>> before = this.server.getSentPackets(FIRST);
     final boolean nothingSentBefore = before.isEmpty();
@@ -236,6 +236,7 @@ final class MapPacketFactoryTest {
     assertThrows(NullPointerException.class, () -> MapPacketFactory.clear(null, 0, 1));
     assertThrows(IllegalArgumentException.class, () -> MapPacketFactory.clear(viewers, -1, 1));
     assertThrows(IllegalArgumentException.class, () -> MapPacketFactory.clear(viewers, 0, -1));
+    assertThrows(NullPointerException.class, () -> MapPacketFactory.Bundle.of(null, 0));
   }
 
   @Test

@@ -17,8 +17,7 @@
  */
 package me.brandonli.mcav.bukkit.media.mcv2;
 
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
+import com.google.common.base.MoreObjects;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -35,35 +34,24 @@ public final class Mcv2Trees {
     .findFirst()
     .orElseThrow();
 
+  private static final long KEYFRAME_ID = 0L;
+  private static final long PREDICTED_FRAME_ID = 1L;
+
+  private static final int ORIENTATION_INDEX = 6;
+  private static final int AXES_OFFSET = 7;
+
+  private static final int TINY_SIZE = 4;
+
+  private static final int TWO_PAGES_SIZE = 320;
+  private static final int TWO_PAGES_SEED = 19;
+
+  private static final int SIZE_SHIFT = 32;
+  private static final int TOP_SHIFT = 16;
+
+  private static final int CHILD_COUNT = 4;
+
   private Mcv2Trees() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated!");
-  }
-
-  private static Object invoke(
-    final Class<?> owner,
-    final @Nullable Object target,
-    final String name,
-    final Class<?>[] parameters,
-    final Object... arguments
-  ) {
-    try {
-      final Method method = owner.getDeclaredMethod(name, parameters);
-      method.setAccessible(true);
-      return Objects.requireNonNull(method.invoke(target, arguments));
-    } catch (final InvocationTargetException exception) {
-      final Throwable cause = exception.getCause();
-      if (cause instanceof final RuntimeException runtime) {
-        throw runtime;
-      }
-
-      if (cause instanceof final Error error) {
-        throw error;
-      }
-
-      throw new AssertionError(cause);
-    } catch (final ReflectiveOperationException exception) {
-      throw new LinkageError(exception.getMessage(), exception);
-    }
   }
 
   public static byte[] write(
@@ -74,7 +62,7 @@ public final class Mcv2Trees {
     final Mcv2FrameKind kind,
     final List<Node> roots
   ) {
-    return (byte[]) invoke(
+    return (byte[]) Mcv2Internals.callForResult(
       Mcv2.class,
       null,
       "write",
@@ -89,11 +77,11 @@ public final class Mcv2Trees {
   }
 
   static Node solid(final int red, final int green, final int blue) {
-    return Node.leaf(Mcv2Decoder.MODE_SOLID, 0, new byte[] { (byte) red, (byte) green, (byte) blue });
+    return Node.leaf(Mcv2Decoder.MODE_SOLID, Mcv2Decoder.NO_QUANTIZER, new byte[] { (byte) red, (byte) green, (byte) blue });
   }
 
   public static Node motion(final int motionX, final int motionY) {
-    return Node.leaf(Mcv2Decoder.MODE_MOTION, 0, new byte[] { (byte) motionX, (byte) motionY });
+    return Node.leaf(Mcv2Decoder.MODE_MOTION, Mcv2Decoder.NO_QUANTIZER, new byte[] { (byte) motionX, (byte) motionY });
   }
 
   static Node split(final Node node) {
@@ -101,18 +89,18 @@ public final class Mcv2Trees {
   }
 
   static Node pattern(final int size, final byte[] endpoints, final int orientation, final int axisByte) {
-    final byte[] record = Arrays.copyOf(endpoints, 7 + size / 8);
-    record[6] = (byte) orientation;
-    Arrays.fill(record, 7, record.length, (byte) axisByte);
-    return Node.leaf(Mcv2Decoder.MODE_PATTERN, 0, record);
+    final byte[] record = Arrays.copyOf(endpoints, Mcv2Decoder.patternSize(size));
+    record[ORIENTATION_INDEX] = (byte) orientation;
+    Arrays.fill(record, AXES_OFFSET, record.length, (byte) axisByte);
+    return Node.leaf(Mcv2Decoder.MODE_PATTERN, Mcv2Decoder.NO_QUANTIZER, record);
   }
 
   static byte[] keyframe(final int width, final int height, final Node... roots) {
-    return write(width, height, 0, 0, Mcv2FrameKind.KEYFRAME, List.of(roots));
+    return write(width, height, KEYFRAME_ID, KEYFRAME_ID, Mcv2FrameKind.KEYFRAME, List.of(roots));
   }
 
   public static byte[] predicted(final int width, final int height, final Node... roots) {
-    return write(width, height, 1, 0, Mcv2FrameKind.PREDICTED, List.of(roots));
+    return write(width, height, PREDICTED_FRAME_ID, KEYFRAME_ID, Mcv2FrameKind.PREDICTED, List.of(roots));
   }
 
   static Node[] repeat(final Node node, final int count) {
@@ -122,17 +110,22 @@ public final class Mcv2Trees {
   }
 
   public static byte[] tiny() {
-    return keyframe(4, 4, solid(1, 2, 3));
+    return keyframe(TINY_SIZE, TINY_SIZE, solid(1, 2, 3));
   }
 
   public static byte[] twoPages() {
-    final byte[] record = new byte[134];
-    new Random(19).nextBytes(record);
-    return keyframe(320, 320, repeat(Node.leaf(Mcv2Decoder.MODE_PALETTE, 0, record), 100));
+    final int recordLength = Mcv2Decoder.recordSize(Mcv2Decoder.MODE_PALETTE, Mcv2Decoder.ROOT_SIZE);
+    final byte[] record = new byte[recordLength];
+    new Random(TWO_PAGES_SEED).nextBytes(record);
+
+    final int rootsPerSide = TWO_PAGES_SIZE / Mcv2Decoder.ROOT_SIZE;
+    final int rootCount = rootsPerSide * rootsPerSide;
+    final Node root = Node.leaf(Mcv2Decoder.MODE_PALETTE, Mcv2Decoder.NO_QUANTIZER, record);
+    return keyframe(TWO_PAGES_SIZE, TWO_PAGES_SIZE, repeat(root, rootCount));
   }
 
   private static long position(final int left, final int top, final int size) {
-    return ((long) size << 32) | ((long) top << 16) | left;
+    return ((long) size << SIZE_SHIFT) | ((long) top << TOP_SHIFT) | left;
   }
 
   static List<Node> read(final Mcv2Decoder.Frame frame) {
@@ -142,16 +135,16 @@ public final class Mcv2Trees {
       final Mcv2Decoder.Leaf leaf = frame.getLeaf(index);
       final int mode = leaf.mode();
       final int offset = leaf.offset();
-      final Node node;
       final int length = Mcv2Decoder.recordSize(mode, leaf.size());
-      node = Node.leaf(mode, leaf.quantizer(), length == 0 ? new byte[0] : Arrays.copyOfRange(data, offset, offset + length));
+      final byte[] record = length == 0 ? new byte[0] : Arrays.copyOfRange(data, offset, offset + length);
+      final Node node = Node.leaf(mode, leaf.quantizer(), record);
       leaves.put(position(leaf.left(), leaf.top(), leaf.size()), node);
     }
 
     final List<Node> roots = new ArrayList<>();
-    for (int top = 0; top < frame.getHeight(); top += 32) {
-      for (int left = 0; left < frame.getWidth(); left += 32) {
-        roots.add(read(leaves, left, top, 32));
+    for (int top = 0; top < frame.getHeight(); top += Mcv2Decoder.ROOT_SIZE) {
+      for (int left = 0; left < frame.getWidth(); left += Mcv2Decoder.ROOT_SIZE) {
+        roots.add(read(leaves, left, top, Mcv2Decoder.ROOT_SIZE));
       }
     }
 
@@ -164,8 +157,9 @@ public final class Mcv2Trees {
       return leaf;
     }
 
-    if (size == 8) {
-      throw new AssertionError("Missing terminal leaf!");
+    if (size == Mcv2Decoder.SMALLEST_BLOCK) {
+      final String message = "Missing terminal leaf!";
+      throw new AssertionError(message);
     }
 
     final int half = size / 2;
@@ -179,16 +173,18 @@ public final class Mcv2Trees {
 
   public record Node(Object value) {
     static Node leaf(final int mode, final int quantizer, final byte[] record) {
-      return new Node(invoke(TREE, null, "leaf", new Class<?>[] { int.class, int.class, byte[].class }, mode, quantizer, record));
+      return new Node(
+        Mcv2Internals.callForResult(TREE, null, "leaf", new Class<?>[] { int.class, int.class, byte[].class }, mode, quantizer, record)
+      );
     }
 
     static Node skip() {
-      return new Node(invoke(TREE, null, "skip", new Class<?>[0]));
+      return new Node(Mcv2Internals.callForResult(TREE, null, "skip", new Class<?>[0]));
     }
 
     static Node split(final Node topLeft, final Node topRight, final Node bottomLeft, final Node bottomRight) {
       return new Node(
-        invoke(
+        Mcv2Internals.callForResult(
           TREE,
           null,
           "split",
@@ -199,6 +195,39 @@ public final class Mcv2Trees {
           bottomRight.value
         )
       );
+    }
+
+    private List<Node> getChildren() {
+      if (!this.isSplit()) {
+        return List.of();
+      }
+
+      final List<Node> children = new ArrayList<>();
+      for (int child = 0; child < CHILD_COUNT; child++) {
+        children.add(this.getChild(child));
+      }
+
+      return children;
+    }
+
+    int getMode() {
+      return (int) Mcv2Internals.field(TREE, this.value, "mode");
+    }
+
+    int getQuantizer() {
+      return (int) Mcv2Internals.field(TREE, this.value, "quantizer");
+    }
+
+    byte[] getRecord() {
+      return ((byte[]) Mcv2Internals.field(TREE, this.value, "record")).clone();
+    }
+
+    boolean isSplit() {
+      return (boolean) Mcv2Internals.callForResult(TREE, this.value, "isSplit", new Class<?>[0]);
+    }
+
+    Node getChild(final int index) {
+      return new Node(Mcv2Internals.callForResult(TREE, this.value, "getChild", new Class<?>[] { int.class }, index));
     }
 
     @Override
@@ -216,7 +245,7 @@ public final class Mcv2Trees {
         return true;
       }
 
-      for (int child = 0; child < 4; child++) {
+      for (int child = 0; child < CHILD_COUNT; child++) {
         if (!this.getChild(child).equals(node.getChild(child))) {
           return false;
         }
@@ -227,34 +256,19 @@ public final class Mcv2Trees {
 
     @Override
     public int hashCode() {
-      int hash = Objects.hash(this.getMode(), this.getQuantizer(), Arrays.hashCode(this.getRecord()));
-      if (this.isSplit()) {
-        for (int child = 0; child < 4; child++) {
-          hash = 31 * hash + this.getChild(child).hashCode();
-        }
-      }
-
-      return hash;
+      final List<Node> children = this.getChildren();
+      return Objects.hash(this.getMode(), this.getQuantizer(), Arrays.hashCode(this.getRecord()), children);
     }
 
-    int getMode() {
-      return (int) Mcv2Internals.field(TREE, this.value, "mode");
-    }
-
-    int getQuantizer() {
-      return (int) Mcv2Internals.field(TREE, this.value, "quantizer");
-    }
-
-    byte[] getRecord() {
-      return ((byte[]) Mcv2Internals.field(TREE, this.value, "record")).clone();
-    }
-
-    boolean isSplit() {
-      return (boolean) invoke(TREE, this.value, "isSplit", new Class<?>[0]);
-    }
-
-    Node getChild(final int index) {
-      return new Node(invoke(TREE, this.value, "getChild", new Class<?>[] { int.class }, index));
+    @Override
+    public String toString() {
+      final List<Node> children = this.getChildren();
+      return MoreObjects.toStringHelper(this)
+        .add("mode", this.getMode())
+        .add("quantizer", this.getQuantizer())
+        .add("record", Arrays.toString(this.getRecord()))
+        .add("children", children)
+        .toString();
     }
   }
 }

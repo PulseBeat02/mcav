@@ -88,8 +88,8 @@ final class Mcv2LatestFrameTest {
   @Test
   void shouldThrowWhenATakeIsInterrupted() {
     this.slot.open();
-    final Thread currentThread = Thread.currentThread();
-    currentThread.interrupt();
+    final Thread current = Thread.currentThread();
+    current.interrupt();
     assertThrows(InterruptedException.class, this.slot::take);
 
     final boolean interrupted = Thread.interrupted();
@@ -100,8 +100,8 @@ final class Mcv2LatestFrameTest {
     try {
       return this.slot.take();
     } catch (final InterruptedException exception) {
-      final Thread currentThread = Thread.currentThread();
-      currentThread.interrupt();
+      final Thread current = Thread.currentThread();
+      current.interrupt();
       return null;
     }
   }

@@ -30,46 +30,36 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 final class DefaultMcv2ConfigurationBuilder implements Mcv2ConfigurationBuilder {
 
+  private static final int UNSET_MAP = -1;
+
   private @MonotonicNonNull Collection<UUID> viewers;
-
   private @MonotonicNonNull Location origin;
-
   private @MonotonicNonNull BlockFace facing;
 
   private int map;
-
   private int columns;
-
   private int rows;
 
   private int videoWidth;
-
   private int videoHeight;
 
   private int pageMap;
-
   private int pageSlots;
 
   private long streamId;
-
   private long firstFrameId;
-
   private double maximumFrameRate;
-
   private long backlogLimit;
-
   private @Nullable Pool encoderPool;
-
   private int unsentLimit;
 
   private Settings settings;
-
   private NamedTextColor outlineColor;
 
   DefaultMcv2ConfigurationBuilder() {
-    this.map = -1;
+    this.map = UNSET_MAP;
     this.pageMap = Mcv2Configuration.DEFAULT_PAGE_MAP;
-    this.streamId = 1;
+    this.streamId = Mcv2Configuration.DEFAULT_STREAM_ID;
     this.maximumFrameRate = Mcv2Configuration.DEFAULT_MAXIMUM_FRAME_RATE;
     this.backlogLimit = Mcv2Configuration.DEFAULT_BACKLOG_LIMIT;
     this.unsentLimit = Mcv2Configuration.DEFAULT_UNSENT_LIMIT;
@@ -102,6 +92,7 @@ final class DefaultMcv2ConfigurationBuilder implements Mcv2ConfigurationBuilder 
       "Facing %s is not horizontal, but frames must face a horizontal direction!",
       facing
     );
+
     this.facing = facing;
     return this;
   }
@@ -172,7 +163,7 @@ final class DefaultMcv2ConfigurationBuilder implements Mcv2ConfigurationBuilder 
   @Override
   public Mcv2ConfigurationBuilder outlineColor(final NamedTextColor outlineColor) {
     Preconditions.checkNotNull(outlineColor, "Outline color must not be null!");
-    Preconditions.checkArgument(outlineColor.value() != 0, "The outline colour must not be black!");
+    Preconditions.checkArgument(outlineColor.value() != 0, "Outline color must not be black!");
 
     this.outlineColor = outlineColor;
     return this;
@@ -198,10 +189,25 @@ final class DefaultMcv2ConfigurationBuilder implements Mcv2ConfigurationBuilder 
 
   @Override
   public Mcv2Configuration build() {
-    final Collection<UUID> configuredViewers = Preconditions.checkNotNull(this.viewers, "Viewers must be set!");
-    final Location configuredOrigin = Preconditions.checkNotNull(this.origin, "Origin must be set!");
-    final BlockFace configuredFacing = Preconditions.checkNotNull(this.facing, "Facing must be set!");
-    Preconditions.checkArgument(this.map >= 0, "Map id must be set and non-negative!");
+    final @Nullable Collection<UUID> configuredViewers = this.viewers;
+    if (configuredViewers == null) {
+      final String message = "Viewers must be set!";
+      throw new IllegalStateException(message);
+    }
+
+    final @Nullable Location configuredOrigin = this.origin;
+    if (configuredOrigin == null) {
+      final String message = "Origin must be set!";
+      throw new IllegalStateException(message);
+    }
+
+    final @Nullable BlockFace configuredFacing = this.facing;
+    if (configuredFacing == null) {
+      final String message = "Facing must be set!";
+      throw new IllegalStateException(message);
+    }
+
+    Preconditions.checkArgument(this.map >= 0, "Map id %s must be set and must not be negative!", this.map);
     Preconditions.checkArgument(
       this.columns >= 1 && this.columns <= Mcv2Configuration.MAXIMUM_SIDE,
       "Columns must be between 1 and %s inclusive!",
@@ -212,10 +218,15 @@ final class DefaultMcv2ConfigurationBuilder implements Mcv2ConfigurationBuilder 
       "Rows must be between 1 and %s inclusive!",
       Mcv2Configuration.MAXIMUM_SIDE
     );
-    Preconditions.checkArgument(this.videoWidth >= 0 && this.videoWidth <= Mcv2Decoder.MAXIMUM_DIMENSION, "Video width must be 0 to 4096!");
+    Preconditions.checkArgument(
+      this.videoWidth >= 0 && this.videoWidth <= Mcv2Decoder.MAXIMUM_DIMENSION,
+      "Video width must be between 0 and %s inclusive!",
+      Mcv2Decoder.MAXIMUM_DIMENSION
+    );
     Preconditions.checkArgument(
       this.videoHeight >= 0 && this.videoHeight <= Mcv2Decoder.MAXIMUM_DIMENSION,
-      "Video height must be 0 to 4096!"
+      "Video height must be between 0 and %s inclusive!",
+      Mcv2Decoder.MAXIMUM_DIMENSION
     );
 
     final int width = Mcv2Configuration.videoSize(this.videoWidth, this.columns);
@@ -260,9 +271,11 @@ final class DefaultMcv2ConfigurationBuilder implements Mcv2ConfigurationBuilder 
       maps,
       slots
     );
+
     final long lastMap = (long) this.map + (long) this.columns * this.rows - 1;
     final long lastPage = (long) this.pageMap + slots - 1;
-    Preconditions.checkArgument(this.pageMap >= 0 && lastPage <= Integer.MAX_VALUE, "Page map ids must be non-negative ints!");
+    Preconditions.checkArgument(this.pageMap >= 0, "Page map id %s must not be negative!", this.pageMap);
+    Preconditions.checkArgument(lastPage <= Integer.MAX_VALUE, "Page map ids exceed the integer range!");
     Preconditions.checkArgument(lastMap <= Integer.MAX_VALUE, "Map ids exceed the integer range!");
     Preconditions.checkArgument(lastPage < this.map || this.pageMap > lastMap, "Page maps must not be maps of the wall!");
 

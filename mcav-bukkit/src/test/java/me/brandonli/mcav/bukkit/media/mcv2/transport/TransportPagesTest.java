@@ -46,6 +46,9 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 final class TransportPagesTest {
 
+  private static final int FRAME_BYTES_OFFSET = 24;
+  private static final int PAGE_NUMBER_OFFSET = 16;
+
   private static final String PAGES_PATH = "conformance/pages.json";
 
   private static final String INVALID_METADATA_MESSAGE = "Invalid page metadata!";
@@ -67,7 +70,7 @@ final class TransportPagesTest {
 
     for (final JsonElement entry : root.getAsJsonArray("frames")) {
       final JsonObject expected = entry.getAsJsonObject();
-      final String name = expected.get("stream").getAsString() + "#" + expected.get("frame").getAsInt() + "@6";
+      final String name = "%s#%s@6".formatted(expected.get("stream").getAsString(), expected.get("frame").getAsInt());
       arguments.add(Arguments.of(name, expected));
     }
 
@@ -83,7 +86,7 @@ final class TransportPagesTest {
     final String stream = name.substring(0, name.indexOf('#'));
     final int index = Integer.parseInt(name.substring(name.indexOf('#') + 1, name.indexOf('@')));
     final int bits = Integer.parseInt(name.substring(name.indexOf('@') + 1));
-    final byte[] frame = Mcv2Fixtures.frames(Mcv2Fixtures.read(stream)).get(index);
+    final byte[] frame = Mcv2Fixtures.splitFrames(Mcv2Fixtures.read(stream)).get(index);
     final List<byte[]> pages = TransportPages.makePages(frame, 7);
     final List<String> digests = new ArrayList<>();
     for (final byte[] page : pages) {
@@ -119,8 +122,11 @@ final class TransportPagesTest {
       final int expectedCount = pages.size();
       final int count = read.getCount();
       assertEquals(expectedCount, count);
+
+      final int expectedLength = page.length;
       final int usefulSymbols = TransportPages.usefulSymbols(Arrays.copyOf(page, TransportPages.PAGE_SYMBOLS));
-      assertEquals(page.length, usefulSymbols);
+      assertEquals(expectedLength, usefulSymbols);
+
       assembled = assembler.push(page).orElse(null);
     }
 
@@ -257,7 +263,7 @@ final class TransportPagesTest {
   void shouldRefuseInconsistentPageMetadata() {
     final byte[] page = this.page();
     final Mcv2Exception frameBytesFailure = assertThrows(Mcv2Exception.class, () ->
-      TransportPages.readPage(this.withHeaderByte(page, 24, 10))
+      TransportPages.readPage(this.withHeaderByte(page, FRAME_BYTES_OFFSET, 10))
     );
     final String frameBytesMessage = frameBytesFailure.getMessage();
     assertEquals(INVALID_METADATA_MESSAGE, frameBytesMessage);
@@ -272,7 +278,9 @@ final class TransportPagesTest {
     final String countMessage = countFailure.getMessage();
     assertEquals(INVALID_METADATA_MESSAGE, countMessage);
 
-    final Mcv2Exception numberFailure = assertThrows(Mcv2Exception.class, () -> TransportPages.readPage(this.withHeaderByte(page, 16, 1)));
+    final Mcv2Exception numberFailure = assertThrows(Mcv2Exception.class, () ->
+      TransportPages.readPage(this.withHeaderByte(page, PAGE_NUMBER_OFFSET, 1))
+    );
     final String numberMessage = numberFailure.getMessage();
     assertEquals(INVALID_METADATA_MESSAGE, numberMessage);
 
@@ -297,8 +305,9 @@ final class TransportPagesTest {
     // the useful extent follows from the header; padding symbols after it are not part of the page
     assertThrows(Mcv2Exception.class, () -> TransportPages.readPage(Arrays.copyOf(page, page.length + 1)));
 
+    final int expectedLength = page.length;
     final int usefulSymbols = TransportPages.usefulSymbols(page);
-    assertEquals(page.length, usefulSymbols);
+    assertEquals(expectedLength, usefulSymbols);
   }
 
   @Test
@@ -325,15 +334,15 @@ final class TransportPagesTest {
 
   private byte[] pageOfFrame(final long frameBytes, final int number, final int count, final int size) {
     final byte[] raw = new byte[TransportPages.HEADER_BYTES + size];
-    Mcv2Decoder.putU32(raw, 0, TransportPages.MAGIC);
+    Mcv2Decoder.putUnsignedInt(raw, 0, TransportPages.MAGIC);
     raw[4] = 1;
     raw[5] = 6;
-    Mcv2Decoder.putU16(raw, 16, number);
-    Mcv2Decoder.putU16(raw, 18, count);
-    Mcv2Decoder.putU32(raw, 24, frameBytes);
+    Mcv2Decoder.putUnsignedShort(raw, PAGE_NUMBER_OFFSET, number);
+    Mcv2Decoder.putUnsignedShort(raw, 18, count);
+    Mcv2Decoder.putUnsignedInt(raw, FRAME_BYTES_OFFSET, frameBytes);
     final CRC32 crc = new CRC32();
     crc.update(raw);
-    Mcv2Decoder.putU32(raw, 28, crc.getValue());
+    Mcv2Decoder.putUnsignedInt(raw, 28, crc.getValue());
     return TransportPages.toSymbols(raw);
   }
 

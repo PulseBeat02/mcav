@@ -29,7 +29,6 @@ import com.google.gson.JsonParser;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -287,7 +286,7 @@ final class Mcv2PackTest {
       if (name.startsWith(POST_SHADER_FOLDER)) {
         final String stub = entries.get(name);
         final boolean startsWithTheHeader = stub.startsWith(
-          licenseHeader + "\n#version 330\n#extension GL_ARB_separate_shader_objects : require\n#define MCV2_PASS_"
+          "%s\n#version 330\n#extension GL_ARB_separate_shader_objects : require\n#define MCV2_PASS_".formatted(licenseHeader)
         );
         assertTrue(startsWithTheHeader, name);
 
@@ -332,7 +331,7 @@ final class Mcv2PackTest {
     final long streamId = described.get("stream_id").getAsLong();
     assertEquals(STREAM_ID, streamId);
 
-    // every channel of the outline colour, the red one too
+    // every channel of the outline color, the red one too
     final Mcv2Configuration purple = Mcv2ConfigurationTest.complete().outlineColor(NamedTextColor.DARK_PURPLE).build();
     final boolean declaresThePurpleOutline = Mcv2Pack.packConstants(List.of(purple), Mcv2Pack.DebugView.HIDDEN).contains(
       "const ivec3 MCV2_OUTLINE_COLOR = ivec3(170, 0, 170);"
@@ -421,7 +420,7 @@ final class Mcv2PackTest {
     final Path zip = this.directory.resolve(REFUSED_FILE_NAME);
     final Mcv2Configuration first = Mcv2ConfigurationTest.complete().streamId(1).build();
     final Mcv2Configuration sameStream = Mcv2ConfigurationTest.complete().streamId(1).build();
-    final Mcv2Configuration otherColour = Mcv2ConfigurationTest.complete().streamId(2).outlineColor(NamedTextColor.GOLD).build();
+    final Mcv2Configuration otherColor = Mcv2ConfigurationTest.complete().streamId(2).outlineColor(NamedTextColor.GOLD).build();
     final List<Mcv2Configuration> tooMany = new ArrayList<>();
     for (int stream = 0; stream <= Mcv2Pack.MAXIMUM_SCREENS; stream++) {
       tooMany.add(Mcv2ConfigurationTest.complete().streamId(stream).build());
@@ -430,7 +429,7 @@ final class Mcv2PackTest {
     assertThrows(IllegalArgumentException.class, () -> Mcv2Pack.write(List.of(), Mcv2Pack.DebugView.HIDDEN, zip));
     assertThrows(IllegalArgumentException.class, () -> Mcv2Pack.write(tooMany, Mcv2Pack.DebugView.HIDDEN, zip));
     assertThrows(IllegalArgumentException.class, () -> Mcv2Pack.write(List.of(first, sameStream), Mcv2Pack.DebugView.HIDDEN, zip));
-    assertThrows(IllegalArgumentException.class, () -> Mcv2Pack.write(List.of(first, otherColour), Mcv2Pack.DebugView.HIDDEN, zip));
+    assertThrows(IllegalArgumentException.class, () -> Mcv2Pack.write(List.of(first, otherColor), Mcv2Pack.DebugView.HIDDEN, zip));
 
     final boolean written = Files.exists(zip);
     assertFalse(written);
@@ -492,7 +491,7 @@ final class Mcv2PackTest {
     final int entryCount = entries.length;
     assertEquals(256, entryCount);
 
-    // every colour a map pixel can have, read as mcv2.glsl's mcv2Symbol reads it
+    // every color a map pixel can have, read as mcv2.glsl's mcv2Symbol reads it
     int misread = 0;
     for (int color = 0; color < 1 << 24; color++) {
       final int entry = entries[(color * multiplier) >>> shift];
@@ -507,32 +506,29 @@ final class Mcv2PackTest {
     clash[5] = clash[4];
     final IllegalStateException clashException = assertThrows(IllegalStateException.class, () -> Mcv2Pack.alphabet(clash));
     final String clashMessage = clashException.getMessage();
-    assertEquals("Map colours 9 and another symbol are the same RGB!", clashMessage);
+    assertEquals("Map color 9 and another symbol are the same RGB!", clashMessage);
 
     final int[] two = { 0x010203, 0x040506 };
     final String empty = " 4294967295u,";
+    final String emptyRow = "   %s%s\n".formatted(empty, empty.repeat(7));
     final String expectedAlphabet =
-      "#ifndef MCAV_MCV2_ALPHABET_GLSL\n#define MCAV_MCV2_ALPHABET_GLSL\n\n" +
-      "const uint MCV2_SYMBOL_HASH = 65u;\nconst uint MCV2_SYMBOL_SHIFT = 24u;\nconst uint MCV2_SYMBOLS[256] = uint[256](\n" +
-      "    4227264u, 16859521u," +
-      empty.repeat(6) +
-      "\n" +
-      ("   " + empty + empty.repeat(7) + "\n").repeat(30) +
-      "   " +
-      empty +
-      empty.repeat(6) +
-      " 4294967295u\n);\n\n#endif\n";
+      "#ifndef MCAV_MCV2_ALPHABET_GLSL\n#define MCAV_MCV2_ALPHABET_GLSL\n\nconst uint MCV2_SYMBOL_HASH = 65u;\nconst uint MCV2_SYMBOL_SHIFT = 24u;\nconst uint MCV2_SYMBOLS[256] = uint[256](\n    4227264u, 16859521u,%s\n%s   %s%s 4294967295u\n);\n\n#endif\n".formatted(
+        empty.repeat(6),
+        emptyRow.repeat(30),
+        empty,
+        empty.repeat(6)
+      );
     final String twoColorAlphabet = Mcv2Pack.alphabet(two);
     assertEquals(expectedAlphabet, twoColorAlphabet);
 
-    // 65 is the first odd multiplier that tells these two colours apart
+    // 65 is the first odd multiplier that tells these two colors apart
     final String expectedTwoColorAlphabet = Mcv2Pack.alphabet(two);
     final String alphabetUpToSixtyFive = Mcv2Pack.alphabet(two, 65);
     assertEquals(expectedTwoColorAlphabet, alphabetUpToSixtyFive);
 
     final IllegalStateException exhaustedException = assertThrows(IllegalStateException.class, () -> Mcv2Pack.alphabet(two, 63));
     final String exhaustedMessage = exhaustedException.getMessage();
-    assertEquals("No odd multiplier up to 63 gives the map colours distinct symbol entries!", exhaustedMessage);
+    assertEquals("No odd multiplier up to 63 gives the map colors distinct symbol entries!", exhaustedMessage);
   }
 
   @Test
@@ -552,7 +548,7 @@ final class Mcv2PackTest {
         throw new IOException("broken!");
       }
     };
-    assertThrows(UncheckedIOException.class, () -> Mcv2Pack.read(broken, "broken"));
+    assertThrows(Mcv2Exception.class, () -> Mcv2Pack.read(broken, "broken"));
 
     final byte[] expectedBytes = new byte[] { 1 };
     final byte[] readBytes = Mcv2Pack.read(new ByteArrayInputStream(new byte[] { 1 }), "one");

@@ -61,7 +61,7 @@ import org.bukkit.plugin.Plugin;
  * {@code (row * columns + column) % pageSlots}, cycling over the complete wall in row order. The frames
  * are real entities that nobody sees until {@link #show(Player)} shows them to a player with the pack; they glow,
  * because the client only runs the pack's post chain while a glowing entity is drawn, and the player is sent a team
- * that gives them the configured outline colour, which the pack filters out. The frames are not saved with the world,
+ * that gives them the configured outline color, which the pack filters out. The frames are not saved with the world,
  * so the screen keeps their chunks loaded until it is removed: a chunk that unloads, because every player left, would
  * take the frames with it, and a player who comes back would find nothing to show.
  *
@@ -71,8 +71,9 @@ import org.bukkit.plugin.Plugin;
  * sent again with every keyframe.
  *
  * <p>The visible wall and its map items remain caller-owned. This object owns only its hidden page entities
- * and chunk holds. Use build/show/hide/remove on the main thread; do not manipulate or remove entities obtained
- * from {@link #getFrames()} independently. Removal releases chunk holds but does not restore wall map pixels.
+ * and chunk holds. Use {@link #build()}, {@link #show(Player)}, {@link #hide(Player)} and {@link #remove()} on the
+ * main thread; do not manipulate or remove entities obtained from {@link #getFrames()} independently. Removal releases
+ * chunk holds but does not restore wall map pixels.
  *
  * @since 1.0.0
  */
@@ -83,13 +84,9 @@ public final class Mcv2Screen {
    *
    * @since 1.0.0
    */
-  public static final String TEAM = "mcav_mcv2";
+  public static final String TEAM_PREFIX = "mcav_mcv2";
 
   private static final String PLAYER_NULL_MESSAGE = "Player must not be null!";
-
-  private static final AtomicInteger NEXT_TEAM_ID = new AtomicInteger();
-
-  private final String teamName;
 
   private static final int[] SIGNATURE = { 21, 3, 58, 44, 9, 37, 60, 17 };
 
@@ -105,10 +102,16 @@ public final class Mcv2Screen {
   private static final int STREAM_HIGH_SYMBOL = 6;
   private static final int CHECKSUM_SYMBOL = 7;
 
+  private static final int ANCHOR_LEFT = 0;
+  private static final int ANCHOR_TOP = 0;
   private static final int ANCHOR_ROWS = 1;
 
   // Bukkit holds one plugin ticket per chunk, so overlapping screens must share ownership.
   private static final Map<HeldChunk, Integer> HELD_CHUNKS = new HashMap<>();
+
+  private static final AtomicInteger NEXT_TEAM_ID = new AtomicInteger();
+
+  private final String teamName;
 
   private final Mcv2Configuration configuration;
 
@@ -117,7 +120,7 @@ public final class Mcv2Screen {
   private final Set<HeldChunk> chunks;
 
   /**
-   * Constructs a new screen.
+   * Creates a screen.
    *
    * @param configuration the screen
    * @throws NullPointerException if {@code configuration} is null
@@ -126,8 +129,10 @@ public final class Mcv2Screen {
   public Mcv2Screen(final Mcv2Configuration configuration) {
     Preconditions.checkNotNull(configuration, "Configuration must not be null!");
 
+    final int teamId = NEXT_TEAM_ID.getAndIncrement();
+    final String teamIdText = Integer.toUnsignedString(teamId, Character.MAX_RADIX);
     this.configuration = configuration;
-    this.teamName = TEAM + Integer.toUnsignedString(NEXT_TEAM_ID.getAndIncrement(), Character.MAX_RADIX);
+    this.teamName = "%s%s".formatted(TEAM_PREFIX, teamIdText);
     this.frames = new ArrayList<>();
     this.chunks = new LinkedHashSet<>();
   }
@@ -205,9 +210,9 @@ public final class Mcv2Screen {
       player.showEntity(plugin, frame);
     }
 
-    final List<UUID> viewer = List.of(player.getUniqueId());
-    PacketUtils.sendPackets(viewer, ClientboundSetPlayerTeamPacket.createAddOrModifyPacket(this.team(), true));
-    MapPacketFactory.send(viewer, this.anchors());
+    final List<UUID> viewers = List.of(player.getUniqueId());
+    PacketUtils.sendPackets(viewers, ClientboundSetPlayerTeamPacket.createAddOrModifyPacket(this.createTeam(), true));
+    MapPacketFactory.send(viewers, this.getAnchors());
   }
 
   /**
@@ -226,7 +231,7 @@ public final class Mcv2Screen {
       player.hideEntity(plugin, frame);
     }
 
-    PacketUtils.sendPackets(List.of(player.getUniqueId()), ClientboundSetPlayerTeamPacket.createRemovePacket(this.team()));
+    PacketUtils.sendPackets(List.of(player.getUniqueId()), ClientboundSetPlayerTeamPacket.createRemovePacket(this.createTeam()));
   }
 
   /**
@@ -257,7 +262,7 @@ public final class Mcv2Screen {
     }
   }
 
-  PlayerTeam team() {
+  PlayerTeam createTeam() {
     final PlayerTeam team = new PlayerTeam(new Scoreboard(), this.teamName);
     final String name = NamedTextColor.NAMES.keyOrThrow(this.configuration.getOutlineColor());
     team.setColor(Optional.of(TeamColor.valueOf(name.toUpperCase(Locale.ROOT))));
@@ -270,12 +275,22 @@ public final class Mcv2Screen {
   }
 
   /**
+   * Returns the page frames.
+   *
+   * @return an unmodifiable list snapshot in wall order, containing live screen-owned entity references
+   * @since 1.0.0
+   */
+  public List<ItemFrame> getFrames() {
+    return List.copyOf(this.frames);
+  }
+
+  /**
    * Returns the anchor row of every wall map.
    *
    * @return one patch per map, row 0 only
    * @since 1.0.0
    */
-  public List<MapTilePatch> anchors() {
+  public List<MapTilePatch> getAnchors() {
     final int columns = this.configuration.getColumns();
     final int rows = this.configuration.getRows();
     final int facing = this.configuration.getFacingCode();
@@ -294,10 +309,10 @@ public final class Mcv2Screen {
         symbols[symbolOffset + STREAM_LOW_SYMBOL] = (byte) streamLow;
         symbols[symbolOffset + STREAM_HIGH_SYMBOL] = (byte) streamHigh;
 
-        symbols[symbolOffset + CHECKSUM_SYMBOL] = (byte) ((column + row + columns + rows + facing + streamLow + streamHigh) %
-          MapAlphabet.SIZE);
+        final int checksum = (column + row + columns + rows + facing + streamLow + streamHigh) % MapAlphabet.SIZE;
+        symbols[symbolOffset + CHECKSUM_SYMBOL] = (byte) checksum;
         final int mapId = this.configuration.getMap() + row * columns + column;
-        patches.add(MapTilePatch.of(mapId, 0, 0, MapLayout.MAP_SIZE, ANCHOR_ROWS, MapAlphabet.toMapColors(symbols)));
+        patches.add(MapTilePatch.of(mapId, ANCHOR_LEFT, ANCHOR_TOP, MapLayout.MAP_SIZE, ANCHOR_ROWS, MapAlphabet.toMapColors(symbols)));
       }
     }
 
@@ -311,16 +326,6 @@ public final class Mcv2Screen {
     }
 
     return symbols;
-  }
-
-  /**
-   * Returns the page frames.
-   *
-   * @return an unmodifiable list snapshot in wall order, containing live screen-owned entity references
-   * @since 1.0.0
-   */
-  public List<ItemFrame> getFrames() {
-    return List.copyOf(this.frames);
   }
 
   private record HeldChunk(World world, int chunkX, int chunkZ) {}

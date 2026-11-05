@@ -21,6 +21,7 @@ import com.google.common.base.Preconditions;
 import java.util.Collection;
 import java.util.UUID;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 final class DefaultScoreboardConfigurationBuilder implements ScoreboardConfigurationBuilder {
 
@@ -61,17 +62,26 @@ final class DefaultScoreboardConfigurationBuilder implements ScoreboardConfigura
 
   @Override
   public ScoreboardConfiguration build() {
-    final Collection<UUID> configuredViewers = Preconditions.checkNotNull(this.viewers, "Viewers must be set!");
-    final String configuredCharacter = Preconditions.checkNotNull(this.character, "Character must be set!");
+    final @Nullable Collection<UUID> configuredViewers = this.viewers;
+    if (configuredViewers == null) {
+      final String message = "Viewers must be set!";
+      throw new IllegalStateException(message);
+    }
+
+    final @Nullable String configuredCharacter = this.character;
+    if (configuredCharacter == null) {
+      final String message = "Character must be set!";
+      throw new IllegalStateException(message);
+    }
 
     Preconditions.checkArgument(!configuredCharacter.isEmpty(), "Character must not be empty!");
     Preconditions.checkArgument(
       this.lines > 0 && this.lines <= ScoreboardConfiguration.MAXIMUM_LINES,
-      "Lines %s must be between 1 and %s!",
+      "Lines %s must be between 1 and %s inclusive!",
       this.lines,
       ScoreboardConfiguration.MAXIMUM_LINES
     );
-    Preconditions.checkArgument(this.width > 0, "Width must be positive!");
+    Preconditions.checkArgument(this.width > 0, "Width %s must be positive!", this.width);
 
     return new ScoreboardConfiguration(configuredViewers, configuredCharacter, this.lines, this.width);
   }

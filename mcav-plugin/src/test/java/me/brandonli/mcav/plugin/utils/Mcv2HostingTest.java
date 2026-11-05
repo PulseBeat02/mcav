@@ -64,7 +64,7 @@ final class Mcv2HostingTest {
       final MockedStatic<PackHosting> hostings = Mockito.mockStatic(PackHosting.class);
       final MockedStatic<ServerAddress> addresses = Mockito.mockStatic(ServerAddress.class)
     ) {
-      addresses.when(ServerAddress::getPublicIpAddress).thenReturn("203.0.113.9");
+      addresses.when(ServerAddress::getPublicAddress).thenReturn("203.0.113.9");
       hostings.when(() -> PackHosting.http(ZIP, "203.0.113.9", PACK_HTTP_PORT)).thenReturn(http);
 
       final PackHosting result = Mcv2Hosting.HTTP.hosting("", PACK_HTTP_PORT).apply(ZIP);

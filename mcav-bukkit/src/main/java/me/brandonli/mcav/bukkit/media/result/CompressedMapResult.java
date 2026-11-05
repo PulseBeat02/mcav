@@ -83,24 +83,26 @@ import org.slf4j.LoggerFactory;
  * final DitherAlgorithm algorithm = DitherAlgorithm.temporalFloydSteinberg();
  * final FunctionalVideoFilter filter = DitherFilter.dither(algorithm, result);
  * filter.start();
+ *
  * final VideoPipelineStep pipeline = VideoPipelineStep.of(filter);
  * final VideoAttachableCallback video = player.getVideoAttachableCallback();
  * video.attach(pipeline);
+ *
  * // when playback ends
  * filter.release();
  * }
  *
  * @since 1.0.0
  */
-public class CompressedMapResult implements DitherResultStep {
+public final class CompressedMapResult implements DitherResultStep {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(CompressedMapResult.class);
-
-  private static final String DITHERING_THREAD_FAILED = "Map dithering thread {} failed with an uncaught exception.";
 
   private static final int MINIMUM_PARALLELISM = 1;
 
   private static final int PROCESSORS_PER_DITHER_THREAD = 2;
+
+  private static final String DITHER_THREAD_NAME_PREFIX = "mcav-map-dither-";
 
   private final MapConfiguration configuration;
   private final int maximumBytesPerFrame;
@@ -113,7 +115,7 @@ public class CompressedMapResult implements DitherResultStep {
   private boolean released;
 
   /**
-   * Constructs a new {@code CompressedMapResult} with an ordinary-update budget of
+   * Creates a result with an ordinary-update budget of
    * {@link DeltaMapEncoder#DEFAULT_MAXIMUM_BYTES_PER_FRAME} bytes per frame.
    *
    * @param configuration the configuration describing the map grid and the viewers
@@ -125,7 +127,7 @@ public class CompressedMapResult implements DitherResultStep {
   }
 
   /**
-   * Constructs a new {@code CompressedMapResult}.
+   * Creates a result with the given budget for ordinary delta updates.
    *
    * <p>The byte budget covers ordinary delta updates, including estimated patch overhead. The most urgent map is always
    * sent even if it exceeds the budget. Resize cleanup and new-viewer snapshots are additional. Lower values spread
@@ -139,13 +141,71 @@ public class CompressedMapResult implements DitherResultStep {
    */
   public CompressedMapResult(final MapConfiguration configuration, final int maximumBytesPerFrame) {
     Preconditions.checkNotNull(configuration, "Map configuration must not be null!");
-    Preconditions.checkArgument(maximumBytesPerFrame > 0, "Byte budget must be positive!");
+    Preconditions.checkArgument(maximumBytesPerFrame > 0, "Byte budget %s must be positive!", maximumBytesPerFrame);
 
     this.configuration = configuration;
     this.maximumBytesPerFrame = maximumBytesPerFrame;
     this.activeViewers = new HashMap<>();
     this.sentPixels = new TreeMap<>();
     this.lock = new ReentrantLock();
+  }
+
+  /**
+   * Accepts frames again. The encoder itself is created lazily when the first frame arrives, because the frame size
+   * is unknown until then; this only undoes a previous {@link #release()}, so the same result can show a second
+   * video, the way every other result of this module can.
+   *
+   * @since 1.0.0
+   */
+  @Override
+  public void start() {
+    this.lock.lock();
+    try {
+      this.released = false;
+    } finally {
+      this.lock.unlock();
+    }
+  }
+
+  /**
+   * Stops processing frames, shuts down the dithering threads, and clears the maps of every viewer. Frames that
+   * arrive after this method was called are ignored.
+   *
+   * @since 1.0.0
+   */
+  @Override
+  public void release() {
+    this.lock.lock();
+    try {
+      if (this.released) {
+        return;
+      }
+
+      this.released = true;
+      this.encoder = null;
+      this.activeViewers.clear();
+      this.sentPixels.clear();
+
+      final ForkJoinPool pool = this.ditherPool;
+      if (pool != null) {
+        pool.shutdownNow();
+        this.ditherPool = null;
+      }
+
+      // Clearing is part of the same transition: a restarted frame must be sent after this clear.
+      this.clearMaps();
+    } finally {
+      this.lock.unlock();
+    }
+  }
+
+  private void clearMaps() {
+    final Collection<UUID> viewers = this.configuration.getViewers();
+    final int startMapId = this.configuration.getMap();
+    final int columns = this.configuration.getMapBlockWidth();
+    final int rows = this.configuration.getMapBlockHeight();
+    final int mapCount = columns * rows;
+    MapPacketFactory.clear(viewers, startMapId, mapCount);
   }
 
   /**
@@ -181,7 +241,7 @@ public class CompressedMapResult implements DitherResultStep {
 
     final int width = samples.getWidth();
     final int height = samples.getHeight();
-    final DeltaMapEncoder currentEncoder = this.getEncoder(width, height);
+    final DeltaMapEncoder currentEncoder = this.createEncoderIfLayoutChanged(width, height);
     final List<MapTilePatch> patches = currentEncoder.encode(dithered);
     this.sendToViewers(currentEncoder, patches);
   }
@@ -303,7 +363,7 @@ public class CompressedMapResult implements DitherResultStep {
     final Collection<UUID> viewers = this.configuration.getViewers();
     final Set<UUID> connectedViewers = new HashSet<>();
     for (final UUID viewer : viewers) {
-      final @Nullable Object connection = PacketUtils.connectionIdentity(viewer).orElse(null);
+      final @Nullable Object connection = PacketUtils.findConnectionIdentity(viewer).orElse(null);
       if (connection == null) {
         continue;
       }
@@ -314,10 +374,11 @@ public class CompressedMapResult implements DitherResultStep {
       group.add(viewer);
     }
 
-    this.activeViewers.keySet().retainAll(connectedViewers);
+    final Set<UUID> activeViewerIds = this.activeViewers.keySet();
+    activeViewerIds.retainAll(connectedViewers);
   }
 
-  private DeltaMapEncoder getEncoder(final int width, final int height) {
+  private DeltaMapEncoder createEncoderIfLayoutChanged(final int width, final int height) {
     final int startMapId = this.configuration.getMap();
     final int columns = this.configuration.getMapBlockWidth();
     final int rows = this.configuration.getMapBlockHeight();
@@ -330,7 +391,7 @@ public class CompressedMapResult implements DitherResultStep {
       }
     }
 
-    final MapLayout layout = new MapLayout(startMapId, columns, rows, width, height);
+    final MapLayout layout = MapLayout.of(startMapId, columns, rows, width, height);
     final DeltaMapEncoder createdEncoder = new DeltaMapEncoder(layout, this.maximumBytesPerFrame);
     this.encoder = createdEncoder;
     this.activeViewers.clear();
@@ -363,7 +424,7 @@ public class CompressedMapResult implements DitherResultStep {
 
   private void logUncaughtException(final Thread thread, final Throwable throwable) {
     final String threadName = thread.getName();
-    LOGGER.error(DITHERING_THREAD_FAILED, threadName, throwable);
+    LOGGER.error("Map dithering thread {} failed with an uncaught exception.", threadName, throwable);
   }
 
   private ForkJoinWorkerThread createDitherThread(final ForkJoinPool pool) {
@@ -371,7 +432,7 @@ public class CompressedMapResult implements DitherResultStep {
     final ForkJoinWorkerThread thread = defaultFactory.newThread(pool);
     final int poolIndex = thread.getPoolIndex();
     thread.setDaemon(true);
-    thread.setName("mcav-map-dither-" + poolIndex);
+    thread.setName(DITHER_THREAD_NAME_PREFIX + poolIndex);
     return thread;
   }
 
@@ -390,64 +451,6 @@ public class CompressedMapResult implements DitherResultStep {
     } finally {
       this.lock.unlock();
     }
-  }
-
-  /**
-   * Accepts frames again. The encoder itself is created lazily when the first frame arrives, because the frame size
-   * is unknown until then; this only undoes a previous {@link #release()}, so the same result can show a second
-   * video, the way every other result of this module can.
-   *
-   * @since 1.0.0
-   */
-  @Override
-  public void start() {
-    this.lock.lock();
-    try {
-      this.released = false;
-    } finally {
-      this.lock.unlock();
-    }
-  }
-
-  /**
-   * Stops processing frames, shuts down the dithering threads, and clears the maps of every viewer. Frames that
-   * arrive after this method was called are ignored.
-   *
-   * @since 1.0.0
-   */
-  @Override
-  public void release() {
-    this.lock.lock();
-    try {
-      if (this.released) {
-        return;
-      }
-
-      this.released = true;
-      this.encoder = null;
-      this.activeViewers.clear();
-      this.sentPixels.clear();
-
-      final ForkJoinPool pool = this.ditherPool;
-      if (pool != null) {
-        pool.shutdownNow();
-        this.ditherPool = null;
-      }
-
-      // Clearing is part of the same transition: a restarted frame must be sent after this clear.
-      this.clearMaps();
-    } finally {
-      this.lock.unlock();
-    }
-  }
-
-  private void clearMaps() {
-    final Collection<UUID> viewers = this.configuration.getViewers();
-    final int startMapId = this.configuration.getMap();
-    final int columns = this.configuration.getMapBlockWidth();
-    final int rows = this.configuration.getMapBlockHeight();
-    final int mapCount = columns * rows;
-    MapPacketFactory.clear(viewers, startMapId, mapCount);
   }
 
   private enum Coverage {

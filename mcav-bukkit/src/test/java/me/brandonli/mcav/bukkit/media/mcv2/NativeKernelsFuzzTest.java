@@ -51,6 +51,6 @@ final class NativeKernelsFuzzTest {
       }
     };
     final @Nullable String difference = KernelDifferential.compare(values, Mcv2Internals.javaKernels(), NativeTesting.kernels(level));
-    assertNull(difference, level.symbol());
+    assertNull(difference, level.getSymbol());
   }
 }

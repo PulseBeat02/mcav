@@ -24,7 +24,6 @@ import io.papermc.paper.scoreboard.numbers.NumberFormat;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -70,6 +69,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 public final class ScoreboardRenderer extends MainThreadRenderer<Component[]> {
 
   private static final AtomicInteger INSTANCE_COUNTER = new AtomicInteger();
+
   private static final LegacyComponentSerializer LEGACY_SERIALIZER = LegacyComponentSerializer.legacySection();
 
   private final ScoreboardConfiguration configuration;
@@ -80,7 +80,7 @@ public final class ScoreboardRenderer extends MainThreadRenderer<Component[]> {
   private @Nullable Scoreboard scoreboard;
 
   /**
-   * Constructs a new scoreboard renderer. Nothing is shown until {@link #show()} is called.
+   * Creates a new scoreboard renderer. Nothing is shown until {@link #show()} is called.
    *
    * @param configuration the configuration describing the viewers and the size of the scoreboard image
    * @throws NullPointerException if the configuration is null
@@ -157,7 +157,7 @@ public final class ScoreboardRenderer extends MainThreadRenderer<Component[]> {
   }
 
   private Objective registerObjective(final Scoreboard board) {
-    final String objectiveName = String.format(Locale.getDefault(Locale.Category.FORMAT), "mcav_%d", this.id);
+    final String objectiveName = "mcav_%s".formatted(this.id);
     final Component title = Component.empty();
     final Objective objective = board.registerNewObjective(objectiveName, Criteria.DUMMY, title);
 
@@ -171,7 +171,7 @@ public final class ScoreboardRenderer extends MainThreadRenderer<Component[]> {
   private void registerTeams(final Scoreboard board, final Objective objective) {
     final int lines = this.teams.length;
     for (int row = 0; row < lines; row++) {
-      final String teamName = String.format(Locale.getDefault(Locale.Category.FORMAT), "mcav_%d_%d", this.id, row);
+      final String teamName = "mcav_%s_%s".formatted(this.id, row);
       final Team team = board.registerNewTeam(teamName);
       final String entry = ChatUtils.getUniqueString(row);
       team.addEntry(entry);
@@ -183,7 +183,8 @@ public final class ScoreboardRenderer extends MainThreadRenderer<Component[]> {
   }
 
   private void showToViewers(final Scoreboard board) {
-    final Set<UUID> viewers = new HashSet<>(this.configuration.getViewers());
+    final Collection<UUID> configured = this.configuration.getViewers();
+    final Set<UUID> viewers = new HashSet<>(configured);
     for (final UUID viewer : viewers) {
       final Player player = Bukkit.getPlayer(viewer);
       if (player == null) {
@@ -228,6 +229,10 @@ public final class ScoreboardRenderer extends MainThreadRenderer<Component[]> {
       }
     }
 
+    this.restoreRemovedViewers(board, watching);
+  }
+
+  private void restoreRemovedViewers(final Scoreboard board, final Set<UUID> watching) {
     final Set<UUID> remembered = this.previousScoreboards.keySet();
     final Set<UUID> removed = new HashSet<>(remembered);
     removed.removeAll(watching);
@@ -279,7 +284,7 @@ public final class ScoreboardRenderer extends MainThreadRenderer<Component[]> {
   private void restoreViewers(final Scoreboard board) {
     final ScoreboardManager manager = Bukkit.getScoreboardManager();
     final Scoreboard mainScoreboard = manager.getMainScoreboard();
-    // Include owners removed after the last tick, before hide had a chance to restore them.
+    // Include viewers removed after the last tick, before hide had a chance to restore them.
     final Collection<UUID> configured = this.configuration.getViewers();
     final Set<UUID> viewers = new HashSet<>(configured);
     final Set<UUID> remembered = this.previousScoreboards.keySet();

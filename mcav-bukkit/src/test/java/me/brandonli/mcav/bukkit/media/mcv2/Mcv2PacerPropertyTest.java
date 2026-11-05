@@ -176,7 +176,9 @@ final class Mcv2PacerPropertyTest {
     private void finishEncodingsBy(final long arrival, final double fullMilliseconds) {
       while (this.encoding && this.busyUntil <= arrival) {
         this.encoding = false;
-        final Mcv2Pacer.@Nullable Change change = this.pacer.encoded(this.cost, Mcv2FrameKind.PREDICTED, this.busyUntil).orElse(null);
+        final Mcv2Pacer.@Nullable Change change = this.pacer
+          .reportEncodedFrame(this.cost, Mcv2FrameKind.PREDICTED, this.busyUntil)
+          .orElse(null);
         if (change != null) {
           this.record(change, this.busyUntil);
           this.waiting = false;

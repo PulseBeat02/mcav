@@ -17,6 +17,8 @@
  */
 package me.brandonli.mcav.bukkit.resourcepack.provider;
 
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.gson.Gson;
@@ -38,7 +40,6 @@ import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -67,26 +68,33 @@ import org.slf4j.LoggerFactory;
  *
  * @since 1.0.0
  */
-public class McPackHosting implements WebsiteHosting {
+public final class McPackHosting implements WebsiteHosting {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(McPackHosting.class);
-  private static final String UPLOAD_CACHE_NOT_WRITTEN = "Could not write the upload cache {}, the pack will be uploaded again next time.";
+
   private static final URI UPLOAD_URI = URI.create("https://mc-packs.net");
   private static final String DOWNLOAD_URL_FORMAT = "https://download.mc-packs.net/pack/%s.zip";
+
   private static final String HASH_ALGORITHM = "SHA-1";
+
   private static final String CACHE_FILE = "mc-packs-cache.json";
   private static final Type CACHE_TYPE = createCacheType();
-  private static final Duration TIMEOUT = Duration.ofMinutes(5);
-  private static final int HTTP_OK = 200;
   private static final Lock CACHE_LOCK = new ReentrantLock();
+
+  private static final Duration TIMEOUT = Duration.ofMinutes(5);
+
+  private static final int HTTP_OK = 200;
 
   private static final String USER_AGENT = "mcav";
 
+  private static final String CONTENT_TYPE_HEADER = "Content-Type";
+  private static final String ACCEPT_HEADER = "Accept";
+  private static final String USER_AGENT_HEADER = "User-Agent";
+
+  private static final String MULTIPART_CONTENT_TYPE_PREFIX = "multipart/form-data; boundary=";
+  private static final String ANY_MEDIA_TYPE = "*/*";
+
   private static final String BOUNDARY_PREFIX = "----mcav-";
-
-  private static final String BOUNDARY_DELIMITER = "--";
-
-  private static final String LINE_TERMINATOR = "\r\n";
 
   private static final Pattern UNSAFE_FILE_NAME_CHARACTERS = Pattern.compile("[\\p{Cntrl}\"\\\\]");
 
@@ -97,7 +105,8 @@ public class McPackHosting implements WebsiteHosting {
   private volatile @Nullable String url;
 
   /**
-   * Constructs a new {@code McPackHosting}. Nothing is uploaded until {@link #start()} is called.
+   * Creates a hosting that uploads the pack at {@code zip} to mc-packs.net. Nothing is uploaded until
+   * {@link #start()} is called.
    *
    * @param zip the path to the resource pack zip to upload
    * @throws NullPointerException if the zip path is null
@@ -118,31 +127,9 @@ public class McPackHosting implements WebsiteHosting {
     this.downloadUrlFormat = downloadUrlFormat;
   }
 
-  private static Type createCacheType() {
-    final TypeToken<Map<String, String>> cacheToken = new TypeToken<>() {};
-    return cacheToken.getType();
-  }
-
-  /**
-   * Returns the download URL of the uploaded pack.
-   *
-   * @return the URL of the resource pack
-   * @throws IllegalStateException if the pack has not been uploaded yet
-   * @since 1.0.0
-   */
-  @Override
-  public String getRawUrl() {
-    final String currentUrl = this.url;
-    if (currentUrl == null) {
-      throw new IllegalStateException("The resource pack has not been uploaded yet, call start() first!");
-    }
-
-    return currentUrl;
-  }
-
   /**
    * Uploads the resource pack unless an identical pack was uploaded before and is still available. Calling this
-   * method again after a successful upload has no effect. If the upload cache cannot be written, a warning is
+   * method again after a successful upload has no effect. If the upload cache cannot be read or written, a warning is
    * logged and the uploaded pack is used anyway.
    *
    * @throws McPacksException if the pack cannot be read or the upload fails
@@ -165,6 +152,21 @@ public class McPackHosting implements WebsiteHosting {
     }
   }
 
+  /**
+   * Does nothing, because the pack stays available on mc-packs.net after it was uploaded.
+   *
+   * @since 1.0.0
+   */
+  @Override
+  public void shutdown() {
+    // the upload cannot be undone and stays available for other servers
+  }
+
+  private static Type createCacheType() {
+    final TypeToken<Map<String, String>> cacheToken = new TypeToken<>() {};
+    return cacheToken.getType();
+  }
+
   @VisibleForTesting
   static String hash(final byte[] bytes, final String algorithm) {
     try {
@@ -172,8 +174,7 @@ public class McPackHosting implements WebsiteHosting {
       final byte[] hash = digest.digest(bytes);
       return IoUtils.bytesToHexadecimal(hash);
     } catch (final NoSuchAlgorithmException exception) {
-      final String message = "Hash algorithm %s is not available!".formatted(algorithm);
-      throw new IllegalStateException(message, exception);
+      throw new AssertionError(exception);
     }
   }
 
@@ -188,9 +189,11 @@ public class McPackHosting implements WebsiteHosting {
     }
 
     this.upload(pack);
+
     final String uploadedUrl = this.downloadUrlFormat.formatted(hash);
     cache.put(hash, uploadedUrl);
     this.writeCache(cache);
+
     return uploadedUrl;
   }
 
@@ -203,16 +206,6 @@ public class McPackHosting implements WebsiteHosting {
     }
 
     return NetworkUtils.isReachable(uri);
-  }
-
-  /**
-   * Does nothing, because the pack stays available on mc-packs.net after it was uploaded.
-   *
-   * @since 1.0.0
-   */
-  @Override
-  public void shutdown() {
-    // the upload cannot be undone and stays available for other servers
   }
 
   private void upload(final byte[] pack) {
@@ -232,9 +225,10 @@ public class McPackHosting implements WebsiteHosting {
     final HttpRequest.BodyPublisher publisher = HttpRequest.BodyPublishers.ofByteArray(body);
     final HttpRequest.Builder requestBuilder = HttpRequest.newBuilder(this.uploadUri);
     requestBuilder.timeout(TIMEOUT);
-    requestBuilder.header("Content-Type", "multipart/form-data; boundary=" + boundary);
-    requestBuilder.header("Accept", "*/*");
-    requestBuilder.header("User-Agent", USER_AGENT);
+    final String contentType = MULTIPART_CONTENT_TYPE_PREFIX + boundary;
+    requestBuilder.header(CONTENT_TYPE_HEADER, contentType);
+    requestBuilder.header(ACCEPT_HEADER, ANY_MEDIA_TYPE);
+    requestBuilder.header(USER_AGENT_HEADER, USER_AGENT);
     requestBuilder.POST(publisher);
     return requestBuilder.build();
   }
@@ -243,6 +237,7 @@ public class McPackHosting implements WebsiteHosting {
     final HttpResponse.BodyHandler<String> bodyHandler = HttpResponse.BodyHandlers.ofString();
     try {
       final HttpResponse<String> response = client.send(request, bodyHandler);
+
       final int status = response.statusCode();
       if (status != HTTP_OK) {
         final String message = "mc-packs.net answered status %s and rejected the upload!".formatted(status);
@@ -252,15 +247,17 @@ public class McPackHosting implements WebsiteHosting {
       final String message = "The resource pack upload to mc-packs.net failed!";
       throw new McPacksException(message, exception);
     } catch (final InterruptedException exception) {
-      final Thread currentThread = Thread.currentThread();
-      currentThread.interrupt();
-      throw new McPacksException("Interrupted while uploading the resource pack!", exception);
+      final Thread current = Thread.currentThread();
+      current.interrupt();
+
+      final String message = "Interrupted while uploading the resource pack!";
+      throw new McPacksException(message, exception);
     }
   }
 
   private byte[] createMultipartBody(final String boundary, final byte[] pack) {
     final String headText = this.createMultipartHead(boundary);
-    final String tailText = LINE_TERMINATOR + BOUNDARY_DELIMITER + boundary + BOUNDARY_DELIMITER + LINE_TERMINATOR;
+    final String tailText = "\r\n--%s--\r\n".formatted(boundary);
     final byte[] headBytes = headText.getBytes(StandardCharsets.UTF_8);
     final byte[] tailBytes = tailText.getBytes(StandardCharsets.UTF_8);
     return this.concatenate(headBytes, pack, tailBytes);
@@ -278,17 +275,12 @@ public class McPackHosting implements WebsiteHosting {
   @VisibleForTesting
   String createMultipartHead(final String boundary) {
     final Path zipFileName = this.zip.getFileName();
-    final Path fileNamePath = Objects.requireNonNull(zipFileName, "The resource pack has no file name!");
+    final Path fileNamePath = requireNonNull(zipFileName, "The resource pack has no file name!");
     final String fileName = fileNamePath.toString();
     final String safeFileName = UNSAFE_FILE_NAME_CHARACTERS.matcher(fileName).replaceAll("");
-    return (
-      BOUNDARY_DELIMITER +
-      boundary +
-      LINE_TERMINATOR +
-      "Content-Disposition: form-data; name=\"file\"; filename=\"" +
-      safeFileName +
-      "\"\r\n" +
-      "Content-Type: application/zip\r\n\r\n"
+    return "--%s\r\nContent-Disposition: form-data; name=\"file\"; filename=\"%s\"\r\nContent-Type: application/zip\r\n\r\n".formatted(
+      boundary,
+      safeFileName
     );
   }
 
@@ -315,8 +307,8 @@ public class McPackHosting implements WebsiteHosting {
 
   private Map<String, String> readCache() {
     final Path cacheFile = this.getCacheFile();
-    final boolean exists = Files.isRegularFile(cacheFile);
-    if (!exists) {
+    final boolean regularFile = Files.isRegularFile(cacheFile);
+    if (!regularFile) {
       return new HashMap<>();
     }
 
@@ -325,6 +317,7 @@ public class McPackHosting implements WebsiteHosting {
       final Map<String, String> cache = gson.fromJson(reader, CACHE_TYPE);
       return this.copyCache(cache);
     } catch (final IOException | JsonSyntaxException exception) {
+      LOGGER.warn("Could not read the upload cache {}, the pack will be uploaded again.", cacheFile, exception);
       return new HashMap<>();
     }
   }
@@ -343,8 +336,26 @@ public class McPackHosting implements WebsiteHosting {
     try (final Writer writer = Files.newBufferedWriter(cacheFile)) {
       gson.toJson(cache, CACHE_TYPE, writer);
     } catch (final IOException exception) {
-      LOGGER.warn(UPLOAD_CACHE_NOT_WRITTEN, cacheFile, exception);
+      LOGGER.warn("Could not write the upload cache {}, the pack will be uploaded again next time.", cacheFile, exception);
     }
+  }
+
+  /**
+   * Returns the download URL of the uploaded pack.
+   *
+   * @return the URL of the resource pack
+   * @throws IllegalStateException if the pack has not been uploaded yet
+   * @since 1.0.0
+   */
+  @Override
+  public String getRawUrl() {
+    final String currentUrl = this.url;
+    if (currentUrl == null) {
+      final String message = "The resource pack has not been uploaded yet, call start() first!";
+      throw new IllegalStateException(message);
+    }
+
+    return currentUrl;
   }
 
   /**

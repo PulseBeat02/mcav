@@ -43,7 +43,7 @@ import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.Dit
  *
  * @since 1.0.0
  */
-public class MapImage implements DisplayableImage {
+public final class MapImage implements DisplayableImage {
 
   private final MapConfiguration configuration;
   private final DitherAlgorithm algorithm;
@@ -73,7 +73,7 @@ public class MapImage implements DisplayableImage {
     final int rows = this.configuration.getMapBlockHeight();
     final int width = image.getWidth();
     final int height = image.getHeight();
-    final MapLayout layout = new MapLayout(startMapId, columns, rows, width, height);
+    final MapLayout layout = MapLayout.of(startMapId, columns, rows, width, height);
     final List<MapTilePatch> patches = layout.extractAll(dithered);
 
     final Collection<UUID> viewers = this.configuration.getViewers();

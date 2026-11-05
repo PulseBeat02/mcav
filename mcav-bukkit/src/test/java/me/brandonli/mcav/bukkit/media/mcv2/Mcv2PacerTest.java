@@ -35,6 +35,14 @@ import org.junit.jupiter.api.Test;
 
 final class Mcv2PacerTest {
 
+  private static final int VIDEO_FRAMES_PER_SECOND = 50;
+
+  private static final int ENCODING_MILLISECONDS = 25;
+  private static final int SLOW_ENCODING_MILLISECONDS = 38;
+  private static final int OVERLOADED_ENCODING_MILLISECONDS = 61;
+
+  private static final String PRESET_NAME = "FAST";
+
   private static final long SECOND = 1_000_000_000L;
 
   private static final int FULL_WIDTH = 1920;
@@ -89,7 +97,7 @@ final class Mcv2PacerTest {
     final Mcv2Pacer.Rung rung = pacer.getRung();
     assertEquals(expectedRung, rung);
 
-    final boolean frameRateUnknown = Double.isNaN(pacer.getVideoFramesPerSecond());
+    final boolean frameRateUnknown = pacer.getVideoFramesPerSecond().isEmpty();
     assertTrue(frameRateUnknown);
     assertThrows(IllegalArgumentException.class, () -> new Mcv2Pacer(List.of()));
     assertThrows(IllegalArgumentException.class, () -> new Mcv2Pacer(List.of(new int[] { 1 })));
@@ -195,15 +203,16 @@ final class Mcv2PacerTest {
   void shouldEncodeEveryFrameAtTheTopAndMeasureTheVideo() {
     final Mcv2Pacer pacer = new Mcv2Pacer(List.of(FULL));
     // nothing is judged before the video's frame rate is known
-    final Optional<Mcv2Pacer.Change> unknownRateChange = pacer.encoded(500, Mcv2FrameKind.PREDICTED, 0);
-    assertTrue(unknownRateChange.isEmpty());
+    final Optional<Mcv2Pacer.Change> unknownRateChange = pacer.reportEncodedFrame(500, Mcv2FrameKind.PREDICTED, 0);
+    final boolean changeAbsentBeforeRateKnown = unknownRateChange.isEmpty();
+    assertTrue(changeAbsentBeforeRateKnown);
 
     final Driver driver = new Driver(pacer, 60, -5 * SECOND);
     final Mcv2Pacer.@Nullable Change change = driver.play(3, 5);
     assertNull(change);
 
-    final double videoFrameRate = pacer.getVideoFramesPerSecond();
-    assertEquals(60, videoFrameRate, 0.1);
+    final double videoFramesPerSecond = pacer.getVideoFramesPerSecond().orElseThrow();
+    assertEquals(60, videoFramesPerSecond, 0.1);
 
     final Mcv2Pacer.Rung expectedRung = pacer.getLadder().getFirst();
     final Mcv2Pacer.Rung rung = pacer.getRung();
@@ -211,14 +220,16 @@ final class Mcv2PacerTest {
 
     // two frames at the same time do not change the measured rate
     pacer.arrive(driver.now);
-    final double frameRateAfterSameTime = pacer.getVideoFramesPerSecond();
+    final double frameRateAfterSameTime = pacer.getVideoFramesPerSecond().orElseThrow();
     assertEquals(60, frameRateAfterSameTime, 0.1);
 
-    final Optional<Mcv2Pacer.Change> instantChange = pacer.encoded(0, Mcv2FrameKind.PREDICTED, 0);
-    assertTrue(instantChange.isEmpty());
-    assertThrows(IllegalArgumentException.class, () -> pacer.encoded(-1, Mcv2FrameKind.PREDICTED, 0));
-    assertThrows(IllegalArgumentException.class, () -> pacer.encoded(Double.NaN, Mcv2FrameKind.PREDICTED, 0));
-    assertThrows(IllegalArgumentException.class, () -> pacer.encoded(Double.POSITIVE_INFINITY, Mcv2FrameKind.PREDICTED, 0));
+    final Optional<Mcv2Pacer.Change> instantChange = pacer.reportEncodedFrame(0, Mcv2FrameKind.PREDICTED, 0);
+    final boolean instantChangeAbsent = instantChange.isEmpty();
+    assertTrue(instantChangeAbsent);
+
+    assertThrows(IllegalArgumentException.class, () -> pacer.reportEncodedFrame(-1, Mcv2FrameKind.PREDICTED, 0));
+    assertThrows(IllegalArgumentException.class, () -> pacer.reportEncodedFrame(Double.NaN, Mcv2FrameKind.PREDICTED, 0));
+    assertThrows(IllegalArgumentException.class, () -> pacer.reportEncodedFrame(Double.POSITIVE_INFINITY, Mcv2FrameKind.PREDICTED, 0));
   }
 
   @Test
@@ -227,8 +238,13 @@ final class Mcv2PacerTest {
     final Driver driver = new Driver(pacer, 60, 0);
     driver.play(5, 5);
     for (int frameNumber = 0; frameNumber < 200; frameNumber++) {
-      final Optional<Mcv2Pacer.Change> change = pacer.encoded(1000, Mcv2FrameKind.KEYFRAME, driver.now + (frameNumber * SECOND) / 60);
-      assertTrue(change.isEmpty());
+      final Optional<Mcv2Pacer.Change> change = pacer.reportEncodedFrame(
+        1000,
+        Mcv2FrameKind.KEYFRAME,
+        driver.now + (frameNumber * SECOND) / 60
+      );
+      final boolean changeAbsent = change.isEmpty();
+      assertTrue(changeAbsent);
     }
 
     final Mcv2Pacer.Rung expectedRung = pacer.getLadder().getFirst();
@@ -242,7 +258,7 @@ final class Mcv2PacerTest {
     final Driver driver = new Driver(pacer, 60, 0);
     driver.play(5, 5);
     // 25 ms per frame is more than the 16.7 ms a frame has at 60 fps, and fits in 30 fps' 33.3 ms
-    final Mcv2Pacer.Change change = driver.play(2, 25);
+    final Mcv2Pacer.Change change = driver.play(2, ENCODING_MILLISECONDS);
     assertNotNull(change);
 
     final boolean stepsDown = change.isDown();
@@ -258,8 +274,7 @@ final class Mcv2PacerTest {
 
     final String description = change.describe();
     assertEquals(
-      "MCV2 screen steps down to 1920x1080 at 30 fps: encoding 1920x1080 takes 25.0 ms per frame, more than the 16.7 ms" +
-        " a frame has at 60 fps with the encoder threads it has",
+      "MCV2 screen steps down to 1920x1080 at 30 fps: encoding 1920x1080 takes 25.0 ms per frame, more than the 16.7 ms a frame has at 60 fps with the encoder threads it has",
       description
     );
 
@@ -276,7 +291,7 @@ final class Mcv2PacerTest {
   @Test
   void shouldStepDownThePresetsBeforeTheFrameRate() {
     final Mcv2Pacer pacer = new Mcv2Pacer(List.of(FULL, SMALL), List.of(LIVE, FAST), Mcv2Pacer.Floor.DITHERED_MAPS);
-    final Driver driver = new Driver(pacer, 50, 0);
+    final Driver driver = new Driver(pacer, VIDEO_FRAMES_PER_SECOND, 0);
     driver.play(5, 5);
     // 22 ms per frame is more than the 20 ms a frame has at 50 fps; the faster preset's predicted 11 ms fits 17 ms
     final Mcv2Pacer.Change change = driver.play(2, 22);
@@ -292,8 +307,7 @@ final class Mcv2PacerTest {
 
     final String description = change.describe();
     assertEquals(
-      "MCV2 screen steps down to 1920x1080 at 50 fps with the live-fast search: encoding 1920x1080 with the live search" +
-        " takes 22.0 ms per frame, more than the 20.0 ms a frame has at 50 fps with the encoder threads it has",
+      "MCV2 screen steps down to 1920x1080 at 50 fps with the live-fast search: encoding 1920x1080 with the live search takes 22.0 ms per frame, more than the 20.0 ms a frame has at 50 fps with the encoder threads it has",
       description
     );
 
@@ -312,8 +326,7 @@ final class Mcv2PacerTest {
 
     final String climbDescription = climbed.describe();
     assertEquals(
-      "MCV2 screen steps back up to 1920x1080 at 50 fps with the live search: encoding 1920x1080 with the live-fast search" +
-        " takes 2.5 ms per frame, well within the 20.0 ms a frame has at 50 fps",
+      "MCV2 screen steps back up to 1920x1080 at 50 fps with the live search: encoding 1920x1080 with the live-fast search takes 2.5 ms per frame, well within the 20.0 ms a frame has at 50 fps",
       climbDescription
     );
     final Mcv2Pacer.Rung expectedTop = pacer.getLadder().getFirst();
@@ -324,10 +337,10 @@ final class Mcv2PacerTest {
   @Test
   void shouldTakeAFasterPresetThatOnlyKeepsUpBeforeALowerFrameRate() {
     final Mcv2Pacer pacer = new Mcv2Pacer(List.of(FULL, SMALL), List.of(LIVE, FAST), Mcv2Pacer.Floor.DITHERED_MAPS);
-    final Driver driver = new Driver(pacer, 50, 0);
+    final Driver driver = new Driver(pacer, VIDEO_FRAMES_PER_SECOND, 0);
     driver.play(5, 5);
     // 38 ms per frame: the faster preset's 19 ms keeps up with 20 ms without fitting 17 ms, and keeps every frame
-    final Mcv2Pacer.Change change = driver.play(2, 38);
+    final Mcv2Pacer.Change change = driver.play(2, SLOW_ENCODING_MILLISECONDS);
     assertNotNull(change);
 
     final Mcv2Pacer.Rung expectedTo = Mcv2Pacer.Rung.of(FULL_WIDTH, FULL_HEIGHT, 1, FAST);
@@ -338,7 +351,7 @@ final class Mcv2PacerTest {
   @Test
   void shouldStepDownTheFrameRateAtTheFastestPreset() {
     final Mcv2Pacer pacer = new Mcv2Pacer(List.of(FULL, SMALL), List.of(LIVE, FAST), Mcv2Pacer.Floor.DITHERED_MAPS);
-    final Driver driver = new Driver(pacer, 50, 0);
+    final Driver driver = new Driver(pacer, VIDEO_FRAMES_PER_SECOND, 0);
     driver.play(5, 5);
     // 44 ms per frame: the faster preset's 22 ms does not keep up with 20 ms at 50 fps, and fits 34 ms at 25 fps
     final Mcv2Pacer.Change change = driver.play(2, 44);
@@ -364,10 +377,10 @@ final class Mcv2PacerTest {
   @Test
   void shouldStepDownToALowerFrameRateOnlyWhereItFitsWithRoom() {
     final Mcv2Pacer pacer = new Mcv2Pacer(List.of(FULL, SMALL));
-    final Driver driver = new Driver(pacer, 50, 0);
+    final Driver driver = new Driver(pacer, VIDEO_FRAMES_PER_SECOND, 0);
     driver.play(5, 5);
     // 38 ms per frame keeps up with every other frame's 40 ms without fitting 34 ms; every third frame's 51 ms fits
-    final Mcv2Pacer.Change change = driver.play(2, 38);
+    final Mcv2Pacer.Change change = driver.play(2, SLOW_ENCODING_MILLISECONDS);
     assertNotNull(change);
 
     final Mcv2Pacer.Rung expectedTo = Mcv2Pacer.Rung.of(FULL_WIDTH, FULL_HEIGHT, 3);
@@ -442,8 +455,9 @@ final class Mcv2PacerTest {
     final boolean encoded = pacer.isEncoded();
     assertFalse(encoded);
 
-    final Optional<Mcv2Pacer.Change> reported = pacer.encoded(1, Mcv2FrameKind.PREDICTED, driver.now);
-    assertTrue(reported.isEmpty());
+    final Optional<Mcv2Pacer.Change> reported = pacer.reportEncodedFrame(1, Mcv2FrameKind.PREDICTED, driver.now);
+    final boolean reportedChangeAbsent = reported.isEmpty();
+    assertTrue(reportedChangeAbsent);
 
     // 30 seconds after it fell back, the lowest encoded rung is tried, which fails again two seconds later (ten frames
     // at 10 fps, then a second over its time)
@@ -504,8 +518,7 @@ final class Mcv2PacerTest {
 
     final String description = first.describe();
     assertEquals(
-      "MCV2 screen steps back up to 1920x1080 at 30 fps: encoding 1280x720 takes 4.0 ms per frame, well within the 66.7 ms" +
-        " a frame has at 15 fps",
+      "MCV2 screen steps back up to 1920x1080 at 30 fps: encoding 1280x720 takes 4.0 ms per frame, well within the 66.7 ms a frame has at 15 fps",
       description
     );
     final Mcv2Pacer.Rung expectedSecondTo = Mcv2Pacer.Rung.of(FULL_WIDTH, FULL_HEIGHT, 1);
@@ -522,7 +535,7 @@ final class Mcv2PacerTest {
     final Mcv2Pacer pacer = new Mcv2Pacer(List.of(FULL));
     final Driver driver = new Driver(pacer, 60, 0);
     driver.play(5, 5);
-    driver.play(2, 25);
+    driver.play(2, ENCODING_MILLISECONDS);
     final Mcv2Pacer.Rung expectedAfterStep = Mcv2Pacer.Rung.of(FULL_WIDTH, FULL_HEIGHT, 2);
     final Mcv2Pacer.Rung rungAfterStep = pacer.getRung();
     assertEquals(expectedAfterStep, rungAfterStep);
@@ -538,7 +551,7 @@ final class Mcv2PacerTest {
     assertEquals(expectedAfterWait, rungAfterWait);
 
     // leaving it again keeps it off twice as long
-    driver.play(2, 25);
+    driver.play(2, ENCODING_MILLISECONDS);
     final Mcv2Pacer.Rung expectedAfterSecondStep = Mcv2Pacer.Rung.of(FULL_WIDTH, FULL_HEIGHT, 2);
     final Mcv2Pacer.Rung rungAfterSecondStep = pacer.getRung();
     assertEquals(expectedAfterSecondStep, rungAfterSecondStep);
@@ -555,7 +568,7 @@ final class Mcv2PacerTest {
 
     // holding the top rung as long as it would next be kept off, forty seconds, makes the wait short again
     driver.play(41, 11);
-    driver.play(2, 25);
+    driver.play(2, ENCODING_MILLISECONDS);
     final Mcv2Pacer.Rung expectedAfterThirdStep = Mcv2Pacer.Rung.of(FULL_WIDTH, FULL_HEIGHT, 2);
     final Mcv2Pacer.Rung rungAfterThirdStep = pacer.getRung();
     assertEquals(expectedAfterThirdStep, rungAfterThirdStep);
@@ -604,8 +617,8 @@ final class Mcv2PacerTest {
     // the dithering slows the video down to a frame a second; the pacer keeps the video's own rate
     final Driver slow = new Driver(pacer, 1, driver.now);
     slow.play(10, 2000);
-    final double videoFrameRate = pacer.getVideoFramesPerSecond();
-    assertEquals(60, videoFrameRate, 0.5);
+    final double videoFramesPerSecond = pacer.getVideoFramesPerSecond().orElseThrow();
+    assertEquals(60, videoFramesPerSecond, 0.5);
   }
 
   @Test
@@ -637,13 +650,13 @@ final class Mcv2PacerTest {
     final Mcv2Pacer pacer = new Mcv2Pacer(List.of(FULL));
     pacer.arrive(0);
     pacer.arrive(10_000_000);
-    final double firstFrameRate = pacer.getVideoFramesPerSecond();
+    final double firstFrameRate = pacer.getVideoFramesPerSecond().orElseThrow();
     assertEquals(100, firstFrameRate, 1e-9);
 
     // a 20 ms interval moves the measure a fifth of the way from 10 ms: to 12 ms
     pacer.arrive(30_000_000);
     final double expectedFrameRate = NANOSECONDS_PER_SECOND / 12e6;
-    final double smoothedFrameRate = pacer.getVideoFramesPerSecond();
+    final double smoothedFrameRate = pacer.getVideoFramesPerSecond().orElseThrow();
     assertEquals(expectedFrameRate, smoothedFrameRate, 1e-9);
   }
 
@@ -655,7 +668,7 @@ final class Mcv2PacerTest {
     for (int frameNumber = 1; frameNumber <= 114; frameNumber++) {
       now += 52_631_579L;
       pacer.arrive(now);
-      pacer.encoded(60, Mcv2FrameKind.PREDICTED, now);
+      pacer.reportEncodedFrame(60, Mcv2FrameKind.PREDICTED, now);
     }
 
     // these intervals smooth the measured rate to exactly 19 fps, so every second frame gives exactly 9.5 fps
@@ -678,10 +691,10 @@ final class Mcv2PacerTest {
       pacer.arrive(now);
     }
 
-    final double videoFrameRate = pacer.getVideoFramesPerSecond();
-    assertEquals(19, videoFrameRate);
+    final double videoFramesPerSecond = pacer.getVideoFramesPerSecond().orElseThrow();
+    assertEquals(19, videoFramesPerSecond);
 
-    final Mcv2Pacer.Change change = pacer.encoded(60, Mcv2FrameKind.PREDICTED, now).orElseThrow();
+    final Mcv2Pacer.Change change = pacer.reportEncodedFrame(60, Mcv2FrameKind.PREDICTED, now).orElseThrow();
     final Mcv2Pacer.Rung expectedTo = Mcv2Pacer.Rung.of(FULL_WIDTH, FULL_HEIGHT, 2);
     final Mcv2Pacer.Rung to = change.getTo();
     assertEquals(expectedTo, to);
@@ -811,7 +824,7 @@ final class Mcv2PacerTest {
     final Mcv2Pacer pacer = new Mcv2Pacer(List.of(FULL));
     final Exact clock = new Exact(pacer, FRAME_62, 0);
     final Mcv2Pacer.Rung expectedTo = Mcv2Pacer.Rung.of(FULL_WIDTH, FULL_HEIGHT, 2);
-    final Mcv2Pacer.Rung to = clock.until(25, 1000).getTo();
+    final Mcv2Pacer.Rung to = clock.until(ENCODING_MILLISECONDS, 1000).getTo();
     assertEquals(expectedTo, to);
 
     final long stepped = clock.now;
@@ -863,7 +876,7 @@ final class Mcv2PacerTest {
       assertNull(change);
     }
 
-    final Mcv2Pacer.Change left = clock.until(61, 1000);
+    final Mcv2Pacer.Change left = clock.until(OVERLOADED_ENCODING_MILLISECONDS, 1000);
     final boolean stepsDown = left.isDown();
     assertTrue(stepsDown);
 
@@ -893,7 +906,7 @@ final class Mcv2PacerTest {
       assertNull(change);
     }
 
-    final boolean stepsDown = clock.until(61, 1000).isDown();
+    final boolean stepsDown = clock.until(OVERLOADED_ENCODING_MILLISECONDS, 1000).isDown();
     assertTrue(stepsDown);
 
     final long stepped = clock.now;
@@ -1025,21 +1038,21 @@ final class Mcv2PacerTest {
 
   @Test
   void shouldComparePresetsByEveryPart() {
-    final Mcv2Pacer.Preset preset = Mcv2Pacer.Preset.of("FAST", 1);
+    final Mcv2Pacer.Preset preset = Mcv2Pacer.Preset.of(PRESET_NAME, 1);
     EqualityAssertions.assertEqualityContract(
       preset,
-      Mcv2Pacer.Preset.of("FAST", 1),
+      Mcv2Pacer.Preset.of(PRESET_NAME, 1),
       Mcv2Pacer.Preset.of("SLOW", 1),
-      Mcv2Pacer.Preset.of("FAST", 2)
+      Mcv2Pacer.Preset.of(PRESET_NAME, 2)
     );
   }
 
   @Test
   void shouldHashPresetsByEveryPart() {
-    final Mcv2Pacer.Preset preset = Mcv2Pacer.Preset.of("FAST", 1);
+    final Mcv2Pacer.Preset preset = Mcv2Pacer.Preset.of(PRESET_NAME, 1);
 
     final int hash = preset.hashCode();
-    final int expected = Objects.hash("FAST", 1.0);
+    final int expected = Objects.hash(PRESET_NAME, 1.0);
     assertEquals(expected, hash);
   }
 
@@ -1051,15 +1064,15 @@ final class Mcv2PacerTest {
 
   @Test
   void shouldReturnThePresetName() {
-    final Mcv2Pacer.Preset preset = Mcv2Pacer.Preset.of("FAST", 1);
+    final Mcv2Pacer.Preset preset = Mcv2Pacer.Preset.of(PRESET_NAME, 1);
 
     final String name = preset.getName();
-    assertEquals("FAST", name);
+    assertEquals(PRESET_NAME, name);
   }
 
   @Test
   void shouldCompareRungsByEveryPart() {
-    final Mcv2Pacer.Preset fast = Mcv2Pacer.Preset.of("FAST", 1);
+    final Mcv2Pacer.Preset fast = Mcv2Pacer.Preset.of(PRESET_NAME, 1);
     final Mcv2Pacer.Rung rung = Mcv2Pacer.Rung.of(16, 9, 1, fast);
     EqualityAssertions.assertEqualityContract(
       rung,
@@ -1119,7 +1132,7 @@ final class Mcv2PacerTest {
     final String description = change.toString();
     final String rung = Mcv2Pacer.Rung.DITHERED.toString();
     final String expected =
-      "Change{from=%s, to=%s, down=false, encodeMilliseconds=1.0, frameMilliseconds=2.0, videoFrameRate=3.0}".formatted(rung, rung);
+      "Change{from=%s, to=%s, down=false, encodeMilliseconds=1.0, frameMilliseconds=2.0, videoFramesPerSecond=3.0}".formatted(rung, rung);
     assertEquals(expected, description);
   }
 
@@ -1133,8 +1146,8 @@ final class Mcv2PacerTest {
     final double frameMilliseconds = change.getFrameMilliseconds();
     assertEquals(2.0, frameMilliseconds);
 
-    final double videoFrameRate = change.getVideoFrameRate();
-    assertEquals(3.0, videoFrameRate);
+    final double videoFramesPerSecond = change.getVideoFramesPerSecond();
+    assertEquals(3.0, videoFramesPerSecond);
   }
 
   private static final class Driver {
@@ -1181,7 +1194,7 @@ final class Mcv2PacerTest {
       final Mcv2Pacer.Rung rung = this.pacer.getRung();
       final double milliseconds =
         (fullMilliseconds * rung.getWidth() * rung.getHeight() * rung.getPreset().getCost()) / (FULL[0] * FULL[1]);
-      return this.pacer.encoded(milliseconds, Mcv2FrameKind.PREDICTED, this.now).orElse(null);
+      return this.pacer.reportEncodedFrame(milliseconds, Mcv2FrameKind.PREDICTED, this.now).orElse(null);
     }
   }
 
@@ -1206,7 +1219,7 @@ final class Mcv2PacerTest {
         return tried;
       }
 
-      return this.pacer.isEncoded() ? this.pacer.encoded(milliseconds, Mcv2FrameKind.PREDICTED, this.now).orElse(null) : null;
+      return this.pacer.isEncoded() ? this.pacer.reportEncodedFrame(milliseconds, Mcv2FrameKind.PREDICTED, this.now).orElse(null) : null;
     }
 
     Mcv2Pacer.Change until(final double milliseconds, final int limit) {

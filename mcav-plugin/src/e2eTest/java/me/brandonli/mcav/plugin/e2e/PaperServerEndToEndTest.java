@@ -403,7 +403,7 @@ final class PaperServerEndToEndTest {
     this.runCommand(server, RELEASE_BROWSER_COMMAND, BROWSER_RELEASED, COMMAND_TIMEOUT);
 
     final List<String> lines = server.getLines();
-    PaperServerAssertions.assertLogged(lines, "MCV2 kernels: ");
+    PaperServerAssertions.assertLogged(lines, "MCV2 uses the ");
   }
 
   private UUID derivePackId(final byte[] zip) throws NoSuchAlgorithmException {

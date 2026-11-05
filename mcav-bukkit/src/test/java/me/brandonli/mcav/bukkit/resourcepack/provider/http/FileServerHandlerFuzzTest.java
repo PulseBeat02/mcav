@@ -52,6 +52,8 @@ import org.junit.jupiter.api.Tag;
 @Tag("fuzz")
 final class FileServerHandlerFuzzTest {
 
+  private static final int UNSIGNED_BYTE_MASK = 0xFF;
+
   private static final int MAXIMUM_HEADER_BYTES = 8192;
   private static final int MAXIMUM_SPLITS = 8;
   private static final int MAXIMUM_FILLER = 12_000;
@@ -82,7 +84,7 @@ final class FileServerHandlerFuzzTest {
       return;
     }
 
-    final int options = input[0] & 0xFF;
+    final int options = input[0] & UNSIGNED_BYTE_MASK;
     final OpenMode mode = OpenMode.values()[(options & 0b11) % OpenMode.values().length];
     final ReadTimeout readTimeout = (options & 0b100) != 0 ? ReadTimeout.INSTALLED : ReadTimeout.ABSENT;
     final byte[] content = (options & 0b1000) != 0 ? new byte[0] : PACK;
@@ -127,7 +129,7 @@ final class FileServerHandlerFuzzTest {
     final Outcome outcome = new Outcome(answered, openAfterReads, timeoutLeft);
 
     try {
-      this.assertBehaviour(request.stream, mode, content, readTimeout, outcome);
+      this.assertBehavior(request.stream, mode, content, readTimeout, outcome);
     } finally {
       for (final Object message : answered) {
         this.releaseAnswer(message);
@@ -178,7 +180,7 @@ final class FileServerHandlerFuzzTest {
     return fileChannel;
   }
 
-  private void assertBehaviour(
+  private void assertBehavior(
     final byte[] stream,
     final OpenMode mode,
     final byte[] content,
@@ -235,19 +237,21 @@ final class FileServerHandlerFuzzTest {
 
     final String headers = text(answered.getFirst());
     final boolean served = headers.startsWith("HTTP/1.1 200 OK\r\n");
-    assertTrue(served, () -> "the file is served: " + headers);
+    assertTrue(served, () -> "the file is served: %s".formatted(headers));
 
-    final boolean statesTheLength = headers.contains("\r\nContent-Length: " + content.length + "\r\n");
-    assertTrue(statesTheLength, () -> "the length is the file's: " + headers);
+    final boolean statesTheLength = headers.contains("\r\nContent-Length: %s\r\n".formatted(content.length));
+    assertTrue(statesTheLength, () -> "the length is the file's: %s".formatted(headers));
 
     final boolean headersEnd = headers.endsWith("\r\n\r\n");
-    assertTrue(headersEnd, () -> "the headers end: " + headers);
+    assertTrue(headersEnd, () -> "the headers end: %s".formatted(headers));
 
     if (isGet) {
       final Object bodyMessage = answered.get(1);
       final FileRegion region = assertInstanceOf(FileRegion.class, bodyMessage);
+
+      final int expectedLength = content.length;
       final long regionCount = region.count();
-      assertEquals(content.length, regionCount, "the body is the whole file");
+      assertEquals(expectedLength, regionCount, "the body is the whole file");
 
       final byte[] body = this.transfer(region);
       assertArrayEquals(content, body, "the body is the file");
@@ -295,7 +299,7 @@ final class FileServerHandlerFuzzTest {
   }
 
   private String status(final String status) {
-    return "HTTP/1.1 " + status + "\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
+    return "HTTP/1.1 %s\r\nContent-Length: 0\r\nConnection: close\r\n\r\n".formatted(status);
   }
 
   private int indexOf(final byte[] stream, final byte[] part) {
@@ -341,7 +345,7 @@ final class FileServerHandlerFuzzTest {
     }
 
     private static Request of(final byte[] input, final FillerPlace fillerPlace) {
-      final int splits = (input[1] & 0xFF) % (MAXIMUM_SPLITS + 1);
+      final int splits = (input[1] & UNSIGNED_BYTE_MASK) % (MAXIMUM_SPLITS + 1);
       final int header = 2 + 2 * splits + 3;
       final int fillerLength = ((byteAt(input, header - 3) << 8) | byteAt(input, header - 2)) % (MAXIMUM_FILLER + 1);
       final byte[] filler = new byte[fillerLength];
@@ -371,7 +375,7 @@ final class FileServerHandlerFuzzTest {
     }
 
     private static int byteAt(final byte[] input, final int index) {
-      return index >= 2 && index < input.length ? input[index] & 0xFF : 0;
+      return index >= 2 && index < input.length ? input[index] & UNSIGNED_BYTE_MASK : 0;
     }
   }
 

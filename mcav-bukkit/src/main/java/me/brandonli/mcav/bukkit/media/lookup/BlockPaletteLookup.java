@@ -22,12 +22,12 @@ import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import java.io.IOException;
 import java.io.Reader;
-import java.io.UncheckedIOException;
 import java.lang.reflect.Type;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
+import me.brandonli.mcav.bukkit.BukkitException;
 import me.brandonli.mcav.json.GsonProvider;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.error.FilterLiteDither;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.palette.DitherPalette;
@@ -53,12 +53,12 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 public final class BlockPaletteLookup {
 
   private static final String PALETTE_RESOURCE = "mcav/bukkit/blocks.json";
-  private static final int RGB_MASK = 0xFFFFFF;
-  private static final int RGB_COMPONENTS = 3;
 
+  private static final int RGB_COMPONENTS = 3;
   private static final int GREEN_INDEX = 1;
   private static final int BLUE_INDEX = 2;
 
+  private static final int RGB_MASK = 0xFFFFFF;
   private static final int RED_SHIFT = 16;
   private static final int GREEN_SHIFT = 8;
 
@@ -135,14 +135,13 @@ public final class BlockPaletteLookup {
       final Map<String, int @Nullable []> palette = gson.fromJson(reader, type);
       if (palette == null || palette.isEmpty()) {
         final String message = "Block palette resource is empty!";
-        final IOException emptyPalette = new IOException(message);
-        throw new UncheckedIOException(message, emptyPalette);
+        throw new BukkitException(message);
       }
 
       return palette;
     } catch (final IOException exception) {
-      final String message = exception.getMessage();
-      throw new UncheckedIOException(message, exception);
+      final String message = "Block palette resource %s could not be read!".formatted(PALETTE_RESOURCE);
+      throw new BukkitException(message, exception);
     }
   }
 
@@ -208,13 +207,7 @@ public final class BlockPaletteLookup {
 
     private static FilterLiteDither createDithering(final Map<Integer, Material> materials) {
       final Set<Integer> colorSet = materials.keySet();
-      final int colorCount = colorSet.size();
-      final int[] colors = new int[colorCount];
-      int index = 0;
-      for (final Integer color : colorSet) {
-        colors[index] = color;
-        index++;
-      }
+      final int[] colors = colorSet.stream().mapToInt(Integer::intValue).toArray();
 
       final DitherPalette ditherPalette = DitherPalette.colors(colors);
       return new FilterLiteDither(ditherPalette);

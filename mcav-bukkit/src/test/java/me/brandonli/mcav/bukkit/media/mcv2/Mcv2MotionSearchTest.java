@@ -24,6 +24,10 @@ import org.junit.jupiter.api.Test;
 
 final class Mcv2MotionSearchTest {
 
+  private static final int VECTOR_COMPONENT_MASK = 0xFFFF;
+
+  private static final int SAMPLED_PICTURE_SIZE = 64;
+
   private static final int WIDTH = 96;
 
   private static final int HEIGHT = 96;
@@ -36,10 +40,13 @@ final class Mcv2MotionSearchTest {
     final int[][] vectors = { { 0, 0 }, { 5, -3 }, { -7, 12 }, { -32768, 32767 }, { 32767, -32768 } };
     for (final int[] vector : vectors) {
       final int packed = pack(vector[0], vector[1]);
+      final int expectedMotionX = vector[0];
       final int motionX = motionX(packed);
-      assertEquals(vector[0], motionX);
+      assertEquals(expectedMotionX, motionX);
+
+      final int expectedMotionY = vector[1];
       final int motionY = motionY(packed);
-      assertEquals(vector[1], motionY);
+      assertEquals(expectedMotionY, motionY);
     }
   }
 
@@ -75,15 +82,15 @@ final class Mcv2MotionSearchTest {
   }
 
   private static int pack(final int motionX, final int motionY) {
-    return (int) Mcv2Internals.invoke(Mcv2.class, null, "packMotion", new Class<?>[] { int.class, int.class }, motionX, motionY);
+    return (int) Mcv2Internals.callForResult(Mcv2.class, null, "packMotion", new Class<?>[] { int.class, int.class }, motionX, motionY);
   }
 
   private static int motionX(final int vector) {
-    return (int) Mcv2Internals.invoke(Mcv2.class, null, "motionX", new Class<?>[] { int.class }, vector);
+    return (int) Mcv2Internals.callForResult(Mcv2.class, null, "motionX", new Class<?>[] { int.class }, vector);
   }
 
   private static int motionY(final int vector) {
-    return (int) Mcv2Internals.invoke(Mcv2.class, null, "motionY", new Class<?>[] { int.class }, vector);
+    return (int) Mcv2Internals.callForResult(Mcv2.class, null, "motionY", new Class<?>[] { int.class }, vector);
   }
 
   private static int search(final int[] source, final int range) {
@@ -93,7 +100,7 @@ final class Mcv2MotionSearchTest {
   @Test
   void shouldFindAWholePixelDisplacement() {
     final int[] source = this.block(picture(), 32, 32, 16, 5, -3);
-    final int expected = (5 << 16) | (-3 & 0xFFFF);
+    final int expected = (5 << 16) | (-3 & VECTOR_COMPONENT_MASK);
     final int found = search(source, 8);
     assertEquals(expected, found);
   }
@@ -103,7 +110,7 @@ final class Mcv2MotionSearchTest {
   }
 
   private int vector(final int vectorX, final int vectorY) {
-    return (vectorX << 16) | (vectorY & 0xFFFF);
+    return (vectorX << 16) | (vectorY & VECTOR_COMPONENT_MASK);
   }
 
   @Test
@@ -131,7 +138,7 @@ final class Mcv2MotionSearchTest {
   }
 
   private byte[] sampledCosts(final int[][] costs) {
-    final byte[] reference = new byte[64 * 64 * 3];
+    final byte[] reference = new byte[SAMPLED_PICTURE_SIZE * SAMPLED_PICTURE_SIZE * 3];
     Arrays.fill(reference, (byte) 120);
     for (final int sampleRow : new int[] { 4, 12, 20, 28 }) {
       for (final int sampleColumn : new int[] { 4, 12, 20, 28 }) {
@@ -144,7 +151,7 @@ final class Mcv2MotionSearchTest {
 
   private void paintCosts(final byte[] reference, final int sampleRow, final int sampleColumn, final int[][] costs) {
     for (final int[] cost : costs) {
-      final int pixel = (16 + sampleRow + cost[1]) * 64 + 16 + sampleColumn + cost[0];
+      final int pixel = (16 + sampleRow + cost[1]) * SAMPLED_PICTURE_SIZE + 16 + sampleColumn + cost[0];
       reference[pixel * 3] = (byte) cost[2];
       reference[pixel * 3 + 1] = 0;
       reference[pixel * 3 + 2] = 0;
@@ -155,9 +162,17 @@ final class Mcv2MotionSearchTest {
   void shouldUseANonzeroSeedAcrossALocalMinimum() {
     final byte[] reference = this.sampledCosts(new int[][] { { 0, 0, 100 }, { 2, 2, 0 } });
     final int expected = this.vector(2, 2);
-    final int found = Mcv2Internals.javaKernels().seeded(reference, 64, 64, new int[32 * 32 * 3], 16, 16, 32, 2, new int[] {
-      this.vector(2, 2),
-    });
+    final int found = Mcv2Internals.javaKernels().seeded(
+      reference,
+      SAMPLED_PICTURE_SIZE,
+      SAMPLED_PICTURE_SIZE,
+      new int[32 * 32 * 3],
+      16,
+      16,
+      32,
+      2,
+      new int[] { this.vector(2, 2) }
+    );
     assertEquals(expected, found);
   }
 
@@ -172,7 +187,17 @@ final class Mcv2MotionSearchTest {
       { -1, -2, 50 },
     });
     final int expected = this.vector(-2, -2);
-    final int found = Mcv2Internals.javaKernels().seeded(reference, 64, 64, new int[32 * 32 * 3], 16, 16, 32, 2, new int[0]);
+    final int found = Mcv2Internals.javaKernels().seeded(
+      reference,
+      SAMPLED_PICTURE_SIZE,
+      SAMPLED_PICTURE_SIZE,
+      new int[32 * 32 * 3],
+      16,
+      16,
+      32,
+      2,
+      new int[0]
+    );
     assertEquals(expected, found);
   }
 

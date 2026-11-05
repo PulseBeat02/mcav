@@ -63,10 +63,13 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.Isolated;
 import org.mockito.ArgumentCaptor;
 import org.mockito.ArgumentMatchers;
+import org.mockito.invocation.InvocationOnMock;
 
 // changes the default time zone
 @Isolated
 final class StandardVideoHologramTest {
+
+  private static final String FIRST_ORDINAL_SUFFIX = "st";
 
   private static final PlainTextComponentSerializer PLAIN = PlainTextComponentSerializer.plainText();
   private static final String PROGRESS = "■";
@@ -105,15 +108,18 @@ final class StandardVideoHologramTest {
     this.location = new Location(this.world, 1, 2, 3);
     this.spawnedDisplays = new ArrayList<>();
     when(this.world.spawn(eq(this.location), eq(TextDisplay.class), ArgumentMatchers.<Consumer<? super TextDisplay>>any())).thenAnswer(
-      invocation -> {
-        final TextDisplay display = mock(TextDisplay.class);
-        when(display.isValid()).thenReturn(true);
-        final Consumer<TextDisplay> configurator = invocation.getArgument(2);
-        configurator.accept(display);
-        this.spawnedDisplays.add(display);
-        return display;
-      }
+      this::spawnDisplay
     );
+  }
+
+  private TextDisplay spawnDisplay(final InvocationOnMock invocation) {
+    final TextDisplay display = mock(TextDisplay.class);
+    when(display.isValid()).thenReturn(true);
+    final Consumer<TextDisplay> configurator = invocation.getArgument(2);
+    configurator.accept(display);
+    this.spawnedDisplays.add(display);
+
+    return display;
   }
 
   @AfterEach
@@ -187,7 +193,9 @@ final class StandardVideoHologramTest {
     final Hologram hologram = Hologram.basic();
     final Optional<TextDisplay> display = hologram.getDisplay();
     assertInstanceOf(StandardVideoHologram.class, hologram);
-    assertTrue(display.isEmpty(), "nothing is spawned before a request");
+
+    final boolean nothingSpawned = display.isEmpty();
+    assertTrue(nothingSpawned, "nothing is spawned before a request");
   }
 
   @Test
@@ -200,10 +208,10 @@ final class StandardVideoHologramTest {
     final TextDisplay current = hologram.getDisplay().orElseThrow();
     final Component text = this.lastText(display);
     final String plain = PLAIN.serialize(text);
-    final String date = this.expectedDate(1, "st");
+    final String date = this.expectedDate(1, FIRST_ORDINAL_SUFFIX);
     assertSame(display, current);
 
-    final String expected = "Some Video\nSome Channel (" + date + ")";
+    final String expected = "Some Video\nSome Channel (%s)".formatted(date);
     assertEquals(expected, plain);
     verify(display).setPersistent(false);
     verify(display).setAlignment(TextDisplay.TextAlignment.CENTER);
@@ -216,7 +224,7 @@ final class StandardVideoHologramTest {
   @Test
   void shouldWriteOrdinalDaysLikeEnglishDoes() {
     final int[] days = { 2, 3, 4, 11, 12, 13, 21, 22, 23, 31 };
-    final String[] suffixes = { "nd", "rd", "th", "th", "th", "th", "st", "nd", "rd", "st" };
+    final String[] suffixes = { "nd", "rd", "th", "th", "th", "th", FIRST_ORDINAL_SUFFIX, "nd", "rd", FIRST_ORDINAL_SUFFIX };
     for (int index = 0; index < days.length; index++) {
       final StandardVideoHologram hologram = new StandardVideoHologram();
       final int timestamp = this.epochSecond(days[index]);
@@ -226,7 +234,7 @@ final class StandardVideoHologramTest {
       final Component text = this.lastText(display);
       final String plain = PLAIN.serialize(text);
       final String date = this.expectedDate(days[index], suffixes[index]);
-      final String expected = "t\nu (" + date + ")";
+      final String expected = "t\nu (%s)".formatted(date);
       assertEquals(expected, plain);
     }
   }
@@ -332,7 +340,7 @@ final class StandardVideoHologramTest {
     assertEquals(0, startFilled);
     assertEquals(BAR_LENGTH, startEmpty);
 
-    final String expectedOneSecond = "t\nu (Unknown date)\n00:01 " + bar + DURATION_TEXT;
+    final String expectedOneSecond = "t\nu (Unknown date)\n00:01 %s%s".formatted(bar, DURATION_TEXT);
     assertEquals(expectedOneSecond, oneSecondPlain);
     assertEquals(2, oneSecondFilled);
   }
@@ -353,7 +361,7 @@ final class StandardVideoHologramTest {
     final int tasksAfterFinish = this.server.getScheduledTaskCount();
 
     final String bar = PROGRESS.repeat(BAR_LENGTH);
-    final String expectedEnd = "t\nu (Unknown date)\n00:10 " + bar + DURATION_TEXT;
+    final String expectedEnd = "t\nu (Unknown date)\n00:10 %s%s".formatted(bar, DURATION_TEXT);
     assertEquals(expectedEnd, endPlain);
     assertEquals(BAR_LENGTH, endFilled);
     assertEquals(1, tasksBeforeFinish);
@@ -391,7 +399,7 @@ final class StandardVideoHologramTest {
     final String negativePlain = PLAIN.serialize(negativeText);
     this.server.runTasks();
     final int tasks = this.server.getScheduledTaskCount();
-    final String bar = PROGRESS.repeat(20);
+    final String bar = PROGRESS.repeat(BAR_LENGTH);
     final String expectedLong = UNDATED_TEXT_AT_START + bar + " 02:05";
     assertEquals(expectedLong, longPlain);
 
@@ -433,7 +441,8 @@ final class StandardVideoHologramTest {
     hologram.kill();
     final Optional<TextDisplay> afterKill = hologram.getDisplay();
     final int tasks = this.server.getScheduledTaskCount();
-    assertTrue(afterKill.isEmpty());
+    final boolean displayAbsentAfterKill = afterKill.isEmpty();
+    assertTrue(displayAbsentAfterKill);
     assertEquals(0, tasks);
     verify(display, times(1)).remove();
   }

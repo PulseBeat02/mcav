@@ -37,10 +37,20 @@ final class AverageColorCalculator {
   private static final Path TEXTURES = Path.of("mcav-bukkit/src/test/resources/colored-blocks");
   private static final Path OUTPUT = Path.of("mcav-bukkit/src/main/resources/mcav/bukkit/blocks.json");
   private static final String PNG_EXTENSION = ".png";
+  private static final String PNG_GLOB = "*.png";
+
+  private static final char LINE_SEPARATOR = '\n';
+
   private static final int RED_INDEX = 0;
   private static final int GREEN_INDEX = 1;
   private static final int BLUE_INDEX = 2;
   private static final int COUNT_INDEX = 3;
+
+  private static final int ALPHA_SHIFT = 24;
+  private static final int RED_SHIFT = 16;
+  private static final int GREEN_SHIFT = 8;
+
+  private static final int CHANNEL_MASK = 0xFF;
 
   private AverageColorCalculator() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated!");
@@ -53,13 +63,13 @@ final class AverageColorCalculator {
     final Gson gson = builder.create();
     try (final BufferedWriter writer = Files.newBufferedWriter(OUTPUT)) {
       gson.toJson(blockColors, writer);
-      writer.write('\n');
+      writer.write(LINE_SEPARATOR);
     }
   }
 
   private static Map<String, int[]> calculateBlockColors() throws IOException {
     final Map<String, int[]> colors = new TreeMap<>();
-    try (final DirectoryStream<Path> textures = Files.newDirectoryStream(TEXTURES, "*" + PNG_EXTENSION)) {
+    try (final DirectoryStream<Path> textures = Files.newDirectoryStream(TEXTURES, PNG_GLOB)) {
       for (final Path texture : textures) {
         putAverageColor(texture, colors);
       }
@@ -98,7 +108,7 @@ final class AverageColorCalculator {
   }
 
   private static long[] sumOpaquePixels(final BufferedImage image) {
-    final long[] sums = new long[4];
+    final long[] sums = new long[COUNT_INDEX + 1];
     final int width = image.getWidth();
     final int height = image.getHeight();
     for (int row = 0; row < height; row++) {
@@ -112,14 +122,14 @@ final class AverageColorCalculator {
   }
 
   private static void addOpaquePixel(final long[] sums, final int argb) {
-    final int alpha = (argb >>> 24) & 0xFF;
+    final int alpha = (argb >>> ALPHA_SHIFT) & CHANNEL_MASK;
     if (alpha == 0) {
       return;
     }
 
-    sums[RED_INDEX] += (argb >> 16) & 0xFF;
-    sums[GREEN_INDEX] += (argb >> 8) & 0xFF;
-    sums[BLUE_INDEX] += argb & 0xFF;
+    sums[RED_INDEX] += (argb >> RED_SHIFT) & CHANNEL_MASK;
+    sums[GREEN_INDEX] += (argb >> GREEN_SHIFT) & CHANNEL_MASK;
+    sums[BLUE_INDEX] += argb & CHANNEL_MASK;
     sums[COUNT_INDEX]++;
   }
 }

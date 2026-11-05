@@ -348,7 +348,7 @@ final class MCAVSandboxTest {
 
       final String describeNatives = Mcv2.describeNatives();
       assertEquals("Java, turned off by mcv2.native=off", describeNatives);
-      verify(this.logger).info("MCV2 kernels: {}.", describeNatives);
+      verify(this.logger).info("MCV2 uses the {} kernels.", describeNatives);
 
       this.sandbox.onDisable();
     } finally {
@@ -563,7 +563,7 @@ final class MCAVSandboxTest {
 
     this.sandbox.onEnable();
 
-    final String reason = "MCAV only supports Minecraft 26.3, but the server is running 1.20.1!";
+    final String reason = "Minecraft 1.20.1 is not supported, MCAV only runs on Minecraft 26.3 and its patch releases!";
     this.assertDisabledItselfWithOneError(reason, "run MCAV on a Minecraft 26.3 server");
     assertThrows(IllegalStateException.class, this.sandbox::getConfiguration, "nothing after the library is loaded");
 

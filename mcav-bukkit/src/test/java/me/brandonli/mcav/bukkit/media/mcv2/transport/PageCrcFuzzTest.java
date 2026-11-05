@@ -78,20 +78,20 @@ final class PageCrcFuzzTest {
   private byte[] rebuild(final TransportPage page) {
     final byte[] payload = page.getPayload();
     final byte[] raw = new byte[TransportPages.HEADER_BYTES + payload.length];
-    Mcv2Decoder.putU32(raw, 0, TransportPages.MAGIC);
+    Mcv2Decoder.putUnsignedInt(raw, 0, TransportPages.MAGIC);
     raw[4] = 1;
     raw[5] = (byte) page.getSymbolBits();
-    Mcv2Decoder.putU16(raw, 6, page.getFlags());
-    Mcv2Decoder.putU32(raw, 8, page.getStreamId());
-    Mcv2Decoder.putU32(raw, 12, page.getFrameId());
-    Mcv2Decoder.putU16(raw, 16, page.getNumber());
-    Mcv2Decoder.putU16(raw, 18, page.getCount());
-    Mcv2Decoder.putU32(raw, 20, page.getReferenceId());
-    Mcv2Decoder.putU32(raw, 24, page.getFrameBytes());
+    Mcv2Decoder.putUnsignedShort(raw, 6, page.getFlags());
+    Mcv2Decoder.putUnsignedInt(raw, 8, page.getStreamId());
+    Mcv2Decoder.putUnsignedInt(raw, 12, page.getFrameId());
+    Mcv2Decoder.putUnsignedShort(raw, 16, page.getNumber());
+    Mcv2Decoder.putUnsignedShort(raw, 18, page.getCount());
+    Mcv2Decoder.putUnsignedInt(raw, 20, page.getReferenceId());
+    Mcv2Decoder.putUnsignedInt(raw, 24, page.getFrameBytes());
     System.arraycopy(payload, 0, raw, TransportPages.HEADER_BYTES, payload.length);
     final CRC32 crc = new CRC32();
     crc.update(raw);
-    Mcv2Decoder.putU32(raw, 28, crc.getValue());
+    Mcv2Decoder.putUnsignedInt(raw, 28, crc.getValue());
     return TransportPages.toSymbols(raw);
   }
 }

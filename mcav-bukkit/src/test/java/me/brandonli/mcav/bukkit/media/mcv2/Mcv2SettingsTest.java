@@ -37,6 +37,7 @@ import org.junit.jupiter.api.Test;
 final class Mcv2SettingsTest {
 
   private static final int LAMBDA = 72;
+  private static final int FAST_LAMBDA = 55;
 
   @Test
   void shouldSearchQuarterSizeMotionOnlyInTheDefaultPreset() throws ReflectiveOperationException {
@@ -122,7 +123,7 @@ final class Mcv2SettingsTest {
     final Settings expectedDefault = Settings.of(LAMBDA, false);
     assertEquals(expectedDefault, Settings.DEFAULT);
 
-    final Settings expectedFast = Settings.of(55, true);
+    final Settings expectedFast = Settings.of(FAST_LAMBDA, true);
     assertEquals(expectedFast, Settings.FAST);
   }
 
@@ -143,21 +144,21 @@ final class Mcv2SettingsTest {
 
   @Test
   void shouldCompareSettingsByEveryPart() {
-    final Mcv2.Settings settings = Mcv2.Settings.of(72, false);
+    final Mcv2.Settings settings = Mcv2.Settings.of(LAMBDA, false);
     EqualityAssertions.assertEqualityContract(
       settings,
-      Mcv2.Settings.of(72, false),
-      Mcv2.Settings.of(55, false),
-      Mcv2.Settings.of(72, true)
+      Mcv2.Settings.of(LAMBDA, false),
+      Mcv2.Settings.of(FAST_LAMBDA, false),
+      Mcv2.Settings.of(LAMBDA, true)
     );
   }
 
   @Test
   void shouldHashSettingsByEveryPart() {
-    final Mcv2.Settings settings = Mcv2.Settings.of(72, true);
+    final Mcv2.Settings settings = Mcv2.Settings.of(LAMBDA, true);
 
     final int hash = settings.hashCode();
-    final int expected = Objects.hash(72.0, true);
+    final int expected = Objects.hash((double) LAMBDA, true);
     assertEquals(expected, hash);
   }
 

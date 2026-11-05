@@ -117,14 +117,14 @@ final class BlockConfigurationTest {
     noHeight.position(POSITION);
     noHeight.blockWidth(1);
 
-    assertThrows(NullPointerException.class, noViewers::build);
-    assertThrows(NullPointerException.class, noPosition::build);
+    assertThrows(IllegalStateException.class, noViewers::build);
+    assertThrows(IllegalStateException.class, noPosition::build);
 
     final IllegalArgumentException noWidthException = assertThrows(IllegalArgumentException.class, noWidth::build);
     final IllegalArgumentException noHeightException = assertThrows(IllegalArgumentException.class, noHeight::build);
     final String noWidthMessage = noWidthException.getMessage();
     final String noHeightMessage = noHeightException.getMessage();
-    assertEquals("Block width must be positive!", noWidthMessage);
-    assertEquals("Block height must be positive!", noHeightMessage);
+    assertEquals("Block width 0 must be positive!", noWidthMessage);
+    assertEquals("Block height 0 must be positive!", noHeightMessage);
   }
 }

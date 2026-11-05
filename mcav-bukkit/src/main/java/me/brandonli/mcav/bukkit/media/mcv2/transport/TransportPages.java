@@ -17,8 +17,6 @@
  */
 package me.brandonli.mcav.bukkit.media.mcv2.transport;
 
-import static me.brandonli.mcav.bukkit.media.mcv2.transport.MapAlphabet.SYMBOL_BITS;
-
 import com.google.common.base.Preconditions;
 import java.util.ArrayList;
 import java.util.List;
@@ -84,34 +82,25 @@ public final class TransportPages {
 
   private static final int VERSION = 1;
 
+  private static final int SYMBOL_MASK = MapAlphabet.SIZE - 1;
+
+  static final int KEYFRAME_FLAGS = 1;
+  static final int PREDICTED_FRAME_FLAGS = 0;
+
   private static final int MAGIC_OFFSET = 0;
-
   private static final int VERSION_OFFSET = 4;
-
   private static final int SYMBOL_BITS_OFFSET = 5;
-
   private static final int TYPE_OFFSET = 6;
-
   private static final int STREAM_OFFSET = 8;
-
   private static final int FRAME_OFFSET = 12;
-
   private static final int NUMBER_OFFSET = 16;
-
   private static final int COUNT_OFFSET = 18;
-
   private static final int REFERENCE_OFFSET = 20;
-
   private static final int LENGTH_OFFSET = 24;
-
   private static final int CRC_OFFSET = 28;
 
   private TransportPages() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated!");
-  }
-
-  private static long symbolCount(final long bytes) {
-    return (bytes * Byte.SIZE + SYMBOL_BITS - 1) / SYMBOL_BITS;
   }
 
   /**
@@ -121,7 +110,7 @@ public final class TransportPages {
    * @since 1.0.0
    */
   public static int capacity() {
-    return (PAGE_SYMBOLS * SYMBOL_BITS) / Byte.SIZE - HEADER_BYTES;
+    return (PAGE_SYMBOLS * MapAlphabet.SYMBOL_BITS) / Byte.SIZE - HEADER_BYTES;
   }
 
   /**
@@ -155,10 +144,10 @@ public final class TransportPages {
     for (final byte value : data) {
       buffer |= Byte.toUnsignedLong(value) << held;
       held += Byte.SIZE;
-      while (held >= SYMBOL_BITS) {
-        symbols[written++] = (byte) (buffer & ((1L << SYMBOL_BITS) - 1));
-        buffer >>>= SYMBOL_BITS;
-        held -= SYMBOL_BITS;
+      while (held >= MapAlphabet.SYMBOL_BITS) {
+        symbols[written++] = (byte) (buffer & SYMBOL_MASK);
+        buffer >>>= MapAlphabet.SYMBOL_BITS;
+        held -= MapAlphabet.SYMBOL_BITS;
       }
     }
 
@@ -167,6 +156,10 @@ public final class TransportPages {
     }
 
     return symbols;
+  }
+
+  private static long symbolCount(final long bytes) {
+    return (bytes * Byte.SIZE + MapAlphabet.SYMBOL_BITS - 1) / MapAlphabet.SYMBOL_BITS;
   }
 
   /**
@@ -183,7 +176,8 @@ public final class TransportPages {
     Preconditions.checkNotNull(symbols, SYMBOLS_NULL_MESSAGE);
 
     if (byteCount < 0 || symbols.length != symbolCount(byteCount)) {
-      throw new Mcv2Exception("Invalid symbol extent!");
+      final String message = "Invalid symbol extent!";
+      throw new Mcv2Exception(message);
     }
 
     final byte[] data = new byte[byteCount];
@@ -192,11 +186,12 @@ public final class TransportPages {
     int written = 0;
     for (final byte symbol : symbols) {
       final int value = Byte.toUnsignedInt(symbol);
-      if (value >= 1 << SYMBOL_BITS) {
-        throw new Mcv2Exception("Out-of-alphabet symbol!");
+      if (value >= MapAlphabet.SIZE) {
+        final String message = "Out-of-alphabet symbol!";
+        throw new Mcv2Exception(message);
       }
       buffer |= (long) value << held;
-      held += SYMBOL_BITS;
+      held += MapAlphabet.SYMBOL_BITS;
       while (held >= Byte.SIZE) {
         data[written++] = (byte) buffer;
         buffer >>>= Byte.SIZE;
@@ -205,7 +200,8 @@ public final class TransportPages {
     }
 
     if (buffer != 0) {
-      throw new Mcv2Exception("Nonzero symbol padding!");
+      final String message = "Nonzero symbol padding!";
+      throw new Mcv2Exception(message);
     }
 
     return data;
@@ -244,31 +240,46 @@ public final class TransportPages {
     Preconditions.checkArgument(streamId >= 0 && streamId <= Mcv2Decoder.MAXIMUM_UNSIGNED_INT, STREAM_ID_RANGE_MESSAGE);
 
     final byte[] frame = parsed.getData();
-    final int capacity = capacity();
     final int count = pageCount(frame.length);
     final List<byte[]> pages = new ArrayList<>(count);
     for (int number = 0; number < count; number++) {
-      final int from = number * capacity;
-      final int length = Math.min(capacity, frame.length - from);
-      final byte[] page = new byte[HEADER_BYTES + length];
-      Mcv2Decoder.putU32(page, MAGIC_OFFSET, MAGIC);
-      page[VERSION_OFFSET] = VERSION;
-      page[SYMBOL_BITS_OFFSET] = (byte) SYMBOL_BITS;
-      Mcv2Decoder.putU16(page, TYPE_OFFSET, parsed.isKeyframe() ? 1 : 0);
-      Mcv2Decoder.putU32(page, STREAM_OFFSET, streamId);
-      Mcv2Decoder.putU32(page, FRAME_OFFSET, parsed.getFrameId());
-      Mcv2Decoder.putU16(page, NUMBER_OFFSET, number);
-      Mcv2Decoder.putU16(page, COUNT_OFFSET, count);
-      Mcv2Decoder.putU32(page, REFERENCE_OFFSET, parsed.getReferenceId());
-      Mcv2Decoder.putU32(page, LENGTH_OFFSET, frame.length);
-      System.arraycopy(frame, from, page, HEADER_BYTES, length);
-      final CRC32 checksum = new CRC32();
-      checksum.update(page);
-      Mcv2Decoder.putU32(page, CRC_OFFSET, checksum.getValue());
+      final byte[] page = buildPage(parsed, frame, streamId, number, count);
       pages.add(toSymbols(page));
     }
 
     return pages;
+  }
+
+  private static byte[] buildPage(final Frame parsed, final byte[] frame, final long streamId, final int number, final int count) {
+    final int capacity = capacity();
+
+    final int from = number * capacity;
+    final int length = Math.min(capacity, frame.length - from);
+    final byte[] page = new byte[HEADER_BYTES + length];
+
+    Mcv2Decoder.putUnsignedInt(page, MAGIC_OFFSET, MAGIC);
+    page[VERSION_OFFSET] = VERSION;
+    page[SYMBOL_BITS_OFFSET] = (byte) MapAlphabet.SYMBOL_BITS;
+    Mcv2Decoder.putUnsignedShort(page, TYPE_OFFSET, parsed.isKeyframe() ? KEYFRAME_FLAGS : PREDICTED_FRAME_FLAGS);
+    Mcv2Decoder.putUnsignedInt(page, STREAM_OFFSET, streamId);
+    Mcv2Decoder.putUnsignedInt(page, FRAME_OFFSET, parsed.getFrameId());
+    Mcv2Decoder.putUnsignedShort(page, NUMBER_OFFSET, number);
+    Mcv2Decoder.putUnsignedShort(page, COUNT_OFFSET, count);
+    Mcv2Decoder.putUnsignedInt(page, REFERENCE_OFFSET, parsed.getReferenceId());
+    Mcv2Decoder.putUnsignedInt(page, LENGTH_OFFSET, frame.length);
+
+    System.arraycopy(frame, from, page, HEADER_BYTES, length);
+
+    final long checksum = checksumOf(page);
+    Mcv2Decoder.putUnsignedInt(page, CRC_OFFSET, checksum);
+
+    return page;
+  }
+
+  private static long checksumOf(final byte[] bytes) {
+    final CRC32 checksum = new CRC32();
+    checksum.update(bytes);
+    return checksum.getValue();
   }
 
   /**
@@ -282,21 +293,23 @@ public final class TransportPages {
    * @since 1.0.0
    */
   public static int usefulSymbols(final byte[] symbols) {
+    Preconditions.checkNotNull(symbols, SYMBOLS_NULL_MESSAGE);
+
     final byte[] header = readHeader(symbols);
-    final int size = checkHeader(header);
+    final int size = parsePayloadSize(header);
     return (int) symbolCount(HEADER_BYTES + size);
   }
 
   private static byte[] readHeader(final byte[] symbols) {
-    Preconditions.checkNotNull(symbols, SYMBOLS_NULL_MESSAGE);
-
     if (symbols.length > PAGE_SYMBOLS) {
-      throw new Mcv2Exception("Oversize map page!");
+      final String message = "Oversize map page!";
+      throw new Mcv2Exception(message);
     }
 
     final int headerSymbols = (int) symbolCount(HEADER_BYTES);
     if (symbols.length < headerSymbols) {
-      throw new Mcv2Exception("Truncated page header!");
+      final String message = "Truncated page header!";
+      throw new Mcv2Exception(message);
     }
 
     final byte[] header = new byte[HEADER_BYTES];
@@ -304,8 +317,8 @@ public final class TransportPages {
     int held = 0;
     int written = 0;
     for (int symbolIndex = 0; symbolIndex < headerSymbols; symbolIndex++) {
-      buffer |= (long) (symbols[symbolIndex] & ((1 << SYMBOL_BITS) - 1)) << held;
-      held += SYMBOL_BITS;
+      buffer |= (long) (symbols[symbolIndex] & SYMBOL_MASK) << held;
+      held += MapAlphabet.SYMBOL_BITS;
       while (held >= Byte.SIZE) {
         header[written++] = (byte) buffer;
         buffer >>>= Byte.SIZE;
@@ -316,27 +329,29 @@ public final class TransportPages {
     return header;
   }
 
-  private static int checkHeader(final byte[] header) {
+  private static int parsePayloadSize(final byte[] header) {
     final int capacity = capacity();
     if (
-      Mcv2Decoder.u32(header, MAGIC_OFFSET) != MAGIC ||
+      Mcv2Decoder.readUnsignedInt(header, MAGIC_OFFSET) != MAGIC ||
       header[VERSION_OFFSET] != VERSION ||
-      Byte.toUnsignedInt(header[SYMBOL_BITS_OFFSET]) != SYMBOL_BITS ||
-      Mcv2Decoder.u16(header, TYPE_OFFSET) > 1
+      Byte.toUnsignedInt(header[SYMBOL_BITS_OFFSET]) != MapAlphabet.SYMBOL_BITS ||
+      Mcv2Decoder.readUnsignedShort(header, TYPE_OFFSET) > KEYFRAME_FLAGS
     ) {
-      throw new Mcv2Exception("Unsupported page header!");
+      final String message = "Unsupported page header!";
+      throw new Mcv2Exception(message);
     }
 
-    final long total = Mcv2Decoder.u32(header, LENGTH_OFFSET);
-    final int number = Mcv2Decoder.u16(header, NUMBER_OFFSET);
-    final int count = Mcv2Decoder.u16(header, COUNT_OFFSET);
+    final long total = Mcv2Decoder.readUnsignedInt(header, LENGTH_OFFSET);
+    final int number = Mcv2Decoder.readUnsignedShort(header, NUMBER_OFFSET);
+    final int count = Mcv2Decoder.readUnsignedShort(header, COUNT_OFFSET);
     if (
       total < Mcv2Decoder.HEADER_BYTES ||
       total > Mcv2Decoder.MAXIMUM_FRAME_BYTES ||
       count != (total + capacity - 1) / capacity ||
       number >= count
     ) {
-      throw new Mcv2Exception("Invalid page metadata!");
+      final String message = "Invalid page metadata!";
+      throw new Mcv2Exception(message);
     }
 
     return (int) Math.min(capacity, total - (long) number * capacity);
@@ -353,29 +368,31 @@ public final class TransportPages {
    * @since 1.0.0
    */
   public static TransportPage readPage(final byte[] symbols) {
-    final byte[] header = readHeader(symbols);
-    final int size = checkHeader(header);
-    final byte[] pageBytes = fromSymbols(symbols, HEADER_BYTES + size);
-    final long stored = Mcv2Decoder.u32(pageBytes, CRC_OFFSET);
-    Mcv2Decoder.putU32(pageBytes, CRC_OFFSET, 0);
-    final CRC32 checksum = new CRC32();
-    checksum.update(pageBytes);
+    Preconditions.checkNotNull(symbols, SYMBOLS_NULL_MESSAGE);
 
-    if (checksum.getValue() != stored) {
-      throw new Mcv2Exception("Page CRC mismatch!");
+    final byte[] header = readHeader(symbols);
+    final int size = parsePayloadSize(header);
+    final byte[] pageBytes = fromSymbols(symbols, HEADER_BYTES + size);
+    final long stored = Mcv2Decoder.readUnsignedInt(pageBytes, CRC_OFFSET);
+    Mcv2Decoder.putUnsignedInt(pageBytes, CRC_OFFSET, 0);
+    final long checksum = checksumOf(pageBytes);
+
+    if (checksum != stored) {
+      final String message = "Page CRC mismatch!";
+      throw new Mcv2Exception(message);
     }
 
     final byte[] payload = new byte[size];
     System.arraycopy(pageBytes, HEADER_BYTES, payload, 0, size);
     return new TransportPage(
-      Mcv2Decoder.u32(pageBytes, STREAM_OFFSET),
-      Mcv2Decoder.u32(pageBytes, FRAME_OFFSET),
-      Mcv2Decoder.u16(pageBytes, NUMBER_OFFSET),
-      Mcv2Decoder.u16(pageBytes, COUNT_OFFSET),
-      Mcv2Decoder.u32(pageBytes, REFERENCE_OFFSET),
-      (int) Mcv2Decoder.u32(pageBytes, LENGTH_OFFSET),
-      Mcv2Decoder.u16(pageBytes, TYPE_OFFSET),
-      SYMBOL_BITS,
+      Mcv2Decoder.readUnsignedInt(pageBytes, STREAM_OFFSET),
+      Mcv2Decoder.readUnsignedInt(pageBytes, FRAME_OFFSET),
+      Mcv2Decoder.readUnsignedShort(pageBytes, NUMBER_OFFSET),
+      Mcv2Decoder.readUnsignedShort(pageBytes, COUNT_OFFSET),
+      Mcv2Decoder.readUnsignedInt(pageBytes, REFERENCE_OFFSET),
+      (int) Mcv2Decoder.readUnsignedInt(pageBytes, LENGTH_OFFSET),
+      Mcv2Decoder.readUnsignedShort(pageBytes, TYPE_OFFSET),
+      MapAlphabet.SYMBOL_BITS,
       payload
     );
   }

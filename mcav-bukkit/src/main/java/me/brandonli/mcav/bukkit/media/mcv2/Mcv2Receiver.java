@@ -17,6 +17,7 @@
  */
 package me.brandonli.mcav.bukkit.media.mcv2;
 
+import java.util.OptionalLong;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.Frame;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -37,18 +38,22 @@ public final class Mcv2Receiver {
 
   private byte @Nullable [] reference;
 
-  private long frameId = -1;
+  private static final long NO_FRAME_ID = -1;
+
+  private long frameId;
 
   private int width;
 
   private int height;
 
   /**
-   * Constructs a receiver that holds no frame yet, so it accepts a keyframe first.
+   * Creates a receiver that holds no frame yet, so it accepts a keyframe first.
    *
    * @since 1.0.0
    */
-  public Mcv2Receiver() {}
+  public Mcv2Receiver() {
+    this.frameId = NO_FRAME_ID;
+  }
 
   /**
    * Validates, decodes and commits a frame.
@@ -64,11 +69,13 @@ public final class Mcv2Receiver {
   public byte[] accept(final byte[] data) {
     final Frame frame = Mcv2Decoder.parse(data);
     if (this.frameId >= 0 && !Mcv2Decoder.follows(frame.getFrameId(), this.frameId)) {
-      throw new Mcv2Exception("Stale or ambiguous frame number!");
+      final String message = "Stale or ambiguous frame number!";
+      throw new Mcv2Exception(message);
     }
 
     if (!frame.isKeyframe() && (frame.getWidth() != this.width || frame.getHeight() != this.height)) {
-      throw new Mcv2Exception("Reference frame dimensions mismatch!");
+      final String message = "Reference frame dimensions mismatch!";
+      throw new Mcv2Exception(message);
     }
 
     final byte[] result = Mcv2Decoder.decode(frame, this.reference, this.frameId);
@@ -83,10 +90,14 @@ public final class Mcv2Receiver {
   /**
    * Returns the id of the last committed frame.
    *
-   * @return the frame id, or -1 before the first frame
+   * @return the frame id, or empty before the first frame
    * @since 1.0.0
    */
-  public long getFrameId() {
-    return this.frameId;
+  public OptionalLong getFrameId() {
+    if (this.frameId == NO_FRAME_ID) {
+      return OptionalLong.empty();
+    }
+
+    return OptionalLong.of(this.frameId);
   }
 }

@@ -30,20 +30,32 @@ import java.util.stream.Stream;
 public final class TestMedia {
 
   private static final int VIDEO_WIDTH = 320;
-
   private static final int VIDEO_HEIGHT = 240;
 
   public static final int VIDEO_FRAME_RATE = 30;
 
+  private static final int KEYFRAME_INTERVAL_FRAMES = 30;
+
   private static final int AUDIO_SAMPLE_RATE = 44_100;
+  private static final int AUDIO_CHANNELS = 1;
+
+  private static final int SINE_FREQUENCY = 440;
 
   public static final int VIDEO_SECONDS = 5;
 
-  private static final String TEST_PATTERN_INPUT =
-    "-f lavfi -i testsrc=size=" + VIDEO_WIDTH + "x" + VIDEO_HEIGHT + ":rate=" + VIDEO_FRAME_RATE;
+  private static final String TEST_PATTERN_INPUT = "-f lavfi -i testsrc=size=%sx%s:rate=%s".formatted(
+    VIDEO_WIDTH,
+    VIDEO_HEIGHT,
+    VIDEO_FRAME_RATE
+  );
   private static final String MPEG4_VIDEO_OUTPUT = "-c:v mpeg4 -q:v 4 -pix_fmt yuv420p";
-  private static final String SINE_INPUT = "-f lavfi -i sine=sample_rate=" + AUDIO_SAMPLE_RATE + ":frequency=";
+  private static final String SINE_INPUT = "-f lavfi -i sine=sample_rate=%s:frequency=%s".formatted(AUDIO_SAMPLE_RATE, SINE_FREQUENCY);
   private static final String ARGUMENT_SEPARATOR = " ";
+
+  private static final String DIRECTORY_PREFIX = "mcav-test-media";
+  private static final String VIDEO_FILE_NAME = "video.mp4";
+
+  private static final String CLEANUP_THREAD_NAME = "mcav-test-media-cleanup";
 
   private static final Path DIRECTORY = createDirectory();
 
@@ -53,10 +65,10 @@ public final class TestMedia {
 
   private static Path createDirectory() {
     try {
-      final Path directory = Files.createTempDirectory("mcav-test-media");
+      final Path directory = Files.createTempDirectory(DIRECTORY_PREFIX);
       final Path absolute = directory.toAbsolutePath();
       final Runtime runtime = Runtime.getRuntime();
-      final Thread cleanup = new Thread(() -> deleteRecursively(absolute), "mcav-test-media-cleanup");
+      final Thread cleanup = new Thread(() -> deleteRecursively(absolute), CLEANUP_THREAD_NAME);
       runtime.addShutdownHook(cleanup);
       return absolute;
     } catch (final IOException exception) {
@@ -78,9 +90,15 @@ public final class TestMedia {
   }
 
   public static synchronized Path video() {
-    final String arguments =
-      TEST_PATTERN_INPUT + " " + SINE_INPUT + "440 -t " + VIDEO_SECONDS + " " + MPEG4_VIDEO_OUTPUT + " -g 30 -c:a aac -ac 1";
-    return generate("video.mp4", arguments);
+    final String arguments = "%s %s -t %s %s -g %s -c:a aac -ac %s".formatted(
+      TEST_PATTERN_INPUT,
+      SINE_INPUT,
+      VIDEO_SECONDS,
+      MPEG4_VIDEO_OUTPUT,
+      KEYFRAME_INTERVAL_FRAMES,
+      AUDIO_CHANNELS
+    );
+    return generate(VIDEO_FILE_NAME, arguments);
   }
 
   private static Path generate(final String fileName, final String arguments) {

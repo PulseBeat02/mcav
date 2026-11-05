@@ -38,7 +38,10 @@ final class FileHttpServer {
 
   private static final int ACCEPTOR_THREADS = 1;
   private static final int WORKER_THREADS = 2;
+
   private static final String THREAD_NAME = "mcav-pack-http";
+
+  private static final long QUIET_PERIOD_SECONDS = 0;
   private static final long SHUTDOWN_TIMEOUT_SECONDS = 5;
 
   private final int port;
@@ -64,10 +67,12 @@ final class FileHttpServer {
     final EventLoopGroup workers = new MultiThreadIoEventLoopGroup(WORKER_THREADS, threadFactory, ioHandlerFactory);
 
     final ChannelFuture bindFuture = this.bind(acceptors, workers);
+
     final boolean bound = bindFuture.isSuccess();
     if (!bound) {
       this.terminate(acceptors);
       this.terminate(workers);
+
       final Throwable cause = bindFuture.cause();
       final String message = "Port %s could not be bound for the resource pack server!".formatted(this.port);
       throw new HttpServerException(message, cause);
@@ -76,29 +81,6 @@ final class FileHttpServer {
     this.acceptorGroup = acceptors;
     this.workerGroup = workers;
     this.serverChannel = bindFuture.channel();
-  }
-
-  private ChannelFuture bind(final EventLoopGroup acceptors, final EventLoopGroup workers) {
-    final FileHttpChannelInitializer initializer = new FileHttpChannelInitializer(this.filePath);
-    final ServerBootstrap bootstrap = new ServerBootstrap();
-    bootstrap.group(acceptors, workers);
-    bootstrap.channel(NioServerSocketChannel.class);
-    bootstrap.childHandler(initializer);
-    final ChannelFuture bindFuture = bootstrap.bind(this.port);
-    bindFuture.awaitUninterruptibly();
-    return bindFuture;
-  }
-
-  @VisibleForTesting
-  synchronized int getLocalPort() {
-    final Channel channel = this.serverChannel;
-    if (channel == null) {
-      throw new IllegalStateException("The resource pack server is not running!");
-    }
-
-    final SocketAddress address = channel.localAddress();
-    final InetSocketAddress socketAddress = (InetSocketAddress) address;
-    return socketAddress.getPort();
   }
 
   synchronized void stop() {
@@ -122,9 +104,33 @@ final class FileHttpServer {
     }
   }
 
+  private ChannelFuture bind(final EventLoopGroup acceptors, final EventLoopGroup workers) {
+    final FileHttpChannelInitializer initializer = new FileHttpChannelInitializer(this.filePath);
+    final ServerBootstrap bootstrap = new ServerBootstrap();
+    bootstrap.group(acceptors, workers);
+    bootstrap.channel(NioServerSocketChannel.class);
+    bootstrap.childHandler(initializer);
+    final ChannelFuture bindFuture = bootstrap.bind(this.port);
+    bindFuture.awaitUninterruptibly();
+    return bindFuture;
+  }
+
   // waits, so the port can be bound again at once
   private void terminate(final EventLoopGroup group) {
-    final Future<?> termination = group.shutdownGracefully(0, SHUTDOWN_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+    final Future<?> termination = group.shutdownGracefully(QUIET_PERIOD_SECONDS, SHUTDOWN_TIMEOUT_SECONDS, TimeUnit.SECONDS);
     termination.awaitUninterruptibly();
+  }
+
+  @VisibleForTesting
+  synchronized int getLocalPort() {
+    final Channel channel = this.serverChannel;
+    if (channel == null) {
+      final String message = "The resource pack server is not running!";
+      throw new IllegalStateException(message);
+    }
+
+    final SocketAddress address = channel.localAddress();
+    final InetSocketAddress socketAddress = (InetSocketAddress) address;
+    return socketAddress.getPort();
   }
 }

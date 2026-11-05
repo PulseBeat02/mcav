@@ -21,15 +21,34 @@ final class Mcv2Oracle {
 
   private static final int MAXIMUM_CHANNEL = 255;
 
+  private static final int CHANNELS = 3;
+
   private static final double ROUNDING_OFFSET = 0.5;
+
   private static final double PIXEL_CENTER = 0.5;
+
+  private static final int NODES = 16;
+  private static final int GRID = 4;
+
+  private static final int NODES_OFFSET = 2;
+
+  private static final int BYTE_MASK = 0xFF;
+  private static final int NIBBLE_BITS = 4;
+  private static final int NIBBLE_MASK = 0xF;
+  private static final int NIBBLES_PER_BYTE = 2;
+  private static final int NIBBLE_SIGN = 8;
+  private static final int NIBBLE_RANGE = 16;
+
+  private static final int NO_OFFSET = 0;
+  private static final int UNIT_STRIDE = 1;
 
   private Mcv2Oracle() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated!");
   }
 
   private static int roundedChannel(final double value) {
-    return (int) Math.min(MAXIMUM_CHANNEL, Math.max(0, Math.floor(value + ROUNDING_OFFSET)));
+    final double rounded = Math.floor(value + ROUNDING_OFFSET);
+    return (int) Math.clamp(rounded, 0, MAXIMUM_CHANNEL);
   }
 
   static double interpolate(
@@ -41,45 +60,47 @@ final class Mcv2Oracle {
     final int column,
     final int row
   ) {
-    final double positionX = Math.min(grid - 1, Math.max(0, ((column + PIXEL_CENTER) * grid) / size - PIXEL_CENTER));
-    final double positionY = Math.min(grid - 1, Math.max(0, ((row + PIXEL_CENTER) * grid) / size - PIXEL_CENTER));
+    final double centerX = ((column + PIXEL_CENTER) * grid) / size - PIXEL_CENTER;
+    final double positionX = Math.clamp(centerX, 0, grid - 1);
+    final double centerY = ((row + PIXEL_CENTER) * grid) / size - PIXEL_CENTER;
+    final double positionY = Math.clamp(centerY, 0, grid - 1);
     final int lowerX = (int) positionX;
     final int lowerY = (int) positionY;
     final int upperX = Math.min(lowerX + 1, grid - 1);
     final int upperY = Math.min(lowerY + 1, grid - 1);
     final double fractionX = positionX - lowerX;
     final double fractionY = positionY - lowerY;
-    return (
-      (1 - fractionY) *
-        ((1 - fractionX) * nodes[offset + (lowerY * grid + lowerX) * stride] +
-          fractionX * nodes[offset + (lowerY * grid + upperX) * stride]) +
-      fractionY *
-        ((1 - fractionX) * nodes[offset + (upperY * grid + lowerX) * stride] +
-          fractionX * nodes[offset + (upperY * grid + upperX) * stride])
-    );
+    final double topLeft = nodes[offset + (lowerY * grid + lowerX) * stride];
+    final double topRight = nodes[offset + (lowerY * grid + upperX) * stride];
+    final double bottomLeft = nodes[offset + (upperY * grid + lowerX) * stride];
+    final double bottomRight = nodes[offset + (upperY * grid + upperX) * stride];
+    final double top = (1 - fractionX) * topLeft + fractionX * topRight;
+    final double bottom = (1 - fractionX) * bottomLeft + fractionX * bottomRight;
+    return (1 - fractionY) * top + fractionY * bottom;
   }
 
-  static void predicted(final int[] prediction, final int size, final int[] out) {
-    for (int sample = 0; sample < size * size * 3; sample++) {
-      out[sample] = roundedChannel(prediction[sample]);
+  static void predicted(final int[] prediction, final int size, final int[] output) {
+    for (int sample = 0; sample < size * size * CHANNELS; sample++) {
+      output[sample] = roundedChannel(prediction[sample]);
     }
   }
 
-  static void compact(final int[] prediction, final byte[] record, final int quantizer, final int size, final int[] out) {
-    final float[] nodes = new float[16];
-    for (int node = 0; node < 16; node++) {
-      final int nibble = ((record[2 + node / 2] & 255) >> (4 * (node % 2))) & 15;
-      nodes[node] = nibble >= 8 ? nibble - 16 : nibble;
+  static void compact(final int[] prediction, final byte[] record, final int quantizer, final int size, final int[] output) {
+    final float[] nodes = new float[NODES];
+    for (int node = 0; node < NODES; node++) {
+      final int nibble =
+        ((record[NODES_OFFSET + node / NIBBLES_PER_BYTE] & BYTE_MASK) >> (NIBBLE_BITS * (node % NIBBLES_PER_BYTE))) & NIBBLE_MASK;
+      nodes[node] = nibble >= NIBBLE_SIGN ? nibble - NIBBLE_RANGE : nibble;
     }
 
     final int step = 1 << quantizer;
     for (int row = 0; row < size; row++) {
       for (int column = 0; column < size; column++) {
-        final double luma = interpolate(nodes, 0, 1, 4, size, column, row);
-        final int offset = (row * size + column) * 3;
-        out[offset] = roundedChannel(prediction[offset] + step * luma);
-        out[offset + 1] = roundedChannel(prediction[offset + 1] + step * luma);
-        out[offset + 2] = roundedChannel(prediction[offset + 2] + step * luma);
+        final double luma = interpolate(nodes, NO_OFFSET, UNIT_STRIDE, GRID, size, column, row);
+        final int offset = (row * size + column) * CHANNELS;
+        output[offset] = roundedChannel(prediction[offset] + step * luma);
+        output[offset + 1] = roundedChannel(prediction[offset + 1] + step * luma);
+        output[offset + 2] = roundedChannel(prediction[offset + 2] + step * luma);
       }
     }
   }

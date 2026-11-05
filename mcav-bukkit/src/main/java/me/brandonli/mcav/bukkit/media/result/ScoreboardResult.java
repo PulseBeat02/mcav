@@ -37,12 +37,12 @@ import me.brandonli.mcav.media.player.pipeline.filter.video.FunctionalVideoFilte
  *
  * @since 1.0.0
  */
-public class ScoreboardResult implements FunctionalVideoFilter {
+public final class ScoreboardResult implements FunctionalVideoFilter {
 
   private final ScoreboardRenderer renderer;
 
   /**
-   * Constructs a new {@code ScoreboardResult}.
+   * Creates a result that shows frames on the sidebar scoreboard.
    *
    * @param configuration the configuration describing the viewers, character, and size of the scoreboard image
    * @throws NullPointerException if {@code configuration} is null
@@ -65,6 +65,19 @@ public class ScoreboardResult implements FunctionalVideoFilter {
   }
 
   /**
+   * Removes the scoreboard and restores the previous scoreboard of every viewer. Call this method on the main thread
+   * during shutdown, because a disabled plugin cannot schedule the restore anymore.
+   *
+   * <p>A scoreboard installed by another plugin after this display started is preserved.
+   *
+   * @since 1.0.0
+   */
+  @Override
+  public void release() {
+    this.renderer.hide();
+  }
+
+  /**
    * Converts the frame into colored scoreboard lines and queues them for the next server tick.
    *
    * @param data     the frame to display, which may be resized by the renderer
@@ -81,18 +94,5 @@ public class ScoreboardResult implements FunctionalVideoFilter {
     this.renderer.render(data);
 
     return true;
-  }
-
-  /**
-   * Removes the scoreboard and restores the previous scoreboard of every viewer. Call this method on the main thread
-   * during shutdown, because a disabled plugin cannot schedule the restore anymore.
-   *
-   * <p>A scoreboard installed by another plugin after this display started is preserved.
-   *
-   * @since 1.0.0
-   */
-  @Override
-  public void release() {
-    this.renderer.hide();
   }
 }

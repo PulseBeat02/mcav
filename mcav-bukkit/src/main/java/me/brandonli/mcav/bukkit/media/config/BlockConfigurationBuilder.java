@@ -75,7 +75,7 @@ public interface BlockConfigurationBuilder {
    *
    * @return the block configuration
    * @throws IllegalArgumentException if a size is not positive or the position has no world
-   * @throws NullPointerException     if the viewers or the position were not set
+   * @throws IllegalStateException    if the viewers or the position were never set
    * @since 1.0.0
    */
   BlockConfiguration build();

@@ -17,9 +17,10 @@
  */
 package me.brandonli.mcav.bukkit.utils;
 
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.base.Preconditions;
 import java.util.Collection;
-import java.util.Objects;
 import java.util.UUID;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.game.ClientboundSystemChatPacket;
@@ -42,7 +43,7 @@ public final class ChatUtils {
   private static final String CHARACTER_NULL_MESSAGE = "Character must not be null!";
 
   private static final char[] HEXADECIMAL_DIGITS = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f' };
-  private static final char COLOR_CHAR = '§';
+  private static final char COLOR_CHARACTER = '§';
   private static final char HEXADECIMAL_COLOR_MARKER = 'x';
   private static final int RGB_MASK = 0xFFFFFF;
   private static final int HEXADECIMAL_COLOR_LENGTH = 14;
@@ -53,8 +54,14 @@ public final class ChatUtils {
   private static final int BITS_PER_NIBBLE = 4;
   private static final int NIBBLE_MASK = 0xF;
 
+  private static final char LINE_SEPARATOR = '\n';
+
   private static final int CHAT_HISTORY_LINES = 100;
-  private static final String CLEAR_CHAT_MESSAGE = "\n".repeat(CHAT_HISTORY_LINES - 1);
+  private static final String CLEAR_CHAT_MESSAGE = String.valueOf(LINE_SEPARATOR).repeat(CHAT_HISTORY_LINES - 1);
+
+  private static final int NO_COLOR = -1;
+
+  private static final boolean OVERLAY = false;
 
   private ChatUtils() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated!");
@@ -70,13 +77,13 @@ public final class ChatUtils {
    * @since 1.0.0
    */
   public static String getUniqueString(final int index) {
-    Preconditions.checkArgument(index >= 0, "Index must be non-negative!");
+    Preconditions.checkArgument(index >= 0, "Index %s must not be negative!", index);
 
     final String hexadecimal = Integer.toHexString(index);
     final char[] digits = hexadecimal.toCharArray();
     final StringBuilder entry = new StringBuilder(digits.length * CHARACTERS_PER_DIGIT);
     for (final char digit : digits) {
-      entry.append(COLOR_CHAR);
+      entry.append(COLOR_CHARACTER);
       entry.append(digit);
     }
 
@@ -94,7 +101,7 @@ public final class ChatUtils {
    * @param width     the width of the image in pixels
    * @param row       the row to convert
    * @return the row as text with legacy section sign color codes
-   * @throws IllegalArgumentException if width is nonpositive or the requested zero-based row is outside the data
+   * @throws IllegalArgumentException if width is not positive or the requested zero-based row is outside the data
    * @throws NullPointerException     if {@code data} or {@code character} is null
    * @since 1.0.0
    */
@@ -122,7 +129,7 @@ public final class ChatUtils {
    * @param width     the width of the image in pixels
    * @param height    the height of the image in pixels
    * @return a chat component showing the image
-   * @throws IllegalArgumentException if either dimension is nonpositive or the image requires more pixels than supplied
+   * @throws IllegalArgumentException if either dimension is not positive or the image requires more pixels than supplied
    * @throws NullPointerException     if {@code data} or {@code character} is null
    * @since 1.0.0
    */
@@ -137,19 +144,19 @@ public final class ChatUtils {
     final StringBuilder builder = new StringBuilder(capacity);
     for (int row = 0; row < height; row++) {
       if (row > 0) {
-        builder.append('\n');
+        builder.append(LINE_SEPARATOR);
       }
       appendRow(builder, data, character, width, row);
     }
 
     final String text = builder.toString();
     final Component component = CraftChatMessage.fromStringOrNull(text, true);
-    return Objects.requireNonNull(component, "Text with color codes always converts to a component!");
+    return requireNonNull(component, "Text with color codes always converts to a component!");
   }
 
   private static void appendRow(final StringBuilder builder, final int[] data, final String character, final int width, final int row) {
     final int offset = width * row;
-    int previousColor = -1;
+    int previousColor = NO_COLOR;
     for (int column = 0; column < width; column++) {
       final int color = data[offset + column] & RGB_MASK;
       if (color != previousColor) {
@@ -161,12 +168,12 @@ public final class ChatUtils {
   }
 
   private static void appendHexadecimalColor(final StringBuilder builder, final int color) {
-    builder.append(COLOR_CHAR);
+    builder.append(COLOR_CHARACTER);
     builder.append(HEXADECIMAL_COLOR_MARKER);
     for (int shift = HIGHEST_NIBBLE_SHIFT; shift >= 0; shift -= BITS_PER_NIBBLE) {
       final int nibble = (color >> shift) & NIBBLE_MASK;
       final char digit = HEXADECIMAL_DIGITS[nibble];
-      builder.append(COLOR_CHAR);
+      builder.append(COLOR_CHARACTER);
       builder.append(digit);
     }
   }
@@ -183,7 +190,7 @@ public final class ChatUtils {
     Preconditions.checkNotNull(viewers, "Viewers must not be null!");
 
     final Component message = Component.literal(CLEAR_CHAT_MESSAGE);
-    final ClientboundSystemChatPacket packet = new ClientboundSystemChatPacket(message, false);
+    final ClientboundSystemChatPacket packet = new ClientboundSystemChatPacket(message, OVERLAY);
     PacketUtils.sendPackets(viewers, packet);
   }
 }

@@ -43,27 +43,33 @@ import org.slf4j.LoggerFactory;
 // one request per connection, as Minecraft clients expect; the length and the body come from one open file
 final class FileServerHandler extends ChannelInboundHandlerAdapter {
 
+  private static final String CONTEXT_NULL_MESSAGE = "Context must not be null!";
+
   private static final Logger LOGGER = LoggerFactory.getLogger(FileServerHandler.class);
-  private static final String CLOSE_FAILED = "Could not close a resource pack download connection after an error.";
+
   private static final ChannelFutureListener LOG_CLOSE_FAILURE = FileServerHandler::logCloseFailure;
+
   private static final int MAXIMUM_HEADER_BYTES = 8192;
   private static final int INITIAL_REQUEST_BUFFER_BYTES = 256;
+
   private static final byte[] HEADER_TERMINATOR = { '\r', '\n', '\r', '\n' };
+
+  private static final String RESPONSE_TEMPLATE = "HTTP/1.1 %s\r\n%sConnection: close\r\n\r\n";
+
   private static final String STATUS_OK = "200 OK";
   private static final String STATUS_NOT_FOUND = "404 Not Found";
   private static final String STATUS_METHOD_NOT_ALLOWED = "405 Method Not Allowed";
   private static final String STATUS_HEADER_TOO_LARGE = "431 Request Header Fields Too Large";
+
   private static final String CONTENT_TYPE = "application/zip";
+
   private static final String DEFAULT_FILE_NAME = "resourcepack.zip";
 
   private static final String GET_METHOD = "GET";
   private static final String HEAD_METHOD = "HEAD";
+  private static final byte REQUEST_LINE_SEPARATOR = ' ';
 
-  private static final String STATUS_LINE_PREFIX = "HTTP/1.1 ";
-
-  private static final String LINE_TERMINATOR = "\r\n";
-
-  private static final String CONNECTION_CLOSE_HEADER = "Connection: close\r\n";
+  private static final long FILE_START_POSITION = 0;
 
   private static final Pattern UNSAFE_FILE_NAME_CHARACTERS = Pattern.compile("[\\p{Cntrl}\"\\\\]");
 
@@ -97,7 +103,7 @@ final class FileServerHandler extends ChannelInboundHandlerAdapter {
 
   @Override
   public void handlerAdded(final ChannelHandlerContext context) {
-    Preconditions.checkNotNull(context);
+    Preconditions.checkNotNull(context, CONTEXT_NULL_MESSAGE);
 
     final ByteBufAllocator allocator = context.alloc();
     this.requestBuffer = allocator.buffer(INITIAL_REQUEST_BUFFER_BYTES, MAXIMUM_HEADER_BYTES);
@@ -105,7 +111,7 @@ final class FileServerHandler extends ChannelInboundHandlerAdapter {
 
   @Override
   public void handlerRemoved(final ChannelHandlerContext context) {
-    Preconditions.checkNotNull(context);
+    Preconditions.checkNotNull(context, CONTEXT_NULL_MESSAGE);
 
     final ByteBuf buffer = this.requestBuffer;
     if (buffer != null) {
@@ -116,8 +122,8 @@ final class FileServerHandler extends ChannelInboundHandlerAdapter {
 
   @Override
   public void channelRead(final ChannelHandlerContext context, final Object message) {
-    Preconditions.checkNotNull(context);
-    Preconditions.checkNotNull(message);
+    Preconditions.checkNotNull(context, CONTEXT_NULL_MESSAGE);
+    Preconditions.checkNotNull(message, "Message must not be null!");
 
     try {
       final ByteBuf buffer = this.requestBuffer;
@@ -125,18 +131,19 @@ final class FileServerHandler extends ChannelInboundHandlerAdapter {
         return;
       }
 
-      this.collect(context, buffer, data);
+      this.collectAndRespond(context, buffer, data);
     } finally {
       ReferenceCountUtil.release(message);
     }
   }
 
-  private void collect(final ChannelHandlerContext context, final ByteBuf buffer, final ByteBuf data) {
+  private void collectAndRespond(final ChannelHandlerContext context, final ByteBuf buffer, final ByteBuf data) {
     // only the headers count against the limit, so a read that ends them may carry more, which is never looked at
     final int incoming = data.readableBytes();
     final int available = buffer.maxWritableBytes();
     final int taken = Math.min(incoming, available);
     buffer.writeBytes(data, taken);
+
     final int headerEnd = this.indexOfHeaderEnd(buffer);
     if (headerEnd < 0) {
       if (data.isReadable()) {
@@ -192,7 +199,7 @@ final class FileServerHandler extends ChannelInboundHandlerAdapter {
     int spaceIndex = start;
     while (spaceIndex < end) {
       final byte current = buffer.getByte(spaceIndex);
-      if (current == ' ') {
+      if (current == REQUEST_LINE_SEPARATOR) {
         break;
       }
       spaceIndex++;
@@ -244,7 +251,7 @@ final class FileServerHandler extends ChannelInboundHandlerAdapter {
       return;
     }
 
-    final DefaultFileRegion region = new DefaultFileRegion(channel, 0, fileLength);
+    final DefaultFileRegion region = new DefaultFileRegion(channel, FILE_START_POSITION, fileLength);
     final ChannelFuture headersFuture = context.write(headers);
     headersFuture.addListener(ChannelFutureListener.CLOSE_ON_FAILURE);
     final ChannelFuture bodyFuture = context.writeAndFlush(region);
@@ -261,7 +268,7 @@ final class FileServerHandler extends ChannelInboundHandlerAdapter {
 
   private void respondWithStatus(final ChannelHandlerContext context, final String status) {
     this.responded = true;
-    final String text = STATUS_LINE_PREFIX + status + LINE_TERMINATOR + "Content-Length: 0\r\n" + CONNECTION_CLOSE_HEADER + LINE_TERMINATOR;
+    final String text = RESPONSE_TEMPLATE.formatted(status, "Content-Length: 0\r\n");
     final ByteBuf buffer = Unpooled.copiedBuffer(text, StandardCharsets.US_ASCII);
     final ChannelFuture future = context.writeAndFlush(buffer);
     future.addListener(ChannelFutureListener.CLOSE);
@@ -269,29 +276,20 @@ final class FileServerHandler extends ChannelInboundHandlerAdapter {
 
   private ByteBuf createHeaders(final long contentLength, final String fileName) {
     final String safeFileName = UNSAFE_FILE_NAME_CHARACTERS.matcher(fileName).replaceAll("");
-    final String text =
-      STATUS_LINE_PREFIX +
-      STATUS_OK +
-      LINE_TERMINATOR +
-      "Content-Type: " +
-      CONTENT_TYPE +
-      LINE_TERMINATOR +
-      "Content-Length: " +
-      contentLength +
-      LINE_TERMINATOR +
-      "Content-Disposition: attachment; filename=\"" +
-      safeFileName +
-      "\"\r\n" +
-      "Cache-Control: no-store\r\n" +
-      CONNECTION_CLOSE_HEADER +
-      LINE_TERMINATOR;
+    final String fileHeaders =
+      "Content-Type: %s\r\nContent-Length: %s\r\nContent-Disposition: attachment; filename=\"%s\"\r\nCache-Control: no-store\r\n".formatted(
+        CONTENT_TYPE,
+        contentLength,
+        safeFileName
+      );
+    final String text = RESPONSE_TEMPLATE.formatted(STATUS_OK, fileHeaders);
     return Unpooled.copiedBuffer(text, StandardCharsets.US_ASCII);
   }
 
   @Override
   public void exceptionCaught(final ChannelHandlerContext context, final Throwable cause) {
-    Preconditions.checkNotNull(context);
-    Preconditions.checkNotNull(cause);
+    Preconditions.checkNotNull(context, CONTEXT_NULL_MESSAGE);
+    Preconditions.checkNotNull(cause, "Cause must not be null!");
 
     final ChannelFuture closing = context.close();
     closing.addListener(LOG_CLOSE_FAILURE);
@@ -304,11 +302,11 @@ final class FileServerHandler extends ChannelInboundHandlerAdapter {
     }
 
     final Throwable failure = closing.cause();
-    LOGGER.debug(CLOSE_FAILED, failure);
+    LOGGER.debug("Could not close a resource pack download connection after an error.", failure);
   }
 
   @FunctionalInterface
   interface FileOpener {
-    FileChannel open(Path path) throws IOException;
+    FileChannel open(final Path path) throws IOException;
   }
 }

@@ -34,6 +34,13 @@ import org.junit.jupiter.api.Test;
 
 final class Mcv2Test {
 
+  private static final int ROOT_SIZE = 32;
+
+  private static final int SINGLE_BLOCK_KEYFRAME_BYTES = 48;
+
+  private static final int PARALLEL_FRAME_WIDTH = 128;
+  private static final int PARALLEL_FRAME_HEIGHT = 96;
+
   private static final int LAMBDA = 72;
 
   @Test
@@ -42,14 +49,12 @@ final class Mcv2Test {
       final Mcv2 encoder = new Mcv2(Mcv2.Settings.DEFAULT, pool, 1, Mcv2.Verification.VERIFIED);
       final byte[] picture = { 10, 20, 30 };
       final byte[] expected = HexFormat.of().parseHex(
-        "4d43563203000000010001000100000001000000" + "0100000000000000010000000000000000000000" + "02000000000a141e"
+        "4d43563203000000010001000100000001000000010000000000000001000000000000000000000002000000000a141e"
       );
       final byte[] encodedKeyframe = encoder.encode(picture, 1, 1, 1);
       assertArrayEquals(expected, encodedKeyframe);
 
-      final byte[] predicted = HexFormat.of().parseHex(
-        "4d43563203000000010001000200000001000000" + "0000000000000000000000000000000000000000"
-      );
+      final byte[] predicted = HexFormat.of().parseHex("4d435632030000000100010002000000010000000000000000000000000000000000000000000000");
       final byte[] encodedPredicted = encoder.encode(picture, 1, 1, 2);
       assertArrayEquals(predicted, encodedPredicted);
 
@@ -112,7 +117,7 @@ final class Mcv2Test {
 
   @Test
   void shouldWriteIdenticalBytesOnOneThroughFourThreads() {
-    final byte[][] source = new byte[5][128 * 96 * 3];
+    final byte[][] source = new byte[5][PARALLEL_FRAME_WIDTH * PARALLEL_FRAME_HEIGHT * 3];
     final Random random = new Random(7719);
     random.nextBytes(source[0]);
     for (int index = 1; index < source.length; index++) {
@@ -136,7 +141,7 @@ final class Mcv2Test {
     try (final ForkJoinPool pool = new ForkJoinPool(threads)) {
       final Mcv2 encoder = new Mcv2(settings, pool, threads, Mcv2.Verification.VERIFIED);
       for (int index = 0; index < source.length; index++) {
-        encoded[index] = encoder.encode(source[index], 128, 96, index);
+        encoded[index] = encoder.encode(source[index], PARALLEL_FRAME_WIDTH, PARALLEL_FRAME_HEIGHT, index);
       }
     }
 
@@ -154,7 +159,7 @@ final class Mcv2Test {
       final Mcv2Decoder.Frame parsed = Mcv2Decoder.parse(first);
       for (int index = 0; index < parsed.getLeafCount(); index++) {
         final int leafSize = parsed.getLeaf(index).size();
-        assertEquals(32, leafSize);
+        assertEquals(ROOT_SIZE, leafSize);
       }
 
       final boolean withinLimit = first.length <= Mcv2Decoder.MAXIMUM_FRAME_BYTES;
@@ -185,7 +190,7 @@ final class Mcv2Test {
       assertEquals(16, lambda);
 
       final int frameLength = data.length;
-      assertEquals(48, frameLength);
+      assertEquals(SINGLE_BLOCK_KEYFRAME_BYTES, frameLength);
 
       final byte[] decoded = Mcv2Decoder.decode(data, null, 0);
       assertArrayEquals(source, decoded);
@@ -214,23 +219,23 @@ final class Mcv2Test {
     try (final ForkJoinPool pool = new ForkJoinPool(2)) {
       final Mcv2 encoder = new Mcv2(Mcv2.Settings.DEFAULT, pool, 2, Mcv2.Verification.VERIFIED);
       encoder.setFrameBudget(1);
-      final byte[] source = new byte[32 * 32 * 3];
-      for (int pixel = 0; pixel < 32 * 32; pixel++) {
-        source[pixel * 3] = (byte) ((pixel % 32) * 2);
+      final byte[] source = new byte[ROOT_SIZE * ROOT_SIZE * 3];
+      for (int pixel = 0; pixel < ROOT_SIZE * ROOT_SIZE; pixel++) {
+        source[pixel * 3] = (byte) ((pixel % ROOT_SIZE) * 2);
       }
 
-      final byte[] first = encoder.encode(source, 32, 32, 0);
+      final byte[] first = encoder.encode(source, ROOT_SIZE, ROOT_SIZE, 0);
       final byte[] decoded = Mcv2Decoder.decode(first, null, 0);
-      for (int pixel = 0; pixel < 32 * 32; pixel++) {
+      for (int pixel = 0; pixel < ROOT_SIZE * ROOT_SIZE; pixel++) {
         final byte red = decoded[pixel * 3];
         assertEquals(31, red);
       }
 
       final int firstLength = first.length;
-      assertEquals(48, firstLength);
+      assertEquals(SINGLE_BLOCK_KEYFRAME_BYTES, firstLength);
 
       source[0] = 10;
-      final int secondLength = encoder.encode(source, 32, 32, 1).length;
+      final int secondLength = encoder.encode(source, ROOT_SIZE, ROOT_SIZE, 1).length;
       assertEquals(40, secondLength);
 
       final byte[] reference = encoder.getReference().orElseThrow();
@@ -280,22 +285,22 @@ final class Mcv2Test {
   void shouldKeepTheReferenceAndMotionLambdaWhenSwitchingSettings() {
     try (final ForkJoinPool pool = new ForkJoinPool(1)) {
       final Mcv2 encoder = new Mcv2(Mcv2.Settings.DEFAULT, pool, 1, Mcv2.Verification.VERIFIED);
-      final byte[] source = new byte[32 * 32 * 3];
-      encoder.encode(source, 32, 32, 0);
+      final byte[] source = new byte[ROOT_SIZE * ROOT_SIZE * 3];
+      encoder.encode(source, ROOT_SIZE, ROOT_SIZE, 0);
       Arrays.fill(source, (byte) 10);
-      encoder.encode(source, 32, 32, 1);
+      encoder.encode(source, ROOT_SIZE, ROOT_SIZE, 1);
       Arrays.fill(source, (byte) 20);
-      encoder.encode(source, 32, 32, 2);
+      encoder.encode(source, ROOT_SIZE, ROOT_SIZE, 2);
       final double raised = LAMBDA * Math.pow(10 / 4.6, 0.79);
       final double lambda = encoder.getStatistics().orElseThrow().getLambda();
       assertEquals(raised, lambda);
 
-      encoder.switchTo(Mcv2.Settings.FAST.withLambda(30));
+      encoder.setSettings(Mcv2.Settings.FAST.withLambda(30));
       final Mcv2.Settings expectedSettings = Mcv2.Settings.FAST.withLambda(30);
       final Mcv2.Settings settings = encoder.getSettings();
       assertEquals(expectedSettings, settings);
 
-      final Mcv2Decoder.Frame next = Mcv2Decoder.parse(encoder.encode(source, 32, 32, 3));
+      final Mcv2Decoder.Frame next = Mcv2Decoder.parse(encoder.encode(source, ROOT_SIZE, ROOT_SIZE, 3));
       final boolean keyframe = next.isKeyframe();
       assertFalse(keyframe);
 
@@ -313,28 +318,28 @@ final class Mcv2Test {
     try (final ForkJoinPool pool = new ForkJoinPool(2)) {
       final Mcv2 serial = new Mcv2(Mcv2.Settings.DEFAULT, pool, 2, Mcv2.Verification.VERIFIED);
       final Mcv2 pipelined = new Mcv2(Mcv2.Settings.DEFAULT, pool, 2, Mcv2.Verification.VERIFIED);
-      final byte[][] source = new byte[3][32 * 32 * 3];
+      final byte[][] source = new byte[3][ROOT_SIZE * ROOT_SIZE * 3];
       final Random random = new Random(171);
       for (final byte[] picture : source) {
         random.nextBytes(picture);
       }
 
-      final Mcv2.Pending first = pipelined.begin(source[0], 32, 32, 0);
-      final Mcv2.Pending second = pipelined.begin(source[1], 32, 32, 1);
-      assertThrows(IllegalStateException.class, () -> pipelined.begin(source[2], 32, 32, 2));
+      final Mcv2.Pending first = pipelined.begin(source[0], ROOT_SIZE, ROOT_SIZE, 0);
+      final Mcv2.Pending second = pipelined.begin(source[1], ROOT_SIZE, ROOT_SIZE, 1);
+      assertThrows(IllegalStateException.class, () -> pipelined.begin(source[2], ROOT_SIZE, ROOT_SIZE, 2));
       assertThrows(IllegalStateException.class, () -> pipelined.finish(second));
       assertThrows(IllegalArgumentException.class, () -> serial.finish(first));
 
-      final byte[] expectedFirst = serial.encode(source[0], 32, 32, 0);
+      final byte[] expectedFirst = serial.encode(source[0], ROOT_SIZE, ROOT_SIZE, 0);
       final byte[] pipelinedFirst = pipelined.finish(first).getData();
       assertArrayEquals(expectedFirst, pipelinedFirst);
 
-      final Mcv2.Pending third = pipelined.begin(source[2], 32, 32, 2);
-      final byte[] expectedSecond = serial.encode(source[1], 32, 32, 1);
+      final Mcv2.Pending third = pipelined.begin(source[2], ROOT_SIZE, ROOT_SIZE, 2);
+      final byte[] expectedSecond = serial.encode(source[1], ROOT_SIZE, ROOT_SIZE, 1);
       final byte[] pipelinedSecond = pipelined.finish(second).getData();
       assertArrayEquals(expectedSecond, pipelinedSecond);
 
-      final byte[] expectedThird = serial.encode(source[2], 32, 32, 2);
+      final byte[] expectedThird = serial.encode(source[2], ROOT_SIZE, ROOT_SIZE, 2);
       final byte[] pipelinedThird = pipelined.finish(third).getData();
       assertArrayEquals(expectedThird, pipelinedThird);
       assertThrows(IllegalStateException.class, () -> pipelined.finish(third));
@@ -355,7 +360,8 @@ final class Mcv2Test {
       assertThrows(IllegalStateException.class, () -> encoder.begin(new byte[3], 1, 1, 2));
 
       final Optional<Mcv2.Statistics> statistics = encoder.getStatistics();
-      assertTrue(statistics.isEmpty());
+      final boolean statisticsAbsent = statistics.isEmpty();
+      assertTrue(statisticsAbsent);
     }
   }
 
@@ -371,10 +377,13 @@ final class Mcv2Test {
 
       final Mcv2 encoder = new Mcv2(Mcv2.Settings.DEFAULT, pool, 1, Mcv2.Verification.UNVERIFIED);
       final Optional<byte[]> initialReference = encoder.getReference();
-      assertTrue(initialReference.isEmpty());
+      final boolean initialReferenceAbsent = initialReference.isEmpty();
+      assertTrue(initialReferenceAbsent);
 
       final Optional<Mcv2.Statistics> statistics = encoder.getStatistics();
-      assertTrue(statistics.isEmpty());
+      final boolean statisticsAbsent = statistics.isEmpty();
+      assertTrue(statisticsAbsent);
+
       assertThrows(IllegalArgumentException.class, () -> encoder.setFrameBudget(-1));
       assertThrows(IllegalArgumentException.class, () -> encoder.setFrameLimit(-1));
       assertThrows(IllegalArgumentException.class, () -> encoder.encode(new byte[3], 0, 1, 0));
@@ -394,7 +403,7 @@ final class Mcv2Test {
       assertThrows(IllegalArgumentException.class, () -> encoder.encode(new byte[3], 1, 1, -1));
       assertThrows(IllegalArgumentException.class, () -> encoder.encode(new byte[3], 1, 1, 0x100000000L));
       assertThrows(NullPointerException.class, () -> encoder.encode(null, 1, 1, 0));
-      assertThrows(NullPointerException.class, () -> encoder.switchTo(null));
+      assertThrows(NullPointerException.class, () -> encoder.setSettings(null));
       assertThrows(NullPointerException.class, () -> encoder.finish(null));
 
       encoder.encode(new byte[3], 1, 1, 0);

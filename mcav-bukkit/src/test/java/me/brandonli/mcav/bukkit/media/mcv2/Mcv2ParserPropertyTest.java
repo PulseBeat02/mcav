@@ -75,8 +75,8 @@ final class Mcv2ParserPropertyTest {
   private static List<byte[]> frames() {
     final List<byte[]> frames = new ArrayList<>();
     for (final String folder : List.of("conformance", "edge")) {
-      for (final String stream : Mcv2Fixtures.digests(folder).keySet()) {
-        final List<byte[]> all = Mcv2Fixtures.frames(Mcv2Fixtures.read(folder + PATH_SEPARATOR + stream));
+      for (final String stream : Mcv2Fixtures.readDigests(folder).keySet()) {
+        final List<byte[]> all = Mcv2Fixtures.splitFrames(Mcv2Fixtures.read(folder + PATH_SEPARATOR + stream));
         frames.addAll(folder.equals("edge") ? all : all.subList(0, Math.min(2, all.size())));
       }
     }
@@ -118,12 +118,12 @@ final class Mcv2ParserPropertyTest {
         // one of the header or initial index words, set to a value a bounds check turns on
         final int offset = 4 * (mutation.position() % 12);
         if (offset + 4 <= length) {
-          Mcv2Decoder.putU32(bytes, offset, EDGES[Math.floorMod(value, EDGES.length)]);
+          Mcv2Decoder.putUnsignedInt(bytes, offset, EDGES[Math.floorMod(value, EDGES.length)]);
         }
       }
       case 2 -> {
         if (position + 2 <= length) {
-          Mcv2Decoder.putU16(bytes, position, value & 0xFFFF);
+          Mcv2Decoder.putUnsignedShort(bytes, position, value & 0xFFFF);
         }
       }
       case 3 -> {
@@ -196,11 +196,11 @@ final class Mcv2ParserPropertyTest {
     final byte[] bytes = new byte[Mcv2Decoder.HEADER_BYTES + body.length];
     System.arraycopy(body, 0, bytes, Mcv2Decoder.HEADER_BYTES, body.length);
     final long frameId = random.nextInt(1000) + 1L;
-    Mcv2Decoder.putU32(bytes, 0, Mcv2Decoder.MAGIC);
+    Mcv2Decoder.putUnsignedInt(bytes, 0, Mcv2Decoder.MAGIC);
     bytes[4] = Mcv2Decoder.VERSION;
-    Mcv2Decoder.putU32(bytes, 8, ((long) height << 16) | width);
-    Mcv2Decoder.putU32(bytes, 12, frameId);
-    Mcv2Decoder.putU32(bytes, 16, isKeyframe ? frameId : frameId - 1);
+    Mcv2Decoder.putUnsignedInt(bytes, 8, ((long) height << 16) | width);
+    Mcv2Decoder.putUnsignedInt(bytes, 12, frameId);
+    Mcv2Decoder.putUnsignedInt(bytes, 16, isKeyframe ? frameId : frameId - 1);
     this.parseAndDecode(bytes);
   }
 

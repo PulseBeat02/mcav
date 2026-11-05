@@ -33,7 +33,7 @@ final class MapAlphabetTest {
   }
 
   @Test
-  void shouldMapSymbolsToColoursAndBack() {
+  void shouldMapSymbolsToColorsAndBack() {
     final byte[] colors = MapAlphabet.toMapColors(new byte[] { 0, 63, 1 });
     final int colorCount = colors.length;
     assertEquals(128, colorCount);
@@ -64,7 +64,7 @@ final class MapAlphabetTest {
   }
 
   @Test
-  void shouldRefuseSymbolsAndColoursOutsideTheAlphabet() {
+  void shouldRefuseSymbolsAndColorsOutsideTheAlphabet() {
     assertThrows(IllegalArgumentException.class, () -> MapAlphabet.toMapColors(new byte[] { 64 }));
     assertThrows(IllegalArgumentException.class, () -> MapAlphabet.toMapColors(new byte[16385]));
     assertThrows(Mcv2Exception.class, () -> MapAlphabet.fromMapColors(new byte[] { 3 }));

@@ -24,8 +24,7 @@
  *
  * <p>Every exception of the module extends {@link me.brandonli.mcav.bukkit.BukkitException}.
  *
- * <p>Reference parameters and return values are non-null unless marked {@code @Nullable};
- * nullable values and their meanings are described on the corresponding members.
+ * <p>Reference parameters and return values are non-null unless marked {@code @Nullable}.
  *
  * @since 1.0.0
  */

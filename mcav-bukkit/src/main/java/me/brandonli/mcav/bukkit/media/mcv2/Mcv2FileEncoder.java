@@ -49,10 +49,10 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * <p>The stream is every frame's MCV2 bytes, each preceded by their length as a little-endian 32-bit number, the form
  * a stream is read back in to be played.
  *
- * <p>Call from an application worker thread: the method performs reading, writing and progress callbacks
- * synchronously, and waits for encoding tasks in the supplied budget. It does not dispatch the entire operation
- * off the calling thread. The caller owns the output stream and pool; the frame reader is closed after validated
- * arguments enter the encode operation, including on encoding or I/O failure.
+ * <p>This class is stateless and thread-safe. Call from an application worker thread: the method performs reading,
+ * writing and progress callbacks synchronously, and waits for encoding tasks in the supplied budget. It does not
+ * dispatch the entire operation off the calling thread. The caller owns the output stream and pool; the frame reader
+ * is closed after validated arguments enter the encode operation, including on encoding or I/O failure.
  *
  * {@snippet :
  * final int width = 1920;
@@ -76,7 +76,8 @@ public final class Mcv2FileEncoder {
   private static final double NANOSECONDS_PER_MILLISECOND = 1e6;
 
   private Mcv2FileEncoder() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+    final String message = "Utility class cannot be instantiated!";
+    throw new UnsupportedOperationException(message);
   }
 
   /**
@@ -95,7 +96,7 @@ public final class Mcv2FileEncoder {
    * @return what the encode did
    * @throws Mcv2Exception              if the reader cannot read or close, the output cannot be written, or the calling
    *                                    thread is interrupted, which stops the encode and leaves the thread interrupted
-   * @throws IllegalArgumentException   if a dimension is nonpositive, or an encoded frame exceeds the codec
+   * @throws IllegalArgumentException   if a dimension is not positive, or an encoded frame exceeds the codec
    *                                    dimension/id range
    * @throws ArithmeticException        if the RGB allocation size overflows an int
    * @throws RejectedExecutionException if the budget rejects the encoding task
@@ -170,7 +171,7 @@ public final class Mcv2FileEncoder {
    * @param height the height of the frames
    * @return the frames
    * @throws Mcv2Exception            if the file cannot be opened
-   * @throws IllegalArgumentException if either dimension is nonpositive
+   * @throws IllegalArgumentException if either dimension is not positive
    * @throws NullPointerException     if {@code video} is null
    * @since 1.0.0
    */
@@ -190,19 +191,20 @@ public final class Mcv2FileEncoder {
     try {
       grabber.start();
     } catch (final FFmpegFrameGrabber.Exception exception) {
-      closeQuietly(grabber);
-      final String message = "Cannot open %s (%s)!".formatted(name, exception.getMessage());
+      closeAfterFailedOpen(grabber, exception);
+
+      final String message = "Video %s could not be opened!".formatted(name);
       throw new Mcv2Exception(message, exception);
     }
 
     return new GrabberReader(grabber, width, height);
   }
 
-  private static void closeQuietly(final FFmpegFrameGrabber grabber) {
+  private static void closeAfterFailedOpen(final FFmpegFrameGrabber grabber, final FFmpegFrameGrabber.Exception openException) {
     try {
       grabber.close();
     } catch (final FrameGrabber.Exception exception) {
-      // A close failure must not hide the error that prevented opening the input.
+      openException.addSuppressed(exception);
     }
   }
 
@@ -233,7 +235,7 @@ public final class Mcv2FileEncoder {
      * @throws Mcv2Exception if the video cannot be read
      * @since 1.0.0
      */
-    boolean read(byte[] pictureBytes);
+    boolean read(final byte[] pictureBytes);
 
     /**
      * Releases the video.
@@ -388,7 +390,6 @@ public final class Mcv2FileEncoder {
     private final FFmpegFrameGrabber grabber;
 
     private final int width;
-
     private final int height;
 
     GrabberReader(final FFmpegFrameGrabber grabber, final int width, final int height) {
@@ -403,7 +404,7 @@ public final class Mcv2FileEncoder {
       try {
         frame = this.grabber.grabImage();
       } catch (final FFmpegFrameGrabber.Exception exception) {
-        final String message = "Cannot decode the video (%s)!".formatted(exception.getMessage());
+        final String message = "The video could not be decoded!";
         throw new Mcv2Exception(message, exception);
       }
 
@@ -421,7 +422,7 @@ public final class Mcv2FileEncoder {
       try {
         this.grabber.close();
       } catch (final FrameGrabber.Exception exception) {
-        final String message = "Cannot close the video (%s)!".formatted(exception.getMessage());
+        final String message = "The video could not be closed!";
         throw new Mcv2Exception(message, exception);
       }
     }

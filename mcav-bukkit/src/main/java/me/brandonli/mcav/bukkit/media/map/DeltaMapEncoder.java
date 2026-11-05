@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
+import me.brandonli.mcav.bukkit.media.result.CompressedMapResult;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -63,7 +64,7 @@ public final class DeltaMapEncoder {
    *
    * <p>Earlier versions used a default of 2 MiB per frame. The lower default keeps the connections of the viewers
    * responsive, but a scene cut on a large wall now takes a few more frames to appear completely. Pass a larger
-   * budget to the constructor of {@code CompressedMapResult} to get the old behavior back.
+   * budget to the {@link CompressedMapResult} constructor to get the old behavior back.
    *
    * @since 1.0.0
    */
@@ -71,11 +72,14 @@ public final class DeltaMapEncoder {
 
   private static final int MAP_SIZE = MapLayout.MAP_SIZE;
   private static final int MAP_PIXELS = MAP_SIZE * MAP_SIZE;
+
   private static final int TILE_SIZE = 16;
   private static final int TILES_PER_ROW = MAP_SIZE / TILE_SIZE;
   private static final int TILE_COUNT = TILES_PER_ROW * TILES_PER_ROW;
+
   private static final int NOISE_THRESHOLD = 4;
   private static final int MAXIMUM_NOISE_DEFERRAL = 6;
+
   private static final long WAITING_PRIORITY = 1L << 32;
   private static final long INITIAL_PRIORITY = Long.MAX_VALUE;
 
@@ -88,7 +92,7 @@ public final class DeltaMapEncoder {
   private final int[] changedPixelsPerTile;
 
   /**
-   * Constructs a new encoder for the specified layout.
+   * Creates an encoder for the given layout.
    *
    * @param layout               the layout of the image on the maps
    * @param maximumBytesPerFrame the maximum number of bytes to send per frame; the most urgent map is always sent,
@@ -99,7 +103,7 @@ public final class DeltaMapEncoder {
    */
   public DeltaMapEncoder(final MapLayout layout, final int maximumBytesPerFrame) {
     Preconditions.checkNotNull(layout, "Layout must not be null!");
-    Preconditions.checkArgument(maximumBytesPerFrame > 0, "Byte budget must be positive!");
+    Preconditions.checkArgument(maximumBytesPerFrame > 0, "Byte budget %s must be positive!", maximumBytesPerFrame);
 
     final int mapCount = layout.getMapCount();
     this.layout = layout;
@@ -127,14 +131,19 @@ public final class DeltaMapEncoder {
     final int imageWidth = this.layout.getImageWidth();
     final int imageHeight = this.layout.getImageHeight();
     final int expectedLength = imageWidth * imageHeight;
-    Preconditions.checkArgument(image.length == expectedLength, "Image size does not match layout!");
+    Preconditions.checkArgument(
+      image.length == expectedLength,
+      "Image length %s does not match the layout's %s pixels!",
+      image.length,
+      expectedLength
+    );
 
     final List<MapCandidate> candidates = this.collectCandidates(image);
     if (candidates.isEmpty()) {
       return List.of();
     }
 
-    final Comparator<MapCandidate> byPriority = Comparator.comparingLong(MapCandidate::getPriority);
+    final Comparator<MapCandidate> byPriority = Comparator.comparingLong(MapCandidate::priority);
     final Comparator<MapCandidate> mostUrgentFirst = byPriority.reversed();
     candidates.sort(mostUrgentFirst);
     return this.acceptWithinBudget(candidates);
@@ -167,8 +176,8 @@ public final class DeltaMapEncoder {
     final List<MapTilePatch> accepted = new ArrayList<>();
     int usedBytes = 0;
     for (final MapCandidate candidate : candidates) {
-      final int map = candidate.getMap();
-      final int candidateSize = candidate.getSize();
+      final int map = candidate.map();
+      final int candidateSize = candidate.size();
       final boolean fitsBudget = usedBytes + candidateSize <= this.maximumBytesPerFrame;
       final boolean isFirst = accepted.isEmpty();
       if (!fitsBudget && !isFirst) {
@@ -177,7 +186,7 @@ public final class DeltaMapEncoder {
       }
 
       usedBytes += candidateSize;
-      final List<MapTilePatch> patches = candidate.getPatches();
+      final List<MapTilePatch> patches = candidate.patches();
       for (final MapTilePatch patch : patches) {
         this.applyToClientState(map, patch);
         accepted.add(patch);
@@ -264,7 +273,7 @@ public final class DeltaMapEncoder {
     final int changedPixels = this.countChangedPixels(tilesToSend);
     final List<PatchRectangle> rectangles = this.chooseRectangles(tilesToSend, region);
     final List<MapTilePatch> patches = this.extractPatches(image, map, rectangles);
-    final int size = getEncodedSize(rectangles);
+    final int size = this.getEncodedSize(rectangles);
 
     final long waitingBonus = this.waitingFrames[map] * WAITING_PRIORITY;
     final long priority = waitingBonus + changedPixels;
@@ -314,7 +323,7 @@ public final class DeltaMapEncoder {
     final List<PatchRectangle> rectangles = this.mergeTiles(tiles, region);
     final PatchRectangle bounds = PatchRectangle.boundingBox(rectangles);
     final int boundsSize = bounds.getEncodedSize();
-    final int rectanglesSize = getEncodedSize(rectangles);
+    final int rectanglesSize = this.getEncodedSize(rectangles);
     if (boundsSize <= rectanglesSize) {
       return List.of(bounds);
     }
@@ -322,7 +331,7 @@ public final class DeltaMapEncoder {
     return rectangles;
   }
 
-  private static int getEncodedSize(final List<PatchRectangle> rectangles) {
+  private int getEncodedSize(final List<PatchRectangle> rectangles) {
     int size = 0;
     for (final PatchRectangle rectangle : rectangles) {
       size += rectangle.getEncodedSize();
@@ -334,10 +343,10 @@ public final class DeltaMapEncoder {
   private List<MapTilePatch> extractPatches(final byte[] image, final int map, final List<PatchRectangle> rectangles) {
     final List<MapTilePatch> patches = new ArrayList<>(rectangles.size());
     for (final PatchRectangle rectangle : rectangles) {
-      final int left = rectangle.getX();
-      final int top = rectangle.getY();
-      final int width = rectangle.getWidth();
-      final int height = rectangle.getHeight();
+      final int left = rectangle.left();
+      final int top = rectangle.top();
+      final int width = rectangle.width();
+      final int height = rectangle.height();
       final MapTilePatch patch = this.layout.extractPatch(image, map, left, top, width, height);
       patches.add(patch);
     }
@@ -545,20 +554,7 @@ public final class DeltaMapEncoder {
     return this.layout;
   }
 
-  private static final class PatchRectangle {
-
-    private final int left;
-    private final int top;
-    private final int width;
-    private final int height;
-
-    private PatchRectangle(final int left, final int top, final int width, final int height) {
-      this.left = left;
-      this.top = top;
-      this.width = width;
-      this.height = height;
-    }
-
+  private record PatchRectangle(int left, int top, int width, int height) {
     // the rectangle always overlaps the region: only a change inside it dirties a tile
     private static PatchRectangle clip(final int left, final int top, final int width, final int height, final MapRegion region) {
       final int regionX = region.getLocalX();
@@ -588,55 +584,10 @@ public final class DeltaMapEncoder {
       return new PatchRectangle(left, top, right - left, bottom - top);
     }
 
-    private int getX() {
-      return this.left;
-    }
-
-    private int getY() {
-      return this.top;
-    }
-
-    private int getWidth() {
-      return this.width;
-    }
-
-    private int getHeight() {
-      return this.height;
-    }
-
     private int getEncodedSize() {
       return this.width * this.height + MapLayout.PATCH_OVERHEAD;
     }
   }
 
-  private static final class MapCandidate {
-
-    private final int map;
-    private final List<MapTilePatch> patches;
-    private final int size;
-    private final long priority;
-
-    private MapCandidate(final int map, final List<MapTilePatch> patches, final int size, final long priority) {
-      this.map = map;
-      this.patches = patches;
-      this.size = size;
-      this.priority = priority;
-    }
-
-    private int getMap() {
-      return this.map;
-    }
-
-    private List<MapTilePatch> getPatches() {
-      return this.patches;
-    }
-
-    private int getSize() {
-      return this.size;
-    }
-
-    private long getPriority() {
-      return this.priority;
-    }
-  }
+  private record MapCandidate(int map, List<MapTilePatch> patches, int size, long priority) {}
 }

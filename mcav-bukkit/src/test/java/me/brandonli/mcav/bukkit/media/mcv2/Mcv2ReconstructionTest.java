@@ -27,8 +27,9 @@ final class Mcv2ReconstructionTest {
   @Test
   void shouldRoundHalvesUpAndClamp() {
     for (final int[] sample : new int[][] { { -768, 0 }, { 76800, 255 }, { 384, 2 }, { 640, 3 }, { 637, 2 } }) {
-      final int rounded = Mcv2Decoder.round(sample[0], 8);
-      assertEquals(sample[1], rounded);
+      final int expectedChannel = sample[1];
+      final int rounded = Mcv2Decoder.roundToChannel(sample[0], 8);
+      assertEquals(expectedChannel, rounded);
     }
   }
 
@@ -36,24 +37,24 @@ final class Mcv2ReconstructionTest {
   void shouldPredictWithWholePixelsAndClampedCoordinates() {
     final byte[] reference = { 0, 0, 0, 40, 40, 40, 80, 80, 80, 120, 120, 120 };
     final Kernels kernels = Mcv2Internals.javaKernels();
-    final int[] out = new int[8 * 8 * 3];
-    kernels.predict(reference, 2, 2, 0, 0, 8, 1, 1, out);
-    final int shiftedDiagonally = out[0];
+    final int[] output = new int[8 * 8 * 3];
+    kernels.predict(reference, 2, 2, 0, 0, 8, 1, 1, output);
+    final int shiftedDiagonally = output[0];
     assertEquals(120, shiftedDiagonally);
 
-    kernels.predict(reference, 2, 2, 0, 0, 8, 1, 0, out);
-    final int shiftedRight = out[0];
+    kernels.predict(reference, 2, 2, 0, 0, 8, 1, 0, output);
+    final int shiftedRight = output[0];
     assertEquals(40, shiftedRight);
 
-    kernels.predict(reference, 2, 2, 0, 0, 8, 0, 1, out);
-    final int shiftedDown = out[0];
+    kernels.predict(reference, 2, 2, 0, 0, 8, 0, 1, output);
+    final int shiftedDown = output[0];
     assertEquals(80, shiftedDown);
 
-    kernels.predict(reference, 2, 2, 0, 0, 8, -5, -5, out);
-    final int clampedFirst = out[0];
+    kernels.predict(reference, 2, 2, 0, 0, 8, -5, -5, output);
+    final int clampedFirst = output[0];
     assertEquals(0, clampedFirst);
 
-    final int clampedLast = out[(7 * 8 + 7) * 3];
+    final int clampedLast = output[(7 * 8 + 7) * 3];
     assertEquals(120, clampedLast);
   }
 }

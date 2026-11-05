@@ -32,6 +32,8 @@ import org.junit.jupiter.api.Test;
 
 final class Mcv2BoundsTest {
 
+  private static final int ROOTS_PER_SIDE = 128;
+
   private static final int LARGEST_SIDE = 4096;
 
   private static final int THREADS = 4;
@@ -43,7 +45,7 @@ final class Mcv2BoundsTest {
     final byte[] picture = new byte[width * height * 3];
     for (int row = 0; row < height; row++) {
       for (int column = 0; column < width; column++) {
-        final int root = (row / 32) * 128 + column / 32;
+        final int root = (row / 32) * ROOTS_PER_SIDE + column / 32;
         final int offset = (row * width + column) * 3;
         picture[offset] = (byte) root;
         picture[offset + 1] = (byte) (root >> 8);
@@ -61,7 +63,7 @@ final class Mcv2BoundsTest {
     final double lambda = encoder.getStatistics().orElseThrow().getLambda();
     assertEquals(expectedLambda, lambda);
 
-    final int expectedLeafCount = 128 * 128;
+    final int expectedLeafCount = ROOTS_PER_SIDE * ROOTS_PER_SIDE;
     final int leafCount = Mcv2Decoder.parse(first).getLeafCount();
     assertEquals(expectedLeafCount, leafCount);
 
@@ -147,7 +149,7 @@ final class Mcv2BoundsTest {
   void shouldRequestARetryFromTheWriterForAnOversizedTree() {
     final Node palette = Node.leaf(Mcv2Decoder.MODE_PALETTE, 0, new byte[14]);
     final Node full = Mcv2Trees.split(Mcv2Trees.split(palette));
-    final List<Object> roots = Collections.nCopies(128 * 128, full.value());
+    final List<Object> roots = Collections.nCopies(ROOTS_PER_SIDE * ROOTS_PER_SIDE, full.value());
     final @Nullable Object written = Mcv2Internals.call(
       Mcv2.class,
       null,

@@ -29,9 +29,12 @@ import org.junit.jupiter.api.Test;
 
 final class Mcv2PatternRewriteTest {
 
+  private static final int MEDIUM_LEAF_SIZE = 16;
+  private static final int ROOT_SIZE = 32;
+
   private static final byte[] ENDPOINTS = { 1, 2, 3, (byte) 250, (byte) 251, (byte) 252 };
 
-  private static final String PATTERN_RECORD_METHOD = "patternRecord";
+  private static final String PATTERN_RECORD_METHOD = "writePatternRecord";
 
   private static byte[] palette(final IntBinaryOperator bit) {
     final byte[] record = new byte[14];
@@ -45,15 +48,15 @@ final class Mcv2PatternRewriteTest {
     return record;
   }
 
-  private boolean pattern(final byte[] palette, final byte[] out) {
-    return (boolean) Mcv2Internals.invoke(
+  private boolean pattern(final byte[] palette, final byte[] output) {
+    return (boolean) Mcv2Internals.callForResult(
       Mcv2.class,
       null,
       PATTERN_RECORD_METHOD,
       new Class<?>[] { byte[].class, int.class, byte[].class },
       palette,
       8,
-      out
+      output
     );
   }
 
@@ -87,7 +90,7 @@ final class Mcv2PatternRewriteTest {
 
   @Test
   void shouldEncodeRepeatingSelectorsAsPatternsAtEveryLeafSize() {
-    for (final int size : new int[] { 8, 16, 32 }) {
+    for (final int size : new int[] { 8, MEDIUM_LEAF_SIZE, ROOT_SIZE }) {
       for (final int orientation : new int[] { 0, 1 }) {
         this.assertPatternRoundTrip(size, orientation);
       }
@@ -98,7 +101,7 @@ final class Mcv2PatternRewriteTest {
     final byte[] expected = this.expectedPattern(size, orientation);
     final byte[] palette = this.repeatedPalette(expected, size, orientation);
     final byte[] output = new byte[expected.length];
-    final boolean encodedAsPattern = (boolean) Mcv2Internals.invoke(
+    final boolean encodedAsPattern = (boolean) Mcv2Internals.callForResult(
       Mcv2.class,
       null,
       PATTERN_RECORD_METHOD,
@@ -169,15 +172,15 @@ final class Mcv2PatternRewriteTest {
 
     final byte[] record = state.record(0, 0);
     final Node leaf = Node.leaf(Mcv2Decoder.MODE_PATTERN, 0, record);
-    final Node root = size == 32 ? leaf : size == 16 ? Mcv2Trees.split(leaf) : Mcv2Trees.split(Mcv2Trees.split(leaf));
+    final Node root = size == ROOT_SIZE ? leaf : size == MEDIUM_LEAF_SIZE ? Mcv2Trees.split(leaf) : Mcv2Trees.split(Mcv2Trees.split(leaf));
     final byte[] decoded = Mcv2Decoder.decode(Mcv2Decoder.parse(Mcv2Trees.keyframe(size, size, root)), null, 0);
     assertArrayEquals(source, decoded);
   }
 
   @Test
   void shouldRebuildKeyframeSolidsAndPatterns() {
-    final Node patterns = Mcv2Trees.split(Mcv2Trees.pattern(16, ENDPOINTS, 1, 0x5a));
-    final byte[] data = Mcv2Trees.keyframe(64, 32, Mcv2Trees.solid(4, 5, 6), patterns);
+    final Node patterns = Mcv2Trees.split(Mcv2Trees.pattern(MEDIUM_LEAF_SIZE, ENDPOINTS, 1, 0x5a));
+    final byte[] data = Mcv2Trees.keyframe(64, ROOT_SIZE, Mcv2Trees.solid(4, 5, 6), patterns);
     final List<Node> expected = List.of(Mcv2Trees.solid(4, 5, 6), patterns);
     final List<Node> roots = Mcv2Trees.read(Mcv2Decoder.parse(data));
     assertEquals(expected, roots);
@@ -187,7 +190,7 @@ final class Mcv2PatternRewriteTest {
   void shouldRebuildMotionSkipsAndCompactRecords() {
     final Node compact = Node.leaf(Mcv2Decoder.MODE_COMPACT, 2, new byte[] { 0, 0, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55 });
     final Node split = Node.split(compact, Node.skip(), Mcv2Trees.motion(1, 1), compact);
-    final byte[] data = Mcv2Trees.predicted(96, 32, Mcv2Trees.motion(-2, 3), Node.skip(), split);
+    final byte[] data = Mcv2Trees.predicted(96, ROOT_SIZE, Mcv2Trees.motion(-2, 3), Node.skip(), split);
     final List<Node> expected = List.of(Mcv2Trees.motion(-2, 3), Node.skip(), split);
     final List<Node> roots = Mcv2Trees.read(Mcv2Decoder.parse(data));
     assertEquals(expected, roots);

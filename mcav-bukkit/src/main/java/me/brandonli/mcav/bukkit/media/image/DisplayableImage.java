@@ -40,6 +40,7 @@ import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.Dit
  * final DitherAlgorithm algorithm = DitherAlgorithm.filterLite();
  * final DisplayableImage display = DisplayableImage.map(configuration, algorithm);
  * display.displayImage(image);
+ *
  * // later
  * display.release();
  * }

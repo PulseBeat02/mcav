@@ -24,8 +24,7 @@
  * removes/restores display state; perform shutdown cleanup on the main thread. Input buffers are never owned by the
  * renderer and must not be mutated during conversion.
  *
- * <p>Reference parameters and return values are non-null unless marked {@code @Nullable};
- * nullable values and their meanings are described on the corresponding members.
+ * <p>Reference parameters and return values are non-null unless marked {@code @Nullable}.
  *
  * @since 1.0.0
  */

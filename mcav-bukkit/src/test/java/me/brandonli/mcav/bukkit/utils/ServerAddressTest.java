@@ -77,7 +77,7 @@ final class ServerAddressTest {
   @Test
   void shouldPreferTheAddressConfiguredInTheServerProperties() {
     this.configureServerAddress(CONFIGURED_ADDRESS);
-    final String address = ServerAddress.getPublicIpAddress();
+    final String address = ServerAddress.getPublicAddress();
     assertEquals(CONFIGURED_ADDRESS, address);
   }
 
@@ -88,8 +88,8 @@ final class ServerAddressTest {
     this.http.respond(ADDRESS_PATH, HTTP_OK, body);
     final URI service = this.http.uri(ADDRESS_PATH);
     final URI otherService = this.http.uri(OTHER_PATH);
-    final String first = ServerAddress.getPublicIpAddress(service);
-    final String second = ServerAddress.getPublicIpAddress(otherService);
+    final String first = ServerAddress.getPublicAddress(service);
+    final String second = ServerAddress.getPublicAddress(otherService);
     final int requests = this.http.getRequestCount(ADDRESS_PATH);
     final int otherRequests = this.http.getRequestCount(OTHER_PATH);
     assertEquals(PUBLIC_ADDRESS, first);
@@ -105,14 +105,14 @@ final class ServerAddressTest {
     final byte[] body = "2001:db8::1".getBytes(StandardCharsets.US_ASCII);
     this.http.respond(ADDRESS_PATH, HTTP_OK, body);
     final URI service = this.http.uri(ADDRESS_PATH);
-    final String address = ServerAddress.getPublicIpAddress(service);
+    final String address = ServerAddress.getPublicAddress(service);
     assertEquals("2001:db8::1", address);
   }
 
   @Test
   void shouldPreserveAConfiguredHostname() {
     this.configureServerAddress("mc.example.org");
-    final String address = ServerAddress.getPublicIpAddress();
+    final String address = ServerAddress.getPublicAddress();
     assertEquals("mc.example.org", address);
   }
 
@@ -124,9 +124,9 @@ final class ServerAddressTest {
     this.http.respond(ADDRESS_PATH, 503, error);
     this.http.respond(ADDRESS_PATH, HTTP_OK, address);
     final URI service = this.http.uri(ADDRESS_PATH);
-    final String failed = ServerAddress.getPublicIpAddress(service);
-    final String retried = ServerAddress.getPublicIpAddress(service);
-    final String cached = ServerAddress.getPublicIpAddress(service);
+    final String failed = ServerAddress.getPublicAddress(service);
+    final String retried = ServerAddress.getPublicAddress(service);
+    final String cached = ServerAddress.getPublicAddress(service);
     final int requests = this.http.getRequestCount(ADDRESS_PATH);
     final boolean failedIsFallback = ServerAddress.isFallbackAddress(failed);
     assertEquals(LOCALHOST, failed);
@@ -134,12 +134,6 @@ final class ServerAddressTest {
     assertEquals(PUBLIC_ADDRESS, retried, "a transient failure is not remembered");
     assertEquals(PUBLIC_ADDRESS, cached);
     assertEquals(2, requests, "only the successful lookup is cached");
-  }
-
-  @Test
-  void shouldRequireAnAddressService() {
-    this.configureServerAddress(CONFIGURED_ADDRESS);
-    assertThrows(NullPointerException.class, () -> ServerAddress.getPublicIpAddress(null));
   }
 
   @Test

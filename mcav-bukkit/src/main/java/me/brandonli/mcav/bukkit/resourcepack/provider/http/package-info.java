@@ -18,13 +18,14 @@
 /**
  * Hosts a caller-owned resource-pack file on a dedicated HTTP listener.
  *
- * <p>{@link me.brandonli.mcav.bukkit.resourcepack.provider.http.ServerPackHosting} owns its listener and event
- * loops, binds the configured port on local interfaces and uses the supplied host name only in its public URL.
+ * <p>{@link me.brandonli.mcav.bukkit.resourcepack.provider.http.HttpHosting}, created by
+ * {@link me.brandonli.mcav.bukkit.resourcepack.provider.PackHosting#http(java.nio.file.Path, String, int)} and
+ * implemented by {@link me.brandonli.mcav.bukkit.resourcepack.provider.http.ServerPackHosting}, owns its listener and
+ * event loops, binds the configured port on local interfaces and uses the supplied host name only in its public URL.
  * Start before advertising the URL and shut down when finished. Lifecycle operations wait for network resources;
  * do not run them from their own event loops. Each download reads the file again, allowing archive replacement.
  *
- * <p>Reference parameters and return values are non-null unless marked {@code @Nullable};
- * nullable values and their meanings are described on the corresponding members.
+ * <p>Reference parameters and return values are non-null unless marked {@code @Nullable}.
  *
  * @since 1.0.0
  */

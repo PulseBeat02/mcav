@@ -136,7 +136,7 @@ final class MapConfigurationTest {
     final MapConfigurationBuilder noHeight = this.completeBuilder();
     noHeight.mapBlockHeight(0);
 
-    assertThrows(NullPointerException.class, noViewers::build);
+    assertThrows(IllegalStateException.class, noViewers::build);
     assertThrows(IllegalArgumentException.class, noMap::build);
     assertThrows(IllegalArgumentException.class, negativeMap::build);
     assertThrows(IllegalArgumentException.class, noWidth::build);
@@ -155,8 +155,8 @@ final class MapConfigurationTest {
 
     final String widthMessage = widthException.getMessage();
     final String heightMessage = heightException.getMessage();
-    assertEquals("Map width resolution must not be negative!", widthMessage);
-    assertEquals("Map height resolution must not be negative!", heightMessage);
+    assertEquals("Map width resolution -1 must not be negative!", widthMessage);
+    assertEquals("Map height resolution -1 must not be negative!", heightMessage);
   }
 
   @Test

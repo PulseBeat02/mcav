@@ -19,10 +19,12 @@ package me.brandonli.mcav.bukkit.media.config;
 
 import java.util.Collection;
 import java.util.UUID;
+import me.brandonli.mcav.bukkit.media.image.BlockImage;
+import me.brandonli.mcav.bukkit.media.result.BlockResult;
 import org.bukkit.Location;
 
 /**
- * Describes a wall of blocks that shows an image, for use with the block image and block result.
+ * Describes a wall of blocks that shows an image, for use with {@link BlockImage} and {@link BlockResult}.
  *
  * <p>Every pixel becomes one block. The wall stands upright along the x axis, is centered horizontally on the
  * configured position, and grows upward from it. Blocks are sent as fake block changes, so the world is never

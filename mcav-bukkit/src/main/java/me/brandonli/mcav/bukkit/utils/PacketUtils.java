@@ -19,6 +19,7 @@ package me.brandonli.mcav.bukkit.utils;
 
 import com.google.common.base.Preconditions;
 import io.netty.channel.Channel;
+import io.netty.channel.ChannelConfig;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.epoll.EpollChannelOption;
@@ -28,6 +29,7 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import me.brandonli.mcav.bukkit.BukkitModule;
+import net.minecraft.network.Connection;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.network.ServerGamePacketListenerImpl;
@@ -95,7 +97,9 @@ public final class PacketUtils {
 
     final Collection<? extends Player> onlinePlayers = Bukkit.getOnlinePlayers();
     for (final Player player : onlinePlayers) {
-      addPlayerConnection(player, previous.get(player.getUniqueId()));
+      final UUID uuid = player.getUniqueId();
+      final @Nullable CachedConnection cached = previous.get(uuid);
+      addPlayerConnection(player, cached);
     }
   }
 
@@ -143,7 +147,7 @@ public final class PacketUtils {
    * @throws NullPointerException if {@code player} is null
    * @since 1.0.0
    */
-  public static Optional<Object> connectionIdentity(final UUID player) {
+  public static Optional<Object> findConnectionIdentity(final UUID player) {
     Preconditions.checkNotNull(player, PLAYER_NULL_MESSAGE);
 
     final @Nullable CachedConnection cached = PLAYER_CONNECTIONS.get(player);
@@ -164,12 +168,13 @@ public final class PacketUtils {
     Preconditions.checkNotNull(packets, "Packets must not be null!");
 
     for (final UUID viewer : viewers) {
-      final CachedConnection connection = PLAYER_CONNECTIONS.get(viewer);
-      if (connection == null) {
+      final @Nullable CachedConnection cached = PLAYER_CONNECTIONS.get(viewer);
+      if (cached == null) {
         continue;
       }
+      final ServerGamePacketListenerImpl listener = cached.listener();
       for (final Packet<?> packet : packets) {
-        connection.listener().send(packet);
+        listener.send(packet);
       }
     }
   }
@@ -185,7 +190,7 @@ public final class PacketUtils {
    *
    * @param viewer   the UUID of the player
    * @param packet   the packet
-   * @param listener called on the player's connection thread when the packet was written, or could not be
+   * @param listener the listener called on the player's connection thread once the write succeeds or fails
    * @return true if the packet was handed to the player's connection, false for a player who is not online or a
    *         connection not open yet, in which case the listener is never called
    * @throws NullPointerException if {@code viewer}, {@code packet} or {@code listener} is null
@@ -196,7 +201,7 @@ public final class PacketUtils {
     Preconditions.checkNotNull(packet, "Packet must not be null!");
     Preconditions.checkNotNull(listener, "Listener must not be null!");
 
-    final Channel channel = channel(viewer);
+    final @Nullable Channel channel = findChannel(viewer);
     if (channel == null) {
       return false;
     }
@@ -222,7 +227,7 @@ public final class PacketUtils {
    * @param bytes  the most unsent bytes the system may hold, positive
    * @return true if the cap was set; false for a player who is not online, a connection not open yet, or a transport
    *         without the option
-   * @throws IllegalArgumentException if the byte limit is nonpositive
+   * @throws IllegalArgumentException if the byte limit is not positive
    * @throws NullPointerException     if {@code player} is null
    * @since 1.0.0
    */
@@ -230,19 +235,32 @@ public final class PacketUtils {
     Preconditions.checkNotNull(player, PLAYER_NULL_MESSAGE);
     Preconditions.checkArgument(bytes > 0, "Bytes must be positive!");
 
-    final Channel channel = channel(player);
-    return channel != null && channel.config().setOption(EpollChannelOption.TCP_NOTSENT_LOWAT, (long) bytes);
+    final @Nullable Channel channel = findChannel(player);
+    if (channel == null) {
+      return false;
+    }
+
+    final ChannelConfig configuration = channel.config();
+    return configuration.setOption(EpollChannelOption.TCP_NOTSENT_LOWAT, (long) bytes);
   }
 
-  private static @Nullable Channel channel(final UUID player) {
-    final CachedConnection cached = PLAYER_CONNECTIONS.get(player);
-    return cached == null ? null : cached.listener().connection.channel;
+  private static @Nullable Channel findChannel(final UUID player) {
+    final @Nullable CachedConnection cached = PLAYER_CONNECTIONS.get(player);
+    if (cached == null) {
+      return null;
+    }
+
+    final ServerGamePacketListenerImpl listener = cached.listener();
+    final Connection connection = listener.connection;
+    return connection.channel;
   }
 
   private static void onPlayerJoin(final Event event) {
     if (event instanceof final PlayerJoinEvent joinEvent) {
       final Player player = joinEvent.getPlayer();
-      addPlayerConnection(player, PLAYER_CONNECTIONS.get(player.getUniqueId()));
+      final UUID uuid = player.getUniqueId();
+      final @Nullable CachedConnection previous = PLAYER_CONNECTIONS.get(uuid);
+      addPlayerConnection(player, previous);
     }
   }
 
@@ -256,10 +274,23 @@ public final class PacketUtils {
   private static void addPlayerConnection(final Player player, final @Nullable CachedConnection previous) {
     final CraftPlayer craftPlayer = (CraftPlayer) player;
     final ServerPlayer handle = craftPlayer.getHandle();
-    final ServerGamePacketListenerImpl connection = handle.connection;
+    final ServerGamePacketListenerImpl listener = handle.connection;
     final UUID uuid = player.getUniqueId();
-    final Object identity = previous != null && connection.equals(previous.listener()) ? previous.identity() : new Object();
-    PLAYER_CONNECTIONS.put(uuid, new CachedConnection(connection, identity));
+    final Object identity = connectionIdentity(listener, previous);
+    PLAYER_CONNECTIONS.put(uuid, new CachedConnection(listener, identity));
+  }
+
+  private static Object connectionIdentity(final ServerGamePacketListenerImpl listener, final @Nullable CachedConnection previous) {
+    if (previous == null) {
+      return new Object();
+    }
+
+    final ServerGamePacketListenerImpl previousListener = previous.listener();
+    if (!listener.equals(previousListener)) {
+      return new Object();
+    }
+
+    return previous.identity();
   }
 
   private static void removePlayerConnection(final Player player) {

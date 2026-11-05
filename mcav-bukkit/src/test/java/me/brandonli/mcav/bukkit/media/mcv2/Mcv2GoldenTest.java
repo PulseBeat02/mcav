@@ -81,7 +81,7 @@ final class Mcv2GoldenTest {
   })
   void shouldReproduceTheGoldenEncoder(final String stream, final int threads, final Mcv2.Verification verification) {
     final Settings settings = stream.equals(CROP_DEFAULT_STREAM) ? Settings.DEFAULT : Settings.FAST;
-    final List<byte[]> expected = Mcv2Fixtures.frames(Mcv2Fixtures.read(ENCODER_FOLDER + stream));
+    final List<byte[]> expected = Mcv2Fixtures.splitFrames(Mcv2Fixtures.read(ENCODER_FOLDER + stream));
     final byte[] source = Mcv2Fixtures.read(CROP_SOURCE_PATH);
     final ForkJoinPool pool = new ForkJoinPool(threads);
     try {
@@ -95,7 +95,7 @@ final class Mcv2GoldenTest {
         final byte[] rgb = Arrays.copyOfRange(source, frameIndex * frameBytes, (frameIndex + 1) * frameBytes);
         final byte[] expectedFrame = expected.get(frameIndex);
         final byte[] frame = encoder.encode(rgb, WIDTH, HEIGHT, frameIndex);
-        assertArrayEquals(expectedFrame, frame, stream + " frame " + frameIndex);
+        assertArrayEquals(expectedFrame, frame, "%s frame %s".formatted(stream, frameIndex));
       }
     } finally {
       pool.shutdown();

@@ -39,41 +39,32 @@ import org.bukkit.scoreboard.Score;
 import org.bukkit.scoreboard.Scoreboard;
 import org.bukkit.scoreboard.ScoreboardManager;
 import org.bukkit.scoreboard.Team;
+import org.mockito.AdditionalAnswers;
+import org.mockito.invocation.InvocationOnMock;
 
 // CraftScoreboard mocks with Guava immutable sets, because CraftBukkit casts to both
 public final class FakeScoreboards {
 
-  private final Scoreboard board;
-  private final Scoreboard mainBoard;
+  private final Scoreboard newScoreboard;
+  private final Scoreboard mainScoreboard;
   private final Objective objective;
   private final Map<String, Team> teams;
   private final Map<String, Score> scores;
 
   private FakeScoreboards(final ScoreboardManager manager) {
-    this.board = mock(CraftScoreboard.class, "new scoreboard");
-    this.mainBoard = mock(CraftScoreboard.class, "main scoreboard");
+    this.newScoreboard = mock(CraftScoreboard.class, "new scoreboard");
+    this.mainScoreboard = mock(CraftScoreboard.class, "main scoreboard");
     this.objective = mock(Objective.class);
     this.teams = new LinkedHashMap<>();
     this.scores = new LinkedHashMap<>();
 
-    when(manager.getNewScoreboard()).thenReturn(this.board);
-    when(manager.getMainScoreboard()).thenReturn(this.mainBoard);
-    when(this.board.registerNewObjective(anyString(), any(Criteria.class), any(Component.class))).thenReturn(this.objective);
-    when(this.objective.getScore(anyString())).thenAnswer(invocation -> {
-      final String entry = invocation.getArgument(0);
-      return this.scores.computeIfAbsent(entry, name -> mock(Score.class, "score " + name));
-    });
-    when(this.board.registerNewTeam(anyString())).thenAnswer(invocation -> {
-      final String name = invocation.getArgument(0);
-      final Team team = mock(Team.class, name);
-      this.teams.put(name, team);
-      return team;
-    });
-    when(this.board.getObjectives()).thenAnswer(_ -> ImmutableSet.of(this.objective));
-    when(this.board.getTeams()).thenAnswer(_ -> {
-      final Collection<Team> registeredTeams = this.teams.values();
-      return ImmutableSet.copyOf(registeredTeams);
-    });
+    when(manager.getNewScoreboard()).thenReturn(this.newScoreboard);
+    when(manager.getMainScoreboard()).thenReturn(this.mainScoreboard);
+    when(this.newScoreboard.registerNewObjective(anyString(), any(Criteria.class), any(Component.class))).thenReturn(this.objective);
+    when(this.objective.getScore(anyString())).thenAnswer(this::findScore);
+    when(this.newScoreboard.registerNewTeam(anyString())).thenAnswer(this::registerTeam);
+    when(this.newScoreboard.getObjectives()).thenAnswer(_ -> ImmutableSet.of(this.objective));
+    when(this.newScoreboard.getTeams()).thenAnswer(_ -> this.copyRegisteredTeams());
   }
 
   public static FakeScoreboards install(final ScoreboardManager manager) {
@@ -83,13 +74,25 @@ public final class FakeScoreboards {
   public static void trackScoreboard(final Player player, final Scoreboard initial) {
     final AtomicReference<Scoreboard> current = new AtomicReference<>(initial);
     when(player.getScoreboard()).thenAnswer(_ -> current.get());
-    doAnswer(invocation -> {
-      final Scoreboard scoreboard = invocation.getArgument(0);
-      current.set(scoreboard);
-      return null;
-    })
-      .when(player)
-      .setScoreboard(any(Scoreboard.class));
+    doAnswer(AdditionalAnswers.answerVoid(current::set)).when(player).setScoreboard(any(Scoreboard.class));
+  }
+
+  private Score findScore(final InvocationOnMock invocation) {
+    final String entry = invocation.getArgument(0);
+    return this.getScore(entry);
+  }
+
+  private Team registerTeam(final InvocationOnMock invocation) {
+    final String name = invocation.getArgument(0);
+    final Team team = mock(Team.class, name);
+    this.teams.put(name, team);
+
+    return team;
+  }
+
+  private ImmutableSet<Team> copyRegisteredTeams() {
+    final Collection<Team> registeredTeams = this.teams.values();
+    return ImmutableSet.copyOf(registeredTeams);
   }
 
   public List<Team> getTeams() {
@@ -103,15 +106,15 @@ public final class FakeScoreboards {
   }
 
   public Score getScore(final String entry) {
-    return this.scores.get(entry);
+    return this.scores.computeIfAbsent(entry, name -> mock(Score.class, "score %s".formatted(name)));
   }
 
-  public Scoreboard getBoard() {
-    return this.board;
+  public Scoreboard getNewScoreboard() {
+    return this.newScoreboard;
   }
 
-  public Scoreboard getMainBoard() {
-    return this.mainBoard;
+  public Scoreboard getMainScoreboard() {
+    return this.mainScoreboard;
   }
 
   public Objective getObjective() {

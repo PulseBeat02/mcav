@@ -55,6 +55,8 @@ public final class MapPacketFactory {
 
   private static final byte DEFAULT_SCALE = 0;
 
+  private static final int MAP_ORIGIN = 0;
+
   private MapPacketFactory() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated!");
   }
@@ -76,8 +78,10 @@ public final class MapPacketFactory {
       return;
     }
 
-    for (final Bundle bundle : bundles(patches)) {
-      PacketUtils.sendPackets(viewers, bundle.getPacket());
+    final List<Bundle> bundles = createBundles(patches);
+    for (final Bundle bundle : bundles) {
+      final ClientboundBundlePacket packet = bundle.getPacket();
+      PacketUtils.sendPackets(viewers, packet);
     }
   }
 
@@ -90,22 +94,31 @@ public final class MapPacketFactory {
    * @throws NullPointerException if {@code patches} is null
    * @since 1.0.0
    */
-  public static List<Bundle> bundles(final List<MapTilePatch> patches) {
+  public static List<Bundle> createBundles(final List<MapTilePatch> patches) {
     Preconditions.checkNotNull(patches, PATCHES_NULL_MESSAGE);
 
     final List<Bundle> bundles = new ArrayList<>();
     for (int from = 0; from < patches.size(); from += MAXIMUM_PACKETS_PER_BUNDLE) {
       final int to = Math.min(from + MAXIMUM_PACKETS_PER_BUNDLE, patches.size());
-      final List<Packet<? super ClientGamePacketListener>> packets = new ArrayList<>(to - from);
-      long bytes = 0;
-      for (final MapTilePatch patch : patches.subList(from, to)) {
-        packets.add(createPacket(patch));
-        bytes += patch.getEncodedSize();
-      }
-      bundles.add(Bundle.of(new ClientboundBundlePacket(packets), bytes));
+      final List<MapTilePatch> bundlePatches = patches.subList(from, to);
+      final Bundle bundle = createBundle(bundlePatches);
+      bundles.add(bundle);
     }
 
     return bundles;
+  }
+
+  private static Bundle createBundle(final List<MapTilePatch> bundlePatches) {
+    final List<Packet<? super ClientGamePacketListener>> packets = new ArrayList<>(bundlePatches.size());
+    long bytes = 0;
+    for (final MapTilePatch patch : bundlePatches) {
+      final ClientboundMapItemDataPacket packet = createPacket(patch);
+      packets.add(packet);
+      bytes += patch.getEncodedSize();
+    }
+
+    final ClientboundBundlePacket bundlePacket = new ClientboundBundlePacket(packets);
+    return Bundle.of(bundlePacket, bytes);
   }
 
   /**
@@ -125,18 +138,18 @@ public final class MapPacketFactory {
    */
   public static void clear(final Collection<UUID> viewers, final int startMapId, final int count) {
     Preconditions.checkNotNull(viewers, VIEWERS_NULL_MESSAGE);
-    Preconditions.checkArgument(startMapId >= 0, "Map id must be non-negative!");
-    Preconditions.checkArgument(count >= 0, "Map count must be non-negative!");
+    Preconditions.checkArgument(startMapId >= 0, "Map id %s must not be negative!", startMapId);
+    Preconditions.checkArgument(count >= 0, "Map count %s must not be negative!", count);
 
     final long lastMapId = (long) startMapId + count - 1;
-    Preconditions.checkArgument(lastMapId <= Integer.MAX_VALUE, "Map ids exceed the integer range!");
+    Preconditions.checkArgument(lastMapId <= Integer.MAX_VALUE, "Map ids %s to %s exceed the largest map id!", startMapId, lastMapId);
 
     final int size = MapLayout.MAP_SIZE;
     final byte[] transparent = new byte[size * size];
     final List<MapTilePatch> patches = new ArrayList<>(count);
     for (int offset = 0; offset < count; offset++) {
       final int mapId = startMapId + offset;
-      final MapTilePatch patch = MapTilePatch.of(mapId, 0, 0, size, size, transparent);
+      final MapTilePatch patch = MapTilePatch.of(mapId, MAP_ORIGIN, MAP_ORIGIN, size, size, transparent);
       patches.add(patch);
     }
 
@@ -155,13 +168,14 @@ public final class MapPacketFactory {
     final MapItemSavedData.MapPatch mapPatch = new MapItemSavedData.MapPatch(left, top, width, height, colors);
     final Optional<List<MapDecoration>> decorations = Optional.empty();
     final Optional<MapItemSavedData.MapPatch> colorPatch = Optional.of(mapPatch);
-    return new ClientboundMapItemDataPacket(id, DEFAULT_SCALE, false, decorations, colorPatch);
+    final boolean locked = false;
+    return new ClientboundMapItemDataPacket(id, DEFAULT_SCALE, locked, decorations, colorPatch);
   }
 
   /**
    * A bundle of map data packets, and their estimated size in bytes before network compression.
    *
-   * <p>The bundle shares the packet rather than copying it, and validates neither part. This class is immutable and
+   * <p>The bundle shares the packet rather than copying it, and does not check the size. This class is immutable and
    * thread-safe.
    *
    * @since 1.0.0
@@ -182,9 +196,12 @@ public final class MapPacketFactory {
      * @param packet the bundle
      * @param bytes  the sum of its patches' {@link MapTilePatch#getEncodedSize()}
      * @return the bundle
+     * @throws NullPointerException if {@code packet} is null
      * @since 1.0.0
      */
     public static Bundle of(final ClientboundBundlePacket packet, final long bytes) {
+      Preconditions.checkNotNull(packet, "Packet must not be null!");
+
       return new Bundle(packet, bytes);
     }
 
@@ -196,15 +213,16 @@ public final class MapPacketFactory {
      * connection thread and should not block; it receives no success/failure flag.
      *
      * @param viewer  the UUID of the player
-     * @param written run once, on the player's connection thread or on this one
+     * @param callback the callback to run once, on the player's connection thread or on this one
      * @throws NullPointerException if the viewer or callback is null
      * @since 1.0.0
      */
-    public void send(final UUID viewer, final Runnable written) {
-      Preconditions.checkNotNull(written, "Callback must not be null!");
+    public void send(final UUID viewer, final Runnable callback) {
+      Preconditions.checkNotNull(callback, "Callback must not be null!");
 
-      if (!PacketUtils.sendPacket(viewer, this.packet, _ -> written.run())) {
-        written.run();
+      final boolean sent = PacketUtils.sendPacket(viewer, this.packet, _ -> callback.run());
+      if (!sent) {
+        callback.run();
       }
     }
 

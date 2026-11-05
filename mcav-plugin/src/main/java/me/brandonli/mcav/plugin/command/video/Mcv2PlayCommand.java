@@ -715,7 +715,7 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
         final String message = "Truncated frame length!";
         throw new IOException(message);
       }
-      final long length = Mcv2Decoder.u32(data, offset);
+      final long length = Mcv2Decoder.readUnsignedInt(data, offset);
       if (length > data.length - offset - LENGTH_BYTES) {
         final String message = "Truncated frame!";
         throw new IOException(message);

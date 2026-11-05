@@ -27,6 +27,8 @@ import org.junit.jupiter.api.Test;
 
 final class TransportPageTest {
 
+  private static final int FRAME_BYTES = 48;
+
   private TransportPage page(
     final long stream,
     final long frame,
@@ -43,19 +45,19 @@ final class TransportPageTest {
 
   @Test
   void shouldCompareEveryField() {
-    final TransportPage value = this.page(1, 2, 0, 1, 2, 48, 1, 6, (byte) 5);
+    final TransportPage value = this.page(1, 2, 0, 1, 2, FRAME_BYTES, 1, 6, (byte) 5);
     EqualityAssertions.assertEqualityContract(
       value,
-      this.page(1, 2, 0, 1, 2, 48, 1, 6, (byte) 5),
-      this.page(9, 2, 0, 1, 2, 48, 1, 6, (byte) 5),
-      this.page(1, 9, 0, 1, 2, 48, 1, 6, (byte) 5),
-      this.page(1, 2, 9, 1, 2, 48, 1, 6, (byte) 5),
-      this.page(1, 2, 0, 9, 2, 48, 1, 6, (byte) 5),
-      this.page(1, 2, 0, 1, 9, 48, 1, 6, (byte) 5),
+      this.page(1, 2, 0, 1, 2, FRAME_BYTES, 1, 6, (byte) 5),
+      this.page(9, 2, 0, 1, 2, FRAME_BYTES, 1, 6, (byte) 5),
+      this.page(1, 9, 0, 1, 2, FRAME_BYTES, 1, 6, (byte) 5),
+      this.page(1, 2, 9, 1, 2, FRAME_BYTES, 1, 6, (byte) 5),
+      this.page(1, 2, 0, 9, 2, FRAME_BYTES, 1, 6, (byte) 5),
+      this.page(1, 2, 0, 1, 9, FRAME_BYTES, 1, 6, (byte) 5),
       this.page(1, 2, 0, 1, 2, 49, 1, 6, (byte) 5),
-      this.page(1, 2, 0, 1, 2, 48, 0, 6, (byte) 5),
-      this.page(1, 2, 0, 1, 2, 48, 1, 7, (byte) 5),
-      this.page(1, 2, 0, 1, 2, 48, 1, 6, (byte) 6)
+      this.page(1, 2, 0, 1, 2, FRAME_BYTES, 0, 6, (byte) 5),
+      this.page(1, 2, 0, 1, 2, FRAME_BYTES, 1, 7, (byte) 5),
+      this.page(1, 2, 0, 1, 2, FRAME_BYTES, 1, 6, (byte) 6)
     );
     final byte[] firstPayload = value.getPayload();
     final byte[] secondPayload = value.getPayload();
@@ -64,7 +66,7 @@ final class TransportPageTest {
 
   @Test
   void shouldHashThePageByItsFramePageNumberAndPayload() {
-    final TransportPage value = this.page(1, 2, 0, 1, 2, 48, 1, 6, (byte) 5);
+    final TransportPage value = this.page(1, 2, 0, 1, 2, FRAME_BYTES, 1, 6, (byte) 5);
 
     final int hash = value.hashCode();
     final byte[] payload = { 5 };
@@ -75,7 +77,7 @@ final class TransportPageTest {
 
   @Test
   void shouldDescribeEveryHeaderFieldAndThePayloadLength() {
-    final TransportPage value = this.page(1, 2, 0, 1, 2, 48, 1, 6, (byte) 5);
+    final TransportPage value = this.page(1, 2, 0, 1, 2, FRAME_BYTES, 1, 6, (byte) 5);
 
     final String description = value.toString();
     final String expected =

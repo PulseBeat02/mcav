@@ -49,6 +49,9 @@ final class ResourcePackFuzzTest {
 
   private static final String PATH_SEPARATOR = "/";
   private static final String ZIP_EXTENSION = ".zip";
+  private static final String SOUND_EXTENSION = ".ogg";
+
+  private static final int KEEP_TRAILING_EMPTY_PARTS = -1;
 
   private static final String ASSETS_FOLDER = "assets/";
   private static final String SOUNDS_FILE = "/sounds.json";
@@ -79,7 +82,7 @@ final class ResourcePackFuzzTest {
   void shouldWriteOnlySafeEntriesAndExactlyTheAcceptedData(final FuzzedDataProvider data) throws IOException {
     final SimpleResourcePack pack = SimpleResourcePack.pack();
     final String description = data.consumeString(64);
-    pack.meta(data.consumeInt(1, 100), description);
+    pack.metadata(data.consumeInt(1, 100), description);
     final List<String> acceptedSounds = new ArrayList<>();
     final int additions = data.consumeInt(0, 4);
     for (int addition = 0; addition < additions; addition++) {
@@ -121,12 +124,14 @@ final class ResourcePackFuzzTest {
       final ZipEntry entry = entries.nextElement();
       final String name = entry.getName();
       final boolean absolute = name.startsWith(PATH_SEPARATOR);
-      assertFalse(absolute, () -> "an absolute entry " + name);
+      assertFalse(absolute, () -> "an absolute entry %s".formatted(name));
+
       final boolean hasBackslash = name.contains("\\");
-      assertFalse(hasBackslash, () -> "an entry with a backslash " + name);
-      for (final String segment : name.split(PATH_SEPARATOR, -1)) {
+      assertFalse(hasBackslash, () -> "an entry with a backslash %s".formatted(name));
+
+      for (final String segment : name.split(PATH_SEPARATOR, KEEP_TRAILING_EMPTY_PARTS)) {
         final boolean unsafe = segment.isEmpty() || segment.equals(".") || segment.equals("..");
-        assertFalse(unsafe, () -> "an entry with an empty, dot or parent segment " + name);
+        assertFalse(unsafe, () -> "an entry with an empty, dot or parent segment %s".formatted(name));
       }
     }
   }
@@ -146,15 +151,16 @@ final class ResourcePackFuzzTest {
       final String value = key.substring(separator + 1);
       final JsonObject sounds = this.readJson(zip, ASSETS_FOLDER + namespace + SOUNDS_FILE);
       final boolean registered = sounds.has(value);
-      assertTrue(registered, () -> "the sound " + key + " is not registered");
-      final ZipEntry file = zip.getEntry(ASSETS_FOLDER + namespace + SOUNDS_FOLDER + value + ".ogg");
-      assertNotNull(file, () -> "the sound " + key + " has no file");
+      assertTrue(registered, () -> "the sound %s is not registered".formatted(key));
+
+      final ZipEntry file = zip.getEntry(ASSETS_FOLDER + namespace + SOUNDS_FOLDER + value + SOUND_EXTENSION);
+      assertNotNull(file, () -> "the sound %s has no file".formatted(key));
     }
   }
 
   private JsonObject readJson(final ZipFile zip, final String name) throws IOException {
     final ZipEntry entry = zip.getEntry(name);
-    assertNotNull(entry, () -> "the pack has no " + name);
+    assertNotNull(entry, () -> "the pack has no %s".formatted(name));
 
     try (final InputStream stream = zip.getInputStream(entry)) {
       final byte[] bytes = stream.readAllBytes();

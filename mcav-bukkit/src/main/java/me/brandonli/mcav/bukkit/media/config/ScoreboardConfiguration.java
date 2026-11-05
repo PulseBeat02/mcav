@@ -19,10 +19,13 @@ package me.brandonli.mcav.bukkit.media.config;
 
 import java.util.Collection;
 import java.util.UUID;
+import me.brandonli.mcav.bukkit.media.image.ScoreboardImage;
 import me.brandonli.mcav.bukkit.media.result.Characters;
+import me.brandonli.mcav.bukkit.media.result.ScoreboardResult;
 
 /**
- * Describes an image drawn onto the sidebar scoreboard, for use with the scoreboard image and scoreboard result.
+ * Describes an image drawn onto the sidebar scoreboard, for use with {@link ScoreboardImage} and
+ * {@link ScoreboardResult}.
  *
  * <p>Every pixel is drawn as the configured character in the color of the pixel, and every row of pixels becomes
  * one line of the sidebar. The sidebar shows at most 15 lines.

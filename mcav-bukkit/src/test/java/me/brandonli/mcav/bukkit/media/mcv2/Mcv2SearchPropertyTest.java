@@ -25,6 +25,8 @@ import net.jqwik.api.constraints.IntRange;
 
 final class Mcv2SearchPropertyTest {
 
+  private static final int MAXIMUM_CHANNEL_VALUE = 255;
+
   private static final String SEED = "20260926";
   private static final int SIZE = 32;
 
@@ -35,7 +37,7 @@ final class Mcv2SearchPropertyTest {
     for (int index = 0; index < reference.length; index++) {
       final int value = 40 + random.nextInt(176);
       reference[index] = (byte) value;
-      source[index] = (byte) Math.clamp(value + random.nextInt(2 * amplitude + 1) - amplitude, 0, 255);
+      source[index] = (byte) Math.clamp(value + random.nextInt(2 * amplitude + 1) - amplitude, 0, MAXIMUM_CHANNEL_VALUE);
     }
 
     return new byte[][] { source, reference };
@@ -44,9 +46,9 @@ final class Mcv2SearchPropertyTest {
   static long distortion(final byte[] source, final byte[] reference) {
     long sum = 0;
     for (int offset = 0; offset < source.length; offset += 3) {
-      final long red = (source[offset] & 255L) - (reference[offset] & 255);
-      final long green = (source[offset + 1] & 255L) - (reference[offset + 1] & 255);
-      final long blue = (source[offset + 2] & 255L) - (reference[offset + 2] & 255);
+      final long red = (source[offset] & (long) MAXIMUM_CHANNEL_VALUE) - (reference[offset] & MAXIMUM_CHANNEL_VALUE);
+      final long green = (source[offset + 1] & (long) MAXIMUM_CHANNEL_VALUE) - (reference[offset + 1] & MAXIMUM_CHANNEL_VALUE);
+      final long blue = (source[offset + 2] & (long) MAXIMUM_CHANNEL_VALUE) - (reference[offset + 2] & MAXIMUM_CHANNEL_VALUE);
       final long luma = red + 2 * green + blue;
       final long orange = 2 * (red - blue);
       final long chromaGreen = -red + 2 * green - blue;
@@ -58,7 +60,7 @@ final class Mcv2SearchPropertyTest {
 
   private static boolean skipped(final byte[][] frames, final double lambda, final Mcv2BlockState.Thresholds thresholds) {
     final Mcv2BlockState job = new Mcv2BlockState(frames[0], frames[1], SIZE, SIZE, Mcv2FrameKind.PREDICTED, thresholds, lambda, null);
-    return Mcv2BlockState.skipped(job.code(SIZE, 0, 0, 0, 0, Mcv2BlockState.NO_VECTOR));
+    return Mcv2BlockState.isSkipped(job.code(SIZE, 0, 0, 0, 0, Mcv2BlockState.NO_VECTOR));
   }
 
   @Property(seed = SEED, tries = 200)

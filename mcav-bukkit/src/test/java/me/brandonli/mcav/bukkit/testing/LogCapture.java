@@ -17,8 +17,11 @@
  */
 package me.brandonli.mcav.bukkit.testing;
 
+import com.google.common.base.MoreObjects;
 import java.time.Duration;
 import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -30,6 +33,7 @@ import org.apache.logging.log4j.core.Logger;
 import org.apache.logging.log4j.core.appender.AbstractAppender;
 import org.apache.logging.log4j.core.config.Property;
 import org.apache.logging.log4j.message.Message;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 public final class LogCapture implements AutoCloseable {
 
@@ -78,9 +82,9 @@ public final class LogCapture implements AutoCloseable {
 
     private final Level level;
     private final String message;
-    private final Throwable thrown;
+    private final @Nullable Throwable thrown;
 
-    RecordedEvent(final Level level, final String message, final Throwable thrown) {
+    RecordedEvent(final Level level, final String message, final @Nullable Throwable thrown) {
       this.level = level;
       this.message = message;
       this.thrown = thrown;
@@ -94,18 +98,43 @@ public final class LogCapture implements AutoCloseable {
       return this.message;
     }
 
-    public Throwable getThrown() {
-      return this.thrown;
+    public Optional<Throwable> getThrown() {
+      return Optional.ofNullable(this.thrown);
+    }
+
+    @Override
+    public boolean equals(final @Nullable Object other) {
+      if (this == other) {
+        return true;
+      }
+
+      if (!(other instanceof final RecordedEvent event)) {
+        return false;
+      }
+
+      return this.level.equals(event.level) && this.message.equals(event.message) && Objects.equals(this.thrown, event.thrown);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(this.level, this.message, this.thrown);
+    }
+
+    @Override
+    public String toString() {
+      return MoreObjects.toStringHelper(this).add("level", this.level).add("message", this.message).add("thrown", this.thrown).toString();
     }
   }
 
   private static final class RecordingAppender extends AbstractAppender {
 
+    private static final String APPENDER_NAME = "mcav-test-capture";
+
     private final List<RecordedEvent> events;
     private final BlockingQueue<RecordedEvent> arrivals;
 
     RecordingAppender() {
-      super("mcav-test-capture", null, null, true, Property.EMPTY_ARRAY);
+      super(APPENDER_NAME, null, null, true, Property.EMPTY_ARRAY);
       this.events = new CopyOnWriteArrayList<>();
       this.arrivals = new LinkedBlockingQueue<>();
     }
@@ -115,7 +144,7 @@ public final class LogCapture implements AutoCloseable {
       final Level level = event.getLevel();
       final Message message = event.getMessage();
       final String text = message.getFormattedMessage();
-      final Throwable thrown = event.getThrown();
+      final @Nullable Throwable thrown = event.getThrown();
       final RecordedEvent recorded = new RecordedEvent(level, text, thrown);
       this.events.add(recorded);
       this.arrivals.add(recorded);

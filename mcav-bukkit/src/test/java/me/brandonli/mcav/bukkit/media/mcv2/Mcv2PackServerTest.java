@@ -36,7 +36,6 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -95,6 +94,8 @@ import org.mockito.Mockito;
 
 final class Mcv2PackServerTest {
 
+  private static final String SECOND_PACK_URL = "http://127.0.0.1:25565/mcav/mcav-mcv2-2.zip";
+
   private static final UUID ALICE = UUID.fromString("00000000-0000-0000-0000-00000000a11c");
 
   private static final UUID BOB = UUID.fromString("00000000-0000-0000-0000-000000000b0b");
@@ -109,6 +110,8 @@ final class Mcv2PackServerTest {
   private static final int SMALL_SCREEN_HEIGHT = 90;
   private static final int STEPPED_SCREEN_WIDTH = 288;
   private static final int LARGE_SCREEN_WIDTH = 640;
+  private static final int SPARE_SCREEN_WIDTH = 608;
+  private static final int ALTERNATE_SCREEN_WIDTH = 256;
 
   private static final String MANIFEST_ENTRY = "mcav_mcv2.json";
   private static final String SIZE_SEPARATOR = "x";
@@ -121,6 +124,7 @@ final class Mcv2PackServerTest {
   private static final String MISSING_PACK_FILE_NAME = "missing.zip";
   private static final String NOTES_FILE_NAME = "notes.txt";
   private static final String KEPT_FILE_NAME = "keep.txt";
+  private static final String BLOCKING_FILE_NAME = "taken";
 
   private static final String HASH_ALGORITHM = "SHA-1";
 
@@ -176,7 +180,7 @@ final class Mcv2PackServerTest {
   private PackHosting hosting(final Path zip) {
     final PackHosting hosting = mock(PackHosting.class);
     when(hosting.getZip()).thenReturn(zip);
-    when(hosting.getRawUrl()).thenReturn("http://127.0.0.1:25565/mcav/" + zip.getFileName());
+    when(hosting.getRawUrl()).thenReturn("http://127.0.0.1:25565/mcav/%s".formatted(zip.getFileName()));
     this.hostings.add(hosting);
     return hosting;
   }
@@ -228,13 +232,13 @@ final class Mcv2PackServerTest {
       final List<String> slots = new ArrayList<>();
       for (final JsonElement screen : parsed.getAsJsonArray("screens")) {
         final JsonObject slot = screen.getAsJsonObject();
-        slots.add(
-          slot.get("stream_id").getAsLong() +
-            ": " +
-            slot.get("video_width").getAsInt() +
-            SIZE_SEPARATOR +
-            slot.get("video_height").getAsInt()
+        final String slotDescription = "%s: %s%s%s".formatted(
+          slot.get("stream_id").getAsLong(),
+          slot.get("video_width").getAsInt(),
+          SIZE_SEPARATOR,
+          slot.get("video_height").getAsInt()
         );
+        slots.add(slotDescription);
       }
       return slots;
     }
@@ -264,7 +268,7 @@ final class Mcv2PackServerTest {
     final String packHash = pack.hash();
     assertEquals(sha1, packHash);
 
-    final UUID expectedId = UUID.nameUUIDFromBytes(("mcav-mcv2:" + sha1).getBytes(StandardCharsets.UTF_8));
+    final UUID expectedId = UUID.nameUUIDFromBytes("mcav-mcv2:%s".formatted(sha1).getBytes(StandardCharsets.UTF_8));
     final UUID id = pack.id();
     assertEquals(expectedId, id);
 
@@ -395,7 +399,7 @@ final class Mcv2PackServerTest {
     assertEquals(1, hostingCount);
 
     final String uri = this.requestSentTo(alice).packs().getFirst().uri().toString();
-    assertEquals("http://127.0.0.1:25565/mcav/mcav-mcv2-2.zip", uri);
+    assertEquals(SECOND_PACK_URL, uri);
   }
 
   @Test
@@ -430,7 +434,7 @@ final class Mcv2PackServerTest {
     verify(this.hostings.get(1), never()).shutdown();
 
     final String uri = this.requestSentTo(alice).packs().getFirst().uri().toString();
-    assertEquals("http://127.0.0.1:25565/mcav/mcav-mcv2-2.zip", uri);
+    assertEquals(SECOND_PACK_URL, uri);
     verify(alice, never()).removeResourcePacks(any(UUID.class));
   }
 
@@ -448,7 +452,7 @@ final class Mcv2PackServerTest {
     leases.get(6).close();
 
     final Mcv2PackServer.Lease fifth = this.packs.open(this.screen(LARGE_SCREEN_WIDTH, Set.of()));
-    final Mcv2PackServer.Lease third = this.packs.open(this.screen(608, Set.of()));
+    final Mcv2PackServer.Lease third = this.packs.open(this.screen(SPARE_SCREEN_WIDTH, Set.of()));
     final Mcv2PackServer.Lease seventh = this.packs.open(this.screen(576, Set.of()));
 
     final long fifthStreamId = fifth.getConfiguration().getStreamId();
@@ -599,7 +603,7 @@ final class Mcv2PackServerTest {
   }
 
   @Test
-  void shouldRefuseAScreenWhoseOutlineColourIsNotThePacks() {
+  void shouldRefuseAScreenWhoseOutlineColorIsNotThePacks() {
     this.packs.open(this.screen(SCREEN_WIDTH, Set.of()));
     final Mcv2Configuration gold = Mcv2ConfigurationTest.complete().outlineColor(NamedTextColor.GOLD).build();
     assertThrows(IllegalArgumentException.class, () -> this.packs.open(gold));
@@ -607,7 +611,7 @@ final class Mcv2PackServerTest {
   }
 
   @Test
-  void shouldGiveAPackWhoseScreensAllClosedTheOutlineColourOfTheNextScreen() {
+  void shouldGiveAPackWhoseScreensAllClosedTheOutlineColorOfTheNextScreen() {
     this.packs.open(this.screen(SCREEN_WIDTH, Set.of())).close();
     this.settle();
     final Mcv2ConfigurationBuilder goldBuilder = this.screenBuilder(SCREEN_WIDTH, Set.of());
@@ -618,7 +622,7 @@ final class Mcv2PackServerTest {
     assertEquals(1, streamId, "the gold screen has the first slot of a new pack");
 
     final int hostingCount = this.hostings.size();
-    assertEquals(2, hostingCount, "the pack changed for the new colour");
+    assertEquals(2, hostingCount, "the pack changed for the new color");
 
     final Mcv2Configuration aqua = this.screen(SCREEN_WIDTH, Set.of());
     assertThrows(IllegalArgumentException.class, () -> this.packs.open(aqua), "while the gold screen plays");
@@ -692,7 +696,7 @@ final class Mcv2PackServerTest {
     // the screen's result asks for the other size with the configuration its slot gave it
     final Mcv2Channel stepped = second.resize(playing.withVideo(SMALL_SCREEN_WIDTH, SMALL_SCREEN_HEIGHT));
     this.settle();
-    final Mcv2PackServer.Lease third = this.packs.open(this.screen(256, Set.of()));
+    final Mcv2PackServer.Lease third = this.packs.open(this.screen(ALTERNATE_SCREEN_WIDTH, Set.of()));
 
     final Mcv2Configuration step = stepped.getConfiguration();
     final long stepStreamId = step.getStreamId();
@@ -860,18 +864,16 @@ final class Mcv2PackServerTest {
       assertEquals(-1, repeatedLoadTime);
       verify(alice).sendMessage(
         Component.text(
-          "MCV2: your modded client may replace the video shaders. If video is blank or frozen, install the MCAV MCV2 " +
-            "Client mod, which shows you the dithered maps while Iris shaders are on, or turn off Iris shaders. Without " +
-            "the mod, MCAV cannot detect active shader settings.",
+          "MCV2: your modded client may replace the video shaders. If video is blank or frozen, install the MCAV MCV2 Client mod, which shows you the dithered maps while Iris shaders are on, or turn off Iris shaders. Without the mod, MCAV cannot detect active shader settings.",
           NamedTextColor.YELLOW
         )
       );
-      final List<String> expectedWarnings = List.of(
-        "MCV2 pack loaded by Alice (client brand " +
-          brand +
-          ") without the MCAV MCV2 Client mod, so active shaders cannot be verified. " +
-          "Iris shader packs can prevent decoding: with the mod, such a player sees the dithered maps."
-      );
+
+      final String expectedWarning =
+        "MCV2 pack loaded by Alice (client brand %s) without the MCAV MCV2 Client mod, so active shaders cannot be verified. Iris shader packs can prevent decoding: with the mod, such a player sees the dithered maps.".formatted(
+          brand
+        );
+      final List<String> expectedWarnings = List.of(expectedWarning);
       final List<String> warnings = logs
         .getEvents()
         .stream()
@@ -938,13 +940,7 @@ final class Mcv2PackServerTest {
   @Test
   void shouldStopThePreviousHttpHostingThatHoldsThePortOfANewOne() {
     final List<HttpHosting> servers = new ArrayList<>();
-    this.packs = this.packServer(zip -> {
-      final HttpHosting hosting = mock(HttpHosting.class);
-      when(hosting.getZip()).thenReturn(zip);
-      when(hosting.getRawUrl()).thenReturn("http://203.0.113.7:8080");
-      servers.add(hosting);
-      return hosting;
-    });
+    this.packs = this.packServer(archive -> this.recordHttpHosting(archive, servers));
     this.packs.open(this.screen(SCREEN_WIDTH, Set.of()));
     this.settle();
     this.packs.open(this.screen(SMALL_SCREEN_WIDTH, Set.of()));
@@ -956,17 +952,19 @@ final class Mcv2PackServerTest {
     order.verify(servers.get(1)).start();
   }
 
+  private PackHosting recordHttpHosting(final Path archive, final List<HttpHosting> servers) {
+    final HttpHosting hosting = mock(HttpHosting.class);
+    when(hosting.getZip()).thenReturn(archive);
+    when(hosting.getRawUrl()).thenReturn("http://203.0.113.7:8080");
+    servers.add(hosting);
+
+    return hosting;
+  }
+
   @Test
   void shouldNotServeAPackThatCannotBeHostedAndTryAgainOnTheNextChange() {
     final CraftPlayer alice = this.online(ALICE);
-    this.packs = this.packServer(zip -> {
-      if (this.hostings.isEmpty()) {
-        this.hostings.add(mock(PackHosting.class));
-        throw new IllegalStateException("upload failed!");
-      }
-
-      return this.hosting(zip);
-    });
+    this.packs = this.packServer(this::rejectFirstHosting);
     this.packs.open(this.screen(SCREEN_WIDTH, Set.of(ALICE)));
     this.settle();
     verify(alice, never()).sendResourcePacks(any(ResourcePackRequest.class));
@@ -978,6 +976,16 @@ final class Mcv2PackServerTest {
     this.settle();
 
     this.requestSentTo(alice);
+  }
+
+  private PackHosting rejectFirstHosting(final Path archive) {
+    if (this.hostings.isEmpty()) {
+      this.hostings.add(mock(PackHosting.class));
+      final String message = "upload failed!";
+      throw new IllegalStateException(message);
+    }
+
+    return this.hosting(archive);
   }
 
   @Test
@@ -997,7 +1005,7 @@ final class Mcv2PackServerTest {
 
   @Test
   void shouldReportAFolderThatCannotBeCreatedAndNotServeThePack() throws IOException {
-    final Path file = this.folder.resolve("taken");
+    final Path file = this.folder.resolve(BLOCKING_FILE_NAME);
     Files.writeString(file, "not a folder");
     final QueuedExecutor own = new QueuedExecutor();
     final Mcv2PackServer blocked = new Mcv2PackServer(
@@ -1045,12 +1053,7 @@ final class Mcv2PackServerTest {
 
   @Test
   void shouldStopAtOnceAPackHostedWhileTheServerShutsDown() {
-    this.packs = this.packServer(zip -> {
-      final PackHosting hosting = this.hosting(zip);
-      this.packs.shutdown();
-
-      return hosting;
-    });
+    this.packs = this.packServer(this::hostPackDuringShutdown);
     this.packs.open(this.screen(SCREEN_WIDTH, Set.of()));
 
     this.settle();
@@ -1060,6 +1063,13 @@ final class Mcv2PackServerTest {
 
     final int scheduledTaskCount = this.server.getScheduledTaskCount();
     assertEquals(0, scheduledTaskCount);
+  }
+
+  private PackHosting hostPackDuringShutdown(final Path archive) {
+    final PackHosting hosting = this.hosting(archive);
+    this.packs.shutdown();
+
+    return hosting;
   }
 
   @Test
@@ -1117,10 +1127,7 @@ final class Mcv2PackServerTest {
     final AtomicReference<Thread> writerThread = new AtomicReference<>();
     final Mcv2PackServer own = new Mcv2PackServer(
       this.folder,
-      zip -> {
-        writerThread.set(Thread.currentThread());
-        return this.hosting(zip);
-      },
+      archive -> this.recordHostingThread(archive, writerThread),
       Mcv2Pack.DebugView.SHOWN,
       this.offered::add,
       this.refused::add
@@ -1146,6 +1153,12 @@ final class Mcv2PackServerTest {
     verify(this.hostings.getFirst()).shutdown();
   }
 
+  private PackHosting recordHostingThread(final Path archive, final AtomicReference<Thread> writerThread) {
+    writerThread.set(Thread.currentThread());
+
+    return this.hosting(archive);
+  }
+
   @Test
   void shouldRejectMissingArguments() {
     assertThrows(NullPointerException.class, () ->
@@ -1169,18 +1182,13 @@ final class Mcv2PackServerTest {
     final String digest = Mcv2PackServer.hash(file, HASH_ALGORITHM);
     assertEquals("a9993e364706816aba3e25717850c26c9cd0d89d", digest);
 
-    assertThrows(UncheckedIOException.class, () -> Mcv2PackServer.hash(this.folder.resolve(MISSING_PACK_FILE_NAME), HASH_ALGORITHM));
-    assertThrows(IllegalStateException.class, () -> Mcv2PackServer.hash(file, "NO-SUCH-DIGEST"));
+    assertThrows(Mcv2Exception.class, () -> Mcv2PackServer.hash(this.folder.resolve(MISSING_PACK_FILE_NAME), HASH_ALGORITHM));
+    assertThrows(AssertionError.class, () -> Mcv2PackServer.hash(file, "NO-SUCH-DIGEST"));
   }
 
   @Test
   void shouldLeaveAPackThatCannotBeDeletedForTheNextStart() throws IOException {
-    this.packs = this.packServer(zip -> {
-      final PackHosting hosting = this.hosting(zip);
-      // a folder with a file in it cannot be deleted
-      when(hosting.getZip()).thenReturn(this.folder);
-      return hosting;
-    });
+    this.packs = this.packServer(this::hostUndeletableFolder);
     Files.writeString(this.folder.resolve(KEPT_FILE_NAME), "x");
     this.packs.open(this.screen(SCREEN_WIDTH, Set.of()));
     this.settle();
@@ -1190,6 +1198,14 @@ final class Mcv2PackServerTest {
 
     final boolean folderKept = Files.isDirectory(this.folder);
     assertTrue(folderKept);
+  }
+
+  private PackHosting hostUndeletableFolder(final Path archive) {
+    final PackHosting hosting = this.hosting(archive);
+    // a folder with a file in it cannot be deleted
+    when(hosting.getZip()).thenReturn(this.folder);
+
+    return hosting;
   }
 
   @Test
@@ -1249,7 +1265,7 @@ final class Mcv2PackServerTest {
     final Mcv2PackServer.Lease lease = this.packs.open(this.screen(SCREEN_WIDTH, Set.of()));
     final Mcv2Configuration playing = lease.getConfiguration();
     lease.resize(playing.withVideo(STEPPED_SCREEN_WIDTH, SCREEN_HEIGHT));
-    lease.resize(playing.withVideo(256, SCREEN_HEIGHT));
+    lease.resize(playing.withVideo(ALTERNATE_SCREEN_WIDTH, SCREEN_HEIGHT));
     this.settle();
     final List<String> expectedSlots = List.of("1: 256x96", "2: 288x96");
     final List<String> slots = this.slotsOfTheLastPack();
@@ -1274,7 +1290,7 @@ final class Mcv2PackServerTest {
     this.packs.start();
     final Mcv2PackServer.Lease video = this.packs.open(this.screen(SCREEN_WIDTH, Set.of(ALICE)));
     final Mcv2PackServer.Lease machine = this.packs.open(this.screen(STEPPED_SCREEN_WIDTH, Set.of(ALICE)));
-    final Mcv2PackServer.Lease desktop = this.packs.open(this.screen(256, Set.of(ALICE)));
+    final Mcv2PackServer.Lease desktop = this.packs.open(this.screen(ALTERNATE_SCREEN_WIDTH, Set.of(ALICE)));
     this.settle();
     final UUID threeSlots = this.packOf(this.requestSentTo(alice));
     machine.close();
@@ -1375,7 +1391,7 @@ final class Mcv2PackServerTest {
 
     this.settle();
 
-    final Mcv2PackServer.Lease fifth = this.packs.open(this.screen(608, Set.of()));
+    final Mcv2PackServer.Lease fifth = this.packs.open(this.screen(SPARE_SCREEN_WIDTH, Set.of()));
 
     final long fifthStreamId = fifth.getConfiguration().getStreamId();
     assertEquals(3, fifthStreamId, "the spare left first, behind a newer one");
@@ -1516,7 +1532,7 @@ final class Mcv2PackServerTest {
     this.settle();
 
     // four screens, each in the slot of its size and with the spare of the size it left: every slot is taken
-    final Mcv2PackServer.Lease fifth = this.packs.open(this.screen(608, Set.of()));
+    final Mcv2PackServer.Lease fifth = this.packs.open(this.screen(SPARE_SCREEN_WIDTH, Set.of()));
 
     final long fifthStreamId = fifth.getConfiguration().getStreamId();
     assertEquals(1, fifthStreamId, "the spare left first");

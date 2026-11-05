@@ -74,7 +74,7 @@ final class Mcv2ChannelUnsentLimitTest {
 
   private Mcv2Screen screen() {
     final Mcv2Screen screen = mock(Mcv2Screen.class);
-    when(screen.anchors()).thenReturn(List.of(MapTilePatch.of(WALL_MAP, 0, 0, 128, 1, new byte[128])));
+    when(screen.getAnchors()).thenReturn(List.of(MapTilePatch.of(WALL_MAP, 0, 0, 128, 1, new byte[128])));
     return screen;
   }
 

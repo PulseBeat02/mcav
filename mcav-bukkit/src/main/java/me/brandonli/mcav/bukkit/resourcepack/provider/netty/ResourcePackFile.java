@@ -33,14 +33,14 @@ final class ResourcePackFile {
   private final Path path;
 
   private byte[] cachedBytes;
-  private @Nullable FileTime cachedModified;
+  private @Nullable FileTime cachedModifiedTime;
   private @Nullable Object cachedFileKey;
   private long cachedSize;
 
   ResourcePackFile(final Path path) {
     this.path = path;
     this.cachedBytes = EMPTY;
-    this.cachedSize = -1;
+    this.cachedSize = 0;
   }
 
   // the array is shared: callers must not modify it
@@ -50,14 +50,14 @@ final class ResourcePackFile {
     final Object fileKey = attributes.fileKey();
     final long size = attributes.size();
     final boolean unchanged =
-      modifiedTime.equals(this.cachedModified) && this.cachedSize == size && Objects.equals(fileKey, this.cachedFileKey);
+      modifiedTime.equals(this.cachedModifiedTime) && this.cachedSize == size && Objects.equals(fileKey, this.cachedFileKey);
     if (unchanged) {
       return this.cachedBytes;
     }
 
     final byte[] bytes = Files.readAllBytes(this.path);
     this.cachedBytes = bytes;
-    this.cachedModified = modifiedTime;
+    this.cachedModifiedTime = modifiedTime;
     this.cachedFileKey = fileKey;
     this.cachedSize = size;
 

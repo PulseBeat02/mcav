@@ -17,6 +17,8 @@
  */
 package me.brandonli.mcav.bukkit.media.render;
 
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.base.Preconditions;
 import io.papermc.paper.math.Position;
 import java.util.ArrayList;
@@ -25,7 +27,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import me.brandonli.mcav.bukkit.media.config.BlockConfiguration;
@@ -56,13 +57,15 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * <ul>
  *   <li>Viewers who start watching, because they joined the server or were added to the viewers, receive the
  *       complete wall during the next server tick.</li>
- *   <li>Every {@value #FULL_RESEND_INTERVAL_TICKS} ticks, which is once per second on a server running at full
- *       speed, every viewer receives the complete wall again, even while the picture does not change.</li>
+ *   <li>Every 20 ticks, which is once per second on a server running at full speed, every viewer receives the
+ *       complete wall again, even while the picture does not change.</li>
  *   <li>Viewers who are removed from the viewers while they are online receive the original blocks again.</li>
  * </ul>
  *
  * <p>The original blocks are captured when the renderer is shown and sent again when it is hidden, which makes the
- * wall disappear for the viewers. The block state of this renderer is only accessed on the main thread.
+ * wall disappear for the viewers.
+ *
+ * <p>Every public method may be called from any thread; the block state is only accessed on the main thread.
  *
  * <p>Call {@link #show()} before submitting frames and {@link #hide()} when finished. Conversion reads and
  * may resize the caller-owned image synchronously; the scheduled task retains only converted frame data. At most
@@ -88,7 +91,7 @@ public final class BlockRenderer extends MainThreadRenderer<BlockData[]> {
   private int ticksSinceFullResend;
 
   /**
-   * Constructs a new block renderer. Nothing is shown until {@link #show()} is called.
+   * Creates a new block renderer. Nothing is shown until {@link #show()} is called.
    *
    * @param configuration the configuration describing the viewers, position, and size of the block wall
    * @throws NullPointerException if the configuration is null
@@ -161,7 +164,8 @@ public final class BlockRenderer extends MainThreadRenderer<BlockData[]> {
     final Location origin = this.configuration.getPosition();
     final World world = origin.getWorld();
     if (world == null) {
-      throw new IllegalStateException("Block position has no world!");
+      final String message = "Block position has no world!";
+      throw new IllegalStateException(message);
     }
 
     final int blockCount = this.getBlockCount();
@@ -184,7 +188,9 @@ public final class BlockRenderer extends MainThreadRenderer<BlockData[]> {
   }
 
   private boolean isInWallWorld(final Player player) {
-    return player.getWorld().getUID().equals(this.worldId);
+    final World world = player.getWorld();
+    final UUID playerWorldId = world.getUID();
+    return playerWorldId.equals(this.worldId);
   }
 
   private int getBlockCount() {
@@ -265,10 +271,9 @@ public final class BlockRenderer extends MainThreadRenderer<BlockData[]> {
   }
 
   /**
-   * Sends the complete wall to viewers who started watching, and to every viewer every
-   * {@value #FULL_RESEND_INTERVAL_TICKS} ticks, then sends the original blocks back to viewers who were removed while
-   * online. This method runs on the main thread once per server tick while the renderer is running, right after the
-   * pending frame, if there was one, was applied.
+   * Sends the complete wall to viewers who started watching, and to every viewer every 20 ticks, then sends the
+   * original blocks back to viewers who were removed while online. This method runs on the main thread once per
+   * server tick while the renderer is running, right after the pending frame, if there was one, was applied.
    *
    * <p>Does nothing while the wall is not shown or before its first frame was applied.
    *
@@ -282,28 +287,35 @@ public final class BlockRenderer extends MainThreadRenderer<BlockData[]> {
       return;
     }
 
-    final WallRecipients recipients = this.advanceResendCounter();
+    this.advanceResendCounter();
+    final WallRecipients recipients = this.getWallRecipients();
     final Set<UUID> watchingViewers = new HashSet<>();
     final List<Player> playersWithoutWall = this.updateActiveViewers(watchingViewers, recipients);
-    if (!playersWithoutWall.isEmpty()) {
-      final Map<Position, BlockData> wall = this.createBlockMap(currentPositions, blocks);
-      for (final Player player : playersWithoutWall) {
-        player.sendMultiBlockChange(wall);
-      }
-    }
+    this.sendWall(playersWithoutWall, currentPositions, blocks);
 
     this.restoreRemovedViewers(currentPositions, watchingViewers);
   }
 
-  private WallRecipients advanceResendCounter() {
-    this.ticksSinceFullResend++;
-    if (this.ticksSinceFullResend < FULL_RESEND_INTERVAL_TICKS) {
-      return WallRecipients.NEW_VIEWERS;
+  private void sendWall(final List<Player> players, final Position[] currentPositions, final BlockData[] blocks) {
+    if (players.isEmpty()) {
+      return;
     }
 
-    this.ticksSinceFullResend = 0;
+    final Map<Position, BlockData> wall = this.createBlockMap(currentPositions, blocks);
+    for (final Player player : players) {
+      player.sendMultiBlockChange(wall);
+    }
+  }
 
-    return WallRecipients.EVERY_VIEWER;
+  private void advanceResendCounter() {
+    this.ticksSinceFullResend++;
+    if (this.ticksSinceFullResend >= FULL_RESEND_INTERVAL_TICKS) {
+      this.ticksSinceFullResend = 0;
+    }
+  }
+
+  private WallRecipients getWallRecipients() {
+    return this.ticksSinceFullResend == 0 ? WallRecipients.EVERY_VIEWER : WallRecipients.NEW_VIEWERS;
   }
 
   private List<Player> updateActiveViewers(final Set<UUID> watchingViewers, final WallRecipients recipients) {
@@ -359,7 +371,7 @@ public final class BlockRenderer extends MainThreadRenderer<BlockData[]> {
   }
 
   private Map<Position, BlockData> createOriginalBlockMap(final Position[] currentPositions) {
-    final BlockData[] original = Objects.requireNonNull(this.originalBlocks, "Original blocks were not captured!");
+    final BlockData[] original = requireNonNull(this.originalBlocks, "Original blocks were not captured!");
     return this.createBlockMap(currentPositions, original);
   }
 

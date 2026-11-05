@@ -38,6 +38,8 @@ import org.junit.jupiter.api.Test;
 
 final class Mcv2VerificationTest {
 
+  private static final int ROOT_SIZE = 32;
+
   private static final String PATH_SEPARATOR = "/";
 
   private static final String DECODER_REJECTION_MESSAGE = "The encoder wrote a frame the decoder rejects!";
@@ -47,9 +49,9 @@ final class Mcv2VerificationTest {
     final Mcv2 encoder = new Mcv2(Mcv2.Settings.DEFAULT, ForkJoinPool.commonPool(), 3, Mcv2.Verification.VERIFIED);
     final Field storage = Mcv2.class.getDeclaredField("verificationPicture");
     storage.setAccessible(true);
-    encoder.encode(new byte[32 * 32 * 3], 32, 32, 0);
+    encoder.encode(new byte[ROOT_SIZE * ROOT_SIZE * 3], ROOT_SIZE, ROOT_SIZE, 0);
     final Object first = storage.get(encoder);
-    encoder.encode(Mcv2Pictures.scene(32, 32, 1, 3), 32, 32, 1);
+    encoder.encode(Mcv2Pictures.scene(ROOT_SIZE, ROOT_SIZE, 1, 3), ROOT_SIZE, ROOT_SIZE, 1);
     final @Nullable Object reused = storage.get(encoder);
     assertSame(first, reused);
 
@@ -64,7 +66,7 @@ final class Mcv2VerificationTest {
   @Test
   void shouldCheckTheWholeConformanceAndEdgeCorpusIncludingUnusedCompactClasses() {
     for (final String folder : List.of("conformance", "edge")) {
-      for (final String stream : Mcv2Fixtures.digests(folder).keySet()) {
+      for (final String stream : Mcv2Fixtures.readDigests(folder).keySet()) {
         this.compareStream(folder, stream);
       }
     }
@@ -72,7 +74,7 @@ final class Mcv2VerificationTest {
 
   private void compareStream(final String folder, final String stream) {
     final Map<Long, byte[]> pictures = new HashMap<>();
-    for (final byte[] data : Mcv2Fixtures.frames(Mcv2Fixtures.read(folder + PATH_SEPARATOR + stream))) {
+    for (final byte[] data : Mcv2Fixtures.splitFrames(Mcv2Fixtures.read(folder + PATH_SEPARATOR + stream))) {
       final Mcv2Decoder.Frame frame = Mcv2Decoder.parse(data);
       final byte[] reference = frame.isKeyframe() ? new byte[0] : pictures.get(frame.getReferenceId());
       final byte[] picture = Mcv2Decoder.decode(frame, reference, frame.getReferenceId());
@@ -86,8 +88,8 @@ final class Mcv2VerificationTest {
     final int width = 1 + random.nextInt(100);
     final int height = 1 + random.nextInt(100);
     final List<Node> roots = new ArrayList<>();
-    for (int root = 0; root < ((width + 31) / 32) * ((height + 31) / 32); root++) {
-      roots.add(Mcv2TreePropertyTest.tree(random, 32));
+    for (int root = 0; root < ((width + 31) / ROOT_SIZE) * ((height + 31) / ROOT_SIZE); root++) {
+      roots.add(Mcv2TreePropertyTest.tree(random, ROOT_SIZE));
     }
 
     final byte[] data = Mcv2Trees.write(width, height, 2, 1, Mcv2FrameKind.PREDICTED, roots);
@@ -140,13 +142,13 @@ final class Mcv2VerificationTest {
   @Test
   void shouldPartitionLargeFramesAndDetectEveryBoundaryPixel() {
     final Mcv2Decoder.Frame frame = Mcv2Decoder.parse(
-      Mcv2Trees.keyframe(31, 32 * 70 - 3, Mcv2Trees.repeat(Mcv2Trees.solid(17, 31, 63), 70))
+      Mcv2Trees.keyframe(31, ROOT_SIZE * 70 - 3, Mcv2Trees.repeat(Mcv2Trees.solid(17, 31, 63), 70))
     );
     final byte[] picture = Mcv2Decoder.decode(frame, null, 4);
     final byte[] reference = new byte[0];
     assertDoesNotThrow(() -> verify(frame, reference, 4, picture));
 
-    for (final int row : new int[] { 0, 31, 32, 2047, 2048, frame.getHeight() - 1 }) {
+    for (final int row : new int[] { 0, 31, ROOT_SIZE, 2047, 2048, frame.getHeight() - 1 }) {
       for (final int column : new int[] { 0, 30 }) {
         this.assertEveryChannelChecked(frame, reference, picture, (row * 31 + column) * 3);
       }
@@ -178,9 +180,9 @@ final class Mcv2VerificationTest {
   @Test
   void shouldStopTheEncoderWithTheDecoderFailureOnABrokenPendingReference() throws ReflectiveOperationException {
     final Mcv2 encoder = new Mcv2(Mcv2.Settings.FAST, ForkJoinPool.commonPool(), 1, Mcv2.Verification.VERIFIED);
-    final byte[] picture = Mcv2Pictures.scene(32, 32, 0, 2);
-    encoder.encode(picture, 32, 32, 0);
-    final Mcv2.Pending pending = encoder.begin(picture, 32, 32, 1);
+    final byte[] picture = Mcv2Pictures.scene(ROOT_SIZE, ROOT_SIZE, 0, 2);
+    encoder.encode(picture, ROOT_SIZE, ROOT_SIZE, 0);
+    final Mcv2.Pending pending = encoder.begin(picture, ROOT_SIZE, ROOT_SIZE, 1);
     final boolean keyframe = pending.isKeyframe();
     assertFalse(keyframe);
 
@@ -197,7 +199,7 @@ final class Mcv2VerificationTest {
     final @Nullable String causeMessage = failure.getCause().getMessage();
     assertEquals("Reference frame mismatch!", causeMessage);
 
-    final IllegalStateException stopped = assertThrows(IllegalStateException.class, () -> encoder.begin(picture, 32, 32, 2));
+    final IllegalStateException stopped = assertThrows(IllegalStateException.class, () -> encoder.begin(picture, ROOT_SIZE, ROOT_SIZE, 2));
     final @Nullable String stoppedMessage = stopped.getMessage();
     assertEquals("The encoder stopped after a frame failed its verification!", stoppedMessage);
   }

@@ -73,7 +73,7 @@ public final class EntityRenderer extends MainThreadRenderer<Component> {
   private @Nullable Component lastText;
 
   /**
-   * Constructs a new entity renderer. Nothing is spawned until {@link #show()} is called.
+   * Creates a new entity renderer. Nothing is spawned until {@link #show()} is called.
    *
    * @param configuration the configuration describing the viewers, position, and size of the entity image
    * @throws NullPointerException if the configuration is null
@@ -138,7 +138,8 @@ public final class EntityRenderer extends MainThreadRenderer<Component> {
     final Location location = configuredPosition.clone();
     final World world = location.getWorld();
     if (world == null) {
-      throw new IllegalStateException("Entity position has no world!");
+      final String message = "Entity position has no world!";
+      throw new IllegalStateException(message);
     }
 
     final TextDisplay display = world.spawn(location, TextDisplay.class, this::configureDisplay);
@@ -178,7 +179,7 @@ public final class EntityRenderer extends MainThreadRenderer<Component> {
     }
 
     // a still image sends no further frame that would bring the display back after its chunk unloaded
-    final TextDisplay display = current.isValid() ? current : this.respawnWithLastText();
+    final TextDisplay display = this.respawnIfInvalid(current);
     if (display == null) {
       return;
     }
@@ -198,6 +199,18 @@ public final class EntityRenderer extends MainThreadRenderer<Component> {
       this.shownTo.add(viewer);
     }
 
+    this.hideFromRemovedViewers(plugin, display, watching);
+  }
+
+  private @Nullable TextDisplay respawnIfInvalid(final TextDisplay current) {
+    if (current.isValid()) {
+      return current;
+    }
+
+    return this.respawnWithLastText();
+  }
+
+  private void hideFromRemovedViewers(final Plugin plugin, final TextDisplay display, final Set<UUID> watching) {
     final Set<UUID> removed = new HashSet<>(this.shownTo);
     removed.removeAll(watching);
     for (final UUID viewer : removed) {
@@ -241,13 +254,13 @@ public final class EntityRenderer extends MainThreadRenderer<Component> {
     }
 
     this.lastText = text;
-    final boolean valid = current.isValid();
-    final TextDisplay display = valid ? current : this.respawnEntity();
-    if (display == null) {
+
+    if (!current.isValid()) {
+      this.respawnWithLastText();
       return;
     }
 
-    this.setText(display, text);
+    this.setText(current, text);
   }
 
   private void setText(final TextDisplay display, final Component text) {

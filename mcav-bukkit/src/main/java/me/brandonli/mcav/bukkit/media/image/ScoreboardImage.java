@@ -31,7 +31,7 @@ import me.brandonli.mcav.media.image.ImageBuffer;
  *
  * @since 1.0.0
  */
-public class ScoreboardImage implements DisplayableImage {
+public final class ScoreboardImage implements DisplayableImage {
 
   private final ScoreboardRenderer renderer;
 

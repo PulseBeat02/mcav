@@ -29,6 +29,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ForkJoinPool;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Internals.Workers;
+import me.brandonli.mcav.bukkit.testing.EqualityAssertions;
 import me.brandonli.mcav.bukkit.testing.UtilityClassAssertions;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.jupiter.api.Test;
@@ -97,7 +98,7 @@ final class Mcv2DecoderTest {
   }
 
   @Test
-  void shouldPredictAPFrameFromItsReference() {
+  void shouldDecodeAPredictedFrameFromItsReference() {
     final byte[] reference = new byte[2 * 1 * 3];
     for (int index = 0; index < reference.length; index++) {
       reference[index] = (byte) (index * 10);
@@ -111,8 +112,8 @@ final class Mcv2DecoderTest {
 
   @Test
   void shouldDecodeTheSamePictureOnAnyNumberOfWorkers() {
-    final String stream = Mcv2Fixtures.digests(CONFORMANCE_FOLDER).keySet().iterator().next();
-    final List<byte[]> frames = Mcv2Fixtures.frames(Mcv2Fixtures.read(CONFORMANCE_PREFIX + stream));
+    final String stream = Mcv2Fixtures.readDigests(CONFORMANCE_FOLDER).keySet().iterator().next();
+    final List<byte[]> frames = Mcv2Fixtures.splitFrames(Mcv2Fixtures.read(CONFORMANCE_PREFIX + stream));
     try (final ForkJoinPool pool = new ForkJoinPool(4)) {
       byte[] reference = null;
       for (final byte[] data : frames) {
@@ -142,9 +143,9 @@ final class Mcv2DecoderTest {
   }
 
   @Test
-  void shouldDecodeAPFrameIntoThePictureItIsPredictedFrom() {
-    final String stream = Mcv2Fixtures.digests(CONFORMANCE_FOLDER).keySet().iterator().next();
-    final List<byte[]> frames = Mcv2Fixtures.frames(Mcv2Fixtures.read(CONFORMANCE_PREFIX + stream));
+  void shouldDecodeAPredictedFrameIntoThePictureItIsPredictedFrom() {
+    final String stream = Mcv2Fixtures.readDigests(CONFORMANCE_FOLDER).keySet().iterator().next();
+    final List<byte[]> frames = Mcv2Fixtures.splitFrames(Mcv2Fixtures.read(CONFORMANCE_PREFIX + stream));
     byte[] reference = null;
     byte[] reused = null;
     for (int index = 0; index < frames.size(); index++) {
@@ -154,7 +155,7 @@ final class Mcv2DecoderTest {
         reused = new byte[fresh.length];
       }
       Mcv2Decoder.decode(frame, reused, frame.getReferenceId(), reused);
-      assertArrayEquals(fresh, reused, "frame " + index + " of " + stream);
+      assertArrayEquals(fresh, reused, "frame %s of %s".formatted(index, stream));
       reference = fresh;
     }
   }
@@ -186,5 +187,31 @@ final class Mcv2DecoderTest {
     assertThrows(Mcv2Exception.class, () -> Mcv2Decoder.decode(frame, new byte[6], 7));
     assertThrows(Mcv2Exception.class, () -> Mcv2Decoder.decode(frame, new byte[5], 0));
     assertThrows(Mcv2Exception.class, () -> Mcv2Decoder.decode(new byte[3], null, 0));
+  }
+
+  @Test
+  void shouldCompareFramesByTheirBytes() {
+    final byte[] keyframe = keyframe(3, 2, solid(SOLID_RED, SOLID_GREEN, SOLID_BLUE));
+    final Mcv2Decoder.Frame frame = Mcv2Decoder.parse(keyframe);
+    final Mcv2Decoder.Frame equalFrame = Mcv2Decoder.parse(keyframe.clone());
+    final Mcv2Decoder.Frame differentFrame = Mcv2Decoder.parse(predicted(2, 1, motion(0, 0)));
+    EqualityAssertions.assertEqualityContract(frame, equalFrame, differentFrame);
+  }
+
+  @Test
+  void shouldHashFramesByTheirBytes() {
+    final byte[] keyframe = keyframe(3, 2, solid(SOLID_RED, SOLID_GREEN, SOLID_BLUE));
+    final Mcv2Decoder.Frame frame = Mcv2Decoder.parse(keyframe);
+
+    final int hash = frame.hashCode();
+    final int expected = Arrays.hashCode(keyframe);
+    assertEquals(expected, hash);
+  }
+
+  @Test
+  void shouldDescribeTheSizeAndTheIdsOfAFrame() {
+    final Mcv2Decoder.Frame frame = Mcv2Decoder.parse(predicted(2, 1, motion(0, 0)));
+    final String description = frame.toString();
+    assertEquals("Frame{width=2, height=1, frameId=1, referenceId=0, keyframe=false}", description);
   }
 }

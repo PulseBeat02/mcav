@@ -40,7 +40,7 @@ public final class ServerEnvironment {
    */
   public static final String SUPPORTED_MINECRAFT_VERSION = "26.3";
 
-  private static final String PATCH_PREFIX = SUPPORTED_MINECRAFT_VERSION + ".";
+  private static final String PATCH_PREFIX = "%s.".formatted(SUPPORTED_MINECRAFT_VERSION);
 
   private ServerEnvironment() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated!");
@@ -100,7 +100,10 @@ public final class ServerEnvironment {
       return;
     }
 
-    final String message = "MCAV only supports Minecraft %s, but the server is running %s!".formatted(SUPPORTED_MINECRAFT_VERSION, version);
+    final String message = "Minecraft %s is not supported, MCAV only runs on Minecraft %s and its patch releases!".formatted(
+      version,
+      SUPPORTED_MINECRAFT_VERSION
+    );
     throw new UnsupportedServerVersionException(message);
   }
 }

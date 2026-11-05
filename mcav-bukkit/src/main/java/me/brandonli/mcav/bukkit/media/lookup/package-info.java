@@ -22,8 +22,7 @@
  * ahead of playback; first access also initializes it lazily. Lookups are thread-safe. Cached block data and
  * dithering palette arrays are shared and must not be modified; clone block data before applying caller changes.
  *
- * <p>Reference parameters and return values are non-null unless marked {@code @Nullable};
- * nullable values and their meanings are described on the corresponding members.
+ * <p>Reference parameters and return values are non-null unless marked {@code @Nullable}.
  *
  * @since 1.0.0
  */

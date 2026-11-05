@@ -42,7 +42,7 @@ final class ConformanceTest {
   private static Stream<Arguments> streams() {
     final List<Arguments> arguments = new ArrayList<>();
     for (final String folder : List.of("conformance", "edge")) {
-      for (final Map.Entry<String, List<String>> entry : Mcv2Fixtures.digests(folder).entrySet()) {
+      for (final Map.Entry<String, List<String>> entry : Mcv2Fixtures.readDigests(folder).entrySet()) {
         arguments.add(Arguments.of(folder, entry.getKey(), entry.getValue()));
       }
     }
@@ -53,7 +53,7 @@ final class ConformanceTest {
   @ParameterizedTest(name = "{0}/{1}")
   @MethodSource("streams")
   void shouldDecodeEveryFrameBitExactly(final String folder, final String stream, final List<String> digests) {
-    final List<byte[]> frames = Mcv2Fixtures.frames(Mcv2Fixtures.read(folder + PATH_SEPARATOR + stream));
+    final List<byte[]> frames = Mcv2Fixtures.splitFrames(Mcv2Fixtures.read(folder + PATH_SEPARATOR + stream));
     final int expectedFrameCount = digests.size();
     final int frameCount = frames.size();
     assertEquals(expectedFrameCount, frameCount, "frame count");
@@ -64,7 +64,7 @@ final class ConformanceTest {
       final byte[] picture = receiver.accept(data);
       final String expectedDigest = digests.get(frameIndex);
       final String digest = Mcv2Fixtures.sha256(picture);
-      assertEquals(expectedDigest, digest, "frame " + frameIndex);
+      assertEquals(expectedDigest, digest, "frame %s".formatted(frameIndex));
     }
   }
 

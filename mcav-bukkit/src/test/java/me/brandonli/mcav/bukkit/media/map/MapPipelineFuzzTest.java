@@ -42,7 +42,7 @@ final class MapPipelineFuzzTest {
     final int width = data.consumeInt(1, columns * MAP_SIZE + 64);
     final int height = data.consumeInt(1, rows * MAP_SIZE + 64);
     final int budget = data.consumeInt(1, 1 << 20);
-    final MapLayout layout = new MapLayout(startMapId, columns, rows, width, height);
+    final MapLayout layout = MapLayout.of(startMapId, columns, rows, width, height);
     final DeltaMapEncoder encoder = new DeltaMapEncoder(layout, budget);
 
     final byte[] frame = new byte[width * height];
@@ -84,7 +84,8 @@ final class MapPipelineFuzzTest {
       final int mapId = patch.getMapId();
       final long index = (long) mapId - firstId;
       final boolean inWall = index >= 0 && index < mapCount;
-      assertTrue(inWall, () -> "a patch for map " + mapId + ", outside of the wall");
+      assertTrue(inWall, () -> "a patch for map %s, outside of the wall".formatted(mapId));
+
       final MapRegion region = layout.getRegion((int) index);
       final int left = patch.getX();
       final int top = patch.getY();
@@ -107,7 +108,7 @@ final class MapPipelineFuzzTest {
 
     final long sent = bytes;
     final boolean withinBudget = sent <= budget || maps.size() == 1;
-    assertTrue(withinBudget, () -> sent + " bytes over " + maps.size() + " maps, budget " + budget);
+    assertTrue(withinBudget, () -> "%s bytes over %s maps, budget %s".formatted(sent, maps.size(), budget));
   }
 
   private void assertPatchPixels(final byte[] frame, final int imageWidth, final MapTilePatch patch, final int sourceX, final int sourceY) {

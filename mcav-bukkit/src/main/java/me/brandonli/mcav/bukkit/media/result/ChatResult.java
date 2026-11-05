@@ -42,12 +42,14 @@ import net.minecraft.network.protocol.game.ClientboundSystemChatPacket;
  *
  * @since 1.0.0
  */
-public class ChatResult implements FunctionalVideoFilter {
+public final class ChatResult implements FunctionalVideoFilter {
+
+  private static final boolean OVERLAY = false;
 
   private final ChatConfiguration configuration;
 
   /**
-   * Constructs a new {@code ChatResult}.
+   * Creates a result that shows frames as chat messages.
    *
    * @param configuration the configuration describing the viewers, character, and size of the chat image
    * @throws NullPointerException if {@code configuration} is null
@@ -65,7 +67,8 @@ public class ChatResult implements FunctionalVideoFilter {
    * @param data     the frame to display, which is resized to the configured chat size
    * @param metadata the metadata of the original video
    * @return always true, because the frame is resized
-   * @throws NullPointerException if {@code data} or {@code metadata} is null
+   * @throws NullPointerException  if {@code data} or {@code metadata} is null
+   * @throws IllegalStateException if {@code data} has been released
    * @since 1.0.0
    */
   @Override
@@ -81,7 +84,7 @@ public class ChatResult implements FunctionalVideoFilter {
     final int[] pixels = data.getPixels();
     final String character = this.configuration.getCharacter();
     final Component message = ChatUtils.createChatComponent(pixels, character, width, height);
-    final ClientboundSystemChatPacket packet = new ClientboundSystemChatPacket(message, false);
+    final ClientboundSystemChatPacket packet = new ClientboundSystemChatPacket(message, OVERLAY);
     final Collection<UUID> viewers = this.configuration.getViewers();
     PacketUtils.sendPackets(viewers, packet);
 

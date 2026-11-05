@@ -51,7 +51,7 @@ final class Mcv2ShaderReportsTest {
 
   private static final byte[] SHADERS_UNKNOWN = { 1, 1, 2, 0 };
 
-  private static final String MALFORMED_REPORT_MESSAGE = "Ignoring a malformed MCV2 client report from Alice.";
+  private static final String MALFORMED_REPORT_MESSAGE = "A malformed MCV2 client report from Alice is being ignored.";
 
   private final AtomicLong clock = new AtomicLong(Long.MAX_VALUE - 3 * Mcv2ShaderReports.INTERVAL_NANOSECONDS);
 
@@ -132,11 +132,11 @@ final class Mcv2ShaderReportsTest {
       assertFalse(blocksWithShadersUnknown, "a shader pack Iris cannot tell leaves the screens as they were");
 
       final List<String> expectedDebugMessages = List.of(
-        "The MCV2 client mod of Alice reports no Iris: MCV2 screens show them the video.",
-        "The MCV2 client mod of Alice reports Iris without a shader pack: MCV2 screens show them the video.",
-        "The MCV2 client mod of Alice reports Iris with a shader pack in use: MCV2 screens show them the dithered maps.",
-        "The MCV2 client mod of Alice reports Iris with a shader pack MCV2 decodes under: MCV2 screens show them the video.",
-        "The MCV2 client mod of Alice reports Iris, whose shader pack the mod cannot tell: MCV2 screens show them the video."
+        "The MCV2 client mod of Alice reports no Iris: MCV2 screens show them the video as a result.",
+        "The MCV2 client mod of Alice reports Iris without a shader pack: MCV2 screens show them the video as a result.",
+        "The MCV2 client mod of Alice reports Iris with a shader pack in use: MCV2 screens show them the dithered maps as a result.",
+        "The MCV2 client mod of Alice reports Iris with a shader pack MCV2 decodes under: MCV2 screens show them the video as a result.",
+        "The MCV2 client mod of Alice reports Iris, whose shader pack the mod cannot tell: MCV2 screens show them the video as a result."
       );
       final List<String> debugMessages = this.messages(logs, Level.DEBUG);
       assertEquals(expectedDebugMessages, debugMessages, "one line for each change, none for a report that repeats the last");
@@ -183,7 +183,9 @@ final class Mcv2ShaderReportsTest {
     try (final LogCapture logs = LogCapture.capture(Mcv2ShaderReports.class)) {
       this.send(this.alice, new byte[] { version, 1, 1, 0 });
 
-      final List<String> expectedDebugMessages = List.of("Ignoring an MCV2 client report of version %s from Alice.".formatted(version));
+      final List<String> expectedDebugMessages = List.of(
+        "An MCV2 client report of version %s from Alice is being ignored.".formatted(version)
+      );
       final List<String> debugMessages = this.messages(logs, Level.DEBUG);
       assertEquals(expectedDebugMessages, debugMessages);
     }

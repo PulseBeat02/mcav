@@ -26,6 +26,8 @@ import org.junit.jupiter.api.Test;
 
 final class Mcv2LinkTest {
 
+  private static final int FRAME_BYTES = 60;
+
   private static final int LINK_LIMIT = 1000;
 
   @Test
@@ -59,26 +61,26 @@ final class Mcv2LinkTest {
   @Test
   void shouldWaitForTheNextKeyframeWhenFramesPredictFromTheFrameBefore() {
     final Mcv2Link link = new Mcv2Link(100);
-    final boolean sentKeyframe = link.offer(0, 0, Mcv2FrameKind.KEYFRAME, 60);
+    final boolean sentKeyframe = link.offer(0, 0, Mcv2FrameKind.KEYFRAME, FRAME_BYTES);
     assertTrue(sentKeyframe);
 
-    final boolean sentPredicted = link.offer(1, 0, Mcv2FrameKind.PREDICTED, 60);
+    final boolean sentPredicted = link.offer(1, 0, Mcv2FrameKind.PREDICTED, FRAME_BYTES);
     assertTrue(sentPredicted);
     // 120 bytes not yet written: frame 2 is held back, and 3 predicts from 2, which the viewer lacks
-    final boolean sentHeldBack = link.offer(2, 1, Mcv2FrameKind.PREDICTED, 60);
+    final boolean sentHeldBack = link.offer(2, 1, Mcv2FrameKind.PREDICTED, FRAME_BYTES);
     assertFalse(sentHeldBack);
 
-    link.written(120);
-    final boolean sentFromMissing = link.offer(3, 2, Mcv2FrameKind.PREDICTED, 60);
+    link.releaseBacklog(120);
+    final boolean sentFromMissing = link.offer(3, 2, Mcv2FrameKind.PREDICTED, FRAME_BYTES);
     assertFalse(sentFromMissing);
 
-    final boolean sentFromUndecodable = link.offer(4, 3, Mcv2FrameKind.PREDICTED, 60);
+    final boolean sentFromUndecodable = link.offer(4, 3, Mcv2FrameKind.PREDICTED, FRAME_BYTES);
     assertFalse(sentFromUndecodable);
 
-    final boolean sentNextKeyframe = link.offer(5, 5, Mcv2FrameKind.KEYFRAME, 60);
+    final boolean sentNextKeyframe = link.offer(5, 5, Mcv2FrameKind.KEYFRAME, FRAME_BYTES);
     assertTrue(sentNextKeyframe);
 
-    final boolean sentAfterKeyframe = link.offer(6, 5, Mcv2FrameKind.PREDICTED, 60);
+    final boolean sentAfterKeyframe = link.offer(6, 5, Mcv2FrameKind.PREDICTED, FRAME_BYTES);
     assertTrue(sentAfterKeyframe);
 
     final long behind = link.getBehind();
@@ -131,7 +133,7 @@ final class Mcv2LinkTest {
     final boolean sentPastTheLimit = link.offer(2, 1, Mcv2FrameKind.PREDICTED, 1);
     assertFalse(sentPastTheLimit);
     // a keyframe still goes out up to twice the limit, the P frames after it only under the limit again
-    final boolean sentLateKeyframe = link.offer(3, 3, Mcv2FrameKind.KEYFRAME, 60);
+    final boolean sentLateKeyframe = link.offer(3, 3, Mcv2FrameKind.KEYFRAME, FRAME_BYTES);
     assertTrue(sentLateKeyframe);
 
     final boolean sentAfterLateKeyframe = link.offer(4, 3, Mcv2FrameKind.PREDICTED, 1);
@@ -140,7 +142,7 @@ final class Mcv2LinkTest {
     final boolean sentPastTwiceTheLimit = link.offer(5, 5, Mcv2FrameKind.KEYFRAME, 1);
     assertFalse(sentPastTwiceTheLimit);
 
-    link.written(62);
+    link.releaseBacklog(62);
     final boolean sentOnceWritten = link.offer(6, 3, Mcv2FrameKind.PREDICTED, 1);
     assertTrue(sentOnceWritten);
 

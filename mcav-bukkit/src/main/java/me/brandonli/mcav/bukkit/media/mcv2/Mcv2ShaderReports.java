@@ -39,38 +39,21 @@ final class Mcv2ShaderReports implements PluginMessageListener {
   static final int MAXIMUM_BYTES = 64;
 
   static final int BURST = 5;
-
   static final long INTERVAL_NANOSECONDS = TimeUnit.SECONDS.toNanos(1);
+  private static final long BURST_NANOSECONDS = (BURST - 1) * INTERVAL_NANOSECONDS;
 
   private static final Logger LOGGER = LoggerFactory.getLogger(Mcv2ShaderReports.class);
 
-  private static final String TOO_LONG = "Ignoring an MCV2 client report of {} bytes from {}: a report has at most {} bytes.";
-
-  private static final String TOO_OFTEN = "Ignoring an MCV2 client report from {}: more than one a second.";
-
-  private static final String UNKNOWN_VERSION = "Ignoring an MCV2 client report of version {} from {}.";
-
-  private static final String MALFORMED = "Ignoring a malformed MCV2 client report from {}.";
-
-  private static final String REPORTED = "The MCV2 client mod of {} reports {}: MCV2 screens show them {}.";
-
-  private static final String DITHERED_MAPS = "the dithered maps";
-
-  private static final String VIDEO = "the video";
-
   private static final int REPORT_BYTES = 4;
 
+  private static final int VERSION_INDEX = 0;
   private static final int IRIS_PRESENT_INDEX = 1;
   private static final int SHADER_PACK_INDEX = 2;
   private static final int DECODES_UNDER_SHADERS_INDEX = 3;
 
   private static final int NO_SHADER_PACK = 0;
-
   private static final int SHADER_PACK_IN_USE = 1;
-
   private static final int SHADER_PACK_UNKNOWN = 2;
-
-  private static final long BURST_NANOSECONDS = (BURST - 1) * INTERVAL_NANOSECONDS;
 
   private final LongSupplier clock;
 
@@ -88,64 +71,81 @@ final class Mcv2ShaderReports implements PluginMessageListener {
   public synchronized void onPluginMessageReceived(final String channel, final Player player, final byte[] message) {
     final String name = player.getName();
     if (message.length > MAXIMUM_BYTES) {
-      LOGGER.debug(TOO_LONG, message.length, name, MAXIMUM_BYTES);
+      LOGGER.debug(
+        "Ignoring an MCV2 client report of {} bytes from {}: a report has at most {} bytes.",
+        message.length,
+        name,
+        MAXIMUM_BYTES
+      );
       return;
     }
 
     final UUID viewerId = player.getUniqueId();
-    if (!this.admit(viewerId)) {
-      LOGGER.debug(TOO_OFTEN, name);
+    final long now = this.clock.getAsLong();
+    if (this.isOverBurstLimit(viewerId, now)) {
+      LOGGER.debug("Ignoring an MCV2 client report from {}: more than one a second.", name);
       return;
     }
 
-    final Report report = parse(message, name);
+    this.spendAllowance(viewerId, now);
+
+    final Report report = this.parse(message, name);
     if (report == null) {
       return;
     }
 
     final Report before = this.reports.put(viewerId, report);
     if (!Objects.equals(before, report)) {
-      LOGGER.debug(REPORTED, name, report.describe(), report.blocksDecoding() ? DITHERED_MAPS : VIDEO);
+      LOGGER.debug(
+        "The MCV2 client mod of {} reports {}: MCV2 screens show them {} as a result.",
+        name,
+        report.describe(),
+        report.blocksDecoding() ? "the dithered maps" : "the video"
+      );
     }
   }
 
-  private boolean admit(final UUID player) {
-    final long now = this.clock.getAsLong();
-    final Long room = this.allowances.get(player);
-    final long next = room == null || room - now < 0 ? now : room;
-    if (next - now > BURST_NANOSECONDS) {
-      return false;
-    }
+  private boolean isOverBurstLimit(final UUID player, final long now) {
+    final long next = this.calculateNextAllowance(player, now);
+    return next - now > BURST_NANOSECONDS;
+  }
 
+  private void spendAllowance(final UUID player, final long now) {
+    final long next = this.calculateNextAllowance(player, now);
     this.allowances.put(player, next + INTERVAL_NANOSECONDS);
-
-    return true;
   }
 
-  private static @Nullable Report parse(final byte[] message, final String name) {
-    if (message.length > 0 && message[0] != VERSION) {
-      LOGGER.debug(UNKNOWN_VERSION, message[0], name);
+  private long calculateNextAllowance(final UUID player, final long now) {
+    final Long room = this.allowances.get(player);
+    return room == null || room - now < 0 ? now : room;
+  }
+
+  private @Nullable Report parse(final byte[] message, final String name) {
+    if (message.length > 0 && message[VERSION_INDEX] != VERSION) {
+      LOGGER.debug("An MCV2 client report of version {} from {} is being ignored.", message[VERSION_INDEX], name);
       return null;
     }
 
     if (
       message.length != REPORT_BYTES ||
-      !isFlag(message[IRIS_PRESENT_INDEX]) ||
-      !isFlag(message[DECODES_UNDER_SHADERS_INDEX]) ||
-      !hasValidShaderPack(message)
+      !this.isFlag(message[IRIS_PRESENT_INDEX]) ||
+      !this.isFlag(message[DECODES_UNDER_SHADERS_INDEX]) ||
+      !this.hasValidShaderPack(message)
     ) {
-      LOGGER.debug(MALFORMED, name);
+      LOGGER.debug("A malformed MCV2 client report from {} is being ignored.", name);
       return null;
     }
 
-    return new Report(message[IRIS_PRESENT_INDEX] == 1, message[SHADER_PACK_INDEX], message[DECODES_UNDER_SHADERS_INDEX] == 1);
+    final boolean irisPresent = message[IRIS_PRESENT_INDEX] == 1;
+    final boolean decodesUnderShaders = message[DECODES_UNDER_SHADERS_INDEX] == 1;
+    return new Report(irisPresent, message[SHADER_PACK_INDEX], decodesUnderShaders);
   }
 
-  private static boolean isFlag(final byte value) {
+  private boolean isFlag(final byte value) {
     return value == 0 || value == 1;
   }
 
-  private static boolean hasValidShaderPack(final byte[] message) {
+  private boolean hasValidShaderPack(final byte[] message) {
     final byte value = message[SHADER_PACK_INDEX];
     final boolean irisPresent = message[IRIS_PRESENT_INDEX] == 1;
     return value == NO_SHADER_PACK || (irisPresent && (value == SHADER_PACK_IN_USE || value == SHADER_PACK_UNKNOWN));

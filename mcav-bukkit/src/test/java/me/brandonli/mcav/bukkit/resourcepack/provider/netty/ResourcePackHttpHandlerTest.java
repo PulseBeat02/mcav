@@ -155,14 +155,10 @@ final class ResourcePackHttpHandlerTest {
   }
 
   private static String headers(final String status, final String contentType, final int contentLength) {
-    return (
-      "HTTP/1.1 " +
-      status +
-      "\r\nContent-Type: " +
-      contentType +
-      "\r\nContent-Length: " +
-      contentLength +
-      "\r\nCache-Control: no-store\r\nConnection: close\r\n\r\n"
+    return "HTTP/1.1 %s\r\nContent-Type: %s\r\nContent-Length: %s\r\nCache-Control: no-store\r\nConnection: close\r\n\r\n".formatted(
+      status,
+      contentType,
+      contentLength
     );
   }
 
@@ -320,7 +316,7 @@ final class ResourcePackHttpHandlerTest {
     final LogCapture.RecordedEvent event = events.getFirst();
     final Level level = event.getLevel();
     final String message = event.getMessage();
-    final Throwable thrown = event.getThrown();
+    final Throwable thrown = event.getThrown().orElseThrow();
     assertEquals(ERROR_HEADERS, responseHeaders);
     assertNull(body);
     assertFalse(open);
@@ -499,7 +495,7 @@ final class ResourcePackHttpHandlerTest {
       final boolean openAfterStep = channel.isOpen();
       assertTrue(
         openAfterStep,
-        "a download that took some of the pack in the last 30 s is not cut, after " + step * READ_TIMEOUT_SECONDS + " s"
+        "a download that took some of the pack in the last 30 s is not cut, after %s s".formatted(step * READ_TIMEOUT_SECONDS)
       );
 
       channel.take(32 * 1024);

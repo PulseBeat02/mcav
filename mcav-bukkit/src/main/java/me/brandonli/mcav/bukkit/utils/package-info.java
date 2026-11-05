@@ -18,14 +18,14 @@
 /**
  * Text conversion, server addressing, packet delivery and main-thread renderer support.
  *
- * <p>{@link me.brandonli.mcav.bukkit.utils.PacketUtils} uses connection references managed by BukkitModule so
- * media workers can send packets without accessing world state. Write callbacks run on connection threads and
- * do not acknowledge client rendering. {@link me.brandonli.mcav.bukkit.utils.MainThreadRenderer} transfers only
- * the latest submitted frame to the server thread. Release displays there during plugin shutdown. Address
- * discovery may block and should be performed away from the main thread before its result is cached.
+ * <p>{@link me.brandonli.mcav.bukkit.utils.PacketUtils} uses connection references managed by
+ * {@link me.brandonli.mcav.bukkit.BukkitModule} so media workers can send packets without accessing world state. Write
+ * callbacks run on connection threads and do not acknowledge client rendering.
+ * {@link me.brandonli.mcav.bukkit.utils.MainThreadRenderer} transfers only the latest submitted frame to the server
+ * thread. Release displays there during plugin shutdown. Address discovery may block and should be performed away
+ * from the main thread before its result is cached.
  *
- * <p>Reference parameters and return values are non-null unless marked {@code @Nullable};
- * nullable values and their meanings are described on the corresponding members.
+ * <p>Reference parameters and return values are non-null unless marked {@code @Nullable}.
  *
  * @since 1.0.0
  */

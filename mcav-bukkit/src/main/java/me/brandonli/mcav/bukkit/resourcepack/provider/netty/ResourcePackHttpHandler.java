@@ -37,6 +37,7 @@ import io.netty.handler.timeout.ReadTimeoutHandler;
 import io.netty.util.ReferenceCountUtil;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -48,30 +49,32 @@ import org.slf4j.LoggerFactory;
 final class ResourcePackHttpHandler extends ChannelInboundHandlerAdapter {
 
   static final String NAME = "mcav_resource_pack_http";
-
   static final String STALL_NAME = "mcav_resource_pack_stall";
-
   private static final String CHUNKS_NAME = "mcav_resource_pack_chunks";
 
+  private static final String CONTEXT_NULL_MESSAGE = "Context must not be null!";
+
+  private static final boolean OBSERVE_OUTPUT = true;
+
   static final long STALL_SECONDS = 60;
+  private static final long IDLE_CHECK_DISABLED_SECONDS = 0;
 
   private static final int CHUNK_BYTES = 8 * 1024;
 
   private static final Logger LOGGER = LoggerFactory.getLogger(ResourcePackHttpHandler.class);
-  private static final String PACK_NOT_READ = "Could not read the resource pack for an HTTP download.";
+
   private static final String GET_REQUEST_PREFIX = "GET ";
   private static final String HEAD_REQUEST_PREFIX = "HEAD ";
   private static final String REQUEST_PATH_TERMINATOR = " ";
-  private static final byte[] GET = GET_REQUEST_PREFIX.getBytes(StandardCharsets.US_ASCII);
-  private static final byte[] HEAD = HEAD_REQUEST_PREFIX.getBytes(StandardCharsets.US_ASCII);
+
+  private static final byte[] GET_REQUEST_PREFIX_BYTES = GET_REQUEST_PREFIX.getBytes(StandardCharsets.US_ASCII);
+  private static final byte[] HEAD_REQUEST_PREFIX_BYTES = HEAD_REQUEST_PREFIX.getBytes(StandardCharsets.US_ASCII);
+
   private static final String STATUS_OK = "200 OK";
   private static final String STATUS_ERROR = "500 Internal Server Error";
+
   private static final String CONTENT_TYPE_ZIP = "application/zip";
   private static final String CONTENT_TYPE_TEXT = "text/plain";
-
-  private static final String STATUS_LINE_PREFIX = "HTTP/1.1 ";
-
-  private static final String LINE_TERMINATOR = "\r\n";
 
   private final ResourcePackFile packFile;
   private final byte[] getPrefix;
@@ -82,14 +85,16 @@ final class ResourcePackHttpHandler extends ChannelInboundHandlerAdapter {
 
   ResourcePackHttpHandler(final ResourcePackFile packFile, final String requestPath) {
     this.packFile = packFile;
-    this.getPrefix = (GET_REQUEST_PREFIX + requestPath + REQUEST_PATH_TERMINATOR).getBytes(StandardCharsets.US_ASCII);
-    this.headPrefix = (HEAD_REQUEST_PREFIX + requestPath + REQUEST_PATH_TERMINATOR).getBytes(StandardCharsets.US_ASCII);
+    final String getRequestLine = GET_REQUEST_PREFIX + requestPath + REQUEST_PATH_TERMINATOR;
+    this.getPrefix = getRequestLine.getBytes(StandardCharsets.US_ASCII);
+    final String headRequestLine = HEAD_REQUEST_PREFIX + requestPath + REQUEST_PATH_TERMINATOR;
+    this.headPrefix = headRequestLine.getBytes(StandardCharsets.US_ASCII);
   }
 
   @Override
   public void channelRead(final ChannelHandlerContext context, final Object message) {
-    Preconditions.checkNotNull(context);
-    Preconditions.checkNotNull(message);
+    Preconditions.checkNotNull(context, CONTEXT_NULL_MESSAGE);
+    Preconditions.checkNotNull(message, "Message must not be null!");
 
     if (this.served) {
       ReferenceCountUtil.release(message);
@@ -151,17 +156,25 @@ final class ResourcePackHttpHandler extends ChannelInboundHandlerAdapter {
   // the game's 30-second read timeout would cut a download, which sends nothing after its request
   private void replaceReadTimeout(final ChannelHandlerContext context) {
     final ChannelPipeline pipeline = context.pipeline();
-    for (final Map.Entry<String, ChannelHandler> handler : pipeline.toMap().entrySet()) {
-      if (handler.getValue() instanceof ReadTimeoutHandler) {
-        pipeline.remove(handler.getKey());
+    final Map<String, ChannelHandler> handlers = pipeline.toMap();
+    for (final Map.Entry<String, ChannelHandler> entry : handlers.entrySet()) {
+      if (entry.getValue() instanceof ReadTimeoutHandler) {
+        pipeline.remove(entry.getKey());
       }
     }
 
     // the stall handler counts a write once it is complete, and raises its first idle event however far a write still
     // in progress got, so the pack goes out a chunk at a time, each chunk a write of its own that passes through it
     pipeline.addBefore(context.name(), CHUNKS_NAME, new ChunkedWriteHandler());
+    final IdleStateHandler stallHandler = new IdleStateHandler(
+      OBSERVE_OUTPUT,
+      IDLE_CHECK_DISABLED_SECONDS,
+      STALL_SECONDS,
+      IDLE_CHECK_DISABLED_SECONDS,
+      TimeUnit.SECONDS
+    );
     // before the chunks, so their writes pass through it, and its idle event reaches this handler
-    pipeline.addBefore(CHUNKS_NAME, STALL_NAME, new IdleStateHandler(true, 0, STALL_SECONDS, 0, TimeUnit.SECONDS));
+    pipeline.addBefore(CHUNKS_NAME, STALL_NAME, stallHandler);
   }
 
   @Override
@@ -179,6 +192,7 @@ final class ResourcePackHttpHandler extends ChannelInboundHandlerAdapter {
     final CompositeByteBuf existing = this.cumulation;
     if (existing != null) {
       existing.addComponent(true, buffer);
+
       return existing;
     }
 
@@ -195,7 +209,7 @@ final class ResourcePackHttpHandler extends ChannelInboundHandlerAdapter {
     try {
       body = this.packFile.read();
     } catch (final IOException exception) {
-      LOGGER.warn(PACK_NOT_READ, exception);
+      LOGGER.warn("Could not read the resource pack for an HTTP download.", exception);
       this.respondWithError(context);
       return;
     }
@@ -207,7 +221,8 @@ final class ResourcePackHttpHandler extends ChannelInboundHandlerAdapter {
       return;
     }
 
-    final ChunkedStream content = new ChunkedStream(new ByteArrayInputStream(body), CHUNK_BYTES);
+    final InputStream stream = new ByteArrayInputStream(body);
+    final ChunkedStream content = new ChunkedStream(stream, CHUNK_BYTES);
     final ChannelFuture headersFuture = context.write(headers);
     headersFuture.addListener(ChannelFutureListener.CLOSE_ON_FAILURE);
     final ChannelFuture contentFuture = context.writeAndFlush(content);
@@ -222,32 +237,24 @@ final class ResourcePackHttpHandler extends ChannelInboundHandlerAdapter {
 
   private ByteBuf createHeaders(final String status, final String contentType, final int contentLength) {
     final String text =
-      STATUS_LINE_PREFIX +
-      status +
-      LINE_TERMINATOR +
-      "Content-Type: " +
-      contentType +
-      LINE_TERMINATOR +
-      "Content-Length: " +
-      contentLength +
-      LINE_TERMINATOR +
-      "Cache-Control: no-store\r\n" +
-      "Connection: close\r\n" +
-      LINE_TERMINATOR;
+      "HTTP/1.1 %s\r\nContent-Type: %s\r\nContent-Length: %s\r\nCache-Control: no-store\r\nConnection: close\r\n\r\n".formatted(
+        status,
+        contentType,
+        contentLength
+      );
     return Unpooled.copiedBuffer(text, StandardCharsets.US_ASCII);
   }
 
   static RequestType classify(final ByteBuf buffer) {
     final int readable = buffer.readableBytes();
     final int start = buffer.readerIndex();
-    final boolean couldBeGet = matchesPrefix(buffer, start, readable, GET);
-    final boolean couldBeHead = matchesPrefix(buffer, start, readable, HEAD);
-
-    if (couldBeGet && readable >= GET.length) {
+    final boolean couldBeGet = matchesPrefix(buffer, start, readable, GET_REQUEST_PREFIX_BYTES);
+    final boolean couldBeHead = matchesPrefix(buffer, start, readable, HEAD_REQUEST_PREFIX_BYTES);
+    if (couldBeGet && readable >= GET_REQUEST_PREFIX_BYTES.length) {
       return RequestType.GET;
     }
 
-    if (couldBeHead && readable >= HEAD.length) {
+    if (couldBeHead && readable >= HEAD_REQUEST_PREFIX_BYTES.length) {
       return RequestType.HEAD;
     }
 
@@ -272,14 +279,14 @@ final class ResourcePackHttpHandler extends ChannelInboundHandlerAdapter {
 
   @Override
   public void handlerRemoved(final ChannelHandlerContext context) {
-    Preconditions.checkNotNull(context);
+    Preconditions.checkNotNull(context, CONTEXT_NULL_MESSAGE);
 
     this.releaseCumulation();
   }
 
   @Override
   public void channelInactive(final ChannelHandlerContext context) {
-    Preconditions.checkNotNull(context);
+    Preconditions.checkNotNull(context, CONTEXT_NULL_MESSAGE);
 
     this.releaseCumulation();
     context.fireChannelInactive();

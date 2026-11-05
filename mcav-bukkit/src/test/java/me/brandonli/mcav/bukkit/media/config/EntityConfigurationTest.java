@@ -118,9 +118,9 @@ final class EntityConfigurationTest {
     noPosition.entityWidth(1);
     noPosition.entityHeight(1);
 
-    assertThrows(NullPointerException.class, noViewers::build);
-    assertThrows(NullPointerException.class, noCharacter::build);
-    assertThrows(NullPointerException.class, noPosition::build);
+    assertThrows(IllegalStateException.class, noViewers::build);
+    assertThrows(IllegalStateException.class, noCharacter::build);
+    assertThrows(IllegalStateException.class, noPosition::build);
   }
 
   @Test
@@ -144,8 +144,8 @@ final class EntityConfigurationTest {
     final String noHeightMessage = noHeightException.getMessage();
     final String noWorldMessage = noWorldException.getMessage();
     assertEquals("Character must not be empty!", emptyCharacterMessage);
-    assertEquals("Entity width must be positive!", noWidthMessage);
-    assertEquals("Entity height must be positive!", noHeightMessage);
+    assertEquals("Entity width 0 must be positive!", noWidthMessage);
+    assertEquals("Entity height 0 must be positive!", noHeightMessage);
     assertEquals("Position must have a world!", noWorldMessage);
   }
 }

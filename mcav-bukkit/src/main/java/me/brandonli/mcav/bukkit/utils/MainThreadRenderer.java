@@ -48,11 +48,7 @@ import org.slf4j.LoggerFactory;
 public abstract class MainThreadRenderer<FrameType> {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(MainThreadRenderer.class);
-  private static final String TASK_SKIPPED_WHILE_DISABLED =
-    "Skipped a task because the plugin {} is disabled; release displays on the main thread during shutdown.";
-  private static final String TASK_SKIPPED_BEFORE_SCHEDULING =
-    "Skipped a task because the plugin {} became disabled before scheduling; release displays on the main thread during shutdown.";
-  private static final long START_DELAY_TICKS = 0L;
+
   private static final long PERIOD_TICKS = 1L;
 
   private final AtomicReference<@Nullable FrameType> pendingFrame;
@@ -61,7 +57,7 @@ public abstract class MainThreadRenderer<FrameType> {
   private long visibilityGeneration;
 
   /**
-   * Constructs a new renderer. Nothing is scheduled until {@link #startRendering()} is called.
+   * Creates a renderer. Nothing is scheduled until {@link #startRendering()} is called.
    *
    * @since 1.0.0
    */
@@ -101,7 +97,22 @@ public abstract class MainThreadRenderer<FrameType> {
 
     final Plugin plugin = BukkitModule.getPlugin();
     final BukkitScheduler scheduler = Bukkit.getScheduler();
-    this.task = scheduler.runTaskTimer(plugin, this::applyPendingFrame, START_DELAY_TICKS, PERIOD_TICKS);
+    this.task = scheduler.runTaskTimer(plugin, this::applyPendingFrame, 0L, PERIOD_TICKS);
+  }
+
+  /**
+   * Stops applying frames and discards the pending frame, if any. May be called from any thread.
+   *
+   * @since 1.0.0
+   */
+  protected synchronized void stopRendering() {
+    final BukkitTask currentTask = this.task;
+    if (currentTask != null) {
+      currentTask.cancel();
+      this.task = null;
+    }
+
+    this.pendingFrame.set(null);
   }
 
   /**
@@ -129,6 +140,7 @@ public abstract class MainThreadRenderer<FrameType> {
     }
 
     initialize.run();
+
     // An initialization callback may synchronously request hide on this same main thread.
     if (generation == this.visibilityGeneration) {
       this.startRendering();
@@ -188,21 +200,6 @@ public abstract class MainThreadRenderer<FrameType> {
   }
 
   /**
-   * Stops applying frames and discards the pending frame, if any. May be called from any thread.
-   *
-   * @since 1.0.0
-   */
-  protected synchronized void stopRendering() {
-    final BukkitTask currentTask = this.task;
-    if (currentTask != null) {
-      currentTask.cancel();
-      this.task = null;
-    }
-
-    this.pendingFrame.set(null);
-  }
-
-  /**
    * Runs the task on the main thread. If the caller already is on the main thread, the task runs immediately;
    * otherwise it runs during the next server tick.
    *
@@ -230,7 +227,7 @@ public abstract class MainThreadRenderer<FrameType> {
     final boolean enabled = plugin.isEnabled();
     if (!enabled) {
       final String pluginName = plugin.getName();
-      LOGGER.warn(TASK_SKIPPED_WHILE_DISABLED, pluginName);
+      LOGGER.warn("Skipped a task because the plugin {} is disabled; release displays on the main thread during shutdown.", pluginName);
       return;
     }
 
@@ -239,7 +236,11 @@ public abstract class MainThreadRenderer<FrameType> {
       scheduler.runTask(plugin, task);
     } catch (final IllegalPluginAccessException exception) {
       final String pluginName = plugin.getName();
-      LOGGER.warn(TASK_SKIPPED_BEFORE_SCHEDULING, pluginName, exception);
+      LOGGER.warn(
+        "Skipped a task because the plugin {} became disabled before scheduling; release displays on the main thread during shutdown.",
+        pluginName,
+        exception
+      );
     }
   }
 }

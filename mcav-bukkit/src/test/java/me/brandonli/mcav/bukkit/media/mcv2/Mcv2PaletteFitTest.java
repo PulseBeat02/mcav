@@ -55,7 +55,7 @@ final class Mcv2PaletteFitTest {
   }
 
   @Test
-  void shouldFitTwoColoursExactly() {
+  void shouldFitTwoColorsExactly() {
     final int[] dark = { DARK_RED, DARK_GREEN, DARK_BLUE };
     final int[] light = { LIGHT_RED, LIGHT_GREEN, LIGHT_BLUE };
     final int[] source = this.block(light, dark, dark, light, light, dark, light, light);
@@ -98,7 +98,7 @@ final class Mcv2PaletteFitTest {
   }
 
   @Test
-  void shouldFitAUniformBlockWithOneColour() {
+  void shouldFitAUniformBlockWithOneColor() {
     final int[] colors = new int[ENDPOINTS_LENGTH];
     final byte[] selectors = new byte[2];
     fit(this.block(new int[] { 7, 8, 9 }, new int[] { 7, 8, 9 }), 2, colors, selectors);

@@ -242,7 +242,7 @@ public final class MCAVSandbox extends JavaPlugin {
     Mcv2.installNatives(nativesPath, nativeLibrary);
 
     final String kernels = Mcv2.describeNatives();
-    pluginLogger.info("MCV2 kernels: {}.", kernels);
+    pluginLogger.info("MCV2 uses the {} kernels.", kernels);
   }
 
   private void loadManagers() {

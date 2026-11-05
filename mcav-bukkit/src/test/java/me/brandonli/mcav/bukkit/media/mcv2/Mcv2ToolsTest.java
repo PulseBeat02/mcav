@@ -54,12 +54,23 @@ final class Mcv2ToolsTest {
   private static final String REJECTED_FILE_NAME = "rejected.mcs";
   private static final String CLASSPATH_FILE_NAME = "mcv2-tools-classpath.txt";
 
+  private static final String PACK_DIRECTORY = "pack";
+  private static final String GENERATED_DIRECTORY = "generated";
+  private static final String COMPILED_DIRECTORY = "compiled";
+
+  private static final String SAMPLER_SHADER_FILE_NAME = "sampler.fsh";
+  private static final String INVALID_SHADER_FILE_NAME = "invalid.fsh";
+
+  private static final String WINDOWS_JAVA_EXECUTABLE_FILE_NAME = "java.exe";
+  private static final String BINARY_DIRECTORY = "bin";
+  private static final String BUILD_DIRECTORY = "build";
+
   @TempDir
   Path folder;
 
   @AfterEach
   void restoreNatives() {
-    Mcv2.installNatives(NativeTesting.FOLDER, Mcv2.NATIVE_AUTO);
+    Mcv2.installNatives(NativeTesting.NATIVES_FOLDER, Mcv2.NATIVE_AUTO);
   }
 
   @Test
@@ -70,7 +81,7 @@ final class Mcv2ToolsTest {
       final Path archive = folder.resolve(mode + ARCHIVE_EXTENSION);
       final String output = this.run(
         BENCH_COMMAND,
-        "source=" + source,
+        "source=%s".formatted(source),
         "width=320",
         "height=180",
         "frames=4",
@@ -78,7 +89,7 @@ final class Mcv2ToolsTest {
         "threads=1",
         "verify=true",
         mode.equals("off") ? "natives=off" : "profile=DEFAULT",
-        "out=" + archive
+        "out=%s".formatted(archive)
       );
       final byte[] expectedArchive = Mcv2Fixtures.read(CROP_DEFAULT_PATH);
       final byte[] archiveBytes = Files.readAllBytes(archive);
@@ -101,7 +112,7 @@ final class Mcv2ToolsTest {
         final boolean describesJava = result.get("natives").getAsString().startsWith("Java,");
         assertTrue(describesJava);
       }
-      if (mode.equals("auto") && NativeTesting.expected() && System.getProperty(Mcv2.NATIVE_PROPERTY) == null) {
+      if (mode.equals("auto") && NativeTesting.areNativesExpected() && System.getProperty(Mcv2.NATIVE_PROPERTY) == null) {
         final boolean describesNative = result.get("natives").getAsString().startsWith("native ");
         assertTrue(describesNative);
 
@@ -136,14 +147,14 @@ final class Mcv2ToolsTest {
     final Path archive = folder.resolve(STREAM_FILE_NAME);
     final Path pictures = folder.resolve("pictures.rgb");
     Files.write(archive, Mcv2Fixtures.read(PROXY_DEFAULT_PATH));
-    final List<String> expected = Mcv2Fixtures.digests("conformance").get(PROXY_DEFAULT_STREAM);
-    final String expectedOutput = archive + " " + String.join(" ", expected);
+    final List<String> expected = Mcv2Fixtures.readDigests("conformance").get(PROXY_DEFAULT_STREAM);
+    final String expectedOutput = "%s %s".formatted(archive, String.join(" ", expected));
     final String output = this.run(DIGESTS_COMMAND, "--rgb", pictures.toString(), archive.toString()).strip();
     assertEquals(expectedOutput, output);
 
     final Mcv2Receiver receiver = new Mcv2Receiver();
     final ByteArrayOutputStream decoded = new ByteArrayOutputStream();
-    for (final byte[] frame : Mcv2Fixtures.frames(Mcv2Fixtures.read(PROXY_DEFAULT_PATH))) {
+    for (final byte[] frame : Mcv2Fixtures.splitFrames(Mcv2Fixtures.read(PROXY_DEFAULT_PATH))) {
       decoded.writeBytes(receiver.accept(frame));
     }
 
@@ -162,19 +173,19 @@ final class Mcv2ToolsTest {
   @Test
   void shouldDistinguishRejectedFramesFromTruncatedArchivesOnDigests() throws Exception {
     final Path archive = folder.resolve(REJECTED_FILE_NAME);
-    final byte[] frame = Mcv2Fixtures.frames(Mcv2Fixtures.read(PROXY_DEFAULT_PATH)).getFirst();
+    final byte[] frame = Mcv2Fixtures.splitFrames(Mcv2Fixtures.read(PROXY_DEFAULT_PATH)).getFirst();
     final byte[] stream = new byte[Integer.BYTES + frame.length];
-    Mcv2Decoder.putU32(stream, 0, frame.length);
+    Mcv2Decoder.putUnsignedInt(stream, 0, frame.length);
     System.arraycopy(frame, 0, stream, Integer.BYTES, frame.length);
     stream[Integer.BYTES] = 0;
     Files.write(archive, stream);
-    final String expectedRejection = archive + " reject";
+    final String expectedRejection = "%s reject".formatted(archive);
     final String rejection = this.run(DIGESTS_COMMAND, archive.toString()).strip();
     assertEquals(expectedRejection, rejection);
 
     for (final byte[] truncated : List.of(new byte[] { 1 }, Arrays.copyOf(stream, stream.length - 1))) {
       Files.write(archive, truncated);
-      final String expectedTruncation = archive + " truncated";
+      final String expectedTruncation = "%s truncated".formatted(archive);
       final String truncation = this.run(DIGESTS_COMMAND, archive.toString()).strip();
       assertEquals(expectedTruncation, truncation);
     }
@@ -182,12 +193,12 @@ final class Mcv2ToolsTest {
 
   @Test
   void shouldPreserveSamplerNamesAndReturnTheFailedStageCountInTheShaderCompiler() throws Exception {
-    final Path pack = folder.resolve("pack");
+    final Path pack = folder.resolve(PACK_DIRECTORY);
     final Path post = Files.createDirectories(pack.resolve(POST_SHADER_FOLDER));
-    final Path generated = Files.createDirectories(folder.resolve("generated"));
-    final Path output = folder.resolve("compiled");
+    final Path generated = Files.createDirectories(folder.resolve(GENERATED_DIRECTORY));
+    final Path output = folder.resolve(COMPILED_DIRECTORY);
     Files.writeString(
-      post.resolve("sampler.fsh"),
+      post.resolve(SAMPLER_SHADER_FILE_NAME),
       """
       #version 330
       layout(location = 0) out vec4 color;
@@ -199,29 +210,29 @@ final class Mcv2ToolsTest {
     final int validFailures = this.compileShaders(arguments);
     assertEquals(0, validFailures);
 
-    final String glsl = Files.readString(output.resolve("sampler.fsh"));
+    final String glsl = Files.readString(output.resolve(SAMPLER_SHADER_FILE_NAME));
     final boolean keepsSampler = glsl.contains("uniform sampler2D Sampler0;");
     assertTrue(keepsSampler);
 
     final boolean renamesSampler = glsl.contains("_uniform_00_03");
     assertFalse(renamesSampler);
 
-    Files.writeString(post.resolve("invalid.fsh"), "#version 330\nvoid main() { invalid shader; }\n");
+    Files.writeString(post.resolve(INVALID_SHADER_FILE_NAME), "#version 330\nvoid main() { invalid shader; }\n");
     final int invalidFailures = this.compileShaders(arguments);
     assertEquals(1, invalidFailures);
 
-    final boolean invalidWritten = Files.exists(output.resolve("invalid.fsh"));
+    final boolean invalidWritten = Files.exists(output.resolve(INVALID_SHADER_FILE_NAME));
     assertFalse(invalidWritten);
 
-    final String samplerAfterFailure = Files.readString(output.resolve("sampler.fsh"));
+    final String samplerAfterFailure = Files.readString(output.resolve(SAMPLER_SHADER_FILE_NAME));
     assertEquals(glsl, samplerAfterFailure);
   }
 
   private int compileShaders(final String[] arguments) throws Exception {
     // JaCoCo's synthetic methods on LWJGL interfaces confuse its FFM callback selection.
-    final String executable = System.getProperty("os.name").startsWith("Windows") ? "java.exe" : "java";
-    final Path java = Path.of(System.getProperty("java.home"), "bin", executable);
-    final String classpath = Files.readString(Path.of("build", CLASSPATH_FILE_NAME));
+    final String executable = System.getProperty("os.name").startsWith("Windows") ? WINDOWS_JAVA_EXECUTABLE_FILE_NAME : "java";
+    final Path java = Path.of(System.getProperty("java.home"), BINARY_DIRECTORY, executable);
+    final String classpath = Files.readString(Path.of(BUILD_DIRECTORY, CLASSPATH_FILE_NAME));
     final List<String> command = new ArrayList<>(
       List.of(java.toString(), "--enable-native-access=ALL-UNNAMED", "-cp", classpath, Mcv2Tools.class.getName(), "shader-compile")
     );
@@ -234,7 +245,7 @@ final class Mcv2ToolsTest {
 
     System.out.print(output);
     final int failures = process.waitFor();
-    final String summary = failures == 0 ? "every stage compiled" : failures + " stages failed";
+    final String summary = failures == 0 ? "every stage compiled" : "%s stages failed".formatted(failures);
     final boolean summarized = output.lines().anyMatch(summary::equals);
     assertTrue(summarized, output);
 

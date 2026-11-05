@@ -17,6 +17,8 @@
  */
 package me.brandonli.mcav.bukkit.testing;
 
+import static java.util.Objects.requireNonNull;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
@@ -28,7 +30,6 @@ import java.nio.file.StandardCopyOption;
 import java.time.Duration;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
@@ -40,7 +41,16 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 public final class GeneratedMedia {
 
   private static final Duration PROCESS_TIMEOUT = Duration.ofMinutes(2);
+  private static final Duration POLL_INTERVAL = Duration.ofMillis(20);
+  private static final Duration TERMINATION_GRACE_PERIOD = Duration.ofSeconds(3);
+
   private static final int LOG_LIMIT_BYTES = 65_536;
+
+  private static final char EXTENSION_SEPARATOR = '.';
+  private static final String DEFAULT_EXTENSION = ".tmp";
+  private static final String TEMPORARY_FILE_PREFIX = "mcav-generating-";
+  private static final String LOG_SUFFIX = ".log";
+
   private static final Set<Path> COMPLETED = new HashSet<>();
 
   private GeneratedMedia() {
@@ -64,7 +74,9 @@ public final class GeneratedMedia {
     } catch (final InterruptedException exception) {
       final Thread current = Thread.currentThread();
       current.interrupt();
-      throw new IllegalStateException("Interrupted while generating test media!", exception);
+
+      final String message = "Interrupted while generating test media!";
+      throw new IllegalStateException(message, exception);
     }
   }
 
@@ -76,16 +88,16 @@ public final class GeneratedMedia {
     }
 
     COMPLETED.remove(destination);
-    final Path parent = Objects.requireNonNull(destination.getParent(), "A media file must have a directory!");
+    final Path parent = requireNonNull(destination.getParent(), "A media file must have a directory!");
     Files.createDirectories(parent);
     final String name = destination.getFileName().toString();
-    final int dot = name.lastIndexOf('.');
-    final String extension = dot >= 0 ? name.substring(dot) : ".tmp";
-    final Path temporary = Files.createTempFile(parent, "mcav-generating-", extension);
+    final int dot = name.lastIndexOf(EXTENSION_SEPARATOR);
+    final String extension = dot >= 0 ? name.substring(dot) : DEFAULT_EXTENSION;
+    final Path temporary = Files.createTempFile(parent, TEMPORARY_FILE_PREFIX, extension);
     Path log = null;
     Throwable primary = null;
     try {
-      log = Files.createTempFile(parent, "mcav-generating-", ".log");
+      log = Files.createTempFile(parent, TEMPORARY_FILE_PREFIX, LOG_SUFFIX);
       final List<String> arguments = command.apply(temporary);
       runProcess(arguments, log, timeout);
 
@@ -157,7 +169,7 @@ public final class GeneratedMedia {
         throw new IOException(message);
       }
 
-      final long poll = Math.min(remaining, TimeUnit.MILLISECONDS.toNanos(20));
+      final long poll = Math.min(remaining, POLL_INTERVAL.toNanos());
       exited = process.waitFor(poll, TimeUnit.NANOSECONDS);
     }
   }
@@ -182,7 +194,7 @@ public final class GeneratedMedia {
     process.destroyForcibly();
     try {
       // A bounded grace period lets Windows release handles before temporary files are deleted.
-      process.waitFor(3, TimeUnit.SECONDS);
+      process.waitFor(TERMINATION_GRACE_PERIOD);
     } catch (final InterruptedException exception) {
       final Thread current = Thread.currentThread();
       current.interrupt();
@@ -190,21 +202,21 @@ public final class GeneratedMedia {
   }
 
   private static void cleanup(final Path temporary, final @Nullable Path log, final @Nullable Throwable primary) throws IOException {
-    IOException cleanup = null;
+    IOException cleanupException = null;
     final List<Path> paths = log == null ? List.of(temporary) : List.of(temporary, log);
     for (final Path path : paths) {
-      cleanup = deleteCollectingFailure(path, cleanup);
+      cleanupException = deleteCollectingFailure(path, cleanupException);
     }
 
-    if (cleanup == null) {
+    if (cleanupException == null) {
       return;
     }
 
     if (primary == null) {
-      throw cleanup;
+      throw cleanupException;
     }
 
-    primary.addSuppressed(cleanup);
+    primary.addSuppressed(cleanupException);
   }
 
   private static @Nullable IOException deleteCollectingFailure(final Path path, final @Nullable IOException earlier) {

@@ -37,12 +37,12 @@ import me.brandonli.mcav.media.player.pipeline.filter.video.FunctionalVideoFilte
  *
  * @since 1.0.0
  */
-public class BlockResult implements FunctionalVideoFilter {
+public final class BlockResult implements FunctionalVideoFilter {
 
   private final BlockRenderer renderer;
 
   /**
-   * Constructs a new {@code BlockResult}.
+   * Creates a result that shows frames as a wall of colored blocks.
    *
    * @param configuration the configuration describing the viewers, position, and size of the block wall
    * @throws NullPointerException if {@code configuration} is null
@@ -57,6 +57,8 @@ public class BlockResult implements FunctionalVideoFilter {
   /**
    * Remembers the blocks at the location of the wall, so they can be restored later.
    *
+   * @throws IllegalStateException if no plugin was injected, or if initialization runs on the calling thread
+   *                               and the configured position no longer has a world
    * @since 1.0.0
    */
   @Override
@@ -71,7 +73,8 @@ public class BlockResult implements FunctionalVideoFilter {
    * @param data     the frame to display, which may be resized by the renderer
    * @param metadata the metadata of the original video, which is not used
    * @return always true, because the renderer may resize the frame
-   * @throws NullPointerException if {@code data} or {@code metadata} is null
+   * @throws NullPointerException  if {@code data} or {@code metadata} is null
+   * @throws IllegalStateException if {@code data} has been released
    * @since 1.0.0
    */
   @Override

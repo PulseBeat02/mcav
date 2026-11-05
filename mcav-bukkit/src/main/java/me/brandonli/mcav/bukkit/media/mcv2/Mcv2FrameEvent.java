@@ -37,7 +37,7 @@ final class Mcv2FrameEvent extends Event {
 
   private static final int HEXADECIMAL_DIGITS_PER_BYTE = 2;
 
-  private static final int CENTRE_DIVISOR = 2;
+  private static final int CENTER_DIVISOR = 2;
 
   private static final int BYTE_MASK = 0xFF;
 
@@ -57,8 +57,8 @@ final class Mcv2FrameEvent extends Event {
   @DataAmount
   int bytes;
 
-  @Label("Map Colours")
-  @Description("The map colours of the frame's pages, or -1 when it had more pages than the screen has slots")
+  @Label("Map Colors")
+  @Description("The map colors of the frame's pages, or -1 when it had more pages than the screen has slots")
   int colors;
 
   @Label("Arrived")
@@ -71,7 +71,7 @@ final class Mcv2FrameEvent extends Event {
 
   @Label("Encode Time")
   @Timespan(Timespan.NANOSECONDS)
-  long encode;
+  long encodeTime;
 
   @Label("Viewers Sent")
   int sentTo;
@@ -94,13 +94,13 @@ final class Mcv2FrameEvent extends Event {
   static String fingerprint(final byte[] pictureBytes, final int width, final int height) {
     final StringBuilder builder = new StringBuilder(HEXADECIMAL_DIGITS_PER_BYTE * FINGERPRINT_PIXELS);
 
-    final int centre = Mcv2Decoder.ROOT_SIZE / CENTRE_DIVISOR;
+    final int center = Mcv2Decoder.ROOT_SIZE / CENTER_DIVISOR;
     for (
       int superblockIndex = 0;
-      superblockIndex < FINGERPRINT_PIXELS && centre + Mcv2Decoder.ROOT_SIZE * superblockIndex < width && height > centre;
+      superblockIndex < FINGERPRINT_PIXELS && center + Mcv2Decoder.ROOT_SIZE * superblockIndex < width && height > center;
       superblockIndex++
     ) {
-      final int pixelOffset = (centre * width + centre + Mcv2Decoder.ROOT_SIZE * superblockIndex) * Mcv2Decoder.CHANNELS;
+      final int pixelOffset = (center * width + center + Mcv2Decoder.ROOT_SIZE * superblockIndex) * Mcv2Decoder.CHANNELS;
       final int luma =
         ((pictureBytes[pixelOffset] & BYTE_MASK) +
           GREEN_WEIGHT * (pictureBytes[pixelOffset + GREEN_OFFSET] & BYTE_MASK) +

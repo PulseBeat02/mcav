@@ -25,6 +25,7 @@ import com.code_intelligence.jazzer.junit.FuzzTest;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.OptionalLong;
 import java.util.concurrent.ForkJoinPool;
 import java.util.stream.IntStream;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -44,12 +45,12 @@ final class Mcv2ReceiverFuzzTest {
     byte @Nullable [] parallelPicture = null;
     long parallelId = -1;
     for (final byte[] frame : frames(archive)) {
-      final long lastId = receiver.getFrameId();
+      final OptionalLong lastId = receiver.getFrameId();
       final byte[] picture;
       try {
         picture = receiver.accept(frame);
       } catch (final Mcv2Exception exception) {
-        final long frameIdAfterRefusal = receiver.getFrameId();
+        final OptionalLong frameIdAfterRefusal = receiver.getFrameId();
         assertEquals(lastId, frameIdAfterRefusal, "a refused frame keeps the last frame");
 
         continue;
@@ -59,7 +60,7 @@ final class Mcv2ReceiverFuzzTest {
       final int pictureLength = picture.length;
       assertEquals(expectedLength, pictureLength, "the picture has the size of its frame");
       final long expectedFrameId = parsed.getFrameId();
-      final long frameId = receiver.getFrameId();
+      final long frameId = receiver.getFrameId().orElseThrow();
       assertEquals(expectedFrameId, frameId, "a committed frame is the last frame");
       final byte[] committedPicture = committedOnly.accept(frame);
       assertArrayEquals(picture, committedPicture, "a refused frame left nothing behind in the receiver");
@@ -100,7 +101,7 @@ final class Mcv2ReceiverFuzzTest {
     final List<byte[]> frames = new ArrayList<>();
     int offset = 0;
     while (offset + 4 <= archive.length && frames.size() < MAXIMUM_FRAMES) {
-      final long length = Mcv2Decoder.u32(archive, offset);
+      final long length = Mcv2Decoder.readUnsignedInt(archive, offset);
       final int start = offset + 4;
       final int end = (int) Math.min(archive.length, start + length);
       frames.add(Arrays.copyOfRange(archive, start, end));

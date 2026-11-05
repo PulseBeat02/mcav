@@ -170,9 +170,9 @@ public interface Mcv2ConfigurationBuilder {
   Mcv2ConfigurationBuilder settings(final Settings settings);
 
   /**
-   * Sets the team colour of the hidden page frames; defaults to dark purple.
+   * Sets the team color of the hidden page frames; defaults to dark purple.
    *
-   * @param outlineColor the colour, not black: an outline colour of zero means no outline, so the client would not
+   * @param outlineColor the color, not black: an outline color of zero means no outline, so the client would not
    *                     run the pack's post chain
    * @return this builder
    * @throws IllegalArgumentException if the color is black
@@ -217,7 +217,7 @@ public interface Mcv2ConfigurationBuilder {
    * Builds the configuration. The builder is not changed.
    *
    * @return the configuration
-   * @throws NullPointerException     if the viewers, the origin or the facing were not set
+   * @throws IllegalStateException    if the viewers, the origin or the facing were never set
    * @throws IllegalArgumentException if a value is out of range, or the video, at the wall's native size where none was
    *                                  set, is larger than 4096 pixels
    * @since 1.0.0

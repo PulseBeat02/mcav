@@ -62,7 +62,7 @@ final class Mcv2LinkPropertyTest {
         final long bytes = inFlight.remove(0);
         budget -= bytes;
         outstanding -= bytes;
-        link.written(bytes);
+        link.releaseBacklog(bytes);
       }
       final boolean isKeyframe = id == 0 || step.isKeyframe();
       final long reference = isKeyframe ? id : fromKeyframe ? lastKey : id - 1;

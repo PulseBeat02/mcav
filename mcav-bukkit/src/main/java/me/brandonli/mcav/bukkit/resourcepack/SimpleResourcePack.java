@@ -25,7 +25,6 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.CopyOption;
@@ -43,6 +42,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
+import me.brandonli.mcav.bukkit.BukkitException;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -56,7 +56,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * final String zipName = "pack.zip";
  * final Path zip = Path.of(zipName);
  * final SimpleResourcePack pack = SimpleResourcePack.pack();
- * pack.meta(packFormat, "MCAV audio");
+ * pack.metadata(packFormat, "MCAV audio");
  * pack.sound(soundKey, oggFile);
  * pack.zip(zip);
  * }
@@ -72,6 +72,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 public final class SimpleResourcePack {
 
+  private static final String PATH_NULL_MESSAGE = "Path must not be null!";
+
   private static final Pattern KEY_PATTERN = Pattern.compile("[a-z0-9_.-]+:[a-z0-9_./-]+");
 
   private static final Pattern FILE_PATTERN = Pattern.compile("[a-zA-Z0-9_./-]+");
@@ -82,10 +84,13 @@ public final class SimpleResourcePack {
 
   private static final Gson GSON = createGson();
 
-  private static final String PACK_META_ENTRY = "pack.mcmeta";
+  private static final String PACK_METADATA_ENTRY = "pack.mcmeta";
+  private static final String ASSETS_DIRECTORY = "assets";
+  private static final String SOUNDS_DIRECTORY = "sounds";
+  private static final String SOUNDS_ENTRY = "sounds.json";
+  private static final String SOUND_FILE_EXTENSION = ".ogg";
 
   private static final String TEMPORARY_FILE_PREFIX = "mcav-pack";
-
   private static final String TEMPORARY_FILE_SUFFIX = ".zip.part";
 
   private static final String READABLE_PERMISSIONS = "rw-r--r--";
@@ -102,20 +107,17 @@ public final class SimpleResourcePack {
   private static final LocalDateTime ENTRY_TIME = LocalDateTime.of(1980, 2, 1, 0, 0);
 
   private final Map<String, Map<String, Path>> sounds;
-
   private final Map<String, Path> files;
-
   private final Map<String, byte[]> contents;
 
   private int format;
-
   private @Nullable String description;
 
   SimpleResourcePack() {
     this.sounds = new LinkedHashMap<>();
     this.files = new LinkedHashMap<>();
     this.contents = new LinkedHashMap<>();
-    this.format = -1;
+    this.format = 0;
   }
 
   /**
@@ -148,20 +150,20 @@ public final class SimpleResourcePack {
    * @since 1.0.0
    */
   public void sound(final String key, final Path path) {
-    Preconditions.checkNotNull(key);
-    Preconditions.checkNotNull(path);
+    Preconditions.checkNotNull(key, "Key must not be null!");
+    Preconditions.checkNotNull(path, PATH_NULL_MESSAGE);
 
     final Matcher keyMatcher = KEY_PATTERN.matcher(key);
     final boolean validKey = keyMatcher.matches();
     Preconditions.checkArgument(validKey, "Sound key %s is invalid!", key);
 
-    final boolean exists = Files.isRegularFile(path);
-    Preconditions.checkArgument(exists, "Sound file %s does not exist!", path);
+    final boolean regularFile = Files.isRegularFile(path);
+    Preconditions.checkArgument(regularFile, "Sound file %s is not a regular file!", path);
 
     final int separator = key.indexOf(NAMESPACE_SEPARATOR);
     final String namespace = key.substring(0, separator);
     final String value = key.substring(separator + 1);
-    final String soundPath = namespace + PATH_SEPARATOR + value;
+    final String soundPath = String.join(PATH_SEPARATOR, namespace, value);
     this.checkPathSegments(soundPath);
 
     final Map<String, Path> namespaceSounds = this.sounds.computeIfAbsent(namespace, _ -> new LinkedHashMap<>());
@@ -178,17 +180,17 @@ public final class SimpleResourcePack {
    *
    * @param path the location of the file inside the resource pack, such as {@code assets/mcav/texts/credits.txt}
    * @param file the file to add
-   * @throws IllegalArgumentException if the location is invalid or reserved, or the file does not exist
+   * @throws IllegalArgumentException if the location is invalid or reserved, or the file is not a regular file
    * @throws NullPointerException     if {@code path} or {@code file} is null
    * @since 1.0.0
    */
   public void external(final String path, final Path file) {
-    Preconditions.checkNotNull(path);
-    Preconditions.checkNotNull(file);
+    Preconditions.checkNotNull(path, PATH_NULL_MESSAGE);
+    Preconditions.checkNotNull(file, "File must not be null!");
     this.checkEntryPath(path);
 
-    final boolean exists = Files.isRegularFile(file);
-    Preconditions.checkArgument(exists, "File %s does not exist!", file);
+    final boolean regularFile = Files.isRegularFile(file);
+    Preconditions.checkArgument(regularFile, "File %s is not a regular file!", file);
 
     this.contents.remove(path);
     this.files.put(path, file);
@@ -206,8 +208,8 @@ public final class SimpleResourcePack {
    * @since 1.0.0
    */
   public void data(final String path, final byte[] content) {
-    Preconditions.checkNotNull(path);
-    Preconditions.checkNotNull(content);
+    Preconditions.checkNotNull(path, PATH_NULL_MESSAGE);
+    Preconditions.checkNotNull(content, "Content must not be null!");
     this.checkEntryPath(path);
 
     this.files.remove(path);
@@ -243,9 +245,9 @@ public final class SimpleResourcePack {
    * @throws NullPointerException     if {@code description} is null
    * @since 1.0.0
    */
-  public void meta(final int format, final String description) {
-    Preconditions.checkArgument(format > 0, "Pack format must be positive!");
-    Preconditions.checkNotNull(description);
+  public void metadata(final int format, final String description) {
+    Preconditions.checkArgument(format > 0, "Pack format %s must be positive!", format);
+    Preconditions.checkNotNull(description, "Description must not be null!");
 
     this.format = format;
     this.description = description;
@@ -258,31 +260,33 @@ public final class SimpleResourcePack {
    * separate web server can serve it.
    *
    * @param destination the destination path of the zipped resource pack
-   * @throws IllegalStateException    if {@link #meta(int, String)} was never called
+   * @throws IllegalStateException    if {@link #metadata(int, String)} was never called
    * @throws IllegalArgumentException if the destination is a root directory
-   * @throws UncheckedIOException     if the pack could not be written
+   * @throws BukkitException          if the pack could not be written
    * @throws NullPointerException     if {@code destination} is null
    * @since 1.0.0
    */
   public void zip(final Path destination) {
-    Preconditions.checkNotNull(destination);
+    Preconditions.checkNotNull(destination, "Destination must not be null!");
 
     final String packDescription = this.description;
     if (packDescription == null) {
-      throw new IllegalStateException("Pack metadata must be set using meta(format, description)!");
+      final String message = "Pack metadata must be set using metadata(format, description)!";
+      throw new IllegalStateException(message);
     }
 
     final Path absolute = destination.toAbsolutePath();
     final Path parent = absolute.getParent();
     if (parent == null) {
-      throw new IllegalArgumentException("Destination must be a file, not a root directory!");
+      final String message = "Destination must be a file, not a root directory!";
+      throw new IllegalArgumentException(message);
     }
 
     try {
       this.writeAtomically(parent, absolute, packDescription);
     } catch (final IOException exception) {
-      final String message = exception.getMessage();
-      throw new UncheckedIOException(message, exception);
+      final String message = "Resource pack %s could not be written!".formatted(absolute);
+      throw new BukkitException(message, exception);
     }
   }
 
@@ -321,8 +325,8 @@ public final class SimpleResourcePack {
 
   private void writeZip(final Path target, final String packDescription) throws IOException {
     try (final OutputStream fileOutput = Files.newOutputStream(target); final ZipOutputStream zip = new ZipOutputStream(fileOutput)) {
-      final String packMeta = this.createPackMeta(packDescription);
-      this.writeEntry(zip, PACK_META_ENTRY, packMeta);
+      final String packMetadata = this.createPackMetadata(packDescription);
+      this.writeEntry(zip, PACK_METADATA_ENTRY, packMetadata);
       this.writeSounds(zip);
       for (final Map.Entry<String, Path> entry : this.files.entrySet()) {
         final String name = entry.getKey();
@@ -330,14 +334,17 @@ public final class SimpleResourcePack {
         this.writeFile(zip, name, file);
       }
       for (final Map.Entry<String, byte[]> entry : this.contents.entrySet()) {
-        zip.putNextEntry(entry(entry.getKey()));
-        zip.write(entry.getValue());
+        final String name = entry.getKey();
+        final byte[] content = entry.getValue();
+        final ZipEntry zipEntry = createEntry(name);
+        zip.putNextEntry(zipEntry);
+        zip.write(content);
         zip.closeEntry();
       }
     }
   }
 
-  private String createPackMeta(final String packDescription) {
+  private String createPackMetadata(final String packDescription) {
     final JsonObject pack = new JsonObject();
     pack.addProperty("description", packDescription);
     pack.addProperty("pack_format", this.format);
@@ -358,11 +365,12 @@ public final class SimpleResourcePack {
         final Path file = soundEntry.getValue();
         final JsonObject event = this.createSoundEvent(namespace, value);
         events.add(value, event);
-        final String entryName = "assets/%s/sounds/%s.ogg".formatted(namespace, value);
+        final String fileName = value + SOUND_FILE_EXTENSION;
+        final String entryName = String.join(PATH_SEPARATOR, ASSETS_DIRECTORY, namespace, SOUNDS_DIRECTORY, fileName);
         this.writeFile(zip, entryName, file);
       }
       final String soundsJson = GSON.toJson(events);
-      final String soundsEntryName = "assets/%s/sounds.json".formatted(namespace);
+      final String soundsEntryName = String.join(PATH_SEPARATOR, ASSETS_DIRECTORY, namespace, SOUNDS_ENTRY);
       this.writeEntry(zip, soundsEntryName, soundsJson);
     }
   }
@@ -382,7 +390,7 @@ public final class SimpleResourcePack {
   }
 
   @VisibleForTesting
-  static ZipEntry entry(final String name) {
+  static ZipEntry createEntry(final String name) {
     final ZipEntry entry = new ZipEntry(name);
     entry.setTimeLocal(ENTRY_TIME);
     return entry;
@@ -390,13 +398,15 @@ public final class SimpleResourcePack {
 
   private void writeEntry(final ZipOutputStream zip, final String name, final String content) throws IOException {
     final byte[] bytes = content.getBytes(StandardCharsets.UTF_8);
-    zip.putNextEntry(entry(name));
+    final ZipEntry zipEntry = createEntry(name);
+    zip.putNextEntry(zipEntry);
     zip.write(bytes);
     zip.closeEntry();
   }
 
   private void writeFile(final ZipOutputStream zip, final String name, final Path file) throws IOException {
-    zip.putNextEntry(entry(name));
+    final ZipEntry zipEntry = createEntry(name);
+    zip.putNextEntry(zipEntry);
     Files.copy(file, zip);
     zip.closeEntry();
   }

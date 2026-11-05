@@ -26,8 +26,7 @@
  * check viewer membership each tick; map and chat delivery reads viewers for each frame. Creating settings does not
  * create display entities, reserve maps or acquire player ownership.
  *
- * <p>Reference parameters and return values are non-null unless marked {@code @Nullable};
- * nullable values and their meanings are described on the corresponding members.
+ * <p>Reference parameters and return values are non-null unless marked {@code @Nullable}.
  *
  * @since 1.0.0
  */

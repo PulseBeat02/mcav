@@ -37,6 +37,7 @@ import org.bukkit.craftbukkit.entity.CraftTextDisplay;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.TextDisplay;
 import org.mockito.ArgumentMatchers;
+import org.mockito.invocation.InvocationOnMock;
 
 public final class FakeWorld {
 
@@ -47,34 +48,42 @@ public final class FakeWorld {
 
   private FakeWorld() {
     this.world = mock(World.class);
-    when(this.world.getUID()).thenReturn(UUID.randomUUID());
     this.spawnedDisplays = new CopyOnWriteArrayList<>();
     this.spawnLocations = new CopyOnWriteArrayList<>();
     this.blocks = new ConcurrentHashMap<>();
-    when(this.world.getBlockData(anyInt(), anyInt(), anyInt())).thenAnswer(invocation -> {
-      final int blockX = invocation.getArgument(0);
-      final int blockY = invocation.getArgument(1);
-      final int blockZ = invocation.getArgument(2);
-      return this.getOriginalBlock(blockX, blockY, blockZ);
-    });
+
+    when(this.world.getUID()).thenReturn(UUID.randomUUID());
+    when(this.world.getBlockData(anyInt(), anyInt(), anyInt())).thenAnswer(this::findOriginalBlock);
     when(this.world.spawn(any(Location.class), eq(TextDisplay.class), ArgumentMatchers.<Consumer<? super TextDisplay>>any())).thenAnswer(
-      invocation -> {
-        final Location location = invocation.getArgument(0);
-        final Consumer<? super TextDisplay> configurator = invocation.getArgument(2);
-        final CraftTextDisplay display = mock(CraftTextDisplay.class);
-        final Display.TextDisplay handle = mock(Display.TextDisplay.class);
-        when(display.getHandle()).thenReturn(handle);
-        when(display.isValid()).thenReturn(true);
-        configurator.accept(display);
-        this.spawnLocations.add(location);
-        this.spawnedDisplays.add(display);
-        return display;
-      }
+      this::spawnTextDisplay
     );
   }
 
   public static FakeWorld create() {
     return new FakeWorld();
+  }
+
+  private BlockData findOriginalBlock(final InvocationOnMock invocation) {
+    final int blockX = invocation.getArgument(0);
+    final int blockY = invocation.getArgument(1);
+    final int blockZ = invocation.getArgument(2);
+    return this.getOriginalBlock(blockX, blockY, blockZ);
+  }
+
+  private CraftTextDisplay spawnTextDisplay(final InvocationOnMock invocation) {
+    final Location location = invocation.getArgument(0);
+    final Consumer<? super TextDisplay> configurator = invocation.getArgument(2);
+    final CraftTextDisplay display = mock(CraftTextDisplay.class);
+    final Display.TextDisplay handle = mock(Display.TextDisplay.class);
+    when(display.getHandle()).thenReturn(handle);
+    when(display.isValid()).thenReturn(true);
+
+    configurator.accept(display);
+
+    this.spawnLocations.add(location);
+    this.spawnedDisplays.add(display);
+
+    return display;
   }
 
   public void enter(final Player... players) {
@@ -84,8 +93,8 @@ public final class FakeWorld {
   }
 
   public BlockData getOriginalBlock(final int blockX, final int blockY, final int blockZ) {
-    final String key = blockX + "," + blockY + "," + blockZ;
-    return this.blocks.computeIfAbsent(key, name -> mock(BlockData.class, "block " + name));
+    final String key = "%s,%s,%s".formatted(blockX, blockY, blockZ);
+    return this.blocks.computeIfAbsent(key, name -> mock(BlockData.class, "block %s".formatted(name)));
   }
 
   public World getWorld() {

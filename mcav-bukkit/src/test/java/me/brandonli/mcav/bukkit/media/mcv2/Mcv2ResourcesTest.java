@@ -43,6 +43,6 @@ final class Mcv2ResourcesTest {
 
   @Test
   void shouldRefuseAnUnknownDigest() {
-    assertThrows(IllegalStateException.class, () -> Mcv2Resources.digest(new byte[0], "NOT-A-DIGEST"));
+    assertThrows(AssertionError.class, () -> Mcv2Resources.digest(new byte[0], "NOT-A-DIGEST"));
   }
 }

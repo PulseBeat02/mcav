@@ -89,7 +89,7 @@ final class MapLayoutPropertyTest {
     for (final MapTilePatch patch : patches) {
       final long mapId = patch.getMapId();
       final boolean inRange = mapId >= firstId && mapId <= lastId;
-      assertTrue(inRange, () -> "patch for map " + mapId + " outside of " + firstId + ".." + lastId);
+      assertTrue(inRange, () -> "patch for map %s outside of %s..%s".formatted(mapId, firstId, lastId));
     }
   }
 
@@ -128,9 +128,9 @@ final class MapLayoutPropertyTest {
     final int tooLate = (int) overshootingStart;
     final int fits = (int) lastAllowedStart;
 
-    assertThrows(IllegalArgumentException.class, () -> new MapLayout(tooLate, columns, rows, 1, 1));
+    assertThrows(IllegalArgumentException.class, () -> MapLayout.of(tooLate, columns, rows, 1, 1));
 
-    final MapLayout layout = new MapLayout(fits, columns, rows, 1, 1);
+    final MapLayout layout = MapLayout.of(fits, columns, rows, 1, 1);
     final int lastId = layout.getMapId(mapCount - 1);
     assertEquals(Integer.MAX_VALUE, lastId, "the last map may have the largest id");
   }
@@ -152,7 +152,7 @@ final class MapLayoutPropertyTest {
     }
 
     private MapLayout createLayout() {
-      return new MapLayout(this.startMapId, this.columns, this.rows, this.imageWidth, this.imageHeight);
+      return MapLayout.of(this.startMapId, this.columns, this.rows, this.imageWidth, this.imageHeight);
     }
 
     private byte[] createImage() {
@@ -195,9 +195,7 @@ final class MapLayoutPropertyTest {
 
     @Override
     public String toString() {
-      return (
-        "maps " + this.columns + "x" + this.rows + " from id " + this.startMapId + ", image " + this.imageWidth + "x" + this.imageHeight
-      );
+      return "maps %sx%s from id %s, image %sx%s".formatted(this.columns, this.rows, this.startMapId, this.imageWidth, this.imageHeight);
     }
   }
 
@@ -290,7 +288,7 @@ final class MapLayoutPropertyTest {
     private static void assertBalanced(final int before, final int after, final String axis) {
       final int difference = Math.abs(before - after);
       final boolean balanced = difference <= 1;
-      assertTrue(balanced, () -> "image centered " + axis + ": " + before + " before, " + after + " after");
+      assertTrue(balanced, () -> "image centered %s: %s before, %s after".formatted(axis, before, after));
     }
 
     private static void assertInsideRegion(final MapTilePatch patch, final MapRegion region) {

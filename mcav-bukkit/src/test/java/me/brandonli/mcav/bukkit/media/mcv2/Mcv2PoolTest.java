@@ -47,6 +47,8 @@ import org.junit.jupiter.api.Test;
 
 final class Mcv2PoolTest {
 
+  private static final int WAIT_TIMEOUT_SECONDS = 60;
+
   private static final String ENCODER_THREAD_PREFIX = "mcav-mcv2-encoder-";
 
   @Test
@@ -110,7 +112,7 @@ final class Mcv2PoolTest {
       }
 
       for (final Thread caller : callers) {
-        caller.join(TimeUnit.SECONDS.toMillis(60));
+        caller.join(TimeUnit.SECONDS.toMillis(WAIT_TIMEOUT_SECONDS));
         final boolean finished = !caller.isAlive();
         assertTrue(finished);
       }
@@ -120,7 +122,7 @@ final class Mcv2PoolTest {
       assertEquals(expectedTotal, actualTotal);
 
       final boolean withinSize = seen.size() <= 2;
-      assertTrue(withinSize, "threads used: " + seen.size());
+      assertTrue(withinSize, "threads used: %s".formatted(seen.size()));
 
       for (final Thread thread : seen) {
         final boolean named = thread.getName().startsWith(ENCODER_THREAD_PREFIX);
@@ -284,7 +286,7 @@ final class Mcv2PoolTest {
   private @Nullable Object sleepUntilCancelled(final CountDownLatch started, final CountDownLatch cancelled) {
     started.countDown();
     try {
-      Thread.sleep(TimeUnit.SECONDS.toMillis(60));
+      Thread.sleep(TimeUnit.SECONDS.toMillis(WAIT_TIMEOUT_SECONDS));
     } catch (final InterruptedException exception) {
       cancelled.countDown();
     }
@@ -296,7 +298,8 @@ final class Mcv2PoolTest {
   void shouldStartNothingForACallerInterruptedBefore() {
     try (final Pool pool = new Pool(1)) {
       final AtomicReference<Thread> ran = new AtomicReference<>();
-      Thread.currentThread().interrupt();
+      final Thread current = Thread.currentThread();
+      current.interrupt();
       final Mcv2Exception thrown = assertThrows(Mcv2Exception.class, () -> pool.run(() -> this.recordThread(ran)));
       final boolean interrupted = Thread.interrupted();
       assertTrue(interrupted);

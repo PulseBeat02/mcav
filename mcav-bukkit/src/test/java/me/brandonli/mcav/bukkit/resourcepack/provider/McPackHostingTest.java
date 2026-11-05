@@ -75,6 +75,8 @@ import org.junit.jupiter.api.parallel.Isolated;
 @Isolated
 final class McPackHostingTest {
 
+  private static final String LOCAL_SERVER_PREFIX = "http://127.0.0.1:";
+
   private static final byte[] PACK = "PK resource pack".getBytes(StandardCharsets.US_ASCII);
   private static final byte[] OTHER_PACK = "PK other resource pack".getBytes(StandardCharsets.US_ASCII);
   private static final String UNREACHABLE_DOWNLOAD_FORMAT = "http://download.test/pack/%s.zip";
@@ -82,9 +84,15 @@ final class McPackHostingTest {
   private static final List<String> ONLY_HEAD = List.of("HEAD");
   private static final Duration LOCK_TIMEOUT = Duration.ofSeconds(10);
 
+  private static final int EPHEMERAL_PORT = 0;
+
   private static final String PACK_FILE_NAME = "pack.zip";
   private static final String OTHER_FILE_NAME = "other.zip";
   private static final String CACHE_FILE_NAME = "mc-packs-cache.json";
+  private static final String COPY_PACK_FILE_NAME = "copy.zip";
+  private static final String MISSING_PACK_FILE_NAME = "missing.zip";
+
+  private static final String HOME_DIRECTORY = "home";
 
   private static final String USER_HOME_PROPERTY = "user.home";
   private static final String HASH_ALGORITHM = "SHA-1";
@@ -105,7 +113,7 @@ final class McPackHostingTest {
   @BeforeEach
   void startService() throws IOException {
     this.previousHome = System.getProperty(USER_HOME_PROPERTY);
-    final Path home = this.directory.resolve("home");
+    final Path home = this.directory.resolve(HOME_DIRECTORY);
     Files.createDirectory(home);
     final String homePath = home.toString();
     System.setProperty(USER_HOME_PROPERTY, homePath);
@@ -168,8 +176,10 @@ final class McPackHostingTest {
 
   private byte[] expectedMultipartBody(final String boundary) {
     final String head =
-      "--" + boundary + "\r\nContent-Disposition: form-data; name=\"file\"; filename=\"pack.zip\"\r\nContent-Type: application/zip\r\n\r\n";
-    final String tail = "\r\n--" + boundary + "--\r\n";
+      "--%s\r\nContent-Disposition: form-data; name=\"file\"; filename=\"pack.zip\"\r\nContent-Type: application/zip\r\n\r\n".formatted(
+        boundary
+      );
+    final String tail = "\r\n--%s--\r\n".formatted(boundary);
     final byte[] headBytes = head.getBytes(StandardCharsets.UTF_8);
     final byte[] tailBytes = tail.getBytes(StandardCharsets.UTF_8);
 
@@ -238,7 +248,7 @@ final class McPackHostingTest {
   @Test
   void shouldReuseTheUploadOfAnIdenticalPackWhileItIsStillAvailable() throws IOException {
     final McPackHosting first = this.createHosting(this.zip);
-    final Path copy = this.directory.resolve("copy.zip");
+    final Path copy = this.directory.resolve(COPY_PACK_FILE_NAME);
     final McPackHosting second = this.createHosting(copy);
     Files.write(copy, PACK);
 
@@ -276,7 +286,7 @@ final class McPackHostingTest {
   void shouldUploadThePackAgainWhenTheCachedUrlIsInvalid() throws Exception {
     final String hash = this.sha1(PACK);
     final Path cacheFile = this.getCacheFile();
-    Files.writeString(cacheFile, "{\"" + hash + "\": \"not a url\"}");
+    Files.writeString(cacheFile, "{\"%s\": \"not a url\"}".formatted(hash));
     final McPackHosting hosting = this.createHosting(this.zip);
 
     hosting.start();
@@ -328,11 +338,11 @@ final class McPackHostingTest {
   @Test
   void shouldReportUnreachableServices() throws IOException {
     final int port;
-    try (final ServerSocket socket = new ServerSocket(0)) {
+    try (final ServerSocket socket = new ServerSocket(EPHEMERAL_PORT)) {
       port = socket.getLocalPort();
     }
 
-    final URI closed = URI.create("http://127.0.0.1:" + port + "/upload");
+    final URI closed = URI.create(LOCAL_SERVER_PREFIX + port + UPLOAD_PATH);
     final McPackHosting hosting = new McPackHosting(this.zip, closed, UNREACHABLE_DOWNLOAD_FORMAT);
 
     final McPacksException exception = assertThrows(McPacksException.class, hosting::start);
@@ -347,10 +357,7 @@ final class McPackHostingTest {
   void shouldKeepTheInterruptFlagWhenInterruptedDuringTheUpload() {
     final Thread testThread = Thread.currentThread();
     final CountDownLatch release = new CountDownLatch(1);
-    this.service.setUploadHook(() -> {
-      testThread.interrupt();
-      this.awaitRelease(release);
-    });
+    this.service.setUploadHook(() -> this.interruptUploadAndAwaitRelease(testThread, release));
     final McPackHosting hosting = this.createHosting(this.zip);
 
     try {
@@ -366,19 +373,24 @@ final class McPackHostingTest {
     }
   }
 
+  private void interruptUploadAndAwaitRelease(final Thread testThread, final CountDownLatch release) {
+    testThread.interrupt();
+    this.awaitRelease(release);
+  }
+
   private void awaitRelease(final CountDownLatch release) {
     try {
       final boolean released = release.await(10, TimeUnit.SECONDS);
       assertTrue(released, "the test releases the upload");
     } catch (final InterruptedException exception) {
-      final Thread handlerThread = Thread.currentThread();
-      handlerThread.interrupt();
+      final Thread current = Thread.currentThread();
+      current.interrupt();
     }
   }
 
   @Test
   void shouldReportPacksThatCannotBeRead() {
-    final Path missing = this.directory.resolve("missing.zip");
+    final Path missing = this.directory.resolve(MISSING_PACK_FILE_NAME);
     final McPackHosting hosting = this.createHosting(missing);
 
     final McPacksException exception = assertThrows(McPacksException.class, hosting::start);
@@ -429,12 +441,12 @@ final class McPackHostingTest {
     final LogCapture.RecordedEvent event = events.getFirst();
     final Level level = event.getLevel();
     final String message = event.getMessage();
-    final Throwable thrown = event.getThrown();
+    final Throwable thrown = event.getThrown().orElseThrow();
     assertEquals(expectedUrl, url, "the successful upload is used even though it cannot be cached");
     assertEquals(1, uploadCount);
     assertEquals(Level.WARN, level);
 
-    final String expectedMessage = "Could not write the upload cache " + cacheFile + ", the pack will be uploaded again next time.";
+    final String expectedMessage = "Could not write the upload cache %s, the pack will be uploaded again next time.".formatted(cacheFile);
     assertEquals(expectedMessage, message);
     assertInstanceOf(IOException.class, thrown);
   }
@@ -478,7 +490,7 @@ final class McPackHostingTest {
     final byte[] abc = "abc".getBytes(StandardCharsets.US_ASCII);
 
     final String hash = McPackHosting.hash(abc, HASH_ALGORITHM);
-    final IllegalStateException exception = assertThrows(IllegalStateException.class, () -> McPackHosting.hash(abc, "NO-SUCH-HASH"));
+    final AssertionError exception = assertThrows(AssertionError.class, () -> McPackHosting.hash(abc, "NO-SUCH-HASH"));
 
     final Throwable cause = exception.getCause();
     assertEquals("a9993e364706816aba3e25717850c26c9cd0d89d", hash);
@@ -563,6 +575,9 @@ final class McPackHostingTest {
 
   private static final class PackService implements AutoCloseable {
 
+    private static final String DOWNLOAD_PATH_FORMAT = "/pack/%s.zip";
+
+    private static final int SUCCESS_STATUS = 200;
     private static final int REJECTED_STATUS = 500;
 
     private final HttpServer server;
@@ -579,29 +594,31 @@ final class McPackHostingTest {
       this.server = server;
       this.uploads = new CopyOnWriteArrayList<>();
       this.downloadMethods = new CopyOnWriteArrayList<>();
-      this.uploadStatus = 200;
+      this.uploadStatus = SUCCESS_STATUS;
       this.downloadsAvailable = true;
       this.uploadHook = () -> {};
     }
 
     private static PackService start() throws IOException {
       final InetAddress loopback = InetAddress.getLoopbackAddress();
-      final InetSocketAddress address = new InetSocketAddress(loopback, 0);
+      final InetSocketAddress address = new InetSocketAddress(loopback, EPHEMERAL_PORT);
       final HttpServer httpServer = HttpServer.create(address, 0);
       final PackService service = new PackService(httpServer);
-      httpServer.createContext(UPLOAD_PATH, exchange -> {
-        try {
-          service.recordUpload(exchange);
-        } catch (final AssertionError exception) {
-          service.handlerFailure.compareAndSet(null, exception);
-        } finally {
-          exchange.close();
-        }
-      });
+      httpServer.createContext(UPLOAD_PATH, service::recordAndCloseUpload);
       httpServer.createContext(PACK_PATH, service::answerDownload);
       httpServer.setExecutor(service.handlers);
       httpServer.start();
       return service;
+    }
+
+    private void recordAndCloseUpload(final HttpExchange exchange) throws IOException {
+      try {
+        this.recordUpload(exchange);
+      } catch (final AssertionError exception) {
+        this.handlerFailure.compareAndSet(null, exception);
+      } finally {
+        exchange.close();
+      }
     }
 
     private void recordUpload(final HttpExchange exchange) throws IOException {
@@ -630,7 +647,7 @@ final class McPackHostingTest {
     private void answerDownload(final HttpExchange exchange) throws IOException {
       final String method = exchange.getRequestMethod();
       this.downloadMethods.add(method);
-      final int status = this.downloadsAvailable ? 200 : 404;
+      final int status = this.downloadsAvailable ? SUCCESS_STATUS : 404;
       exchange.sendResponseHeaders(status, -1);
       exchange.close();
     }
@@ -642,12 +659,12 @@ final class McPackHostingTest {
 
     private URI uploadUri() {
       final int port = this.port();
-      return URI.create("http://127.0.0.1:" + port + "/upload");
+      return URI.create(LOCAL_SERVER_PREFIX + port + UPLOAD_PATH);
     }
 
     private String downloadFormat() {
       final int port = this.port();
-      return "http://127.0.0.1:" + port + "/pack/%s.zip";
+      return LOCAL_SERVER_PREFIX + port + DOWNLOAD_PATH_FORMAT;
     }
 
     private void rejectUploads() {
@@ -666,7 +683,9 @@ final class McPackHostingTest {
         final boolean terminated = this.handlers.awaitTermination(10, TimeUnit.SECONDS);
         assertTrue(terminated, "the upload callbacks finish");
       } catch (final InterruptedException exception) {
-        Thread.currentThread().interrupt();
+        final Thread current = Thread.currentThread();
+        current.interrupt();
+
         throw new AssertionError("Interrupted while joining upload callbacks!", exception);
       }
 

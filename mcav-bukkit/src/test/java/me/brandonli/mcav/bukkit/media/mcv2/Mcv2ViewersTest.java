@@ -94,9 +94,10 @@ final class Mcv2ViewersTest {
     final Mcv2Viewers viewers = this.viewers();
     final UUID uuid = PLAYER;
     final Optional<Mcv2Viewers.PackState> stateBeforeRequest = viewers.getState(uuid);
-    assertTrue(stateBeforeRequest.isEmpty());
+    final boolean stateAbsentBeforeRequest = stateBeforeRequest.isEmpty();
+    assertTrue(stateAbsentBeforeRequest);
 
-    viewers.requested(uuid);
+    viewers.recordRequest(uuid);
     final Mcv2Viewers.PackState requestedState = viewers.getState(uuid).orElseThrow();
     assertEquals(Mcv2Viewers.PackState.REQUESTED, requestedState);
 
@@ -127,8 +128,10 @@ final class Mcv2ViewersTest {
 
     viewers.onPlayerQuit(new PlayerQuitEvent(this.player, (Component) null, PlayerQuitEvent.QuitReason.DISCONNECTED));
     final Optional<Mcv2Viewers.PackState> stateAfterQuit = viewers.getState(uuid);
-    assertTrue(stateAfterQuit.isEmpty());
-    assertThrows(NullPointerException.class, () -> viewers.requested(null));
+    final boolean stateAbsentAfterQuit = stateAfterQuit.isEmpty();
+    assertTrue(stateAbsentAfterQuit);
+
+    assertThrows(NullPointerException.class, () -> viewers.recordRequest(null));
     assertThrows(NullPointerException.class, () -> viewers.getState(null));
     assertThrows(NullPointerException.class, () -> new Mcv2Viewers(null, this.refused::add));
     assertThrows(NullPointerException.class, () -> new Mcv2Viewers(PACK, null));
@@ -231,7 +234,8 @@ final class Mcv2ViewersTest {
     final Event left = new PlayerQuitEvent(this.player, (Component) null, PlayerQuitEvent.QuitReason.DISCONNECTED);
     quit.execute(listener, left);
     final Optional<Mcv2Viewers.PackState> stateAfterQuit = viewers.getState(PLAYER);
-    assertTrue(stateAfterQuit.isEmpty());
+    final boolean stateAbsentAfterQuit = stateAfterQuit.isEmpty();
+    assertTrue(stateAbsentAfterQuit);
 
     viewers.unregister();
   }
@@ -263,7 +267,8 @@ final class Mcv2ViewersTest {
     assertEquals(Mcv2Viewers.PackState.DECLINED, stateAfterRetarget);
 
     final Optional<Mcv2Viewers.PackState> otherState = viewers.getState(otherId);
-    assertTrue(otherState.isEmpty(), "nobody has the new pack until their client says so");
+    final boolean otherStateAbsent = otherState.isEmpty();
+    assertTrue(otherStateAbsent, "nobody has the new pack until their client says so");
 
     // the old pack's answers no longer count
     viewers.onResourcePackStatus(new PlayerResourcePackStatusEvent(other, PACK, Status.SUCCESSFULLY_LOADED));

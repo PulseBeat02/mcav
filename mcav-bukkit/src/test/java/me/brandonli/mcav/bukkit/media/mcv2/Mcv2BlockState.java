@@ -28,12 +28,13 @@ final class Mcv2BlockState {
   private static final Class<?> BUFFERS = Mcv2Internals.nested("Buffers");
   private static final Class<?> FRAME = Mcv2Internals.nested("FrameState");
   private static final Class<?> CODER = Mcv2Internals.nested("BlockCoder");
+
   static final int NO_VECTOR = (int) Mcv2Internals.field(Mcv2.class, null, "NO_VECTOR");
 
   private static final String HALF_MEMBER = "half";
-  private final Object buffers;
 
-  private final Map<Block, Object> coders = new HashMap<>();
+  private final Object buffers;
+  private final Map<Block, Object> coders;
   private final Object frame;
 
   Mcv2BlockState(
@@ -46,6 +47,7 @@ final class Mcv2BlockState {
     final double lambda,
     final int @Nullable [] previous
   ) {
+    this.coders = new HashMap<>();
     this.buffers = Mcv2Internals.construct(BUFFERS, new Class<?>[] { int.class, int.class }, width, height);
 
     if (kind == Mcv2FrameKind.PREDICTED) {
@@ -57,6 +59,9 @@ final class Mcv2BlockState {
 
     final boolean keyframe = kind == Mcv2FrameKind.KEYFRAME;
     final boolean fast = thresholds == Thresholds.FAST;
+    final int columns = Math.ceilDiv(width, Mcv2Decoder.SMALLEST_BLOCK);
+    final int rows = Math.ceilDiv(height, Mcv2Decoder.SMALLEST_BLOCK);
+    final int[] motions = previous == null ? new int[columns * rows] : previous;
     this.frame = Mcv2Internals.construct(
       FRAME,
       new Class<?>[] {
@@ -78,55 +83,59 @@ final class Mcv2BlockState {
       keyframe,
       fast,
       lambda,
-      previous == null ? new int[((width + 7) / 8) * ((height + 7) / 8)] : previous,
+      motions,
       this.buffers,
       new byte[source.length]
     );
   }
 
-  static byte[] half(final byte[] picture, final int width, final int height, final byte[] out) {
+  static byte[] half(final byte[] picture, final int width, final int height, final byte[] output) {
     Mcv2Internals.call(
       Mcv2.class,
       null,
-      HALF_MEMBER,
-      new Class<?>[] { byte[].class, int.class, int.class, Mcv2Internals.nested("Workers"), byte[].class },
+      "halve",
+      new Class<?>[] { byte[].class, int.class, int.class, Workers.TYPE, byte[].class },
       picture,
       width,
       height,
       Mcv2Internals.field(Workers.class, Workers.SEQUENTIAL, "value"),
-      out
+      output
     );
-    return out;
+
+    return output;
   }
 
   Object code(final int size, final int level, final int block, final int left, final int top, final int parent) {
-    final Object kernels = Mcv2Internals.construct(Mcv2Internals.nested("JavaKernels"), new Class<?>[0]);
+    final Object kernels = Mcv2Internals.construct(Mcv2Internals.JAVA_KERNELS_TYPE, new Class<?>[0]);
     final Object coder = Mcv2Internals.construct(
       CODER,
-      new Class<?>[] { FRAME, int.class, Mcv2Internals.nested("Kernels") },
+      new Class<?>[] { FRAME, int.class, Mcv2Internals.KERNELS_TYPE },
       this.frame,
       size,
       kernels
     );
     Mcv2Internals.call(CODER, coder, "code", new Class<?>[] { int.class, int.class, int.class }, left, top, parent);
     this.coders.put(new Block(level, block), coder);
+
     return coder;
   }
 
   int previousMotion(final int left, final int top) {
-    return (int) Mcv2Internals.invoke(FRAME, this.frame, "previousMotion", new Class<?>[] { int.class, int.class }, left, top);
+    return (int) Mcv2Internals.callForResult(FRAME, this.frame, "previousMotion", new Class<?>[] { int.class, int.class }, left, top);
+  }
+
+  int mode(final int level, final int block) {
+    final Object coder = this.coder(level, block);
+    return (int) Mcv2Internals.field(CODER, coder, "mode");
   }
 
   private Object coder(final int level, final int block) {
     return this.coders.get(new Block(level, block));
   }
 
-  int mode(final int level, final int block) {
-    return (int) Mcv2Internals.field(CODER, this.coder(level, block), "mode");
-  }
-
   int quantizer(final int level, final int block) {
-    return (int) Mcv2Internals.field(CODER, this.coder(level, block), "quantizer");
+    final Object coder = this.coder(level, block);
+    return (int) Mcv2Internals.field(CODER, coder, "quantizer");
   }
 
   long distortion(final int level, final int block) {
@@ -144,19 +153,22 @@ final class Mcv2BlockState {
   }
 
   double cost(final int level, final int block) {
-    return (double) Mcv2Internals.field(CODER, this.coder(level, block), "bestCost");
+    final Object coder = this.coder(level, block);
+    return (double) Mcv2Internals.field(CODER, coder, "bestCost");
   }
 
   byte[] record(final int level, final int block) {
     final Object coder = this.coder(level, block);
-    return Arrays.copyOf((byte[]) Mcv2Internals.field(CODER, coder, "bestRecord"), (int) Mcv2Internals.field(CODER, coder, "length"));
+    final byte[] bestRecord = (byte[]) Mcv2Internals.field(CODER, coder, "bestRecord");
+    final int length = (int) Mcv2Internals.field(CODER, coder, "length");
+    return Arrays.copyOf(bestRecord, length);
   }
 
   static int localVector(final Object coder) {
     return (int) Mcv2Internals.field(CODER, coder, "localVector");
   }
 
-  static boolean skipped(final Object coder) {
+  static boolean isSkipped(final Object coder) {
     return (boolean) Mcv2Internals.field(CODER, coder, "skipped");
   }
 
@@ -165,7 +177,7 @@ final class Mcv2BlockState {
   }
 
   static int neededQuantizer(final float[] fit) {
-    return (int) Mcv2Internals.invoke(Mcv2.class, null, "neededQuantizer", new Class<?>[] { float[].class }, fit);
+    return (int) Mcv2Internals.callForResult(Mcv2.class, null, "neededQuantizer", new Class<?>[] { float[].class }, fit);
   }
 
   enum Thresholds {

@@ -40,6 +40,10 @@ import org.junit.jupiter.api.Test;
 
 final class Mcv2PipelineTest {
 
+  private static final int WAIT_TIMEOUT_SECONDS = 30;
+
+  private static final int FRAME_SIZE = 64;
+
   private static final ForkJoinPool POOL = ForkJoinPool.commonPool();
 
   private static final String STOPPED = "The encoder stopped after a frame failed its verification!";
@@ -122,12 +126,7 @@ final class Mcv2PipelineTest {
     final Field factory = Mcv2.class.getDeclaredField(KERNELS_FIELD);
     factory.setAccessible(true);
     final Object original = factory.get(encoder);
-    factory.set(
-      encoder,
-      (Supplier<?>) () -> {
-        throw new IllegalStateException("search failed!");
-      }
-    );
+    factory.set(encoder, (Supplier<?>) this::failSearch);
     final byte[] failed = new byte[32 * 32 * 3];
     Arrays.fill(failed, (byte) 255);
     assertThrows(IllegalStateException.class, () -> encoder.begin(failed, 32, 32, 0));
@@ -147,6 +146,11 @@ final class Mcv2PipelineTest {
     }
   }
 
+  private Object failSearch() {
+    final String message = "search failed!";
+    throw new IllegalStateException(message);
+  }
+
   @Test
   void shouldRetainRequestsAndSettingsChangedDuringBegin() throws Exception {
     final Mcv2 encoder = new Mcv2(Settings.DEFAULT, POOL, 1, Mcv2.Verification.VERIFIED);
@@ -159,11 +163,11 @@ final class Mcv2PipelineTest {
     try (final ExecutorService caller = Executors.newSingleThreadExecutor()) {
       final Future<Mcv2.Pending> first = caller.submit(() -> encoder.begin(new byte[3], 1, 1, 0));
       try {
-        final boolean searchStarted = searching.await(30, TimeUnit.SECONDS);
+        final boolean searchStarted = searching.await(WAIT_TIMEOUT_SECONDS, TimeUnit.SECONDS);
         assertTrue(searchStarted);
 
         encoder.requestKeyframe();
-        encoder.switchTo(Settings.FAST);
+        encoder.setSettings(Settings.FAST);
       } finally {
         resume.countDown();
       }
@@ -192,7 +196,7 @@ final class Mcv2PipelineTest {
   private Object pauseBeforeSearching(final CountDownLatch searching, final CountDownLatch resume, final Supplier<?> original) {
     searching.countDown();
     try {
-      final boolean resumed = resume.await(30, TimeUnit.SECONDS);
+      final boolean resumed = resume.await(WAIT_TIMEOUT_SECONDS, TimeUnit.SECONDS);
       assertTrue(resumed);
     } catch (final InterruptedException exception) {
       final Thread current = Thread.currentThread();
@@ -222,7 +226,7 @@ final class Mcv2PipelineTest {
     for (int frameIndex = 0; frameIndex < one.size(); frameIndex++) {
       final byte[] expected = one.get(frameIndex);
       final byte[] pipelinedFrame = two.get(frameIndex);
-      assertArrayEquals(expected, pipelinedFrame, settings + " frame " + frameIndex);
+      assertArrayEquals(expected, pipelinedFrame, "%s frame %s".formatted(settings, frameIndex));
 
       client.accept(two.get(frameIndex));
     }
@@ -231,16 +235,16 @@ final class Mcv2PipelineTest {
   @Test
   void shouldKeepOneFrameInFlightAtMost() {
     final Mcv2 encoder = new Mcv2(Settings.FAST, POOL, 2, Mcv2.Verification.VERIFIED);
-    final Mcv2.Pending first = encoder.begin(Mcv2Pictures.scene(64, 64, 0, 2), 64, 64, 0);
-    encoder.begin(Mcv2Pictures.scene(64, 64, 1, 2), 64, 64, 1);
+    final Mcv2.Pending first = encoder.begin(Mcv2Pictures.scene(FRAME_SIZE, FRAME_SIZE, 0, 2), FRAME_SIZE, FRAME_SIZE, 0);
+    encoder.begin(Mcv2Pictures.scene(FRAME_SIZE, FRAME_SIZE, 1, 2), FRAME_SIZE, FRAME_SIZE, 1);
     final IllegalStateException beginException = assertThrows(IllegalStateException.class, () ->
-      encoder.begin(Mcv2Pictures.scene(64, 64, 2, 2), 64, 64, 2)
+      encoder.begin(Mcv2Pictures.scene(FRAME_SIZE, FRAME_SIZE, 2, 2), FRAME_SIZE, FRAME_SIZE, 2)
     );
     final String beginMessage = beginException.getMessage();
     assertEquals("Two frames are in flight already!", beginMessage);
 
     encoder.finish(first);
-    encoder.begin(Mcv2Pictures.scene(64, 64, 2, 2), 64, 64, 2);
+    encoder.begin(Mcv2Pictures.scene(FRAME_SIZE, FRAME_SIZE, 2, 2), FRAME_SIZE, FRAME_SIZE, 2);
     final IllegalStateException finishException = assertThrows(IllegalStateException.class, () -> encoder.finish(first));
     final String finishMessage = finishException.getMessage();
     assertEquals("The frame is finished already!", finishMessage);
@@ -250,8 +254,8 @@ final class Mcv2PipelineTest {
   @Test
   void shouldStopAfterAFrameFailsItsVerification() throws ReflectiveOperationException {
     final Mcv2 encoder = new Mcv2(Settings.DEFAULT, POOL, 2, Mcv2.Verification.VERIFIED);
-    final Mcv2.Pending frame = encoder.begin(Mcv2Pictures.scene(64, 64, 0, 2), 64, 64, 0);
-    final Mcv2.Pending next = encoder.begin(Mcv2Pictures.scene(64, 64, 1, 2), 64, 64, 1);
+    final Mcv2.Pending frame = encoder.begin(Mcv2Pictures.scene(FRAME_SIZE, FRAME_SIZE, 0, 2), FRAME_SIZE, FRAME_SIZE, 0);
+    final Mcv2.Pending next = encoder.begin(Mcv2Pictures.scene(FRAME_SIZE, FRAME_SIZE, 1, 2), FRAME_SIZE, FRAME_SIZE, 1);
     final var picture = Mcv2.Pending.class.getDeclaredField(PICTURE_FIELD);
     picture.setAccessible(true);
     ((byte[]) picture.get(frame))[0] ^= 1;
@@ -264,17 +268,19 @@ final class Mcv2PipelineTest {
     assertEquals(STOPPED, nextMessage);
 
     final IllegalStateException beginException = assertThrows(IllegalStateException.class, () ->
-      encoder.begin(Mcv2Pictures.scene(64, 64, 2, 2), 64, 64, 2)
+      encoder.begin(Mcv2Pictures.scene(FRAME_SIZE, FRAME_SIZE, 2, 2), FRAME_SIZE, FRAME_SIZE, 2)
     );
     final String beginMessage = beginException.getMessage();
     assertEquals(STOPPED, beginMessage);
-    assertThrows(IllegalStateException.class, () -> encoder.encode(Mcv2Pictures.scene(64, 64, 2, 2), 64, 64, 2));
+    assertThrows(IllegalStateException.class, () ->
+      encoder.encode(Mcv2Pictures.scene(FRAME_SIZE, FRAME_SIZE, 2, 2), FRAME_SIZE, FRAME_SIZE, 2)
+    );
   }
 
   @Test
   void shouldVerifyNothingWithoutVerification() throws ReflectiveOperationException {
     final Mcv2 encoder = new Mcv2(Settings.DEFAULT, POOL, 2, Mcv2.Verification.UNVERIFIED);
-    final Mcv2.Pending frame = encoder.begin(Mcv2Pictures.scene(64, 64, 0, 2), 64, 64, 0);
+    final Mcv2.Pending frame = encoder.begin(Mcv2Pictures.scene(FRAME_SIZE, FRAME_SIZE, 0, 2), FRAME_SIZE, FRAME_SIZE, 0);
     final var picture = Mcv2.Pending.class.getDeclaredField(PICTURE_FIELD);
     picture.setAccessible(true);
     ((byte[]) picture.get(frame))[0] ^= 1;
@@ -296,7 +302,7 @@ final class Mcv2PipelineTest {
     final List<Mcv2.Pending> frames = new ArrayList<>();
     final List<Boolean> keyframes = new ArrayList<>();
     for (int frameNumber = 0; frameNumber < 5; frameNumber++) {
-      frames.add(encoder.begin(Mcv2Pictures.scene(64, 64, frameNumber, 1), 64, 64, frameNumber));
+      frames.add(encoder.begin(Mcv2Pictures.scene(FRAME_SIZE, FRAME_SIZE, frameNumber, 1), FRAME_SIZE, FRAME_SIZE, frameNumber));
       if (frameNumber == 2) {
         // frame 2 is begun already: the request applies to frame 3
         encoder.requestKeyframe();
