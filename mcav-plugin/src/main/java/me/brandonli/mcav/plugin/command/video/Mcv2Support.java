@@ -238,12 +238,13 @@ public final class Mcv2Support {
 
   private String describeDuplicates(final int mapId, final List<ItemFrame> frames) {
     final int count = frames.size();
-    final List<String> places = frames
-      .stream()
-      .map(this::describePlace)
-      .toList();
+    final List<String> places = frames.stream().map(this::describePlace).toList();
     final String joined = String.join(PLACE_SEPARATOR, places);
-    return "map %s hangs in %s item frames, at %s. MCV2 plays on one wall per map, so remove the other walls or build each screen with its own map id!".formatted(mapId, count, joined);
+    return "map %s hangs in %s item frames, at %s. MCV2 plays on one wall per map, so remove the other walls or build each screen with its own map id!".formatted(
+      mapId,
+      count,
+      joined
+    );
   }
 
   private String describePlace(final ItemFrame frame) {
