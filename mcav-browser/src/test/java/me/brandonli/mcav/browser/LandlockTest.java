@@ -167,7 +167,7 @@ class LandlockTest {
   }
 
   @Test
-  void shouldTreatAFailedCallOfTheKernelAsAnIOException() throws IOException {
+  void shouldTreatAFailedCallOfTheKernelAsAnIoException() throws IOException {
     final long checkedAnswer = Landlock.check(7, 0, "count");
     assertEquals(7, checkedAnswer);
 
