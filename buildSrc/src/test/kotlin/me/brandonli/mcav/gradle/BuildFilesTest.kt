@@ -45,6 +45,8 @@ class BuildFilesTest {
             Regex("""((import [\w.]+\n)+\n)?plugins \{\n( {4}id\("mcav\.[\w-]+"\)\n)+}\n(\ndependencies \{\n$DEPENDENCY_GROUPS}\n)?""")
         val CATALOG_SECTION_HEADER: Regex = Regex("""^\[\w+]\n""", RegexOption.MULTILINE)
         val CATALOG_ENTRY: Regex = Regex("""^([\w-]+) = """, RegexOption.MULTILINE)
+        val PINNED_PLUGIN: Regex = Regex("""^ {4}id\("([\w.-]+)"\) version "[^"]+"$""", RegexOption.MULTILINE)
+        val VERSION_WORD: Regex = Regex("""\bversion\b""")
     }
 
     private val root: File = File(REPOSITORY_DIRECTORY)
@@ -94,6 +96,15 @@ class BuildFilesTest {
         val names: List<List<String>> = sections.drop(1).map(this::catalogNamesIn)
         val sortedNames: List<List<String>> = names.map { it.sorted() }
         assertEquals(sortedNames, names)
+    }
+
+    @Test
+    fun shouldPinOnlyTheToolchainResolverVersionInTheSettings(): Unit {
+        val settings: String = this.root.resolve(SETTINGS_SCRIPT).readText()
+        val pinnedPlugins: List<String> = PINNED_PLUGIN.findAll(settings).map { it.groupValues[1] }.toList()
+        val versionWords: Int = VERSION_WORD.findAll(settings).count()
+        assertEquals(listOf("org.gradle.toolchains.foojay-resolver-convention"), pinnedPlugins)
+        assertEquals(pinnedPlugins.size, versionWords)
     }
 
     @Test
