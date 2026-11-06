@@ -66,7 +66,9 @@ a `BrowserUnavailableException` that names it.
 The Java runtime must be a full one. `libjcef.so` also links against the runtime's own `libjawt.so`, which no package
 can bring, and the headless Java packages of Debian and Ubuntu (`openjdk-25-jre-headless`) leave it out: on such a
 runtime `start` fails with a `BrowserUnavailableException` that says to install the full package of the same version
-(`openjdk-25-jre`) or to run the server on a full runtime, as in the Docker images below.
+(`openjdk-25-jre`) or to run the server on a full runtime, as in the Docker images below. A runtime that brings its own
+JCEF, such as the JetBrains Runtime, works too: the browser's process starts without the runtime's `jcef` module and
+uses the JCEF that MCAV downloads.
 
 Debian 11's long-term support ended in August 2026, so these packages get no more security updates. They stay for
 the servers whose glibc is too old for Debian 12's, but a server that installs the libraries from its own distribution
