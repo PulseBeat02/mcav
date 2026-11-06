@@ -113,7 +113,8 @@ import org.slf4j.LoggerFactory;
  * <p>This class is thread-safe: the running player and its output change only while holding the lock of this command,
  * and {@link #onChatMessage(AsyncChatEvent)}, which Paper calls off the main thread, reads them through volatile fields
  * and a synchronized set. Cloud runs the commands, and Paper the other listeners, on the server main thread; players
- * start and stop on the thread of {@link #service}.
+ * start and stop on the thread of {@link #service}. A start that fails replies and gives back its output on the main
+ * thread, since an MCV2 output removes the item frames of its screen, which Paper allows there only.
  *
  * @param <PlayerType> the type of the interactive player
  * @since 1.0.0
@@ -587,15 +588,32 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
     if (!succeeded) {
       final String description = attempt.description();
       LOGGER.error("Starting {} failed.", description, error);
-      final PlayerType failed = attempt.player();
-      final FunctionalVideoFilter output = attempt.output();
-      this.releaseIfCurrent(failed, output);
     }
 
     final StartOutcome outcome = succeeded ? StartOutcome.STARTED : StartOutcome.FAILED;
     final Component message = this.createStartMessage(outcome, error);
+    final boolean handedOver = TaskUtils.runOnMainThread(this.plugin, () -> this.replyAndReleaseIfFailed(attempt, outcome, message));
+
+    if (!handedOver) {
+      this.releaseIfFailed(attempt, outcome);
+    }
+  }
+
+  private void replyAndReleaseIfFailed(final StartAttempt<PlayerType> attempt, final StartOutcome outcome, final Component message) {
+    final Screen screen = attempt.screen();
     final CommandSender sender = attempt.sender();
-    TaskUtils.runOnMainThread(this.plugin, () -> this.sendUnlessCancelled(screen, sender, message));
+    this.sendUnlessCancelled(screen, sender, message);
+    this.releaseIfFailed(attempt, outcome);
+  }
+
+  private void releaseIfFailed(final StartAttempt<PlayerType> attempt, final StartOutcome outcome) {
+    if (outcome == StartOutcome.STARTED) {
+      return;
+    }
+
+    final PlayerType failed = attempt.player();
+    final FunctionalVideoFilter output = attempt.output();
+    this.releaseIfCurrent(failed, output);
   }
 
   private void sendUnlessCancelled(final Screen screen, final CommandSender sender, final Component message) {
