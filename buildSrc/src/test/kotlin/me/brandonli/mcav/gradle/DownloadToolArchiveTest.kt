@@ -217,6 +217,17 @@ class DownloadToolArchiveTest {
         assertEquals(listOf<File>(), open)
     }
 
+    @Test
+    fun shouldRejectAnOpaqueArchiveUriAtTheMissingPath(): Unit {
+        val task: DownloadToolArchive = this.zippedTool()
+        task.archiveUrl.set("mailto:tool@example.com")
+
+        val failure: NullPointerException = assertThrows(NullPointerException::class.java) { task.install() }
+        val message: String = failure.message.orEmpty()
+        val rejectedAtPath: Boolean = message.contains("must not be null")
+        assertTrue(rejectedAtPath)
+    }
+
     private fun zippedTool(): RecordedDownloadToolArchive {
         val archive: File = this.directory.resolve(ARCHIVE_FILE).toFile()
         ZipOutputStream(archive.outputStream()).use(this::writeExecutable)

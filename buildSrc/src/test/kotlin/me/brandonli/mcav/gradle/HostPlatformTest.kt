@@ -31,6 +31,7 @@ import org.gradle.testfixtures.ProjectBuilder
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
@@ -226,6 +227,32 @@ class HostPlatformTest {
         val platform: HostPlatform = HostPlatform.normalize(LINUX_NAME, AMD64)
         val text: String = platform.toString()
         assertEquals("HostPlatform(operatingSystem=linux, architecture=x86_64)", text)
+    }
+
+    @Test
+    fun shouldRejectMissingHostPropertiesAtTheirRead(): Unit {
+        val properties: List<String> = listOf(OPERATING_SYSTEM_PROPERTY, ARCHITECTURE_PROPERTY)
+        properties.forEach(this::assertMissingHostProperty)
+    }
+
+    private fun assertMissingHostProperty(property: String): Unit {
+        val previous: String? = System.clearProperty(property)
+        try {
+            val failure: NullPointerException = assertThrows(NullPointerException::class.java) { HostPlatform.current() }
+            val message: String = failure.message.orEmpty()
+            val rejectedAtProperty: Boolean = message.contains("must not be null")
+            assertTrue(rejectedAtProperty)
+        } finally {
+            this.restoreProperty(property, previous)
+        }
+    }
+
+    private fun restoreProperty(property: String, previous: String?): Unit {
+        if (previous == null) {
+            System.clearProperty(property)
+        } else {
+            System.setProperty(property, previous)
+        }
     }
 
     private fun mappingOf(row: List<String>): List<String?> {

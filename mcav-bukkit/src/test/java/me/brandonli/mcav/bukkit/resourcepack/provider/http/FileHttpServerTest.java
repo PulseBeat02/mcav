@@ -27,6 +27,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import io.netty.bootstrap.ServerBootstrap;
+import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.MultiThreadIoEventLoopGroup;
 import io.netty.util.concurrent.Future;
@@ -75,6 +76,32 @@ final class FileHttpServerTest {
       final List<ServerBootstrap> constructedBootstraps = bootstraps.constructed();
       final int bootstrapCount = constructedBootstraps.size();
       assertEquals(1, bootstrapCount);
+    }
+  }
+
+  @Test
+  void shouldShutDownTheWorkersWhenStopping() {
+    final ChannelFuture closing = mock(ChannelFuture.class);
+    final Channel channel = mock(Channel.class);
+    when(channel.close()).thenReturn(closing);
+    final ChannelFuture binding = mock(ChannelFuture.class);
+    when(binding.isSuccess()).thenReturn(true);
+    when(binding.channel()).thenReturn(channel);
+    try (
+      final MockedConstruction<MultiThreadIoEventLoopGroup> groups = mockConstruction(MultiThreadIoEventLoopGroup.class, (group, _) ->
+        this.configureTermination(group)
+      );
+      final MockedConstruction<ServerBootstrap> _ = mockConstruction(ServerBootstrap.class, (bootstrap, _) ->
+        when(bootstrap.bind(PORT)).thenReturn(binding)
+      )
+    ) {
+      final FileHttpServer server = new FileHttpServer(PORT, Path.of(PACK_FILE_NAME));
+      server.start();
+      server.stop();
+
+      final List<MultiThreadIoEventLoopGroup> constructed = groups.constructed();
+      final MultiThreadIoEventLoopGroup workers = constructed.get(1);
+      verify(workers).shutdownGracefully(QUIET_PERIOD_SECONDS, SHUTDOWN_TIMEOUT_SECONDS, TimeUnit.SECONDS);
     }
   }
 

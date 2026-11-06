@@ -23,6 +23,7 @@ import java.nio.file.Path
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 import org.gradle.api.Project
+import org.gradle.api.logging.Logger
 import org.gradle.api.tasks.JavaExec
 import org.gradle.api.tasks.TaskProvider
 import org.gradle.testfixtures.ProjectBuilder
@@ -133,6 +134,17 @@ class JcstressBudgetTest {
         assertFalse(open)
     }
 
+    @Test
+    fun shouldLogTheSelectedTestsAndIterationPlan(): Unit {
+        val jar: File = this.writeTestsJar()
+        val project: Project = ProjectBuilder.builder().withProjectDir(this.directory.toFile()).build()
+        val task: RecordedJavaExec = project.tasks.register("recordedJcstressTest", RecordedJavaExec::class.java).get()
+        JcstressBudget.limitIterations(task, jar, SECOND_TEST_SELECTION, QUICK_PRESET, BUDGET_MINUTES, 4)
+
+        val messages: List<String> = task.recorder.messages
+        assertEquals(listOf("lifecycle: Running 1 jcstress tests in quick mode within 10 minutes, at 3885 ms per iteration."), messages)
+    }
+
     private fun writeTestsJar(): File {
         val jar: File = this.directory.resolve(TESTS_JAR).toFile()
         val testList: String = listOf("JCTEST9Sa.b.First,x", "JCTEST10Sa.b.Second,y", "other line").joinToString("\n")
@@ -155,5 +167,14 @@ class JcstressBudgetTest {
         zip.putNextEntry(ZipEntry(entry))
         zip.write(content.toByteArray())
         zip.closeEntry()
+    }
+
+    abstract class RecordedJavaExec : JavaExec() {
+
+        val recorder: RecordingLogger = RecordingLogger()
+
+        override fun getLogger(): Logger {
+            return this.recorder.logger
+        }
     }
 }
