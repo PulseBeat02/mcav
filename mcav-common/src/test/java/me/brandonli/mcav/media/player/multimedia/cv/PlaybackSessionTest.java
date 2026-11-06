@@ -1344,6 +1344,41 @@ final class PlaybackSessionTest {
     assertThrows(IllegalStateException.class, picture::getWidth, PICTURE_RELEASED_MESSAGE);
   }
 
+  @Test
+  void shouldReleaseThePictureOfAFrameQueuedBehindTheEndMarker() throws Exception {
+    final CountDownLatch rendering = new CountDownLatch(1);
+    final CountDownLatch release = new CountDownLatch(1);
+    this.onVideo((_, _) -> this.holdUntilReleased(rendering, release));
+    final ScriptedFrameGrabber grabber = videoAt(0L);
+    final PlaybackSession session = this.session(grabber, 0L, StartState.PLAYING);
+    final BlockingQueue<DecodedVideoFrame> queue = this.videoQueueOf(session);
+    final DecodedVideoFrame late = frameWithPicture();
+    final MatImageBuffer picture = late.getImage();
+    session.start();
+    awaitCondition("the decoder queued its end marker behind the frame being shown", () -> rendering.getCount() == 0 && queue.size() == 1);
+    queue.put(late);
+    release.countDown();
+    awaitEnd(session);
+
+    assertThrows(IllegalStateException.class, picture::getWidth, PICTURE_RELEASED_MESSAGE);
+  }
+
+  private boolean holdUntilReleased(final CountDownLatch rendering, final CountDownLatch release) {
+    rendering.countDown();
+    final boolean released = Uninterruptibles.awaitUninterruptibly(release, TIMEOUT_MILLISECONDS, TimeUnit.MILLISECONDS);
+    assertTrue(released, "the test let the renderer go on");
+
+    return true;
+  }
+
+  // The session's own queue, so the test can queue a frame behind the end marker as a decoder racing the end can.
+  @SuppressWarnings("unchecked") // reflection returns the field's erased type
+  private BlockingQueue<DecodedVideoFrame> videoQueueOf(final PlaybackSession session) throws ReflectiveOperationException {
+    final Field queueField = PlaybackSession.class.getDeclaredField("videoQueue");
+    queueField.setAccessible(true);
+    return (BlockingQueue<DecodedVideoFrame>) queueField.get(session);
+  }
+
   // Heap pixels, which OpenCV cannot read, so the decoder copies them into an image of their own size before scaling.
   private static Frame heapPicture(final long timestampMicroseconds) {
     final Frame frame = ScriptedFrameGrabber.video(timestampMicroseconds);
