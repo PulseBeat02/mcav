@@ -3829,13 +3829,13 @@ def samples_draw_leaves(arguments: argparse.Namespace) -> None:
             row[1].text(
                 0,
                 index,
-                f"colour {index}{LINE_SEPARATOR}{color[0]}, {color[1]}, {color[2]}",
+                f"color {index}{LINE_SEPARATOR}{color[0]}, {color[1]}, {color[2]}",
                 ha="center",
                 va="center",
                 fontsize=CHARTS_SMALL_FONT_SIZE,
                 color=CHARTS_INK if light else CHARTS_SURFACE,
             )
-        samples_finish(row[1], "its two colours")
+        samples_finish(row[1], "its two colors")
         row[2].imshow(bits, cmap="gray_r", vmin=0, vmax=SAMPLES_BITS_COLOR_LIMIT, interpolation="nearest")
         for edge in range(size + 1):
             row[2].axhline(edge - SAMPLES_HALF_PIXEL, color=CHARTS_GRID, linewidth=CHARTS_HAIRLINE_WIDTH)

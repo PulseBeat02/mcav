@@ -35,11 +35,11 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 public interface VideoPipelineStep extends PipelineStep<ImageBuffer, OriginalVideoMetadata, VideoPipelineStep> {
   /**
    * A pipeline that does nothing, attached while no pipeline is set. It is the only video step whose
-   * {@link #isNoOp()} returns true.
+   * {@link #isNoOperation()} returns true.
    *
    * @since 1.0.0
    */
-  VideoPipelineStep NO_OP = new NoOperationStep();
+  VideoPipelineStep NO_OPERATION = new NoOperationStep();
 
   /**
    * Creates a step that applies a filter and continues with another step.
@@ -90,7 +90,7 @@ public interface VideoPipelineStep extends PipelineStep<ImageBuffer, OriginalVid
   }
 
   /**
-   * The step behind {@link #NO_OP}. Its constructor is private, so {@link #NO_OP} is its only instance, and the class
+   * The step behind {@link #NO_OPERATION}. Its constructor is private, so {@link #NO_OPERATION} is its only instance, and the class
    * can only be initialized together with this interface, which rules out a deadlock between the initialization of the
    * two classes.
    *
@@ -128,14 +128,14 @@ public interface VideoPipelineStep extends PipelineStep<ImageBuffer, OriginalVid
     }
 
     /**
-     * Returns {@link VideoFilter#NO_OP}, the filter of the empty video pipeline.
+     * Returns {@link VideoFilter#NO_OPERATION}, the filter of the empty video pipeline.
      *
-     * @return {@link VideoFilter#NO_OP}
+     * @return {@link VideoFilter#NO_OPERATION}
      * @since 1.0.0
      */
     @Override
     public VideoFilter getFilter() {
-      return VideoFilter.NO_OP;
+      return VideoFilter.NO_OPERATION;
     }
 
     /**
@@ -145,7 +145,7 @@ public interface VideoPipelineStep extends PipelineStep<ImageBuffer, OriginalVid
      * @since 1.0.0
      */
     @Override
-    public boolean isNoOp() {
+    public boolean isNoOperation() {
       return true;
     }
   }

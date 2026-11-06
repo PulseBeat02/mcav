@@ -29,8 +29,7 @@
  * in opening and seek support, so inspect their concrete contracts. Error callbacks run on the failing thread,
  * may be concurrent, must return promptly and must not throw.
  *
- * <p>Reference parameters and return values are non-null unless marked {@code @Nullable};
- * nullable values and their meanings are described on the corresponding members.
+ * <p>Reference parameters and return values are non-null unless marked {@code @Nullable}.
  *
  * @since 1.0.0
  */

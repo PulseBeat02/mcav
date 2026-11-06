@@ -182,7 +182,7 @@ final class FfmpegPlayerTest {
     final Dimension size = Dimension.of(SCALED_WIDTH, 120);
     dimension.attach(size);
     final VideoFilter video = recordingWidth(frames, width);
-    attach(player, video, AudioFilter.NO_OP);
+    attach(player, video, AudioFilter.NO_OPERATION);
 
     final Path videoFile = TestMedia.video();
     final Source source = file(videoFile);
@@ -273,7 +273,7 @@ final class FfmpegPlayerTest {
     final AtomicLong audioBytes = new AtomicLong();
     final List<String> errors = Collections.synchronizedList(new ArrayList<>());
     final FfmpegPlayer player = neverDroppingPlayer();
-    player.setExceptionHandler((message, error) -> errors.add("%s: %s".formatted(message, error)));
+    player.setExceptionHandler((message, failure) -> errors.add("%s: %s".formatted(message, failure)));
     final AudioFilter audioCounter = countingBytes(audioBytes);
     attach(player, (_, _) -> frames.incrementAndGet() > 0, audioCounter);
 
@@ -302,7 +302,7 @@ final class FfmpegPlayerTest {
     final AtomicInteger width = new AtomicInteger();
     final FfmpegPlayer player = neverDroppingPlayer();
     final VideoFilter video = recordingWidth(frames, width);
-    attach(player, video, AudioFilter.NO_OP);
+    attach(player, video, AudioFilter.NO_OPERATION);
 
     final FfmpegDirectSource generator = FfmpegDirectSource.mrl("testsrc=size=64x48:rate=30:duration=1", "lavfi");
     try {
@@ -324,7 +324,7 @@ final class FfmpegPlayerTest {
   void shouldReportFilesThatCannotBeOpened() {
     final List<Throwable> errors = Collections.synchronizedList(new ArrayList<>());
     final FfmpegPlayer player = neverDroppingPlayer();
-    player.setExceptionHandler((_, error) -> errors.add(error));
+    player.setExceptionHandler((_, failure) -> errors.add(failure));
     final Path missing = this.directory.resolve(MISSING_NAME);
     final Source source = file(missing);
     try {
@@ -347,7 +347,7 @@ final class FfmpegPlayerTest {
     private final List<String> sizes = Collections.synchronizedList(new ArrayList<>());
 
     private void attachTo(final FfmpegPlayer player) {
-      player.setExceptionHandler((_, error) -> this.errors.add(error));
+      player.setExceptionHandler((_, failure) -> this.errors.add(failure));
       final VideoFilter video = recordingFrames(this.frames, this.sizes, this.frameTimes);
       final AudioFilter audio = countingOutputSamples(this.audioBytes);
       attach(player, video, audio);

@@ -1095,6 +1095,19 @@ final class MatImageBufferTest {
   }
 
   @Test
+  void shouldDropTheCachedPixelsWhenResizedThroughTheSpareAndBack() {
+    try (final ImageBuffer image = Images.indexed(3, 2)) {
+      final MatImageBuffer buffer = (MatImageBuffer) image;
+      buffer.transformMat(opencv_core::transpose);
+      final int[] cached = image.getPixels();
+      buffer.setSize(3, 2);
+      buffer.setSize(2, 3);
+      final int[] pixels = image.getPixels();
+      assertNotSame(cached, pixels, "both resizes replaced the matrix, even though the second brought it back");
+    }
+  }
+
+  @Test
   void shouldKeepTheLatestMatrixAsSpareWhenResizedToANewSize() {
     try (final ImageBuffer image = Images.indexed(4, 2)) {
       final MatImageBuffer buffer = (MatImageBuffer) image;

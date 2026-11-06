@@ -14,8 +14,8 @@ these displays are not dithered, so the filter is used directly.
 Every result is a `FunctionalVideoFilter`: call `start()` on the main thread before the video starts, and `release()`
 when it is over, which removes the blocks, entities, or scoreboard it created.
 
-The method below attaches a chat display to a player before it starts; call it on the main thread, and call
-`release()` on the returned filter when the video is over.
+The method below attaches a chat display to a player before it starts; call it on the main thread, and call `release()`
+on the returned filter when the video is over.
 
 ```java
   public FunctionalVideoFilter showVideoInChat(final Collection<UUID> viewers, final VideoPlayerMultiplexer player) {

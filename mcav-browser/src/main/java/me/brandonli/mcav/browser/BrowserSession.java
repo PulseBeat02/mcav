@@ -36,6 +36,6 @@ interface BrowserSession extends AutoCloseable {
     // on the thread that reads the helper, so the listener must not hold it up
     void onAudio(final byte[] samples);
 
-    void onEnded(final String reason, final Throwable cause);
+    void onEnded(final String reason, final Throwable failure);
   }
 }

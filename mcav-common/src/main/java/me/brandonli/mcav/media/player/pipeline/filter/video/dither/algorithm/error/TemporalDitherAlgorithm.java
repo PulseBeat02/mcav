@@ -87,7 +87,7 @@ public abstract class TemporalDitherAlgorithm extends ErrorDiffusionDither imple
   private volatile byte @Nullable [] previousIndices;
 
   /**
-   * Constructs a new temporal algorithm with default settings.
+   * Creates a new temporal algorithm with default settings.
    *
    * @param palette the palette to reduce images to
    * @param kernel  the kernel that describes how errors are spread
@@ -99,7 +99,7 @@ public abstract class TemporalDitherAlgorithm extends ErrorDiffusionDither imple
   }
 
   /**
-   * Constructs a new temporal algorithm.
+   * Creates a new temporal algorithm.
    *
    * @param palette           the palette to reduce images to
    * @param kernel            the kernel that describes how errors are spread

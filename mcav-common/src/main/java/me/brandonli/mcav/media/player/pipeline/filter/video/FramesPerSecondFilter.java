@@ -50,7 +50,7 @@ public final class FramesPerSecondFilter extends MatVideoFilter {
   private int displayedFrameRate;
 
   /**
-   * Constructs a new frame rate filter.
+   * Creates a new frame rate filter.
    *
    * @since 1.0.0
    */

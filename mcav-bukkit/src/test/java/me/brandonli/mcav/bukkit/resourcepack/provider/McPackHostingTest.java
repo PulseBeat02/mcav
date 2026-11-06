@@ -453,13 +453,13 @@ final class McPackHostingTest {
 
   // every hosting shares the upload cache lock, so a lock this thread holds shows as a thread that never finishes
   private void startInAnotherThread(final McPackHosting hosting) throws InterruptedException {
-    final AtomicReference<Throwable> failure = new AtomicReference<>();
+    final AtomicReference<Throwable> recordedFailure = new AtomicReference<>();
     final Thread starter = new Thread(hosting::start, "pack-upload-lock-probe");
     starter.setDaemon(true);
-    starter.setUncaughtExceptionHandler((_, throwable) -> failure.set(throwable));
+    starter.setUncaughtExceptionHandler((_, failure) -> recordedFailure.set(failure));
     starter.start();
     starter.join();
-    final Throwable thrown = failure.get();
+    final Throwable thrown = recordedFailure.get();
     if (thrown != null) {
       throw new AssertionError("Uploading on another thread failed!", thrown);
     }

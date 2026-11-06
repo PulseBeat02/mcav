@@ -25,8 +25,7 @@
  * Use {@link me.brandonli.mcav.media.player.multimedia.VideoPlayer#ffmpeg()} and release the player afterward.
  * The default source is immutable and the detector is stateless; neither owns native resources.
  *
- * <p>Reference parameters and return values are non-null unless marked {@code @Nullable};
- * nullable values and their meanings are described on the corresponding members.
+ * <p>Reference parameters and return values are non-null unless marked {@code @Nullable}.
  *
  * @since 1.0.0
  */

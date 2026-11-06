@@ -39,7 +39,7 @@ public final class RotationFilter extends MatVideoFilter {
   private final int rotateCode;
 
   /**
-   * Constructs a new rotation filter.
+   * Creates a new rotation filter.
    *
    * @param rotation the rotation to apply
    * @throws NullPointerException if {@code rotation} is null

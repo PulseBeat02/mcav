@@ -28,8 +28,7 @@
  * callers should coordinate separate installer instances that target the same files. An installer does not
  * own a running media player, and disposing of a player does not delete its cached programs.
  *
- * <p>Reference parameters and return values are non-null unless marked {@code @Nullable};
- * nullable values and their meanings are described on the corresponding members.
+ * <p>Reference parameters and return values are non-null unless marked {@code @Nullable}.
  *
  * @since 1.0.0
  */

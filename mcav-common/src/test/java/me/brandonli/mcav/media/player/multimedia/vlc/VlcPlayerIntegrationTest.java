@@ -102,9 +102,9 @@ final class VlcPlayerIntegrationTest {
     audioCallback.attach(audioStep);
   }
 
-  private void recordFailure(final String message, final Throwable error) {
+  private void recordFailure(final String message, final Throwable failure) {
     this.messages.add(message);
-    this.errors.add(error);
+    this.errors.add(failure);
   }
 
   @BeforeAll

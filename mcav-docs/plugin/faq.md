@@ -28,9 +28,9 @@ does not allow it, and of protected media (DRM) cannot be captured.
 
 ## Why can the browser not open a page of your own network?
 
-By default the browser reaches public addresses of the internet only, so that a page, or a player clicking on it,
-cannot read services that only the server can reach, such as a router or the metadata service of a cloud server.
-Turn on `browser.allow-private-networks` in the [configuration](./config.md) only if you trust everyone who may create a
+By default the browser reaches public addresses of the internet only, so that a page, or a player clicking on it, cannot
+read services that only the server can reach, such as a router or the metadata service of a cloud server. Turn on
+`browser.allow-private-networks` in the [configuration](./config.md) only if you trust everyone who may create a
 browser, every page they open and every player who may click on it.
 
 ---
@@ -39,16 +39,16 @@ browser, every page they open and every player who may click on it.
 
 `/mcav vm create` with an audio type other than `NONE` gives an `X86_64` machine a sound card (Intel HD Audio, and the
 PC speaker) and plays its sound through that output, like a video; the guest needs a driver for the card, which every
-current operating system has. Machines of other architectures have no sound. Only one video, browser or virtual
-machine plays through the audio outputs at a time: the newest one takes them over, and gives them back to the one
-before it when it is released.
+current operating system has. Machines of other architectures have no sound. Only one video, browser or virtual machine
+plays through the audio outputs at a time: the newest one takes them over, and gives them back to the one before it when
+it is released.
 
 ---
 
 ## Why are players asked to load a resource pack?
 
-A wall of maps with `--codec mcv2` (or `mcv2.default-codec: mcv2`) is decoded by MCAV's MCV2 resource pack. The pack
-is optional: a player who declines it keeps the dithered maps and is not asked again until they rejoin. One pack serves
+A wall of maps with `--codec mcv2` (or `mcv2.default-codec: mcv2`) is decoded by MCAV's MCV2 resource pack. The pack is
+optional: a player who declines it keeps the dithered maps and is not asked again until they rejoin. One pack serves
 every MCV2 screen of the server, so a player is asked once, and again only when a screen of a video size the pack does
 not decode yet starts; loading it reloads the client's resources, a hitch of a second or more.
 
@@ -56,10 +56,10 @@ not decode yet starts; loading it reloads the client's resources, a hitch of a s
 
 ## Why does a player see the dithered maps on an MCV2 screen?
 
-Until their client has loaded the MCV2 pack, and for good when they declined it or their client could not load it
-(the chat tells them). A screen is also dithered for everyone when no item frame holds its top-left map (build it with
-`/mcav screen`, and start the screen while a player is near it: the server only sees the item frames of loaded
-chunks), when eight MCV2 screens already play, or when even the fastest encoder cannot keep up on the threads of
+Until their client has loaded the MCV2 pack, and for good when they declined it or their client could not load it (the
+chat tells them). A screen is also dithered for everyone when no item frame holds its top-left map (build it with
+`/mcav screen`, and start the screen while a player is near it: the server only sees the item frames of loaded chunks),
+when eight MCV2 screens already play, or when even the fastest encoder cannot keep up on the threads of
 `mcv2.encoder-threads`; the command that started it says which.
 
 An MCV2 command refuses a screen whose top-left map hangs in more than one item frame, and names the place of each:
@@ -70,8 +70,8 @@ remove the other walls, or build each screen with its own map id.
 ## Why does the MCV2 pack not download behind your proxy?
 
 By default the pack is served on the Minecraft server's port, which players behind Velocity or BungeeCord never reach.
-Set `mcv2.pack.hosting` to `http` with a port the players can reach, or to `website` to upload it to mc-packs.net,
-in the MCV2 part of the [configuration file](./config.md).
+Set `mcv2.pack.hosting` to `http` with a port the players can reach, or to `website` to upload it to mc-packs.net, in
+the MCV2 part of the [configuration file](./config.md).
 
 ---
 
@@ -95,16 +95,16 @@ vanilla's plus the decoder.
 
 Yes. A player who joins, rejoins or changes world while a screen plays for `@a` (or for a selector that matches them) is
 offered the MCV2 pack on the spot and sees the dithered maps until it has loaded. The screen keeps the chunks of its
-hidden page frames loaded until it is released, so players who walk away and come back see it too. Start a screen
-while a player is near its wall: the server only knows the item frames of loaded chunks.
+hidden page frames loaded until it is released, so players who walk away and come back see it too. Start a screen while
+a player is near its wall: the server only knows the item frames of loaded chunks.
 
 ---
 
 ## Why does your screen stay blank?
 
 A wall of maps shows nothing, or the backs of item frames, when more than one item frame hangs in a block of it: placed
-by hand, by another plugin or by an old version of MCAV, the extra frames hang in front of the maps, backwards, and
-hide them however much is sent, dithered or MCV2 alike. Rebuild the wall with `/mcav screen`, which removes the frames
+by hand, by another plugin or by an old version of MCAV, the extra frames hang in front of the maps, backwards, and hide
+them however much is sent, dithered or MCV2 alike. Rebuild the wall with `/mcav screen`, which removes the frames
 already hanging where it places one. Also check that the command names the same wall size and first map id as
 `/mcav screen`.
 
@@ -120,12 +120,12 @@ the server's password in that list, never in the command, and restart the server
 
 ## Why do VLC commands say "VLC is still being prepared"?
 
-On the first start of a server that has no VLC, the plugin downloads VLC in the background into the MCAV cache folder
-of the user running the server, without `sudo` or administrator rights. The server does not wait for it, so players
-can join right away. Until the download is finished and VLC is loaded, video commands with the `VLC` player answer
-that VLC is still being prepared; try again once the console logs `VLC ready in <n> ms.`, or use the bundled `FFMPEG`
-player on a supported platform. Commands given a web page, such as a YouTube video, answer the same way while
-yt-dlp is being downloaded. Later starts use the downloaded copies at once.
+On the first start of a server that has no VLC, the plugin downloads VLC in the background into the MCAV cache folder of
+the user running the server, without `sudo` or administrator rights. The server does not wait for it, so players can
+join right away. Until the download is finished and VLC is loaded, video commands with the `VLC` player answer that VLC
+is still being prepared; try again once the console logs `VLC ready in <n> ms.`, or use the bundled `FFMPEG` player on a
+supported platform. Commands given a web page, such as a YouTube video, answer the same way while yt-dlp is being
+downloaded. Later starts use the downloaded copies at once.
 
 If the console logs a warning that VLC is not available instead, VLC cannot be installed on this system, and VLC
 commands answer that VLC is not supported.
@@ -134,16 +134,16 @@ commands answer that VLC is not supported.
 
 ## Does the server's memory grow while videos play for days?
 
-Not by much. FFmpeg and OpenCV free large buffers on many threads, and the C library of Linux keeps that memory
-for later, which would grow a server's memory by about 20 MB an hour. MCAV hands it back to the system once a minute,
-and has the C library hand back the free memory at the end of each thread's share of it as soon as a large buffer is
-freed. Start the server with `-Dmcav.nativeTrimSeconds=<n>` to trim every `n` seconds, or `0` to turn both off.
+Not by much. FFmpeg and OpenCV free large buffers on many threads, and the C library of Linux keeps that memory for
+later, which would grow a server's memory by about 20 MB an hour. MCAV hands it back to the system once a minute, and
+has the C library hand back the free memory at the end of each thread's share of it as soon as a large buffer is freed.
+Start the server with `-Dmcav.nativeTrimSeconds=<n>` to trim every `n` seconds, or `0` to turn both off.
 
 ---
 
 ## How do you fix an `UnsatisfiedLinkError` saying that version `GLIBC_2.38` is not found?
 
-The selected VLC build or one of its native dependencies requires a glibc version the server's runtime does not
-provide. MCAV catches this native-loading failure, logs why VLC is unavailable and leaves VLC commands unsupported;
-the `FFMPEG` player does not need VLC. Loading a different VLC build requires one compatible with the server's
-operating system and architecture. On a managed server, the provider controls that runtime.
+The selected VLC build or one of its native dependencies requires a glibc version the server's runtime does not provide.
+MCAV catches this native-loading failure, logs why VLC is unavailable and leaves VLC commands unsupported; the `FFMPEG`
+player does not need VLC. Loading a different VLC build requires one compatible with the server's operating system and
+architecture. On a managed server, the provider controls that runtime.

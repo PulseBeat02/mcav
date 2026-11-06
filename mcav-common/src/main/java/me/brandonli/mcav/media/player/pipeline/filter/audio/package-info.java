@@ -27,8 +27,7 @@
  * sound device and may block. Start resource-owning filters before attaching them, stop producers before release,
  * and do not assume that releasing a player releases its filters. Concrete filters describe concurrent-use limits.
  *
- * <p>Reference parameters and return values are non-null unless marked {@code @Nullable};
- * nullable values and their meanings are described on the corresponding members.
+ * <p>Reference parameters and return values are non-null unless marked {@code @Nullable}.
  *
  * @since 1.0.0
  */

@@ -16,6 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+import me.brandonli.mcav.gradle.ModuleCoordinates
 import org.gradle.api.artifacts.ModuleDependency
 
 plugins {
@@ -23,7 +24,7 @@ plugins {
     id("mcav.publishing")
 }
 
-val bytedecoGroup: String = "org.bytedeco"
+val bytedecoGroup: String = ModuleCoordinates.BYTEDECO_GROUP
 val javacvPlatformModule: String = "javacv-platform"
 val platformSuffix: String = "-platform"
 

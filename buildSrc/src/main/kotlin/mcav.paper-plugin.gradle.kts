@@ -24,7 +24,6 @@ import me.brandonli.mcav.gradle.ModuleCoordinates
 import me.brandonli.mcav.gradle.PaperVersion
 import me.brandonli.mcav.gradle.RequiredModuleClassesTask
 import me.brandonli.mcav.gradle.libs
-import org.gradle.api.artifacts.component.ModuleComponentSelector
 import xyz.jpenilla.gremlin.gradle.WriteDependencySet
 import xyz.jpenilla.resourcefactory.bukkit.Permission
 import xyz.jpenilla.resourcefactory.paper.PaperPluginYaml
@@ -57,7 +56,6 @@ val noChangingModuleCache: Int = 0
 val changingModuleCacheUnit: String = "seconds"
 
 val classpathSuffix: String = "Classpath"
-val projectPathPrefix: String = ":"
 
 val nativeResourcesConfiguration: String = "mcv2NativeResources"
 val bukkitProjectPath: String = ":mcav-bukkit"
@@ -124,13 +122,7 @@ configurations.runtimeDownload {
 }
 
 configurations.matching { it.name.endsWith(classpathSuffix) }.configureEach {
-    resolutionStrategy.dependencySubstitution.all {
-        val module: ModuleComponentSelector = requested as? ModuleComponentSelector ?: return@all
-        val project: Project? = rootProject.findProject("$projectPathPrefix${module.module}")
-        if (module.group == rootProject.group.toString() && project != null) {
-            useTarget(project)
-        }
-    }
+    resolutionStrategy.dependencySubstitution.all { ModuleCoordinates.substituteLocalProject(this, rootProject) }
 }
 
 val nativeResources: NamedDomainObjectProvider<Configuration> = configurations.register(nativeResourcesConfiguration) {

@@ -59,7 +59,7 @@ public final class FaceDetectionFilter extends MatVideoFilter {
   private final RectVector faces;
 
   /**
-   * Constructs a new face detection filter.
+   * Creates a new face detection filter.
    *
    * @param cascadeFile the path of the Haar cascade XML file
    * @param color       the blue, green, and red components of the rectangle color, normally 0 to 255; the non-null array is copied
@@ -79,7 +79,7 @@ public final class FaceDetectionFilter extends MatVideoFilter {
   }
 
   /**
-   * Constructs a new face detection filter.
+   * Creates a new face detection filter.
    *
    * @param cascadeFile the path of the Haar cascade XML file
    * @param color       the blue, green, and red components of the rectangle color, normally 0 to 255; the non-null array is copied

@@ -312,13 +312,13 @@ public final class VncCommand extends AbstractInteractiveCommand<VncPlayer> {
    * shown, since it may contain details of the server's network.
    *
    * @param outcome whether the desktop streams
-   * @param error   why it could not connect, if known
+   * @param failure why it could not connect, if known
    * @return the message
    * @throws NullPointerException if {@code outcome} is null
    * @since 1.0.0
    */
   @Override
-  protected Component createStartMessage(final StartOutcome outcome, final @Nullable Throwable error) {
+  protected Component createStartMessage(final StartOutcome outcome, final @Nullable Throwable failure) {
     Preconditions.checkNotNull(outcome, "Outcome must not be null!");
 
     final NullComponent message = outcome == StartOutcome.STARTED ? Message.VNC_CREATE : Message.VNC_ERROR;

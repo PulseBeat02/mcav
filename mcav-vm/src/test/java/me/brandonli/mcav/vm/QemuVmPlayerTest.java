@@ -1250,7 +1250,7 @@ final class QemuVmPlayerTest {
     final List<int[]> sizes = new CopyOnWriteArrayList<>();
     final VmPlayer player = VmPlayer.create();
     try {
-      player.setExceptionHandler((message, error) -> errors.add("%s%s%s".formatted(message, REPORT_SEPARATOR, error)));
+      player.setExceptionHandler((message, failure) -> errors.add("%s%s%s".formatted(message, REPORT_SEPARATOR, failure)));
       this.startTinyMachine(player);
       this.attachRecorder(player, sizes);
       this.awaitFirstFrame(sizes, errors);

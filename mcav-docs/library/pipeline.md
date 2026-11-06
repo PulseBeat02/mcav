@@ -4,16 +4,16 @@ In MCAV, a pipeline is a chain of filters that processes every video frame or au
 transform the data, for example by resizing, cropping, or recoloring frames, or by adjusting the volume of audio, and
 the last filters usually display or send the result.
 
-Each link of a pipeline is a `PipelineStep`: an `AudioPipelineStep` for audio or a `VideoPipelineStep` for video. A
-step holds one filter, an `AudioFilter` or a `VideoFilter`, and a pointer to the next step. The player runs the steps
-in order for every frame or chunk of samples.
+Each link of a pipeline is a `PipelineStep`: an `AudioPipelineStep` for audio or a `VideoPipelineStep` for video. A step
+holds one filter, an `AudioFilter` or a `VideoFilter`, and a pointer to the next step. The player runs the steps in
+order for every frame or chunk of samples.
 
 ```{figure} pipeline.png
 Example of a pipeline from video players.
 ```
 
-Create pipelines with `PipelineBuilder`. Filters run in the order you add them; the `display` filter is yours and
-shows the frames:
+Create pipelines with `PipelineBuilder`. Filters run in the order you add them; the `display` filter is yours and shows
+the frames:
 
 ```java
   public VideoPipelineStep createGrayscaleNegativePipeline(final VideoFilter display) {
@@ -29,13 +29,13 @@ shows the frames:
 ```
 
 A single filter is a pipeline as well: `VideoPipelineStep.of(filter)` or `AudioPipelineStep.of(filter)`. Use the
-`NO_OP` constants, `VideoPipelineStep.NO_OP` and `AudioPipelineStep.NO_OP`, when you are not interested in video or
-audio.
+`NO_OPERATION` constants, `VideoPipelineStep.NO_OPERATION` and `AudioPipelineStep.NO_OPERATION`, when you are not
+interested in video or audio.
 
-Filters are functional interfaces, so small filters can be lambdas. A filter returns `true` only if it changed the
-frame or the samples (or may have changed them), and `false` if it only read them. The pipeline passes the data on to
-the next step either way; filters that work on a copy use the result to skip copying unchanged data back. The method
-below only reads the frame, so it returns `false`; pass it to a pipeline as `this::logSize`:
+Filters are functional interfaces, so small filters can be lambdas. A filter returns `true` only if it changed the frame
+or the samples (or may have changed them), and `false` if it only read them. The pipeline passes the data on to the next
+step either way; filters that work on a copy use the result to skip copying unchanged data back. The method below only
+reads the frame, so it returns `false`; pass it to a pipeline as `this::logSize`:
 
 ```java
   private static final Logger LOGGER = LoggerFactory.getLogger(MyPlugin.class);

@@ -1,15 +1,15 @@
 # Utilities
 
 `mcav-common` contains a few helpers that are useful on their own, outside of the players: converting the audio of a
-pipeline into the format another output expects, extracting the audio track of media into a file, small network
-checks, and handling failures on threads of your own. They live in the `me.brandonli.mcav.utils` packages and need no
-extra module.
+pipeline into the format another output expects, extracting the audio track of media into a file, small network checks,
+and handling failures on threads of your own. They live in the `me.brandonli.mcav.utils` packages and need no extra
+module.
 
-Every player hands its audio pipeline signed 16-bit little-endian PCM at 48 kHz with two interleaved channels,
-whatever the source format is (see `AudioFilter.SAMPLE_RATE`, `AudioFilter.CHANNELS` and `AudioFilter.FRAME_SIZE`).
-The audio helpers below take exactly that buffer, so you can pass them the `samples` of an
-`AudioPipelineStep.of((samples, metadata) -> ...)` filter directly. They read the buffer without changing its
-position, so the next steps of the pipeline still see every sample.
+Every player hands its audio pipeline signed 16-bit little-endian PCM at 48 kHz with two interleaved channels, whatever
+the source format is (see `AudioFilter.SAMPLE_RATE`, `AudioFilter.CHANNELS` and `AudioFilter.FRAME_SIZE`). The audio
+helpers below take exactly that buffer, so you can pass them the `samples` of an
+`AudioPipelineStep.of((samples, metadata) -> ...)` filter directly. They read the buffer without changing its position,
+so the next steps of the pipeline still see every sample.
 
 ```{note}
 A filter returns whether it changed the samples. The filters on this page only read them, so they return `false`;
@@ -18,23 +18,23 @@ the pipeline passes the samples on to the next step either way.
 
 ## Reading bundled installer lists
 
-`IoUtils.readDownloadsFromJsonResource` and `ReleasePackageManager.readVlcDownloadsFromJsonResource` take a full
-path from the classpath root, without a leading slash. The bundled lists are `mcav/common/installers/vlc.json` and
+`IoUtils.readDownloadsFromJsonResource` and `ReleasePackageManager.readVlcDownloadsFromJsonResource` take a full path
+from the classpath root, without a leading slash. The bundled lists are `mcav/common/installers/vlc.json` and
 `mcav/common/installers/yt-dlp.json`. Custom lists can live at any full classpath path, such as
 `installers/custom.json`.
 
 ## Mono downmixing
 
-`MonoDownmixer` in `me.brandonli.mcav.utils.audio` mixes the stereo samples of a pipeline down to mono for outputs
-that carry a single channel, such as Simple Voice Chat, a mono speaker, or a speech recognizer.
+`MonoDownmixer` in `me.brandonli.mcav.utils.audio` mixes the stereo samples of a pipeline down to mono for outputs that
+carry a single channel, such as Simple Voice Chat, a mono speaker, or a speech recognizer.
 
 `MonoDownmixer.downmix(ByteBuffer)` reads the interleaved 16-bit little-endian stereo samples between the position and
 the limit of the buffer, averages the left and right channel of every sample, and returns a `short[]` with one mono
 sample for every stereo sample. The buffer is not changed, and a trailing incomplete sample is ignored. Passing `null`
 throws a `NullPointerException`. The class only has static methods and cannot be instantiated.
 
-The example below plays a file through the speakers of your computer in mono, exactly as Simple Voice Chat receives
-it, which checks the downmix without a Minecraft server:
+The example below plays a file through the speakers of your computer in mono, exactly as Simple Voice Chat receives it,
+which checks the downmix without a Minecraft server:
 
 ```java
   public void playInMono() {
@@ -95,10 +95,10 @@ it, which checks the downmix without a Minecraft server:
 
 ## Resampling audio
 
-`AudioResampler` in `me.brandonli.mcav.utils.audio` converts interleaved PCM audio between sample rates, channel
-counts, and sample formats with FFmpeg's libswresample, which is bundled with MCAV. Use it when an output expects
-something other than the 48 kHz stereo audio of the pipeline, such as a speech recognizer at 16 kHz mono, a telephony
-bridge at 8 kHz, or an engine that mixes floating point samples.
+`AudioResampler` in `me.brandonli.mcav.utils.audio` converts interleaved PCM audio between sample rates, channel counts,
+and sample formats with FFmpeg's libswresample, which is bundled with MCAV. Use it when an output expects something
+other than the 48 kHz stereo audio of the pipeline, such as a speech recognizer at 16 kHz mono, a telephony bridge at 8
+kHz, or an engine that mixes floating point samples.
 
 There are two factories. Both return a new resampler that you must close:
 
@@ -120,13 +120,13 @@ The resampler has three methods:
   buffer, so you can pass the buffer of an audio pipeline directly. It returns the converted interleaved samples as a
   `byte[]`, which can be empty. A trailing incomplete frame is ignored.
 - `flush()` returns the samples that earlier calls held back, then resets the resampler, so you can reuse it for a new
-  stream that does not continue the previous one. Changing the sample rate needs a few samples of look-ahead, so
-  every call to `resample` holds back a short tail and emits it with the next call; the output of a single call can be
+  stream that does not continue the previous one. Changing the sample rate needs a few samples of look-ahead, so every
+  call to `resample` holds back a short tail and emits it with the next call; the output of a single call can be
   slightly shorter than the rate ratio suggests, while the output of the whole stream is not. Call `flush()` at the end
   of a stream to get that tail.
-- `close()` frees the native resampling context. Samples still held back are discarded, so call `flush()` first to
-  keep them. Closing a closed resampler does nothing. `AudioResampler` implements `AutoCloseable`, so you can use it
-  in a try-with-resources statement.
+- `close()` frees the native resampling context. Samples still held back are discarded, so call `flush()` first to keep
+  them. Closing a closed resampler does nothing. `AudioResampler` implements `AutoCloseable`, so you can use it in a
+  try-with-resources statement.
 
 After `close()`, `resample` and `flush` throw an `IllegalStateException`, and they throw an `MCAVException` if FFmpeg
 fails to convert, drain, or reset. `isClosed()` tells whether the resampler has been closed, and `getInputSampleRate()`,
@@ -198,8 +198,8 @@ through the speakers of your computer, so you can hear the result:
   }
 ```
 
-To convert other audio, describe the input yourself with `create`. For example, turning 44.1 kHz 5.1 surround audio
-into 48 kHz stereo floating point samples:
+To convert other audio, describe the input yourself with `create`. For example, turning 44.1 kHz 5.1 surround audio into
+48 kHz stereo floating point samples:
 
 ```java
   public byte[] convertSurroundToStereo(final ByteBuffer surroundSamples) {
@@ -228,12 +228,11 @@ into 48 kHz stereo floating point samples:
 
 ### Sample formats
 
-`SampleFormat` is the encoding of a single sample. Every format is packed (interleaved): the samples of all channels
-of one frame follow each other, so a stereo stream is laid out as `left, right, left, right, ...`. Samples are stored in
-the native byte order of the platform, which is little-endian on every platform MCAV runs on (x86 and ARM), so
-you can pass the little-endian audio of the pipeline to `resample` as it is. Floating point formats use the nominal
-range
-`-1.0` to `1.0`.
+`SampleFormat` is the encoding of a single sample. Every format is packed (interleaved): the samples of all channels of
+one frame follow each other, so a stereo stream is laid out as `left, right, left, right, ...`. Samples are stored in
+the native byte order of the platform, which is little-endian on every platform MCAV runs on (x86 and ARM), so you can
+pass the little-endian audio of the pipeline to `resample` as it is. Floating point formats use the nominal range `-1.0`
+to `1.0`.
 
 | Constant         | Encoding                                                      | Bytes per sample |
 |------------------|---------------------------------------------------------------|------------------|
@@ -244,19 +243,19 @@ range
 | `FLOAT_32_BIT`   | 32-bit IEEE 754 floating point numbers                        | 4                |
 | `FLOAT_64_BIT`   | 64-bit IEEE 754 floating point numbers                        | 8                |
 
-`getBytesPerSample()` returns the size of one sample of one channel, and `getFfmpegFormat()` returns the matching
-packed `avutil.AV_SAMPLE_FMT_*` constant, for use with the FFmpeg bindings of JavaCV.
+`getBytesPerSample()` returns the size of one sample of one channel, and `getFfmpegFormat()` returns the matching packed
+`avutil.AV_SAMPLE_FMT_*` constant, for use with the FFmpeg bindings of JavaCV.
 
 ## Extracting audio
 
-`AudioExtractor` in `me.brandonli.mcav.utils.ffmpeg` extracts the audio track of media into a standalone audio file
-with the FFmpeg program bundled with MCAV. It writes the audio as stereo Ogg Vorbis, a compact and royalty-free format
-that Minecraft resource packs, web browsers, game engines, and most media players play. The
-[audio resource packs](../bukkit/resourcepack.md) of the Bukkit module use it.
+`AudioExtractor` in `me.brandonli.mcav.utils.ffmpeg` extracts the audio track of media into a standalone audio file with
+the FFmpeg program bundled with MCAV. It writes the audio as stereo Ogg Vorbis, a compact and royalty-free format that
+Minecraft resource packs, web browsers, game engines, and most media players play. The [audio resource
+packs](../bukkit/resourcepack.md) of the Bukkit module use it.
 
 `AudioExtractor.extractOggVorbis(Source)` transcodes the audio of the source, such as a file or a URL, to stereo Ogg
-Vorbis: mono and surround audio is mixed to two channels, and any video is dropped. Every call writes a new file with
-a random name into the MCAV cache folder, `~/.mcav/cache`, and returns its absolute path, so extracting the same source
+Vorbis: mono and surround audio is mixed to two channels, and any video is dropped. Every call writes a new file with a
+random name into the MCAV cache folder, `~/.mcav/cache`, and returns its absolute path, so extracting the same source
 twice yields two files. The file belongs to you: move or delete it when you no longer need it.
 
 The method blocks until FFmpeg finishes, which can take a while for long media or slow network sources, so call it off
@@ -270,9 +269,9 @@ threads that must stay responsive, such as the main thread of a Minecraft server
 | `UnsatisfiedLinkError`        | The bundled FFmpeg is not available for this platform.                                                    |
 
 None of them is checked. `ProcessException` and `FileOperationException` extend `MCAVException`, the unchecked base of
-every MCAV failure, so `catch (MCAVException exception)` catches both. Catch
-`ProcessException` (in `me.brandonli.mcav.utils.runtime`) explicitly if you want to handle a source that FFmpeg cannot
-convert. The `service` executor is yours: create it once and shut it down when your plugin stops:
+every MCAV failure, so `catch (MCAVException exception)` catches both. Catch `ProcessException` (in
+`me.brandonli.mcav.utils.runtime`) explicitly if you want to handle a source that FFmpeg cannot convert. The `service`
+executor is yours: create it once and shut it down when your plugin stops:
 
 ```java
   private static final Logger LOGGER = LoggerFactory.getLogger(MyPlugin.class);
@@ -296,8 +295,8 @@ convert. The `service` executor is yours: create it once and shut it down when y
 
 ## Network helpers
 
-`NetworkUtils` in `me.brandonli.mcav.utils.http` answers two questions: what the public address of this machine is,
-and whether a URL can still be downloaded. Every method blocks for at most a few seconds per request, so call them off
+`NetworkUtils` in `me.brandonli.mcav.utils.http` answers two questions: what the public address of this machine is, and
+whether a URL can still be downloaded. Every method blocks for at most a few seconds per request, so call them off
 threads that must stay responsive. They never throw because of network failures; they report a failure as an empty
 result or `false` instead. If the calling thread is interrupted while waiting, the method gives up and the interrupt
 flag of the thread stays set.
@@ -318,9 +317,8 @@ flag of the thread stays set.
 Both lookups return an empty `Optional` if the service cannot be reached, fails, or answers with anything but an IP
 address. The results are not cached, so every call sends a request.
 
-A typical use is telling players where to reach a server that runs next to your plugin, such as the
-[HTTP audio server](http.md) or a resource pack host, and checking that a hosted file still exists before handing out
-its URL:
+A typical use is telling players where to reach a server that runs next to your plugin, such as the [HTTP audio
+server](http.md) or a resource pack host, and checking that a hosted file still exists before handing out its URL:
 
 ```java
   final Optional<String> publicAddress = NetworkUtils.lookUpPublicAddress();

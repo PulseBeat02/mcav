@@ -29,8 +29,7 @@
  * The error threshold is a sum of absolute RGB channel errors and must not be negative; strengths are unitless factors.
  * Builders and algorithms have no explicit resource-close operation; caller-supplied pools remain caller-owned.
  *
- * <p>Reference parameters and return values are non-null unless marked {@code @Nullable};
- * nullable values and their meanings are described on the corresponding members.
+ * <p>Reference parameters and return values are non-null unless marked {@code @Nullable}.
  *
  * @since 1.0.0
  */

@@ -36,7 +36,7 @@ public final class GrayscaleFilter extends MatVideoFilter {
   private final ReusableMat gray;
 
   /**
-   * Constructs a new grayscale filter.
+   * Creates a new grayscale filter.
    *
    * @since 1.0.0
    */

@@ -63,7 +63,7 @@ public final class DirectAudioOutput implements FunctionalAudioFilter {
   private byte @Nullable [] chunk;
 
   /**
-   * Constructs a new direct audio output. Nothing is opened until {@link #start()} is called.
+   * Creates a new direct audio output. Nothing is opened until {@link #start()} is called.
    *
    * @since 1.0.0
    */

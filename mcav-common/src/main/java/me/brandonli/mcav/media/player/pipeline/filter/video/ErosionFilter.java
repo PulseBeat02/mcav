@@ -35,7 +35,7 @@ public final class ErosionFilter extends MatVideoFilter {
   private final Mat kernel;
 
   /**
-   * Constructs a new erosion filter.
+   * Creates a new erosion filter.
    *
    * @param kernelSize the size of the structuring element in pixels, which must be positive
    * @throws IllegalArgumentException if {@code kernelSize} is not positive

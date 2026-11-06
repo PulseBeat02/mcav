@@ -22,6 +22,10 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
+import me.brandonli.mcav.media.player.attachable.AudioAttachableCallback;
+import me.brandonli.mcav.media.player.attachable.DimensionAttachableCallback;
+import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
+import org.bytedeco.javacv.FrameGrabber;
 import org.openjdk.jcstress.annotations.Actor;
 import org.openjdk.jcstress.annotations.Arbiter;
 import org.openjdk.jcstress.annotations.Expect;
@@ -57,19 +61,48 @@ public class EndMarkerRace {
   private static final int MARKER_MISSING = 0;
   private static final int MARKER_QUEUED = 1;
 
+  private static final long START_MICROSECONDS = 0L;
+  private static final long AUDIO_LEAD_NANOSECONDS = 0L;
+
+  private final PlaybackSession session;
   private final BlockingQueue<String> queue;
   private final List<String> discarded;
 
   private volatile boolean keptByDecoder;
 
   /**
-   * Creates a video queue of one frame, full with a frame waiting in it.
+   * Creates a session that never starts and a video queue of one frame, full with a frame waiting in it.
    */
   public EndMarkerRace() {
+    this.session = this.createSession();
     this.queue = new ArrayBlockingQueue<>(QUEUE_CAPACITY);
     this.queue.add(QUEUED);
 
     this.discarded = Collections.synchronizedList(new ArrayList<>());
+  }
+
+  private PlaybackSession createSession() {
+    final VideoAttachableCallback videoCallback = VideoAttachableCallback.create();
+    final AudioAttachableCallback audioCallback = AudioAttachableCallback.create();
+    final DimensionAttachableCallback dimensionCallback = DimensionAttachableCallback.create();
+    return new PlaybackSession(
+      this::refuseToOpen,
+      null,
+      videoCallback,
+      audioCallback,
+      dimensionCallback,
+      (_, _) -> {},
+      START_MICROSECONDS,
+      StartState.PLAYING,
+      AUDIO_LEAD_NANOSECONDS,
+      Long.MAX_VALUE,
+      System::nanoTime
+    );
+  }
+
+  private FrameGrabber refuseToOpen() {
+    final String message = "The race never opens a grabber!";
+    throw new UnsupportedOperationException(message);
   }
 
   /**
@@ -88,7 +121,7 @@ public class EndMarkerRace {
    */
   @Actor
   public void stop() {
-    PlaybackSession.replaceWithEndMarker(this.queue, END, this.discarded::add);
+    this.session.replaceWithEndMarker(this.queue, END, this.discarded::add);
   }
 
   /**

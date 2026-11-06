@@ -216,13 +216,13 @@ final class CompressedMapResultTest {
 
   // a lock this thread still holds shows as a thread that never finishes
   private void runInAnotherThread(final Runnable work) throws InterruptedException {
-    final AtomicReference<Throwable> failure = new AtomicReference<>();
+    final AtomicReference<Throwable> recordedFailure = new AtomicReference<>();
     final Thread worker = new Thread(work, "map-result-lock-probe");
     worker.setDaemon(true);
-    worker.setUncaughtExceptionHandler((_, throwable) -> failure.set(throwable));
+    worker.setUncaughtExceptionHandler((_, failure) -> recordedFailure.set(failure));
     worker.start();
     worker.join();
-    final Throwable thrown = failure.get();
+    final Throwable thrown = recordedFailure.get();
     if (thrown != null) {
       throw new AssertionError("The work on the other thread failed!", thrown);
     }

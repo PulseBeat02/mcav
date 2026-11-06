@@ -38,9 +38,8 @@ MCAV builds, tests and runs as an ordinary user on every platform in the table: 
 never runs `sudo`, `pkexec` or `doas`, a system package manager such as `apt` or `brew`, or an installer that asks for
 elevation, and it writes only to the cache folder of the current user, the JavaCPP cache and the temporary directory.
 Every tool it fetches is unpacked into the cache and loaded from there: MCAV attaches the macOS disk image with
-`hdiutil`,
-which needs no administrator rights, and copies it into the cache, never into `/Applications`. The package manager
-commands below are an option you can run yourself, never a step MCAV takes.
+`hdiutil`, which needs no administrator rights, and copies it into the cache, never into `/Applications`. The package
+manager commands below are an option you can run yourself, never a step MCAV takes.
 
 FFmpeg and OpenCV come from the JavaCPP builds MCAV depends on, which have none for Windows on ARM64 or for FreeBSD on
 any processor. MCAV needs them to install, so on those platforms `install()` fails with an `MCAVLoadingException` caused
@@ -62,12 +61,12 @@ dependency order before VLC. The libraries need glibc 2.36 or newer; on an older
 distribution instead (`apt install vlc`, `dnf install vlc`): MCAV then uses that VLC and downloads nothing.
 [Compiling MCAV](compile.md) describes how to regenerate the pinned packages.
 
-The library bundles FFmpeg and OpenCV for every platform marked so above. The OpenCV build differs per
-platform: the Windows and macOS builds read video files themselves, the Linux build has no file backend and only
-captures from cameras. `VideoPlayer.opencv()` therefore reads files with the bundled FFmpeg where OpenCV cannot, so a
-file plays on every platform where they are bundled. OpenCV capture still depends on a working capture backend and
-device. VLC and yt-dlp are optional: when MCAV cannot install one of them, only the features that need it are
-unavailable, which you can check with [capabilities](instance.md#capabilities).
+The library bundles FFmpeg and OpenCV for every platform marked so above. The OpenCV build differs per platform: the
+Windows and macOS builds read video files themselves, the Linux build has no file backend and only captures from
+cameras. `VideoPlayer.opencv()` therefore reads files with the bundled FFmpeg where OpenCV cannot, so a file plays on
+every platform where they are bundled. OpenCV capture still depends on a working capture backend and device. VLC and
+yt-dlp are optional: when MCAV cannot install one of them, only the features that need it are unavailable, which you can
+check with [capabilities](instance.md#capabilities).
 
 The FFmpeg libraries link the sound, display and device libraries of a Linux desktop: ALSA, PulseAudio, XCB and udev.
 When the system lacks one of them, as a container or a minimal server can, MCAV installs the Debian 12 packages of
@@ -94,8 +93,8 @@ is on the `PATH`. Otherwise:
 
 ## Native access warnings
 
-Java 24 and newer print a warning the first time a library loads native code. The warning is harmless. To hide it,
-start the JVM with the following argument:
+Java 24 and newer print a warning the first time a library loads native code. The warning is harmless. To hide it, start
+the JVM with the following argument:
 
 ```bash
 --enable-native-access=ALL-UNNAMED

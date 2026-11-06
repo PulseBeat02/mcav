@@ -34,8 +34,7 @@
  * startup and release by the caller. Never release the input image or retain its native views after a callback.
  * Concrete filter docs describe any state or concurrency restrictions.
  *
- * <p>Reference parameters and return values are non-null unless marked {@code @Nullable};
- * nullable values and their meanings are described on the corresponding members.
+ * <p>Reference parameters and return values are non-null unless marked {@code @Nullable}.
  *
  * @since 1.0.0
  */

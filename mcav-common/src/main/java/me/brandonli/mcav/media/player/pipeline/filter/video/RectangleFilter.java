@@ -38,7 +38,7 @@ public final class RectangleFilter extends MatVideoFilter {
   private final Scalar color;
 
   /**
-   * Constructs a new rectangle filter.
+   * Creates a new rectangle filter.
    *
    * @param left   the x coordinate of the top left corner
    * @param top    the y coordinate of the top left corner

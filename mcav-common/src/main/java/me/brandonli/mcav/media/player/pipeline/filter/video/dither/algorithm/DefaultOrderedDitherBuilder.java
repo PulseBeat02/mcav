@@ -40,7 +40,7 @@ final class DefaultOrderedDitherBuilder implements OrderedDitherBuilder {
   }
 
   @Override
-  public OrderedDitherBuilder withPalette(final DitherPalette palette) {
+  public OrderedDitherBuilder palette(final DitherPalette palette) {
     Preconditions.checkNotNull(palette, "Palette must not be null!");
 
     this.palette = palette;
@@ -48,7 +48,7 @@ final class DefaultOrderedDitherBuilder implements OrderedDitherBuilder {
   }
 
   @Override
-  public OrderedDitherBuilder withDitherMatrix(final PixelMapper mapper) {
+  public OrderedDitherBuilder ditherMatrix(final PixelMapper mapper) {
     Preconditions.checkNotNull(mapper, "Pixel mapper must not be null!");
 
     this.mapper = mapper;

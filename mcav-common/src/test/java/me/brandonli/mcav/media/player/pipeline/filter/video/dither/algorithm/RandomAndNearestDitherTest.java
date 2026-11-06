@@ -128,8 +128,8 @@ final class RandomAndNearestDitherTest {
   @Test
   void shouldCreateTheConfiguredAlgorithmFromTheRandomBuilder() {
     final RandomDitherBuilder builder = DitherAlgorithm.random();
-    final RandomDitherBuilder weighted = builder.withWeight(RandomDither.NORMAL_WEIGHT);
-    final RandomDitherBuilder configured = weighted.withPalette(DitherTestImages.BLACK_WHITE);
+    final RandomDitherBuilder weighted = builder.weight(RandomDither.NORMAL_WEIGHT);
+    final RandomDitherBuilder configured = weighted.palette(DitherTestImages.BLACK_WHITE);
     final RandomDither built = configured.build();
     final RandomDitherBuilder defaultBuilder = DitherAlgorithm.random();
     final RandomDither defaults = defaultBuilder.build();
@@ -144,9 +144,9 @@ final class RandomAndNearestDitherTest {
   @Test
   void shouldRejectInvalidSettingsInTheRandomBuilderAndAlgorithm() {
     final RandomDitherBuilder builder = DitherAlgorithm.random();
-    assertThrows(IllegalArgumentException.class, () -> builder.withWeight(-1));
-    assertThrows(IllegalArgumentException.class, () -> builder.withWeight(TOO_HEAVY_WEIGHT));
-    assertThrows(NullPointerException.class, () -> builder.withPalette(null));
+    assertThrows(IllegalArgumentException.class, () -> builder.weight(-1));
+    assertThrows(IllegalArgumentException.class, () -> builder.weight(TOO_HEAVY_WEIGHT));
+    assertThrows(NullPointerException.class, () -> builder.palette(null));
     assertThrows(IllegalArgumentException.class, () -> new UniformNoiseDither(DitherTestImages.BLACK_WHITE, -1));
     assertThrows(IllegalArgumentException.class, () -> new UniformNoiseDither(DitherTestImages.BLACK_WHITE, TOO_HEAVY_WEIGHT));
     assertThrows(NullPointerException.class, () -> new UniformNoiseDither(DitherTestImages.BLACK_WHITE, 1, null));
@@ -163,8 +163,8 @@ final class RandomAndNearestDitherTest {
   @Test
   void shouldAcceptTheBoundaryWeights() {
     final RandomDitherBuilder builder = DitherAlgorithm.random();
-    final RandomDitherBuilder lightest = builder.withWeight(0);
-    final RandomDitherBuilder heaviest = builder.withWeight(255);
+    final RandomDitherBuilder lightest = builder.weight(0);
+    final RandomDitherBuilder heaviest = builder.weight(255);
     final UniformNoiseDither lowest = new UniformNoiseDither(DitherTestImages.BLACK_WHITE, 0);
     final UniformNoiseDither highest = new UniformNoiseDither(DitherTestImages.BLACK_WHITE, 255);
     final int lowestWeight = lowest.getWeight();
@@ -330,7 +330,7 @@ final class RandomAndNearestDitherTest {
   void shouldNearestDitherInPlaceAndThroughBuilders() {
     final int[] pixels = { 0xFF101010, 0xFFF0F0F0 };
     final NearestDitherBuilder builder = DitherAlgorithm.nearest();
-    final NearestDitherBuilder configured = builder.withPalette(DitherTestImages.BLACK_WHITE);
+    final NearestDitherBuilder configured = builder.palette(DitherTestImages.BLACK_WHITE);
     final NearestDither nearest = configured.build();
     nearest.dither(pixels, 2);
     final NearestDither defaults = DitherAlgorithm.nearestColor();
@@ -339,7 +339,7 @@ final class RandomAndNearestDitherTest {
     assertSame(builder, configured, CHAINING_MESSAGE);
     assertArrayEquals(expected, pixels);
     assertSame(DitherPalette.DEFAULT_MAP_PALETTE, defaultPalette);
-    assertThrows(NullPointerException.class, () -> builder.withPalette(null));
+    assertThrows(NullPointerException.class, () -> builder.palette(null));
   }
 
   @Test

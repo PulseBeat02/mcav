@@ -27,8 +27,7 @@
  * Ordinary dithering ignores alpha. Only the explicitly transparent lookup maps alpha zero to index zero,
  * which is transparent in the Minecraft map palette but may be an ordinary color in a custom palette.
  *
- * <p>Reference parameters and return values are non-null unless marked {@code @Nullable};
- * nullable values and their meanings are described on the corresponding members.
+ * <p>Reference parameters and return values are non-null unless marked {@code @Nullable}.
  *
  * @since 1.0.0
  */

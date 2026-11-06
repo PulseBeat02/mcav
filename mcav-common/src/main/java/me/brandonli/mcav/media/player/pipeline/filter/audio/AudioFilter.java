@@ -42,7 +42,7 @@ public interface AudioFilter extends Filter<ByteBuffer, OriginalAudioMetadata> {
    *
    * @since 1.0.0
    */
-  AudioFilter NO_OP = (_, _) -> false;
+  AudioFilter NO_OPERATION = (_, _) -> false;
 
   /**
    * The sample rate of the audio every player delivers, in hertz.

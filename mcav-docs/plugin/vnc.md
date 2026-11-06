@@ -1,14 +1,14 @@
 # VNC Desktops
 
-`/mcav vnc create` connects the Minecraft server to a VNC server and shows its desktop on a wall of maps; players
-click it by clicking the wall and type into it through chat.
+`/mcav vnc create` connects the Minecraft server to a VNC server and shows its desktop on a wall of maps; players click
+it by clicking the wall and type into it through chat.
 
 ## The allow-list
 
 The Minecraft server is the one that connects, not the players, so a player must never choose where it connects. A
-command can only name a server you listed in `vnc.allowed-hosts` of `plugins/MCAV/config.yml`, and the default
-lists none: until you list one, the command reaches nothing. Write the server's password there, never in the
-command, since the server log keeps every command; MCAV never writes it to a log, and `/mcav dump` leaves it out.
+command can only name a server you listed in `vnc.allowed-hosts` of `plugins/MCAV/config.yml`, and the default lists
+none: until you list one, the command reaches nothing. Write the server's password there, never in the command, since
+the server log keeps every command; MCAV never writes it to a log, and `/mcav dump` leaves it out.
 
 ```yaml
 vnc:
@@ -31,10 +31,10 @@ it as `[::1]:5902`. Restart the server after changing the list.
 ```
 
 The arguments are the viewers, the size the desktop is scaled to, the frames a second streamed from it (1 to 240), the
-wall's size and first map id, the dithering algorithm (`NEAREST_COLOR` keeps text sharp), and the server as
-`host:port` exactly as listed. Add `--codec mcv2` at the end for a sharper picture; a desktop's text reads far better at
-its own resolution than dithered at 128 pixels per map ([MCV2 on Maps](../bukkit/mcv2.md)). `/mcav vnc release`
-disconnects and clears the wall. A VNC desktop has no sound.
+wall's size and first map id, the dithering algorithm (`NEAREST_COLOR` keeps text sharp), and the server as `host:port`
+exactly as listed. Add `--codec mcv2` at the end for a sharper picture; a desktop's text reads far better at its own
+resolution than dithered at 128 pixels per map ([MCV2 on Maps](../bukkit/mcv2.md)). `/mcav vnc release` disconnects and
+clears the wall. A VNC desktop has no sound.
 
 ## Clicking and typing
 
@@ -56,5 +56,4 @@ All three are for operators until you grant them.
 
 MCAV checks everything a VNC server sends before its VNC client reads it: every size, length, name, color map and
 message type, and only the encodings the client supports. Instead, MCAV disconnects a server that sends anything else,
-or a size that would make
-the client allocate more than it should. Still, list only servers you control.
+or a size that would make the client allocate more than it should. Still, list only servers you control.

@@ -484,9 +484,9 @@ public final class CompressedMapResult implements DitherResultStep {
     return new ForkJoinPool(parallelism, threadFactory, exceptionHandler, false);
   }
 
-  private void logUncaughtException(final Thread thread, final Throwable throwable) {
+  private void logUncaughtException(final Thread thread, final Throwable failure) {
     final String threadName = thread.getName();
-    LOGGER.error("Map dithering thread {} failed with an uncaught exception.", threadName, throwable);
+    LOGGER.error("Map dithering thread {} failed with an uncaught exception.", threadName, failure);
   }
 
   private ForkJoinWorkerThread createDitherThread(final ForkJoinPool pool) {

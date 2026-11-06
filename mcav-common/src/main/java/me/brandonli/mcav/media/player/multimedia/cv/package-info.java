@@ -29,8 +29,7 @@
  * only after callbacks finish. Subclasses return fresh unstarted grabbers from the protected factory; the player
  * configures, starts and closes them, including cleanup after failed opening.
  *
- * <p>Reference parameters and return values are non-null unless marked {@code @Nullable};
- * nullable values and their meanings are described on the corresponding members.
+ * <p>Reference parameters and return values are non-null unless marked {@code @Nullable}.
  *
  * @since 1.0.0
  */

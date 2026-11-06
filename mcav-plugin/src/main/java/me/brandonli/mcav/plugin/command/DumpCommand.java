@@ -79,14 +79,14 @@ public final class DumpCommand implements AnnotationCommandFeature {
     sender.sendMessage(loading);
 
     final CompletableFuture<String> upload = CompletableFuture.supplyAsync(this.uploader);
-    TaskUtils.whenComplete(upload, (url, error) -> this.reportUpload(sender, url, error));
+    TaskUtils.whenComplete(upload, (url, failure) -> this.reportUpload(sender, url, failure));
   }
 
-  private void reportUpload(final CommandSender sender, final String url, final @Nullable Throwable error) {
-    if (error != null) {
-      LOGGER.error("Failed to upload the dump.", error);
-      final Component failure = Message.DUMP_FAILED.build();
-      sender.sendMessage(failure);
+  private void reportUpload(final CommandSender sender, final String url, final @Nullable Throwable failure) {
+    if (failure != null) {
+      LOGGER.error("Failed to upload the dump.", failure);
+      final Component failureMessage = Message.DUMP_FAILED.build();
+      sender.sendMessage(failureMessage);
       return;
     }
 

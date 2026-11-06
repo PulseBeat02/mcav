@@ -192,9 +192,9 @@ final class VernacularVncPlayerTest {
     return player;
   }
 
-  private void recordError(final String message, final Throwable error) {
+  private void recordError(final String message, final Throwable failure) {
     this.errorMessages.add(message);
-    this.errors.add(error);
+    this.errors.add(failure);
   }
 
   private void attach(final VncPlayer player, final VideoFilter filter) {
@@ -1371,7 +1371,7 @@ final class VernacularVncPlayerTest {
     final AtomicReference<Throwable> uncaught = new AtomicReference<>();
     final CountDownLatch died = new CountDownLatch(1);
     final Thread.UncaughtExceptionHandler previous = Thread.getDefaultUncaughtExceptionHandler();
-    Thread.setDefaultUncaughtExceptionHandler((thread, error) -> this.recordRenderThreadDeath(thread, error, uncaught, died));
+    Thread.setDefaultUncaughtExceptionHandler((thread, failure) -> this.recordRenderThreadDeath(thread, failure, uncaught, died));
     try {
       trigger.run();
       final boolean threadDied = died.await(TIMEOUT_SECONDS, TimeUnit.SECONDS);
@@ -1384,13 +1384,13 @@ final class VernacularVncPlayerTest {
 
   private void recordRenderThreadDeath(
     final Thread thread,
-    final Throwable error,
+    final Throwable failure,
     final AtomicReference<Throwable> uncaught,
     final CountDownLatch died
   ) {
     final String name = thread.getName();
     if (name.equals("mcav-vnc-render")) {
-      uncaught.set(error);
+      uncaught.set(failure);
       died.countDown();
     }
   }

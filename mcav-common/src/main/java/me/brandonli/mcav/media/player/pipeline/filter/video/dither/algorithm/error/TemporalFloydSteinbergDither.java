@@ -30,7 +30,7 @@ import me.brandonli.mcav.media.player.pipeline.filter.video.dither.palette.Dithe
 public final class TemporalFloydSteinbergDither extends TemporalDitherAlgorithm {
 
   /**
-   * Constructs a new algorithm for the Minecraft map palette with default settings.
+   * Creates a new algorithm for the Minecraft map palette with default settings.
    *
    * @since 1.0.0
    */
@@ -39,7 +39,7 @@ public final class TemporalFloydSteinbergDither extends TemporalDitherAlgorithm 
   }
 
   /**
-   * Constructs a new algorithm with default settings.
+   * Creates a new algorithm with default settings.
    *
    * @param palette the palette to reduce images to
    * @throws NullPointerException if {@code palette} is null
@@ -50,7 +50,7 @@ public final class TemporalFloydSteinbergDither extends TemporalDitherAlgorithm 
   }
 
   /**
-   * Constructs a new algorithm.
+   * Creates a new algorithm.
    *
    * @param palette           the palette to reduce images to
    * @param temporalThreshold how far a pixel may drift per channel, from 0 to 255, before its color is

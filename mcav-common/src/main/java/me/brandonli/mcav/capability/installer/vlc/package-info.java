@@ -28,8 +28,7 @@
  * MCAV's background capability preparation. Installed files persist for reuse, and native load state is shared;
  * callers still own and release each media player they create.
  *
- * <p>Reference parameters and return values are non-null unless marked {@code @Nullable};
- * nullable values and their meanings are described on the corresponding members.
+ * <p>Reference parameters and return values are non-null unless marked {@code @Nullable}.
  *
  * @since 1.0.0
  */

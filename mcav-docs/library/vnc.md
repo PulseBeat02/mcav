@@ -54,13 +54,11 @@ The frame rate is a request; the server sends fewer frames when the screen does 
 ```
 
 `start` throws a `VncException` when it cannot reach the server or the server rejects the connection. Pausing keeps the
-connection open and only stops
-delivering frames.
+connection open and only stops delivering frames.
 
 To send input, use `moveMouse`, `sendMouseEvent`, and `sendKeyEvent`. Coordinates are in the coordinate system of the
 streamed frames and the player translates them to the remote screen. `sendKeyEvent` presses a key when given the name of
-an X11
-keysym, such as `Return`, `Escape`, or `Left`, and types any other text character by character.
+an X11 keysym, such as `Return`, `Escape`, or `Left`, and types any other text character by character.
 
 | `MouseClick` | Effect on the server                  |
 |--------------|---------------------------------------|

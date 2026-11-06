@@ -88,7 +88,7 @@ public final class MultiplexerInputExample {
 
       final VideoPlayerMultiplexer player = VideoPlayer.ffmpeg();
       resources.add(player::release);
-      player.setExceptionHandler((context, throwable) -> LOGGER.error("Playback in {} failed.", context, throwable));
+      player.setExceptionHandler((context, failure) -> LOGGER.error("Playback in {} failed.", context, failure));
 
       final VideoAttachableCallback videoCallback = player.getVideoAttachableCallback();
       videoCallback.attach(videoPipeline);

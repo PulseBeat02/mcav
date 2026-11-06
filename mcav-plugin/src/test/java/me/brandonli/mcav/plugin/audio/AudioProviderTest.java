@@ -454,7 +454,7 @@ final class AudioProviderTest {
   @Test
   void shouldPlayNoAudioForTheNoneOutput() {
     final AudioFilter filter = this.provider.constructFilter(AudioArgument.NONE, this.dump, this.players);
-    assertSame(AudioFilter.NO_OP, filter);
+    assertSame(AudioFilter.NO_OPERATION, filter);
   }
 
   @Test
@@ -567,7 +567,7 @@ final class AudioProviderTest {
     assertThrows(NullPointerException.class, () -> this.provider.constructFilter(AudioArgument.NONE, this.dump, this.players, null));
 
     final AudioFilter constructFilter = this.provider.constructFilter(AudioArgument.NONE, this.dump, this.players, machine);
-    assertSame(AudioFilter.NO_OP, constructFilter);
+    assertSame(AudioFilter.NO_OPERATION, constructFilter);
   }
 
   @Test

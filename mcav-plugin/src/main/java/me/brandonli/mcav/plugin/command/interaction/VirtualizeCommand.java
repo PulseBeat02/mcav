@@ -420,20 +420,20 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
    * logged, not shown.
    *
    * @param outcome whether the virtual machine started
-   * @param error   why the virtual machine failed to start, if known
+   * @param failure why the virtual machine failed to start, if known
    * @return the message
    * @throws NullPointerException if {@code outcome} is null
    * @since 1.0.0
    */
   @Override
-  protected Component createStartMessage(final StartOutcome outcome, final @Nullable Throwable error) {
+  protected Component createStartMessage(final StartOutcome outcome, final @Nullable Throwable failure) {
     Preconditions.checkNotNull(outcome, "Outcome must not be null!");
 
     if (outcome == StartOutcome.STARTED) {
       return Message.VM_CREATE.build();
     }
 
-    Throwable cause = error;
+    Throwable cause = failure;
     if (cause instanceof CompletionException) {
       cause = cause.getCause();
     }

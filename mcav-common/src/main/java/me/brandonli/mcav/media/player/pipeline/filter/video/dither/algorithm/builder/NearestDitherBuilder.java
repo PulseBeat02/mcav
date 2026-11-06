@@ -46,5 +46,5 @@ public interface NearestDitherBuilder extends DitherAlgorithmBuilder {
    * @since 1.0.0
    */
   @Override
-  NearestDitherBuilder withPalette(final DitherPalette palette);
+  NearestDitherBuilder palette(final DitherPalette palette);
 }

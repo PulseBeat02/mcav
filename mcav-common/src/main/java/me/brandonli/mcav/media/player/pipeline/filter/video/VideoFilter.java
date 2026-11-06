@@ -57,7 +57,7 @@ public interface VideoFilter extends Filter<ImageBuffer, OriginalVideoMetadata> 
    *
    * @since 1.0.0
    */
-  VideoFilter NO_OP = (_, _) -> false;
+  VideoFilter NO_OPERATION = (_, _) -> false;
 
   /**
    * Applies the filter to a frame without metadata about the original video, passing

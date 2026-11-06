@@ -49,7 +49,7 @@ public final class UniformNoiseDither extends AbstractDitherAlgorithm implements
   private final ThreadLocal<@Nullable RandomNumberProvider> providers;
 
   /**
-   * Constructs a new random dithering algorithm with a fast random number generator per thread, which can be shared
+   * Creates a new random dithering algorithm with a fast random number generator per thread, which can be shared
    * between threads.
    *
    * @param palette the palette to reduce images to
@@ -67,7 +67,7 @@ public final class UniformNoiseDither extends AbstractDitherAlgorithm implements
   }
 
   /**
-   * Constructs a new random dithering algorithm that draws its noise from one provider. The algorithm is only
+   * Creates a new random dithering algorithm that draws its noise from one provider. The algorithm is only
    * thread-safe if the provider is.
    *
    * @param palette the palette to reduce images to

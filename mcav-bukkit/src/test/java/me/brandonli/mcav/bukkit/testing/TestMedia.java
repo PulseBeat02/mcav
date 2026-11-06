@@ -107,7 +107,7 @@ public final class TestMedia {
   }
 
   private static List<String> createCommand(final String arguments, final Path output) {
-    final Path executable = GeneratedMedia.ffmpegPath();
+    final Path executable = GeneratedMedia.getFfmpegPath();
     final String executablePath = executable.toString();
     final String[] argumentArray = arguments.split(ARGUMENT_SEPARATOR);
     final List<String> argumentList = List.of(argumentArray);

@@ -87,8 +87,8 @@ final class OrderedDitherTest {
       PixelMapper.NORMAL_STRENGTH
     );
     final OrderedDitherBuilder builder = DitherAlgorithm.ordered();
-    final OrderedDitherBuilder blackWhite = builder.withPalette(DitherTestImages.BLACK_WHITE);
-    final OrderedDitherBuilder configured = blackWhite.withDitherMatrix(mapper);
+    final OrderedDitherBuilder blackWhite = builder.palette(DitherTestImages.BLACK_WHITE);
+    final OrderedDitherBuilder configured = blackWhite.ditherMatrix(mapper);
     return configured.build();
   }
 
@@ -210,7 +210,7 @@ final class OrderedDitherTest {
   @Test
   void shouldUseA2x2MatrixInTheDefaultBuilder() {
     final OrderedDitherBuilder builder = DitherAlgorithm.ordered();
-    final OrderedDitherBuilder blackWhite = builder.withPalette(DitherTestImages.BLACK_WHITE);
+    final OrderedDitherBuilder blackWhite = builder.palette(DitherTestImages.BLACK_WHITE);
     final BayerDither dither = blackWhite.build();
     final byte[] indices = ditherMiddleGray(dither, 8, 8);
     final byte[] expected = new byte[64];
@@ -236,18 +236,18 @@ final class OrderedDitherTest {
   @Test
   void shouldReturnTheBuilderFromBuilderMethodsForChaining() {
     final OrderedDitherBuilder builder = DitherAlgorithm.ordered();
-    final PixelMapper mapper = PixelMapper.ofPixelMapper(BayerDither.NORMAL_8X8, PixelMapper.MINIMUM_STRENGTH);
-    final OrderedDitherBuilder withPalette = builder.withPalette(DitherTestImages.BLACK_WHITE);
-    final OrderedDitherBuilder withMatrix = builder.withDitherMatrix(mapper);
-    assertSame(builder, withPalette);
-    assertSame(builder, withMatrix);
+    final PixelMapper mapper = PixelMapper.ofPixelMapper(BayerDither.NORMAL_8X8, PixelMapper.LIGHT_STRENGTH);
+    final OrderedDitherBuilder returnedByPalette = builder.palette(DitherTestImages.BLACK_WHITE);
+    final OrderedDitherBuilder returnedByDitherMatrix = builder.ditherMatrix(mapper);
+    assertSame(builder, returnedByPalette);
+    assertSame(builder, returnedByDitherMatrix);
   }
 
   @Test
   void shouldRejectMissingArgumentsInTheBuilder() {
     final OrderedDitherBuilder builder = DitherAlgorithm.ordered();
-    assertThrows(NullPointerException.class, () -> builder.withPalette(null));
-    assertThrows(NullPointerException.class, () -> builder.withDitherMatrix(null));
+    assertThrows(NullPointerException.class, () -> builder.palette(null));
+    assertThrows(NullPointerException.class, () -> builder.ditherMatrix(null));
     assertThrows(NullPointerException.class, () -> new OrderedDither(DitherTestImages.BLACK_WHITE, null));
   }
 

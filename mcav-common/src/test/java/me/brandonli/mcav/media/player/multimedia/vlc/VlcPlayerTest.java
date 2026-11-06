@@ -130,9 +130,9 @@ final class VlcPlayerTest {
     this.player.setExceptionHandler(this::recordFailure);
   }
 
-  private void recordFailure(final String message, final Throwable error) {
+  private void recordFailure(final String message, final Throwable failure) {
     this.messages.add(message);
-    this.errors.add(error);
+    this.errors.add(failure);
   }
 
   @AfterEach
@@ -317,7 +317,7 @@ final class VlcPlayerTest {
   void shouldStartWhileVlcIsStillOpeningAndReportLaterErrors() {
     final VlcPlayer slow = this.vlc.newPlayer(100L);
     final List<Throwable> slowErrors = Collections.synchronizedList(new ArrayList<>());
-    slow.setExceptionHandler((_, error) -> slowErrors.add(error));
+    slow.setExceptionHandler((_, failure) -> slowErrors.add(failure));
     this.vlc.queueOutcomes(MockVlc.Outcome.SILENT);
     try {
       final long start = System.nanoTime();

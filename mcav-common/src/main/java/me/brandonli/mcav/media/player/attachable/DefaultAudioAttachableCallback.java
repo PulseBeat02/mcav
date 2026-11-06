@@ -29,6 +29,6 @@ import me.brandonli.mcav.media.player.pipeline.step.AudioPipelineStep;
 public final class DefaultAudioAttachableCallback extends AbstractAttachableCallback<AudioPipelineStep> implements AudioAttachableCallback {
 
   DefaultAudioAttachableCallback() {
-    super(AudioPipelineStep.NO_OP);
+    super(AudioPipelineStep.NO_OPERATION);
   }
 }

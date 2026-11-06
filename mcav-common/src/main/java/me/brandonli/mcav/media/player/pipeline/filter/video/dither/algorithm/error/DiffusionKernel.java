@@ -174,7 +174,7 @@ public final class DiffusionKernel {
   private final int maximumOffsetY;
 
   /**
-   * Constructs a new kernel.
+   * Creates a new kernel.
    *
    * @param name    the name of the algorithm the kernel belongs to
    * @param divisor the strictly positive divisor of each weight

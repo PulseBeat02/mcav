@@ -29,8 +29,7 @@
  * loads bundled colors once and returns copied color arrays. Palette construction and loading acquire no
  * caller-managed resource, and palettes have no close operation.
  *
- * <p>Reference parameters and return values are non-null unless marked {@code @Nullable};
- * nullable values and their meanings are described on the corresponding members.
+ * <p>Reference parameters and return values are non-null unless marked {@code @Nullable}.
  *
  * @since 1.0.0
  */

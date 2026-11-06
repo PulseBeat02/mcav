@@ -37,7 +37,7 @@ final class DefaultVideoPipelineStepBuilder
 
   @Override
   VideoPipelineStep createEmptyStep() {
-    return VideoPipelineStep.NO_OP;
+    return VideoPipelineStep.NO_OPERATION;
   }
 
   @Override

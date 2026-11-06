@@ -1,8 +1,8 @@
 # Image Manipulation
 
-MCAV represents images with `ImageBuffer`, the same type the video pipeline passes to filters, so every video filter
-can also be applied to a single image. Images are backed by [OpenCV](https://opencv.org/) matrices, which makes the
-filters fast.
+MCAV represents images with `ImageBuffer`, the same type the video pipeline passes to filters, so every video filter can
+also be applied to a single image. Images are backed by [OpenCV](https://opencv.org/) matrices, which makes the filters
+fast.
 
 ```{warning}
 An `ImageBuffer` holds native memory. Release it with `release()` or a try-with-resources block when you are done,
@@ -25,12 +25,12 @@ otherwise the memory is only freed when the garbage collector finds the object.
   }
 ```
 
-Images can also be loaded from files and URIs with `ImageBuffer.path(FileSource)` and `ImageBuffer.uri(UriSource)`,
-or created from raw pixels with `ImageBuffer.buffer(int[], width, height)`.
+Images can also be loaded from files and URIs with `ImageBuffer.path(FileSource)` and `ImageBuffer.uri(UriSource)`, or
+created from raw pixels with `ImageBuffer.buffer(int[], width, height)`.
 
 OpenCV allocates the whole picture as soon as it has read a file's header, so a small file can make it take gigabytes.
-`ImageBuffer.bytes`, `path` and `uri` therefore read the header first and refuse, with an `IllegalArgumentException`,
-an image that declares more than 67,108,864 pixels (8192 by 8192). The system property `mcav.image.maximum_pixels` sets
+`ImageBuffer.bytes`, `path` and `uri` therefore read the header first and refuse, with an `IllegalArgumentException`, an
+image that declares more than 67,108,864 pixels (8192 by 8192). The system property `mcav.image.maximum_pixels` sets
 another limit, and `0` turns the check off. The header is read for the formats OpenCV decodes: BMP, GIF, JPEG, PNG,
 WebP, TIFF, Radiance HDR, Sun raster and PBM, PGM, PPM, PAM and PFM. JPEG 2000 and OpenEXR, which OpenCV turns off
 unless an environment variable turns them on, are refused while the check is on.
@@ -45,10 +45,10 @@ unless an environment variable turns them on, are refused while the check is on.
 | `copyPixels()`        | A new `int[]` that belongs to you: modify and keep it freely.                                    |
 | `getReadOnlyPixels()` | A read-only `IntBuffer` view of the shared array, without copying. Writes throw a `ReadOnlyBufferException`. |
 
-`getPixels()` is meant for code that reads every frame, where copying would be too slow. Every caller receives the
-same array until the image changes, so writing into it does not change the image but silently changes what every later
-caller sees, including every later loop of a `RepeatingFrameSource`. To change pixels, modify a copy and write it back
-with `updateArgb(int[], width, height)`:
+`getPixels()` is meant for code that reads every frame, where copying would be too slow. Every caller receives the same
+array until the image changes, so writing into it does not change the image but silently changes what every later caller
+sees, including every later loop of a `RepeatingFrameSource`. To change pixels, modify a copy and write it back with
+`updateArgb(int[], width, height)`:
 
 ```java
   private static final Logger LOGGER = LoggerFactory.getLogger(MyPlugin.class);
@@ -79,8 +79,8 @@ with `updateArgb(int[], width, height)`:
 
 ## Loading GIFs
 
-`DynamicImageBuffer` decodes every frame of an animated GIF from a file or URI and reports its frame rate. Play it
-with the [image player](player.md#image-players).
+`DynamicImageBuffer` decodes every frame of an animated GIF from a file or URI and reports its frame rate. Play it with
+the [image player](player.md#image-players).
 
 ```java
   private static final Logger LOGGER = LoggerFactory.getLogger(MyPlugin.class);

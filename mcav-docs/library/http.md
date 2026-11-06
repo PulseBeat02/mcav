@@ -10,8 +10,8 @@ dependencies {
 }
 ```
 
-Install the `HttpModule` together with the library. The module itself holds no state; every server is created,
-started, and stopped by your code.
+Install the `HttpModule` together with the library. The module itself holds no state; every server is created, started,
+and stopped by your code.
 
 ```java
   final MCAVApi api = MCAV.api();
@@ -77,8 +77,8 @@ brackets in the URL, as URLs require. `getFullUrl()` returns the URL of the page
 
 ## Using the builder
 
-`HttpResult.builder()` returns an `HttpResultBuilder`, which configures a server setting by setting. Every setting has
-a default, so only set what you need:
+`HttpResult.builder()` returns an `HttpResultBuilder`, which configures a server setting by setting. Every setting has a
+default, so only set what you need:
 
 | Method                              | Default                          | Setting                                                  |
 |-------------------------------------|----------------------------------|----------------------------------------------------------|
@@ -107,8 +107,8 @@ servers built before. Builders are not thread-safe.
 
 ## Endpoints
 
-The page served to browsers opens a WebSocket at `/audio`, which streams the audio as 16-bit little-endian stereo PCM
-at 48 kHz, exactly the format of the audio pipeline, and shows the media information it reads from `/media`.
+The page served to browsers opens a WebSocket at `/audio`, which streams the audio as 16-bit little-endian stereo PCM at
+48 kHz, exactly the format of the audio pipeline, and shows the media information it reads from `/media`.
 
 | Endpoint | Content                                                                              |
 |----------|--------------------------------------------------------------------------------------|

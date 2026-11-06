@@ -35,11 +35,11 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 public interface AudioPipelineStep extends PipelineStep<ByteBuffer, OriginalAudioMetadata, AudioPipelineStep> {
   /**
    * A pipeline that does nothing, attached while no pipeline is set. It is the only audio step whose
-   * {@link #isNoOp()} returns true.
+   * {@link #isNoOperation()} returns true.
    *
    * @since 1.0.0
    */
-  AudioPipelineStep NO_OP = new NoOperationStep();
+  AudioPipelineStep NO_OPERATION = new NoOperationStep();
 
   /**
    * Creates a step that applies a filter and continues with another step.
@@ -115,7 +115,7 @@ public interface AudioPipelineStep extends PipelineStep<ByteBuffer, OriginalAudi
   }
 
   /**
-   * The step behind {@link #NO_OP}. Its constructor is private, so {@link #NO_OP} is its only instance, and the class
+   * The step behind {@link #NO_OPERATION}. Its constructor is private, so {@link #NO_OPERATION} is its only instance, and the class
    * can only be initialized together with this interface, which rules out a deadlock between the initialization of the
    * two classes.
    *
@@ -153,14 +153,14 @@ public interface AudioPipelineStep extends PipelineStep<ByteBuffer, OriginalAudi
     }
 
     /**
-     * Returns {@link AudioFilter#NO_OP}, the filter of the empty audio pipeline.
+     * Returns {@link AudioFilter#NO_OPERATION}, the filter of the empty audio pipeline.
      *
-     * @return {@link AudioFilter#NO_OP}
+     * @return {@link AudioFilter#NO_OPERATION}
      * @since 1.0.0
      */
     @Override
     public AudioFilter getFilter() {
-      return AudioFilter.NO_OP;
+      return AudioFilter.NO_OPERATION;
     }
 
     /**
@@ -170,7 +170,7 @@ public interface AudioPipelineStep extends PipelineStep<ByteBuffer, OriginalAudi
      * @since 1.0.0
      */
     @Override
-    public boolean isNoOp() {
+    public boolean isNoOperation() {
       return true;
     }
   }

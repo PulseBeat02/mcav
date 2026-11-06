@@ -27,8 +27,7 @@
  * Sharing a chain or building several chains from the same builder requires filters that support concurrent use.
  * An empty builder returns the corresponding no-op step.
  *
- * <p>Reference parameters and return values are non-null unless marked {@code @Nullable};
- * nullable values and their meanings are described on the corresponding members.
+ * <p>Reference parameters and return values are non-null unless marked {@code @Nullable}.
  *
  * @since 1.0.0
  */

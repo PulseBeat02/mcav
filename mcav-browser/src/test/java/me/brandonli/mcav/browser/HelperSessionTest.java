@@ -435,7 +435,7 @@ class HelperSessionTest {
       public void onAudio(final byte[] samples) {}
 
       @Override
-      public void onEnded(final String reason, final Throwable cause) {}
+      public void onEnded(final String reason, final Throwable failure) {}
     };
     final BrowserSource source = BrowserSource.uri(URI.create(PAGE_URL_TEMPLATE.formatted(PAGE)), 4, 3, 1);
     final HelperSession session = HelperSession.open(
@@ -1054,7 +1054,7 @@ class HelperSessionTest {
       public void onAudio(final byte[] samples) {}
 
       @Override
-      public void onEnded(final String reason, final Throwable cause) {
+      public void onEnded(final String reason, final Throwable failure) {
         final String message = "Because of \"%s\", the listener failed as the test asked!".formatted(reason);
         throw new IllegalStateException(message);
       }
@@ -1225,7 +1225,7 @@ class HelperSessionTest {
       public void onAudio(final byte[] samples) {}
 
       @Override
-      public void onEnded(final String reason, final Throwable cause) {
+      public void onEnded(final String reason, final Throwable failure) {
         self.get().close();
         closed.countDown();
       }
@@ -1513,9 +1513,9 @@ class HelperSessionTest {
     }
 
     @Override
-    public void onEnded(final String reason, final Throwable cause) {
+    public void onEnded(final String reason, final Throwable failure) {
       this.ended.add(reason);
-      this.failures.add(cause);
+      this.failures.add(failure);
     }
   }
 
@@ -1557,6 +1557,6 @@ class HelperSessionTest {
     }
 
     @Override
-    public void onEnded(final String reason, final Throwable cause) {}
+    public void onEnded(final String reason, final Throwable failure) {}
   }
 }

@@ -96,7 +96,7 @@ public final class KeyUtils {
       return index + 1;
     }
 
-    final char character = code.getKeyChar();
+    final char character = code.getKeyCharacter();
     output.append(character);
     return close + 1;
   }

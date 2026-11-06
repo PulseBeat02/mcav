@@ -28,8 +28,7 @@
  * transformation or release. Invalidate the ARGB cache after writing through a native view. Shared ARGB arrays
  * are read-only by contract; use {@link me.brandonli.mcav.media.image.ImageBuffer#copyPixels()} for an owned copy.
  *
- * <p>Reference parameters and return values are non-null unless marked {@code @Nullable};
- * nullable values and their meanings are described on the corresponding members.
+ * <p>Reference parameters and return values are non-null unless marked {@code @Nullable}.
  *
  * @since 1.0.0
  */

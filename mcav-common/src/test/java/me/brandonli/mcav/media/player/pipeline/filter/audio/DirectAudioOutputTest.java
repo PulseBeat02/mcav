@@ -327,11 +327,11 @@ final class DirectAudioOutputTest {
   }
 
   @Test
-  void shouldLeaveTheSamplesUntouchedWithANoOpFilter() {
+  void shouldLeaveTheSamplesUntouchedWithANoOperationFilter() {
     final byte[] original = { 4, 7, 9, 12 };
     final ByteBuffer samples = ByteBuffer.wrap(original.clone());
     samples.position(1).limit(3).mark();
-    final boolean changed = AudioFilter.NO_OP.applyFilter(samples, METADATA);
+    final boolean changed = AudioFilter.NO_OPERATION.applyFilter(samples, METADATA);
     assertFalse(changed);
 
     final byte[] sampleBytes = samples.array();

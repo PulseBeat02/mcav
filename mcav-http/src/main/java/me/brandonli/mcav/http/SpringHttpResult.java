@@ -17,6 +17,8 @@
  */
 package me.brandonli.mcav.http;
 
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.util.concurrent.Uninterruptibles;
@@ -30,7 +32,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import me.brandonli.mcav.json.ytdlp.format.UrlParseDump;
 import me.brandonli.mcav.media.player.metadata.OriginalAudioMetadata;
@@ -413,7 +414,7 @@ public final class SpringHttpResult implements HttpResult {
     final ConfigurableApplicationContext current = this.context;
     if (current instanceof final WebServerApplicationContext web) {
       final WebServer webServer = web.getWebServer();
-      final WebServer server = Objects.requireNonNull(webServer, "A running server must have a web server!");
+      final WebServer server = requireNonNull(webServer, "A running server must have a web server!");
       return server.getPort();
     }
 

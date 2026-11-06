@@ -45,7 +45,7 @@ public final class ColorMapNearestDither extends AbstractDitherAlgorithm impleme
   private static final int TASKS_PER_THREAD = 2;
 
   /**
-   * Constructs a new nearest color algorithm.
+   * Creates a new nearest color algorithm.
    *
    * @param palette the palette to reduce images to
    * @throws NullPointerException if {@code palette} is null

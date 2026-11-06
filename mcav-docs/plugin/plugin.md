@@ -7,8 +7,8 @@ sandbox plugin that demonstrates what the MCAV library can do.
 
 The MCAV plugin is a Paper plugin that displays images, videos, web pages, virtual machines and VNC desktops in
 Minecraft, with their sound. It is designed to be a fun and experimental plugin that showcases the capabilities of the
-MCAV library. The [tutorial](tutorial.md) sets it up step by step; [videos and images](video.md),
-[web browsers](browser.md), [virtual machines](vm.md), [VNC desktops](vnc.md) and [MCV2](../bukkit/mcv2.md) explain each
+MCAV library. The [tutorial](tutorial.md) sets it up step by step; [videos and images](video.md), [web
+browsers](browser.md), [virtual machines](vm.md), [VNC desktops](vnc.md) and [MCV2](../bukkit/mcv2.md) explain each
 feature as a server owner uses it.
 
 ## Installing the plugin
@@ -20,8 +20,8 @@ The MCAV plugin works on **Paper** servers only, not on **Spigot** or **Bukkit**
 ```
 
 1) Download `mcav-plugin-1.0.0-v26.3-all.jar` from the newest release on the GitHub releases page
-   [here](https://github.com/PulseBeat02/mcav/releases), or [build the plugin from source](../library/compile.md);
-   the jar is `mcav-plugin/build/libs/mcav-plugin-1.0.0-v26.3-all.jar`.
+   [here](https://github.com/PulseBeat02/mcav/releases), or [build the plugin from source](../library/compile.md); the
+   jar is `mcav-plugin/build/libs/mcav-plugin-1.0.0-v26.3-all.jar`.
 2) Place the JAR file into the `plugins` folder of your server.
 3) Start the server.
 
@@ -40,12 +40,11 @@ plugin yourself, the list of platforms is the `javacppPlatform` property in `mca
 
 The server finishes starting without waiting for VLC and yt-dlp. When the server has no VLC, the plugin downloads it in
 the background into the MCAV cache folder of the user running the server (`~/.mcav/cache`), without `sudo`; yt-dlp is
-downloaded the same way. Players can join and use every other command, including the video commands with the
-`FFMPEG` player, in the meantime. Until VLC is ready, video commands with the `VLC` player answer
-"VLC is still being prepared, try again shortly or use FFMPEG", and commands given a web page such as a YouTube video
-answer that yt-dlp is still being prepared. The console logs `VLC ready in <n> ms.` once VLC can be used, or a warning
-if it cannot be installed, after which VLC commands answer that VLC is not supported. Later starts find the downloaded
-copies at once.
+downloaded the same way. Players can join and use every other command, including the video commands with the `FFMPEG`
+player, in the meantime. Until VLC is ready, video commands with the `VLC` player answer "VLC is still being prepared,
+try again shortly or use FFMPEG", and commands given a web page such as a YouTube video answer that yt-dlp is still
+being prepared. The console logs `VLC ready in <n> ms.` once VLC can be used, or a warning if it cannot be installed,
+after which VLC commands answer that VLC is not supported. Later starts find the downloaded copies at once.
 
 If the server does not run Minecraft 26.3, the plugin logs one error line and disables itself, for example:
 

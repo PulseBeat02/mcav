@@ -45,7 +45,7 @@ public abstract class ErrorDiffusionDither extends AbstractDitherAlgorithm {
   private final DiffusionKernel kernel;
 
   /**
-   * Constructs a new error diffusion algorithm.
+   * Creates a new error diffusion algorithm.
    *
    * @param palette the palette to reduce images to
    * @param kernel  the kernel that describes how errors are spread

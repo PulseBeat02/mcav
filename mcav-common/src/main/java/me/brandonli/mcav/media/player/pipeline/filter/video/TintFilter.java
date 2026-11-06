@@ -41,7 +41,7 @@ public final class TintFilter extends MatVideoFilter {
   private final ReusableMat tint;
 
   /**
-   * Constructs a new tint filter.
+   * Creates a new tint filter.
    *
    * @param color    the blue, green, and red components of the tint color, normally 0 to 255; the non-null array is copied
    * @param strength how strongly the color is applied, from 0 for no tint to 1 for a solid color

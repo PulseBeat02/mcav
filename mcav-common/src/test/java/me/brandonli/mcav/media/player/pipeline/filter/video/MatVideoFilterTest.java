@@ -124,9 +124,9 @@ final class MatVideoFilterTest {
       final ByteBuffer before = ByteBuffer.allocate(image.getData().remaining()).put(image.getData()).flip();
       final boolean changed = recorder.applyFilter(image);
       final OriginalVideoMetadata metadata = received.get();
-      final boolean noOp = VideoFilter.NO_OP.applyFilter(image);
+      final boolean noOperation = VideoFilter.NO_OPERATION.applyFilter(image);
       assertTrue(changed);
-      assertFalse(noOp, "the no-op filter leaves every frame untouched");
+      assertFalse(noOperation, "the no-op filter leaves every frame untouched");
       assertSame(OriginalVideoMetadata.EMPTY, metadata);
 
       final ByteBuffer data = image.getData();
@@ -150,7 +150,7 @@ final class MatVideoFilterTest {
   void shouldRejectMissingImages() {
     final InvertFilter filter = new InvertFilter();
     assertThrows(NullPointerException.class, () -> filter.applyFilter(null, OriginalVideoMetadata.EMPTY));
-    assertThrows(NullPointerException.class, () -> VideoFilter.NO_OP.applyFilter(null));
+    assertThrows(NullPointerException.class, () -> VideoFilter.NO_OPERATION.applyFilter(null));
   }
 
   // Copies the pixels written into a foreign image during the call, as their buffer belongs to a temporary image released afterward.

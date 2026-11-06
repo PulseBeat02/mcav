@@ -34,7 +34,7 @@ public final class ColorMapFilter extends MatVideoFilter {
   private final int colorMap;
 
   /**
-   * Constructs a new color map filter.
+   * Creates a new color map filter.
    *
    * @param colorMap the color map, one of the {@code COLORMAP_} constants of {@link opencv_imgproc}
    * @since 1.0.0

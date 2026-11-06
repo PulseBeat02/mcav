@@ -383,7 +383,7 @@ public final class DelayedAudioOutput implements AutoCloseable {
   private void sendToPipeline(final ByteBuffer samples) {
     try {
       final AudioPipelineStep step = this.pipeline.get();
-      if (!step.isNoOp()) {
+      if (!step.isNoOperation()) {
         step.processAll(samples, METADATA);
       }
     } catch (final RuntimeException | Error exception) {

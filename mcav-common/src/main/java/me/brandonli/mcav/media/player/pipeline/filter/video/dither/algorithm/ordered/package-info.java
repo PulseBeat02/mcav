@@ -30,8 +30,7 @@
  * closed by the algorithm. See {@link me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.ordered.BayerDither}
  * for patterns or generate one with its power-of-two factory.
  *
- * <p>Reference parameters and return values are non-null unless marked {@code @Nullable};
- * nullable values and their meanings are described on the corresponding members.
+ * <p>Reference parameters and return values are non-null unless marked {@code @Nullable}.
  *
  * @since 1.0.0
  */

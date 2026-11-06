@@ -47,7 +47,7 @@ public final class TextFilter extends MatVideoFilter {
   private final Scalar color;
 
   /**
-   * Constructs a new text filter.
+   * Creates a new text filter.
    *
    * @param text     the text to draw
    * @param left     the x coordinate of the left end of the text baseline

@@ -50,7 +50,7 @@ public final class XoroshiroRandomProvider implements RandomNumberProvider {
   private long state1;
 
   /**
-   * Constructs a new provider with a seed that differs for every instance.
+   * Creates a new provider with a seed that differs for every instance.
    *
    * @since 1.0.0
    */
@@ -61,7 +61,7 @@ public final class XoroshiroRandomProvider implements RandomNumberProvider {
   }
 
   /**
-   * Constructs a new provider with a fixed seed, which produces the same sequence every time.
+   * Creates a new provider with a fixed seed, which produces the same sequence every time.
    *
    * @param seed the seed
    * @since 1.0.0

@@ -115,7 +115,7 @@ final class PlaybackSessionTest {
   private final DimensionAttachableCallback dimensionCallback = DimensionAttachableCallback.create();
   private final List<String> reports = Collections.synchronizedList(new ArrayList<>());
 
-  private void report(final String message, final Throwable cause) {
+  private void report(final String message, final Throwable failure) {
     this.reports.add(message);
   }
 
@@ -740,7 +740,7 @@ final class PlaybackSessionTest {
     final VideoFilter counter = (_, _) -> frames.incrementAndGet() > 0;
     final VideoPipelineStep counting = VideoPipelineStep.of(counter);
     final VideoAttachableCallback detaching = mock(VideoAttachableCallback.class);
-    when(detaching.retrieve()).thenReturn(counting).thenReturn(VideoPipelineStep.NO_OP);
+    when(detaching.retrieve()).thenReturn(counting).thenReturn(VideoPipelineStep.NO_OPERATION);
     final ScriptedFrameGrabber grabber = videoAt(FRAME_MICROSECONDS);
     final PlaybackSession session = this.sessionWithVideoCallback(grabber, detaching);
     final Field poolField = PlaybackSession.class.getDeclaredField("imagePool");
@@ -1252,7 +1252,8 @@ final class PlaybackSessionTest {
     final RefillingQueue queue = new RefillingQueue();
     queue.add("frame");
     final List<String> discarded = new ArrayList<>();
-    PlaybackSession.replaceWithEndMarker(queue, "end", discarded::add);
+    final PlaybackSession session = this.unstartedSession();
+    session.replaceWithEndMarker(queue, "end", discarded::add);
 
     final List<String> remaining = new ArrayList<>(queue);
     final List<String> expectedRemaining = List.of("end");

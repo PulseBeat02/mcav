@@ -29,6 +29,6 @@ import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 public final class DefaultVideoAttachableCallback extends AbstractAttachableCallback<VideoPipelineStep> implements VideoAttachableCallback {
 
   DefaultVideoAttachableCallback() {
-    super(VideoPipelineStep.NO_OP);
+    super(VideoPipelineStep.NO_OPERATION);
   }
 }

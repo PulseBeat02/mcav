@@ -190,7 +190,7 @@ final class AbstractVideoCommandTest {
     when(this.manager.startNative(any(BooleanSupplier.class))).thenAnswer(this::runStart);
     when(this.manager.isVlcSupported()).thenReturn(true);
     when(this.manager.getVolume()).thenReturn(this.volume);
-    when(this.provider.constructFilter(any(), any(), any())).thenReturn(AudioFilter.NO_OP);
+    when(this.provider.constructFilter(any(), any(), any())).thenReturn(AudioFilter.NO_OPERATION);
     this.command = new RecordingCommand(plugin);
 
     this.sender = mock(CommandSender.class);
@@ -363,7 +363,7 @@ final class AbstractVideoCommandTest {
     final Optional<AudioPipelineStep> next = audioStep.next();
     final AudioPipelineStep output = next.orElseThrow();
     final AudioFilter audioFilter = output.getFilter();
-    assertSame(AudioFilter.NO_OP, audioFilter);
+    assertSame(AudioFilter.NO_OPERATION, audioFilter);
 
     final Dimension dimension = new Dimension(VIDEO_WIDTH, VIDEO_HEIGHT);
     verify(this.dimensionCallback).attach(dimension);
@@ -1509,7 +1509,7 @@ final class AbstractVideoCommandTest {
   private AudioFilter cancelAndPassNoAudio(final AtomicBoolean cancelled) {
     cancelled.set(true);
 
-    return AudioFilter.NO_OP;
+    return AudioFilter.NO_OPERATION;
   }
 
   private static final class RecordingCommand extends AbstractVideoCommand {

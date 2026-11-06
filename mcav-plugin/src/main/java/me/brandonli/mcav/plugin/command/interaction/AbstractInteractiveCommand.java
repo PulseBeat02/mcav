@@ -309,17 +309,17 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
   }
 
   final void sendSoundLinkWhenStarted(final CompletableFuture<Boolean> start, final Screen screen, final ScreenSound sound) {
-    TaskUtils.whenComplete(start, (started, error) -> this.sendSoundLinkIfStarted(started, error, screen, sound));
+    TaskUtils.whenComplete(start, (started, failure) -> this.sendSoundLinkIfStarted(started, failure, screen, sound));
   }
 
   private void sendSoundLinkIfStarted(
     final @Nullable Boolean started,
-    final @Nullable Throwable error,
+    final @Nullable Throwable failure,
     final Screen screen,
     final ScreenSound sound
   ) {
     // a release cancels the start, or later the screen; releases run on the main thread, which checks before sending the links
-    if (error == null && Boolean.TRUE.equals(started)) {
+    if (failure == null && Boolean.TRUE.equals(started)) {
       final AudioProvider provider = this.plugin.getAudioProvider();
       TaskUtils.runOnMainThread(this.plugin, () -> this.sendSoundLinkUnlessCancelled(provider, screen, sound));
     }
@@ -575,23 +575,27 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
     screen.bindStart(start);
     final FunctionalVideoFilter output = screen.getOutput();
     final StartAttempt<PlayerType> attempt = new StartAttempt<>(sender, started, output, screen, description);
-    TaskUtils.whenComplete(start, (succeeded, error) -> this.onStartCompleted(attempt, succeeded, error));
+    TaskUtils.whenComplete(start, (succeeded, failure) -> this.onStartCompleted(attempt, succeeded, failure));
   }
 
-  private void onStartCompleted(final StartAttempt<PlayerType> attempt, final @Nullable Boolean started, final @Nullable Throwable error) {
+  private void onStartCompleted(
+    final StartAttempt<PlayerType> attempt,
+    final @Nullable Boolean started,
+    final @Nullable Throwable failure
+  ) {
     final Screen screen = attempt.screen();
     if (screen.isCancelled()) {
       return;
     }
 
-    final boolean succeeded = error == null && Boolean.TRUE.equals(started);
+    final boolean succeeded = failure == null && Boolean.TRUE.equals(started);
     if (!succeeded) {
       final String description = attempt.description();
-      LOGGER.error("Starting {} failed.", description, error);
+      LOGGER.error("Starting {} failed.", description, failure);
     }
 
     final StartOutcome outcome = succeeded ? StartOutcome.STARTED : StartOutcome.FAILED;
-    final Component message = this.createStartMessage(outcome, error);
+    final Component message = this.createStartMessage(outcome, failure);
     final boolean handedOver = TaskUtils.runOnMainThread(this.plugin, () -> this.replyAndReleaseIfFailed(attempt, outcome, message));
 
     if (!handedOver) {
@@ -1000,11 +1004,11 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
    * Creates the message that tells the sender whether the player started.
    *
    * @param outcome whether the player started
-   * @param error   why the player failed to start, if known
+   * @param failure why the player failed to start, if known
    * @return the message
    * @since 1.0.0
    */
-  protected abstract Component createStartMessage(final StartOutcome outcome, final @Nullable Throwable error);
+  protected abstract Component createStartMessage(final StartOutcome outcome, final @Nullable Throwable failure);
 
   /**
    * Releases a player; its maps are released by the caller.

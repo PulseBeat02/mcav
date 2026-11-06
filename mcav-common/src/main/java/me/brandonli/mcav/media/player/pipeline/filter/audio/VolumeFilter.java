@@ -50,7 +50,7 @@ public final class VolumeFilter implements AudioFilter {
   private volatile double volume;
 
   /**
-   * Constructs a filter that leaves the audio as it is until {@link #setVolume(double)} is called.
+   * Creates a filter that leaves the audio as it is until {@link #setVolume(double)} is called.
    *
    * @since 1.0.0
    */

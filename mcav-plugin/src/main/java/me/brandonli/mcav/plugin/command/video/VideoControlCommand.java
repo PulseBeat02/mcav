@@ -146,12 +146,12 @@ public final class VideoControlCommand implements AnnotationCommandFeature {
     final Component released = Message.RELEASE_PLAYER.build();
     final Runnable done = TaskUtils.createMainThreadHandover(this.plugin, () -> sender.sendMessage(released));
     final CompletableFuture<Void> release = CompletableFuture.runAsync(this.manager::clearCurrentVideo, service);
-    TaskUtils.whenComplete(release, (_, error) -> this.reportRelease(done, error));
+    TaskUtils.whenComplete(release, (_, failure) -> this.reportRelease(done, failure));
   }
 
-  private void reportRelease(final Runnable done, final @Nullable Throwable error) {
-    if (error != null) {
-      LOGGER.error("Failed to release the video player.", error);
+  private void reportRelease(final Runnable done, final @Nullable Throwable failure) {
+    if (failure != null) {
+      LOGGER.error("Failed to release the video player.", failure);
       return;
     }
 

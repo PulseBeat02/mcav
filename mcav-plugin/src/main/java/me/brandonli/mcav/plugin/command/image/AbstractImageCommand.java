@@ -17,9 +17,10 @@
  */
 package me.brandonli.mcav.plugin.command.image;
 
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.base.Equivalence;
 import com.google.common.base.Preconditions;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -210,7 +211,7 @@ public abstract class AbstractImageCommand implements AnnotationCommandFeature {
       return;
     }
 
-    TaskUtils.whenComplete(loading, (image, error) -> this.onImageLoaded(request, generation, image, error));
+    TaskUtils.whenComplete(loading, (image, failure) -> this.onImageLoaded(request, generation, image, failure));
   }
 
   // a disabled plugin's main thread takes no tasks, so the image is released at once
@@ -218,15 +219,15 @@ public abstract class AbstractImageCommand implements AnnotationCommandFeature {
     final ImageRequest request,
     final long generation,
     final @Nullable ImageBuffer image,
-    final @Nullable Throwable error
+    final @Nullable Throwable failure
   ) {
     final CommandSender sender = request.getSender();
-    if (error != null) {
-      this.reportFailure(request, error);
+    if (failure != null) {
+      this.reportFailure(request, failure);
       return;
     }
 
-    final ImageBuffer loaded = Objects.requireNonNull(image);
+    final ImageBuffer loaded = requireNonNull(image);
     final boolean retained = this.manager.retainLoaded(generation, loaded);
     if (!retained) {
       loaded.release();

@@ -16,17 +16,16 @@ every command is on the [commands](commands.md) page.
 `/mcav video hologram set <location>` adds a floating hologram with the title, uploader and a progress bar of every
 video started afterwards; `/mcav video hologram disable` turns it off again.
 
-A wall of maps shows 128x128 pixels per map, dithered to the map palette, or, with MCV2, a video of the resolution
-you choose decoded by a resource pack ([MCV2 on Maps](../bukkit/mcv2.md)). MCAV does not dither the other displays; the
-block, entity and scoreboard displays update at most 20 times a second, once per server tick, and the chat display
-sends every frame as a new message as it arrives.
+A wall of maps shows 128x128 pixels per map, dithered to the map palette, or, with MCV2, a video of the resolution you
+choose decoded by a resource pack ([MCV2 on Maps](../bukkit/mcv2.md)). MCAV does not dither the other displays; the
+block, entity and scoreboard displays update at most 20 times a second, once per server tick, and the chat display sends
+every frame as a new message as it arrives.
 
 Dithering. `FILTER_LITE` is the recommended default, `NEAREST_COLOR` keeps text and desktops sharp, and
-`FLOYD_STEINBERG_TEMPORAL` keeps unchanged areas identical from frame to frame, so the wall sends less. A
-wall of maps sends only the parts of each map that changed, 128 KiB per frame and viewer on average, and every frame
-whole or not at all; a big picture that changes everywhere, such as 1080p video, needs far more than that, so the wall
-skips frames and shows far fewer of them
-([why MCV2 exists](../mcv2.md#part-4-why-minecraft-maps-need-their-own-codec)).
+`FLOYD_STEINBERG_TEMPORAL` keeps unchanged areas identical from frame to frame, so the wall sends less. A wall of maps
+sends only the parts of each map that changed, 128 KiB per frame and viewer on average, and every frame whole or not at
+all; a big picture that changes everywhere, such as 1080p video, needs far more than that, so the wall skips frames and
+shows far fewer of them ([why MCV2 exists](../mcv2.md#part-4-why-minecraft-maps-need-their-own-codec)).
 
 ## Players
 
@@ -38,8 +37,7 @@ skips frames and shows far fewer of them
 
 The `mrl` is an absolute file path, a URL, a device number for `DEVICE`, or a raw FFmpeg input written as
 `format||input`, such as `dshow||video=OBS Virtual Camera` on Windows. MCAV resolves a web page, such as a YouTube
-video,
-with yt-dlp first; the `ytdlpOptions` argument passes the options that choose which stream of a page plays, and
+video, with yt-dlp first; the `ytdlpOptions` argument passes the options that choose which stream of a page plays, and
 `""` passes none ([accepted options](commands.md#yt-dlp-options)). Put a path with spaces in double quotes.
 
 ```{warning}
@@ -74,14 +72,13 @@ over from the one that played before, and gives them back to it when you release
 
 Every video and image command takes `--filters "<chain>"`: filters applied to every frame, in the order written, before
 MCAV dithers or encodes the picture, such as `--filters "grayscale,blur=3,text=Live"`. A chain has at most 8 filters and
-256 characters, and the plugin bounds every argument, so the command's resolution bounds a filter's work. The
-[filter table](commands.md#filters) lists all 17 and their arguments. An `overlay=<name>` draws a PNG of the plugin's
+256 characters, and the plugin bounds every argument, so the command's resolution bounds a filter's work. The [filter
+table](commands.md#filters) lists all 17 and their arguments. An `overlay=<name>` draws a PNG of the plugin's
 `plugins/MCAV/overlays` folder, which only the server owner fills; a player names it, never a path or a URL.
 
 The library has a few more filters than the plugin offers ([filters](../library/filters.md)). Left out on purpose: face
-detection, which needs a classifier model the plugin does not ship and runs on every frame; resize and transpose,
-which the resolution and `rotate` cover; blend, which needs a second picture; the other shapes; and the LWJGL texture
-filter.
+detection, which needs a classifier model the plugin does not ship and runs on every frame; resize and transpose, which
+the resolution and `rotate` cover; blend, which needs a second picture; the other shapes; and the LWJGL texture filter.
 
 ## Cameras and capture cards
 
@@ -92,15 +89,15 @@ device there is. A server in a container usually has no device at all, and the c
 
 ## Why there is no LWJGL output
 
-`mcav-lwjgl` streams video into an OpenGL texture of a desktop application, such as a game or a mod, which renders it
-in its own window. A Minecraft server has no OpenGL context and no window, so nothing in the plugin could draw with it.
-Its players see what the server sends them: maps, blocks, entities, the scoreboard and chat.
+`mcav-lwjgl` streams video into an OpenGL texture of a desktop application, such as a game or a mod, which renders it in
+its own window. A Minecraft server has no OpenGL context and no window, so nothing in the plugin could draw with it. Its
+players see what the server sends them: maps, blocks, entities, the scoreboard and chat.
 
 ## If playback stutters
 
 If playback pauses or arrives in bursts without an error, try a lower-resolution, lower-frame-rate H.264 file and
-compare it with the original on the same screen: decoding a high-resolution AV1 source can fall behind on a busy
-server, and the player drops frames that are more than 100 ms late. When it drops most frames of ten seconds of video,
-the server log says `Playback falls behind: <dropped> of the last <frames> frames came too late to show`, at most once
-a minute of video. The playing message reports the player's state, not whether frames are arriving, and a still image
+compare it with the original on the same screen: decoding a high-resolution AV1 source can fall behind on a busy server,
+and the player drops frames that are more than 100 ms late. When it drops most frames of ten seconds of video, the
+server log says `Playback falls behind: <dropped> of the last <frames> frames came too late to show`, at most once a
+minute of video. The playing message reports the player's state, not whether frames are arriving, and a still image
 sends no map updates at all, so silence on the network alone does not mean a failure.

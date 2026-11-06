@@ -374,7 +374,7 @@ final class CefBrowserPlayer implements BrowserPlayer {
     }
   }
 
-  private void onEnded(final BrowserSession from, final String reason, final Throwable cause) {
+  private void onEnded(final BrowserSession from, final String reason, final Throwable failure) {
     if (!this.isCurrent(from)) {
       return;
     }
@@ -384,7 +384,7 @@ final class CefBrowserPlayer implements BrowserPlayer {
       this.closeAudio();
 
       final String message = "Because of \"%s\", the browser session ended.".formatted(reason);
-      this.report(message, cause);
+      this.report(message, failure);
     }
   }
 
@@ -557,17 +557,17 @@ final class CefBrowserPlayer implements BrowserPlayer {
     }
 
     @Override
-    public void onEnded(final String reason, final Throwable cause) {
+    public void onEnded(final String reason, final Throwable failure) {
       final BrowserSession from;
       synchronized (this) {
         from = this.owner;
         if (from == null) {
-          this.earlyEnd = session -> CefBrowserPlayer.this.onEnded(session, reason, cause);
+          this.earlyEnd = session -> CefBrowserPlayer.this.onEnded(session, reason, failure);
           return;
         }
       }
 
-      CefBrowserPlayer.this.onEnded(from, reason, cause);
+      CefBrowserPlayer.this.onEnded(from, reason, failure);
     }
   }
 

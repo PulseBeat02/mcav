@@ -22,17 +22,24 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.verify;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.CopyOption;
@@ -44,21 +51,29 @@ import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
+import java.util.zip.ZipException;
 import java.util.zip.ZipInputStream;
 import me.brandonli.mcav.bukkit.BukkitException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.mockito.MockedStatic;
+import org.mockito.invocation.InvocationOnMock;
 
 final class SimpleResourcePackTest {
 
   private static final int GENERATED_PACK_FORMAT = 88;
+
+  private static final byte[] ZIP_DESCRIPTOR_SIGNATURE = { 'P', 'K', 7, 8 };
+  private static final byte[] ZIP_END_SIGNATURE = { 'P', 'K', 5, 6 };
+  private static final int ZIP_END_RECORD_LENGTH = 22;
 
   private static final String PLAIN_DESCRIPTION = "pack";
 
@@ -640,6 +655,78 @@ final class SimpleResourcePackTest {
   }
 
   @Test
+  void shouldFinishTheArchiveAfterAGeneratedEntryDescriptorFails() throws IOException {
+    final SimpleResourcePack pack = SimpleResourcePack.pack();
+    pack.metadata(1, PLAIN_DESCRIPTION);
+    pack.data(GENERATED_ENTRY, CREDITS);
+
+    this.assertFinishedArchiveAfterDescriptorFailure(pack);
+  }
+
+  @Test
+  void shouldFinishTheArchiveAfterTheMetadataDescriptorFails() throws IOException {
+    final SimpleResourcePack pack = SimpleResourcePack.pack();
+    pack.metadata(1, PLAIN_DESCRIPTION);
+
+    this.assertFinishedArchiveAfterDescriptorFailure(pack);
+  }
+
+  @Test
+  void shouldFinishTheArchiveAfterAnExternalFileDescriptorFails() throws IOException {
+    final SimpleResourcePack pack = SimpleResourcePack.pack();
+    pack.metadata(1, PLAIN_DESCRIPTION);
+    pack.external(CREDITS_FILE_NAME, this.credits);
+
+    this.assertFinishedArchiveAfterDescriptorFailure(pack);
+  }
+
+  private void assertFinishedArchiveAfterDescriptorFailure(final SimpleResourcePack pack) throws IOException {
+    final Path reference = this.directory.resolve(GENERATED_FILE_NAME);
+    pack.zip(reference);
+    final byte[] complete = Files.readAllBytes(reference);
+    final int descriptorOffset = this.lastDescriptorOffset(complete);
+    final DescriptorFailureOutputStream output = new DescriptorFailureOutputStream(descriptorOffset);
+    final Path target = this.directory.resolve(PACK_FILE_NAME);
+    final Path temporary = this.directory.resolve(SOURCE_FILE_NAME);
+    try (final MockedStatic<Files> files = mockStatic(Files.class)) {
+      files.when(() -> Files.createTempFile(any(Path.class), anyString(), anyString())).thenReturn(temporary);
+      files.when(() -> Files.newOutputStream(temporary)).thenReturn(output);
+      files.when(() -> Files.copy(eq(this.credits), any(OutputStream.class))).thenAnswer(this::copyCredits);
+
+      final BukkitException exception = assertThrows(BukkitException.class, () -> pack.zip(target));
+      final Throwable cause = exception.getCause();
+      final ZipException failure = output.getFailure();
+      assertSame(failure, cause);
+    }
+
+    final byte[] archive = output.getBytes();
+    final int endOffset = archive.length - ZIP_END_RECORD_LENGTH;
+    assertTrue(endOffset >= 0);
+
+    final byte[] endSignature = Arrays.copyOfRange(archive, endOffset, endOffset + ZIP_END_SIGNATURE.length);
+    assertArrayEquals(ZIP_END_SIGNATURE, endSignature);
+  }
+
+  private int lastDescriptorOffset(final byte[] archive) {
+    for (int offset = archive.length - ZIP_DESCRIPTOR_SIGNATURE.length; offset >= 0; offset--) {
+      final byte[] signature = Arrays.copyOfRange(archive, offset, offset + ZIP_DESCRIPTOR_SIGNATURE.length);
+      if (Arrays.equals(ZIP_DESCRIPTOR_SIGNATURE, signature)) {
+        return offset;
+      }
+    }
+
+    final String message = "The reference archive must contain a data descriptor!";
+    throw new AssertionError(message);
+  }
+
+  private long copyCredits(final InvocationOnMock invocation) throws IOException {
+    final OutputStream output = invocation.getArgument(1);
+    output.write(CREDITS);
+
+    return CREDITS.length;
+  }
+
+  @Test
   void shouldReportPacksThatCannotBeWritten() throws IOException {
     final SimpleResourcePack blocked = SimpleResourcePack.pack();
     final Path file = this.directory.resolve(BLOCKING_FILE_NAME);
@@ -665,6 +752,41 @@ final class SimpleResourcePackTest {
     final List<Path> outputFiles = this.listFiles(output);
     final List<Path> nothing = List.of();
     assertEquals(nothing, outputFiles, "neither the pack nor the temporary file exist");
+  }
+
+  private static final class DescriptorFailureOutputStream extends OutputStream {
+
+    private final ByteArrayOutputStream bytes;
+    private final ZipException failure;
+    private final int descriptorOffset;
+
+    private boolean failed;
+
+    private DescriptorFailureOutputStream(final int descriptorOffset) {
+      this.bytes = new ByteArrayOutputStream();
+      this.failure = new ZipException("Descriptor write failed!");
+      this.descriptorOffset = descriptorOffset;
+      this.failed = false;
+    }
+
+    @Override
+    public void write(final int value) throws IOException {
+      final int written = this.bytes.size();
+      if (!this.failed && written == this.descriptorOffset) {
+        this.failed = true;
+        throw this.failure;
+      }
+
+      this.bytes.write(value);
+    }
+
+    private ZipException getFailure() {
+      return this.failure;
+    }
+
+    private byte[] getBytes() {
+      return this.bytes.toByteArray();
+    }
   }
 
   private enum AtomicMoves {

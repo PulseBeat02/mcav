@@ -119,12 +119,17 @@ public final class VideoPlaybackCommand implements AnnotationCommandFeature {
     final long current = player instanceof final AbstractVideoPlayerCv cvPlayer ? cvPlayer.getPositionMilliseconds() : 0L;
     final long target = parsed.resolve(current);
     final CompletableFuture<Boolean> seek = CompletableFuture.supplyAsync(() -> player.seek(target), this.manager.getService());
-    TaskUtils.whenComplete(seek, (seeked, error) -> this.reportSeek(sender, target, seeked, error));
+    TaskUtils.whenComplete(seek, (seeked, failure) -> this.reportSeek(sender, target, seeked, failure));
   }
 
-  private void reportSeek(final CommandSender sender, final long target, final @Nullable Boolean seeked, final @Nullable Throwable error) {
-    if (error != null) {
-      LOGGER.error("Failed to seek the video.", error);
+  private void reportSeek(
+    final CommandSender sender,
+    final long target,
+    final @Nullable Boolean seeked,
+    final @Nullable Throwable failure
+  ) {
+    if (failure != null) {
+      LOGGER.error("Failed to seek the video.", failure);
     }
 
     final Component message = Boolean.TRUE.equals(seeked)

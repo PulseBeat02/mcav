@@ -22,6 +22,10 @@ import java.io.File
 import java.nio.file.Path
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
+import org.gradle.api.Project
+import org.gradle.api.tasks.JavaExec
+import org.gradle.api.tasks.TaskProvider
+import org.gradle.testfixtures.ProjectBuilder
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertThrows
@@ -75,10 +79,28 @@ class JcstressBudgetTest {
     }
 
     @Test
+    fun shouldLimitTheIterationTimeOfARunWithABudget(): Unit {
+        val jar: File = this.writeTestsJar()
+        val task: JavaExec = this.createTask()
+        JcstressBudget.limitIterations(task, jar, SECOND_TEST_SELECTION, QUICK_PRESET, BUDGET_MINUTES, 4)
+
+        val arguments: List<String> = task.args
+        assertEquals(listOf("-time", "3885"), arguments)
+    }
+
+    @Test
+    fun shouldLeaveARunWithoutABudgetUnlimited(): Unit {
+        val jar: File = this.directory.resolve(EMPTY_JAR).toFile()
+        val task: JavaExec = this.createTask()
+        JcstressBudget.limitIterations(task, jar, null, QUICK_PRESET, null, 4)
+
+        val arguments: List<String> = task.args
+        assertEquals(listOf<String>(), arguments)
+    }
+
+    @Test
     fun shouldCountTheTestsThatTheSelectionMatches(): Unit {
-        val jar: File = this.directory.resolve(TESTS_JAR).toFile()
-        val testList: String = listOf("JCTEST9Sa.b.First,x", "JCTEST10Sa.b.Second,y", "other line").joinToString("\n")
-        this.writeJar(jar, TEST_LIST_ENTRY, testList)
+        val jar: File = this.writeTestsJar()
 
         val all: Int = JcstressBudget.countTests(jar, null)
         assertEquals(2, all)
@@ -109,6 +131,20 @@ class JcstressBudgetTest {
 
         val open: Boolean = OpenFiles.isOpen(jar)
         assertFalse(open)
+    }
+
+    private fun writeTestsJar(): File {
+        val jar: File = this.directory.resolve(TESTS_JAR).toFile()
+        val testList: String = listOf("JCTEST9Sa.b.First,x", "JCTEST10Sa.b.Second,y", "other line").joinToString("\n")
+        this.writeJar(jar, TEST_LIST_ENTRY, testList)
+
+        return jar
+    }
+
+    private fun createTask(): JavaExec {
+        val project: Project = ProjectBuilder.builder().withProjectDir(this.directory.toFile()).build()
+        val task: TaskProvider<JavaExec> = project.tasks.register("jcstressTest", JavaExec::class.java)
+        return task.get()
     }
 
     private fun writeJar(jar: File, entry: String, content: String): Unit {

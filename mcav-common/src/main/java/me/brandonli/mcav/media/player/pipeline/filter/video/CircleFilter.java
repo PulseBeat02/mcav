@@ -38,7 +38,7 @@ public final class CircleFilter extends MatVideoFilter {
   private final Scalar color;
 
   /**
-   * Constructs a new circle filter.
+   * Creates a new circle filter.
    *
    * @param centerX the x coordinate of the center
    * @param centerY the y coordinate of the center

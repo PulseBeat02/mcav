@@ -57,7 +57,7 @@ public final class GeneratedMedia {
     throw new UnsupportedOperationException("Utility class cannot be instantiated!");
   }
 
-  public static Path ffmpegPath() {
+  public static Path getFfmpegPath() {
     final String location = Loader.load(ffmpeg.class);
     return Path.of(location);
   }

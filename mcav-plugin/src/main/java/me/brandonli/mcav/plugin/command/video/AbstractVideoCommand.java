@@ -373,36 +373,41 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
       return;
     }
 
-    TaskUtils.whenComplete(start, (_, error) -> this.finishLaunch(sender, request, generation, error));
+    TaskUtils.whenComplete(start, (_, failure) -> this.finishLaunch(sender, request, generation, failure));
   }
 
   private void finishLaunch(
     final CommandSender sender,
     final PlaybackRequest request,
     final long generation,
-    final @Nullable Throwable error
+    final @Nullable Throwable failure
   ) {
     final AtomicBoolean starting = this.manager.getStarting();
     starting.set(false);
-    TaskUtils.runOnMainThread(this.plugin, () -> this.reportIfCurrent(sender, request, generation, error));
+    TaskUtils.runOnMainThread(this.plugin, () -> this.reportIfCurrent(sender, request, generation, failure));
   }
 
   private void reportIfCurrent(
     final CommandSender sender,
     final PlaybackRequest request,
     final long generation,
-    final @Nullable Throwable error
+    final @Nullable Throwable failure
   ) {
     if (this.manager.isCurrent(generation)) {
       final AudioArgument audioType = request.getAudioType();
       final Player[] viewers = request.getViewers();
-      this.report(sender, audioType, viewers, error);
+      this.report(sender, audioType, viewers, failure);
     }
   }
 
-  private void report(final CommandSender sender, final AudioArgument audioType, final Player[] viewers, final @Nullable Throwable error) {
-    if (error != null) {
-      this.reportFailure(sender, error);
+  private void report(
+    final CommandSender sender,
+    final AudioArgument audioType,
+    final Player[] viewers,
+    final @Nullable Throwable failure
+  ) {
+    if (failure != null) {
+      this.reportFailure(sender, failure);
       return;
     }
 
@@ -511,7 +516,7 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
   // yt-dlp is prepared in the background, so it may still be downloading or unavailable
   private @Nullable Component findYtdlpProblem(final String mrl) {
     final boolean url = SourceUtils.isUri(mrl);
-    final boolean direct = SourceUtils.isDirectVideo(mrl);
+    final boolean direct = SourceUtils.isDirectMedia(mrl);
     if (!url || direct) {
       return null;
     }

@@ -17,9 +17,9 @@ or from the [QEMU website](https://www.qemu.org/download/). Without it the comma
 
 The arguments are the viewers, the size the display is scaled to, the frame rate asked of QEMU (1 to 240), the wall's
 size and first map id, the dithering algorithm, the CPU architecture, the audio output, and QEMU's options, which take
-the rest of the line. MCAV does not pass a `--codec mcv2` at the very end to QEMU: it chooses the
-[codec of the wall](commands.md#the-codec-of-a-wall-of-maps). One machine runs at a time; `/mcav vm release` powers it
-off. MCAV picks the fastest accelerator of the machine (KVM, WHPX or HVF) and falls back to software emulation.
+the rest of the line. MCAV does not pass a `--codec mcv2` at the very end to QEMU: it chooses the [codec of the
+wall](commands.md#the-codec-of-a-wall-of-maps). One machine runs at a time; `/mcav vm release` powers it off. MCAV picks
+the fastest accelerator of the machine (KVM, WHPX or HVF) and falls back to software emulation.
 
 ## Disk images and options
 
@@ -28,8 +28,7 @@ plugin accepts only the options that describe a machine ([the full list](command
 
 - Disk images with `-cdrom`, `-drive file=...`, `-hda` to `-hdd` and `-fda`, `-fdb`, and only files of the plugin's
   `plugins/MCAV/iso` folder, named without their folder. Put your images there, or link them in; the machine boots
-  nothing else on the
-  server.
+  nothing else on the server.
 - Hardware with `-m`, `-smp`, `-cpu`, `-machine`, `-accel`, `-boot`, `-name`, `-k`, `-vga` and `-rtc`, each with the
   values of its kind only, and a few switches such as `-snapshot` and `-no-reboot`.
 - Memory: at most half of the server's memory (or of its container's), and at least 512 MiB.
@@ -39,15 +38,13 @@ neither the internet nor the server, unless `vm.allow-network` is on in `config.
 
 ## Sound
 
-MCAV gives an x86-64 machine of the PC or Q35 family (the default machine, `pc`, `q35`) a sound card itself, an
-Intel HD Audio card and the PC speaker, so the guest needs no option for it, only a driver, which every current
-operating system has. Its sound plays through the chosen audio output like a video's, and takes the outputs over from
-a playing video or browser. MCAV holds it about 70 ms on purpose, so that it plays with QEMU's picture, which refreshes
-30
-ms after a change at the earliest. A pause of up to two seconds in its sound plays as silence, so the sound keeps its
-rhythm. Machines of other architectures have no sound and must choose `NONE`. The plugin refuses a
-configuration that sets `-audio`, `-audiodev`, `-vnc` or routes the PC speaker itself: the plugin owns the
-sound and the display.
+MCAV gives an x86-64 machine of the PC or Q35 family (the default machine, `pc`, `q35`) a sound card itself, an Intel HD
+Audio card and the PC speaker, so the guest needs no option for it, only a driver, which every current operating system
+has. Its sound plays through the chosen audio output like a video's, and takes the outputs over from a playing video or
+browser. MCAV holds it about 70 ms on purpose, so that it plays with QEMU's picture, which refreshes 30 ms after a
+change at the earliest. A pause of up to two seconds in its sound plays as silence, so the sound keeps its rhythm.
+Machines of other architectures have no sound and must choose `NONE`. The plugin refuses a configuration that sets
+`-audio`, `-audiodev`, `-vnc` or routes the PC speaker itself: the plugin owns the sound and the display.
 
 ## Clicking and typing
 

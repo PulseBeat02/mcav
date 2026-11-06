@@ -119,18 +119,7 @@ tasks.register<JavaExec>("jcstressTest") {
         workingDirectory.get().asFile.mkdirs()
         this@register.standardOutput = JcstressConsole.tee(System.out, console.get().asFile)
 
-        if (budget != null) {
-            val testCount: Int = JcstressBudget.countTests(jar.get().asFile, tests)
-            val iterationMilliseconds: Long = JcstressBudget.iterationMilliseconds(stressMode, budget, testCount, cpuCount)
-            this.logger.lifecycle(
-                "Running {} jcstress tests in {} mode within {} minutes, at {} ms per iteration.",
-                testCount,
-                stressMode,
-                budget,
-                iterationMilliseconds
-            )
-            this@register.args("-time", iterationMilliseconds.toString())
-        }
+        JcstressBudget.limitIterations(this@register, jar.get().asFile, tests, stressMode, budget, cpuCount)
     }
     this.doLast {
         this@register.standardOutput.close()

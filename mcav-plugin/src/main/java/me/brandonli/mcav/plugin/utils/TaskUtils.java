@@ -113,16 +113,16 @@ public final class TaskUtils {
     Preconditions.checkNotNull(future, "Future must not be null!");
     Preconditions.checkNotNull(callback, "Callback must not be null!");
 
-    final CompletableFuture<@Nullable Void> handled = future.handle((result, error) -> runCallback(callback, result, error));
+    final CompletableFuture<@Nullable Void> handled = future.handle((result, failure) -> runCallback(callback, result, failure));
     handled.exceptionally(TaskUtils::logCallbackFailure);
   }
 
   private static <ResultType> @Nullable Void runCallback(
     final BiConsumer<? super ResultType, ? super @Nullable Throwable> callback,
     final ResultType result,
-    final @Nullable Throwable error
+    final @Nullable Throwable failure
   ) {
-    callback.accept(result, error);
+    callback.accept(result, failure);
 
     return null;
   }

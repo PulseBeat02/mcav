@@ -3,8 +3,8 @@
 MCAV comes with a set of ready-made filters for the [pipelines](pipeline.md) of its players. Video filters live in
 `me.brandonli.mcav.media.player.pipeline.filter.video` of `mcav-common`, audio filters in
 `me.brandonli.mcav.media.player.pipeline.filter.audio`. Every video filter works on the `ImageBuffer` of a frame, in
-place, so each one can also be applied to a single image with `applyFilter(image)`, as in
-[image manipulation](image.md).
+place, so each one can also be applied to a single image with `applyFilter(image)`, as in [image
+manipulation](image.md).
 
 ```java
 import me.brandonli.mcav.media.player.pipeline.builder.PipelineBuilder;

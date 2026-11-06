@@ -24,8 +24,7 @@
  * mapping, waits for completion and leaves ownership of the supplied pool with the caller. Use in-place ARGB
  * mapping for previews or palette-index output for map packets.
  *
- * <p>Reference parameters and return values are non-null unless marked {@code @Nullable};
- * nullable values and their meanings are described on the corresponding members.
+ * <p>Reference parameters and return values are non-null unless marked {@code @Nullable}.
  *
  * @since 1.0.0
  */

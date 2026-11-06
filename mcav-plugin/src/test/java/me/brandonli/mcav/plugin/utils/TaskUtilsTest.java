@@ -116,14 +116,14 @@ final class TaskUtilsTest {
   void shouldPassTheResultOfTheFutureToTheCallback() {
     final CompletableFuture<String> future = CompletableFuture.completedFuture(FUTURE_RESULT);
     final AtomicReference<String> result = new AtomicReference<>();
-    final AtomicReference<Throwable> failure = new AtomicReference<>();
+    final AtomicReference<Throwable> recordedFailure = new AtomicReference<>();
     final AtomicInteger calls = new AtomicInteger();
 
-    TaskUtils.whenComplete(future, (value, error) -> this.recordCall(value, error, calls, result, failure));
+    TaskUtils.whenComplete(future, (value, failure) -> this.recordCall(value, failure, calls, result, recordedFailure));
 
     final int callCount = calls.get();
     final String received = result.get();
-    final Throwable receivedFailure = failure.get();
+    final Throwable receivedFailure = recordedFailure.get();
     assertEquals(1, callCount);
     assertEquals(FUTURE_RESULT, received);
     assertNull(receivedFailure);
@@ -131,14 +131,14 @@ final class TaskUtilsTest {
 
   private void recordCall(
     final String value,
-    final @Nullable Throwable error,
+    final @Nullable Throwable failure,
     final AtomicInteger calls,
     final AtomicReference<String> result,
-    final AtomicReference<Throwable> failure
+    final AtomicReference<Throwable> recordedFailure
   ) {
     calls.incrementAndGet();
     result.set(value);
-    failure.set(error);
+    recordedFailure.set(failure);
   }
 
   @Test
@@ -146,24 +146,24 @@ final class TaskUtilsTest {
     final IllegalStateException boom = new IllegalStateException("boom!");
     final CompletableFuture<String> future = CompletableFuture.failedFuture(boom);
     final AtomicReference<String> result = new AtomicReference<>("not called");
-    final AtomicReference<Throwable> failure = new AtomicReference<>();
+    final AtomicReference<Throwable> recordedFailure = new AtomicReference<>();
 
-    TaskUtils.whenComplete(future, (value, error) -> this.recordOutcome(value, error, result, failure));
+    TaskUtils.whenComplete(future, (value, failure) -> this.recordOutcome(value, failure, result, recordedFailure));
 
     final String received = result.get();
-    final Throwable receivedFailure = failure.get();
+    final Throwable receivedFailure = recordedFailure.get();
     assertNull(received);
     assertSame(boom, receivedFailure);
   }
 
   private void recordOutcome(
     final String value,
-    final @Nullable Throwable error,
+    final @Nullable Throwable failure,
     final AtomicReference<String> result,
-    final AtomicReference<Throwable> failure
+    final AtomicReference<Throwable> recordedFailure
   ) {
     result.set(value);
-    failure.set(error);
+    recordedFailure.set(failure);
   }
 
   @Test

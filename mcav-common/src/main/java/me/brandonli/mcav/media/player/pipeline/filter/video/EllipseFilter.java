@@ -42,7 +42,7 @@ public final class EllipseFilter extends MatVideoFilter {
   private final Scalar color;
 
   /**
-   * Constructs a new ellipse filter.
+   * Creates a new ellipse filter.
    *
    * @param centerX    the x coordinate of the center
    * @param centerY    the y coordinate of the center

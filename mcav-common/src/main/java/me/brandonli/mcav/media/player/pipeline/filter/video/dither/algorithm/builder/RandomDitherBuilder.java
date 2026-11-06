@@ -46,7 +46,7 @@ public interface RandomDitherBuilder extends DitherAlgorithmBuilder {
    * @since 1.0.0
    */
   @Override
-  RandomDitherBuilder withPalette(final DitherPalette palette);
+  RandomDitherBuilder palette(final DitherPalette palette);
 
   /**
    * Sets the largest noise value added to or subtracted from a channel. Defaults to
@@ -57,5 +57,5 @@ public interface RandomDitherBuilder extends DitherAlgorithmBuilder {
    * @throws IllegalArgumentException if the weight is outside 0 through 255
    * @since 1.0.0
    */
-  RandomDitherBuilder withWeight(final int weight);
+  RandomDitherBuilder weight(final int weight);
 }

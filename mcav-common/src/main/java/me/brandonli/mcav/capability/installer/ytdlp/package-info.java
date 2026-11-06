@@ -27,8 +27,7 @@
  * program; {@link me.brandonli.mcav.json.ytdlp.YtdlpParser} runs it and parses its output. Coordinate separate
  * installer instances that target the same folder, and use the capability readiness API during normal bootstrap.
  *
- * <p>Reference parameters and return values are non-null unless marked {@code @Nullable};
- * nullable values and their meanings are described on the corresponding members.
+ * <p>Reference parameters and return values are non-null unless marked {@code @Nullable}.
  *
  * @since 1.0.0
  */

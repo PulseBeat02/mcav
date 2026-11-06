@@ -145,7 +145,7 @@ final class SourceUtilsTest {
     }
   )
   void shouldRecognizeDirectMediaLinks(final String url) {
-    final boolean direct = SourceUtils.isDirectVideo(url);
+    final boolean direct = SourceUtils.isDirectMedia(url);
     assertTrue(direct);
   }
 
@@ -155,15 +155,15 @@ final class SourceUtilsTest {
     strings = { "", "https://example.com", "https://example.com/watch.php", "https://example.com/page", "mailto:a@b.c", "http://[" }
   )
   void shouldRejectLinksThatAreNotMediaFiles(final @Nullable String url) {
-    final boolean direct = SourceUtils.isDirectVideo(url);
+    final boolean direct = SourceUtils.isDirectMedia(url);
     assertFalse(direct);
   }
 
   @Test
   void shouldReadAnExtensionOnlyAfterTheLastSeparator() {
-    final boolean wholeWord = SourceUtils.isDirectVideo("mp4");
-    final boolean directoryDot = SourceUtils.isDirectVideo("https://example.com/video.files/clip");
-    final boolean trailingDot = SourceUtils.isDirectVideo("https://example.com/clip.");
+    final boolean wholeWord = SourceUtils.isDirectMedia("mp4");
+    final boolean directoryDot = SourceUtils.isDirectMedia("https://example.com/video.files/clip");
+    final boolean trailingDot = SourceUtils.isDirectMedia("https://example.com/clip.");
     assertFalse(wholeWord, "a path without a dot has no extension, even when it reads like one");
     assertFalse(directoryDot, "a dot in a directory name is not the extension of the file");
     assertFalse(trailingDot, "a trailing dot leaves no extension behind it");

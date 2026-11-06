@@ -72,7 +72,7 @@ final class VlcPlaybackProbe {
     final AtomicLong audioBytes = new AtomicLong();
     System.out.println("step: creating the player");
     final VideoPlayerMultiplexer player = VideoPlayer.vlc();
-    player.setExceptionHandler((message, error) -> System.out.println("player error: %s %s".formatted(message, error)));
+    player.setExceptionHandler((message, failure) -> System.out.println("player error: %s %s".formatted(message, failure)));
     player
       .getVideoAttachableCallback()
       .attach(VideoPipelineStep.of((final ImageBuffer image, final OriginalVideoMetadata metadata) -> countFrame(frames)));

@@ -83,7 +83,7 @@ class CefBrowserIntegrationTest {
 
   private BrowserPlayer player(final BrowserOptions options, final CefBrowserPlayer.HelperSessionFactory sessions) {
     final CefBrowserPlayer player = new CefBrowserPlayer(options, sessions);
-    player.setExceptionHandler((message, error) -> this.failures.add(message + " " + error.getMessage()));
+    player.setExceptionHandler((message, failure) -> this.failures.add(message + " " + failure.getMessage()));
     this.players.add(player);
 
     return player;

@@ -33,6 +33,6 @@ configuration enables resizing; otherwise, they center or crop it to the map wal
 ```
 
 The other factories are `DisplayableImage.map(configuration, algorithm)`, `DisplayableImage.block(configuration)`,
-`DisplayableImage.entity(configuration)`, and `DisplayableImage.chat(configuration)`. `displayImage` and `release`
-may be called from any thread; during shutdown, release displays on the main thread, for example in `onDisable`, so
-the original state is restored right away.
+`DisplayableImage.entity(configuration)`, and `DisplayableImage.chat(configuration)`. `displayImage` and `release` may
+be called from any thread; during shutdown, release displays on the main thread, for example in `onDisable`, so the
+original state is restored right away.
