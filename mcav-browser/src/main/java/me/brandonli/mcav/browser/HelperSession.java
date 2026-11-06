@@ -67,6 +67,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.LockSupport;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 import me.brandonli.mcav.media.image.ImageBuffer;
@@ -478,8 +479,7 @@ final class HelperSession implements BrowserSession {
       }
       final boolean alive = process.isAlive();
       if (!alive) {
-        final String message = "The browser helper exited with code %s before it connected!".formatted(process.exitValue());
-        throw new BrowserException(message);
+        throw createExitFailure(process);
       }
       selector.select(Math.min(remaining, CONNECT_POLL_MILLISECONDS));
       final SocketChannel channel = server.accept();
@@ -488,6 +488,31 @@ final class HelperSession implements BrowserSession {
         return channel;
       }
     }
+  }
+
+  private static BrowserException createExitFailure(final Process process) throws IOException {
+    final int exitCode = process.exitValue();
+    final String exitMessage = "The browser helper exited with code %s before it connected!".formatted(exitCode);
+    final String output = readExitedOutput(process);
+    if (output.isEmpty()) {
+      return new BrowserException(exitMessage);
+    }
+
+    final String message = "%s%n%s".formatted(exitMessage, output);
+    return new BrowserException(message);
+  }
+
+  // an exited helper's output is all buffered, so reading what is available cannot block
+  private static String readExitedOutput(final Process process) throws IOException {
+    final InputStream stream = process.getInputStream();
+    final int available = stream.available();
+    final byte[] bytes = stream.readNBytes(available);
+    final String output = new String(bytes, StandardCharsets.UTF_8);
+    final List<String> lines = output.lines().filter(Predicate.not(String::isBlank)).toList();
+    final int count = lines.size();
+    final int first = Math.max(0, count - OUTPUT_TAIL_LINES);
+    final List<String> tail = lines.subList(first, count);
+    return String.join(System.lineSeparator(), tail);
   }
 
   private void startThreads(final byte[] token) {
