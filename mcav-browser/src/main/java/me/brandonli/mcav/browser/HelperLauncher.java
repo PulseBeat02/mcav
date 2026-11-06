@@ -22,6 +22,11 @@ import static java.util.Objects.requireNonNull;
 import com.google.common.annotations.VisibleForTesting;
 import java.io.File;
 import java.io.IOException;
+import java.lang.module.ModuleDescriptor;
+import java.lang.module.ModuleFinder;
+import java.lang.module.ModuleReference;
+import java.net.JarURLConnection;
+import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.file.FileSystemNotFoundException;
@@ -29,10 +34,14 @@ import java.nio.file.Path;
 import java.security.CodeSource;
 import java.security.ProtectionDomain;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Enumeration;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Predicate;
 import me.brandonli.mcav.utils.os.Os;
 import me.brandonli.mcav.utils.os.OsUtils;
 import me.friwi.jcefmaven.CefAppBuilder;
@@ -58,6 +67,16 @@ final class HelperLauncher {
   private static final String ENCODING_SWITCH = "-Dfile.encoding=UTF-8";
   private static final String TEMPORARY_FOLDER_SWITCH = "-Djava.io.tmpdir=";
   private static final String CLASS_PATH_SWITCH = "-cp";
+
+  private static final String LIMIT_MODULES_SWITCH = "--limit-modules";
+  private static final String MODULE_SEPARATOR = ",";
+
+  private static final String JCEF_PACKAGE = "org.cef";
+
+  private static final String JAR_PROTOCOL = "jar";
+  private static final String CLASS_FILE_EXTENSION = ".class";
+  private static final char PACKAGE_SEPARATOR = '.';
+  private static final char RESOURCE_SEPARATOR = '/';
 
   private static final String AUTHORITY_VARIABLE = "XAUTHORITY";
   private static final String TEMPORARY_FOLDER_VARIABLE = "TMPDIR";
@@ -111,13 +130,20 @@ final class HelperLauncher {
     final String javaHome = requireNonNull(System.getProperty(JAVA_HOME_PROPERTY)); // checker framework
     final Os os = OsUtils.getOs();
     final Path java = Path.of(javaHome, BIN_FOLDER, javaExecutable(os));
+    final ClassLoader jcefLoader = requireNonNull(CefAppBuilder.class.getClassLoader()); // checker framework
     final Set<Path> entries = new LinkedHashSet<>();
     entries.add(locate(BrowserHelper.class));
-    entries.add(locate(CefApp.class));
+    entries.add(locateJar(CefApp.class, jcefLoader));
     entries.add(locate(CefAppBuilder.class));
     final List<Path> classPath = new ArrayList<>(entries);
+    final ModuleFinder systemFinder = ModuleFinder.ofSystem();
+    final Set<ModuleReference> references = systemFinder.findAll();
+    final List<ModuleDescriptor> systemModules = references.stream().map(ModuleReference::descriptor).toList();
+    final List<String> moduleSwitches = createModuleSwitches(systemModules);
+    final List<String> jvmOptions = new ArrayList<>(moduleSwitches);
+    jvmOptions.addAll(extraJvmOptions);
     final Map<String, String> environment = System.getenv();
-    return new HelperLauncher(java, MAIN_CLASS, classPath, extraJvmOptions, os, environment, startTimeoutMilliseconds);
+    return new HelperLauncher(java, MAIN_CLASS, classPath, jvmOptions, os, environment, startTimeoutMilliseconds);
   }
 
   static String javaExecutable(final Os os) {
@@ -141,6 +167,59 @@ final class HelperLauncher {
       final String message = "The browser helper cannot use %s as its class path!".formatted(location);
       throw new BrowserException(message, exception);
     }
+  }
+
+  // a runtime's own jcef module (JetBrains Runtime) would hide the JCEF on the helper's class path
+  @VisibleForTesting
+  static List<String> createModuleSwitches(final Collection<ModuleDescriptor> systemModules) {
+    final boolean runtimeHoldsJcef = systemModules.stream().anyMatch(HelperLauncher::holdsJcef);
+    if (!runtimeHoldsJcef) {
+      return List.of();
+    }
+
+    final List<String> kept = systemModules
+      .stream()
+      .filter(Predicate.not(HelperLauncher::holdsJcef))
+      .map(ModuleDescriptor::name)
+      .sorted()
+      .toList();
+    final String modules = String.join(MODULE_SEPARATOR, kept);
+    return List.of(LIMIT_MODULES_SWITCH, modules);
+  }
+
+  private static boolean holdsJcef(final ModuleDescriptor module) {
+    final Set<String> packages = module.packages();
+    return packages.contains(JCEF_PACKAGE);
+  }
+
+  @VisibleForTesting
+  static Path locateJar(final Class<?> type, final ClassLoader loader) {
+    final String className = type.getName();
+    final String resourcePath = className.replace(PACKAGE_SEPARATOR, RESOURCE_SEPARATOR);
+    final String resource = resourcePath + CLASS_FILE_EXTENSION;
+    try {
+      final Enumeration<URL> found = loader.getResources(resource);
+      final List<URL> copies = Collections.list(found);
+      final List<URL> jarCopies = copies.stream().filter(HelperLauncher::isInJar).toList();
+      if (jarCopies.isEmpty()) {
+        final String message = "The browser helper finds no jar of %s on the class path!".formatted(className);
+        throw new BrowserException(message);
+      }
+
+      final URL first = jarCopies.getFirst();
+      final JarURLConnection connection = (JarURLConnection) first.openConnection();
+      final URL jar = connection.getJarFileURL();
+      final URI uri = jar.toURI();
+      return Path.of(uri);
+    } catch (final IOException | URISyntaxException | IllegalArgumentException | FileSystemNotFoundException exception) {
+      final String message = "The browser helper cannot use the jar of %s as its class path!".formatted(className);
+      throw new BrowserException(message, exception);
+    }
+  }
+
+  private static boolean isInJar(final URL copy) {
+    final String protocol = copy.getProtocol();
+    return protocol.equals(JAR_PROTOCOL);
   }
 
   List<String> createCommand(final Path folder) {

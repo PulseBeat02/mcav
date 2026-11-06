@@ -893,6 +893,20 @@ class HelperSessionTest {
   }
 
   @Test
+  void shouldNameWhatTheHelperPrintedWhenItExitsBeforeItConnects() {
+    final String missingMainClass = "me.brandonli.mcav.browser.MissingHelperMain";
+    final BrowserException failure = this.openFails(missingMainClass, RawHelperMain.EXIT_PATH, START_TIMEOUT_MILLISECONDS);
+    final String message = failure.getMessage();
+    final List<String> lines = message.lines().toList();
+    final String first = lines.getFirst();
+    assertEquals("The browser helper exited with code 1 before it connected!", first);
+
+    final String missingClassText = "Could not find or load main class %s".formatted(missingMainClass);
+    final boolean namesTheMissingClass = lines.stream().anyMatch(line -> line.contains(missingClassText));
+    assertTrue(namesTheMissingClass, message);
+  }
+
+  @Test
   void shouldRefuseAHelperThatSendsAFrameBeforeItsHello() {
     final BrowserException failure = this.openFails(
       RawHelperMain.class.getName(),

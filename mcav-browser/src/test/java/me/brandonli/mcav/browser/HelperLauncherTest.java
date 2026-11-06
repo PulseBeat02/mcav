@@ -19,6 +19,7 @@ package me.brandonli.mcav.browser;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -33,6 +34,8 @@ import java.lang.classfile.constantpool.ClassEntry;
 import java.lang.classfile.constantpool.MethodTypeEntry;
 import java.lang.classfile.constantpool.NameAndTypeEntry;
 import java.lang.classfile.constantpool.PoolEntry;
+import java.lang.module.ModuleDescriptor;
+import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
 import java.nio.file.Files;
@@ -42,7 +45,9 @@ import java.security.ProtectionDomain;
 import java.security.cert.Certificate;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Deque;
+import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -95,6 +100,13 @@ class HelperLauncherTest {
 
   private static final Path SESSION_FOLDER = Path.of("/tmp/mcav-browser-1");
   private static final Path OTHER_SESSION_FOLDER = Path.of("/tmp/x");
+
+  private static final String CEF_APP_RESOURCE = "org/cef/CefApp.class";
+  private static final String RUNTIME_CEF_APP_URL = "jrt:/jcef/org/cef/CefApp.class";
+  private static final String JAR_CEF_APP_URL = "jar:file:/libs/jcef-api.jar!/org/cef/CefApp.class";
+  private static final String RELATIVE_JAR_CEF_APP_URL = "jar:file:relative.jar!/org/cef/CefApp.class";
+
+  private static final ModuleDescriptor BASE_MODULE = ModuleDescriptor.newModule("java.base").packages(Set.of("java.lang")).build();
 
   @TempDir
   private Path folder;
@@ -319,6 +331,50 @@ class HelperLauncherTest {
   }
 
   @Test
+  void shouldLeaveTheJcefModuleOfTheRuntimeOutOfTheHelper() {
+    final ModuleDescriptor desktop = ModuleDescriptor.newModule("java.desktop").packages(Set.of("java.awt")).build();
+    final ModuleDescriptor jcef = ModuleDescriptor.newModule("jcef").packages(Set.of("org.cef", "org.cef.browser")).build();
+    final List<String> switches = HelperLauncher.createModuleSwitches(List.of(desktop, jcef, BASE_MODULE));
+    assertEquals(List.of("--limit-modules", "java.base,java.desktop"), switches);
+  }
+
+  @Test
+  void shouldAddNoModuleSwitchOnARuntimeWithoutJcef() {
+    final List<String> switches = HelperLauncher.createModuleSwitches(List.of(BASE_MODULE));
+    assertEquals(List.of(), switches);
+  }
+
+  @Test
+  void shouldTakeTheJarOfJcefWhenTheRuntimeAlsoHoldsIt() throws MalformedURLException {
+    final URL runtimeCopy = URI.create(RUNTIME_CEF_APP_URL).toURL();
+    final URL jarCopy = URI.create(JAR_CEF_APP_URL).toURL();
+    final ClassLoader loader = new ListedResourceLoader(CEF_APP_RESOURCE, List.of(runtimeCopy, jarCopy));
+    final Path jar = HelperLauncher.locateJar(CefApp.class, loader);
+    assertEquals(Path.of(JCEF_API_JAR_FILE), jar);
+  }
+
+  @Test
+  void shouldRefuseAJcefThatOnlyTheRuntimeHolds() throws MalformedURLException {
+    final URL runtimeCopy = URI.create(RUNTIME_CEF_APP_URL).toURL();
+    final ClassLoader loader = new ListedResourceLoader(CEF_APP_RESOURCE, List.of(runtimeCopy));
+    final BrowserException failure = assertThrows(BrowserException.class, () -> HelperLauncher.locateJar(CefApp.class, loader));
+    final String message = failure.getMessage();
+    assertEquals("The browser helper finds no jar of org.cef.CefApp on the class path!", message);
+  }
+
+  @Test
+  void shouldRefuseAJcefJarThatIsNoPath() throws MalformedURLException {
+    final URL relativeCopy = URI.create(RELATIVE_JAR_CEF_APP_URL).toURL();
+    final ClassLoader loader = new ListedResourceLoader(CEF_APP_RESOURCE, List.of(relativeCopy));
+    final BrowserException failure = assertThrows(BrowserException.class, () -> HelperLauncher.locateJar(CefApp.class, loader));
+    final String message = failure.getMessage();
+    assertEquals("The browser helper cannot use the jar of org.cef.CefApp as its class path!", message);
+
+    final Throwable cause = failure.getCause();
+    assertInstanceOf(IllegalArgumentException.class, cause);
+  }
+
+  @Test
   void shouldReachNoClassBeyondTheClassPathOfTheHelper() throws IOException {
     // the helper has only this module, JCEF and the JDK: another module's class fails there with a NoClassDefFoundError no test JVM shows
     final Set<String> reached = new HashSet<>();
@@ -402,4 +458,22 @@ class HelperLauncherTest {
 
   // A class for shouldNotAcceptAClassLoadedFromTheNetworkAsAHelperClassPath() to load again.
   static final class Loaded {}
+
+  private static final class ListedResourceLoader extends ClassLoader {
+
+    private final String resource;
+    private final List<URL> copies;
+
+    ListedResourceLoader(final String resource, final List<URL> copies) {
+      super(null);
+      this.resource = resource;
+      this.copies = copies;
+    }
+
+    @Override
+    public Enumeration<URL> getResources(final String name) {
+      final List<URL> found = name.equals(this.resource) ? this.copies : List.of();
+      return Collections.enumeration(found);
+    }
+  }
 }
