@@ -20,9 +20,19 @@ package me.brandonli.mcav.gradle
 
 import java.io.File
 import java.nio.file.Path
+import javax.tools.JavaCompiler
+import javax.tools.StandardJavaFileManager
+import javax.tools.ToolProvider
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertThrows
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
+import org.mockito.MockedStatic
+import org.mockito.Mockito.doReturn
+import org.mockito.Mockito.mockStatic
+import org.mockito.Mockito.spy
+import org.mockito.Mockito.verify
 
 class VariableNamesTest {
 
@@ -161,6 +171,53 @@ class VariableNamesTest {
         val found: Map<File, List<UndescriptiveName>> = VariableNames.findInFiles(listOf(detour))
         val files: Set<File> = found.keys
         assertEquals(setOf(file), files)
+    }
+
+    @Test
+    fun shouldRejectAnUnavailableCompilerAtLookup(): Unit {
+        val compilerProvider: MockedStatic<ToolProvider> = mockStatic(ToolProvider::class.java)
+        try {
+            val sourceFailure: NullPointerException =
+                assertThrows(NullPointerException::class.java) { VariableNames.find("class Sample {}") }
+            val sourceMessage: String = sourceFailure.message.orEmpty()
+            val sourceRejectedAtLookup: Boolean = sourceMessage.contains("must not be null")
+            assertTrue(sourceRejectedAtLookup)
+
+            val filesFailure: NullPointerException =
+                assertThrows(NullPointerException::class.java) { VariableNames.findInFiles(emptyList()) }
+            val filesMessage: String = filesFailure.message.orEmpty()
+            val filesRejectedAtLookup: Boolean = filesMessage.contains("must not be null")
+            assertTrue(filesRejectedAtLookup)
+        } finally {
+            compilerProvider.close()
+        }
+    }
+
+    @Test
+    fun shouldCloseTheStandardFileManagerAfterReadingFiles(@TempDir directory: Path): Unit {
+        val file: File = directory.resolve(SOURCE_FILE).toFile()
+        file.writeText("class Sample { int x; }")
+
+        val compiler: JavaCompiler = ToolProvider.getSystemJavaCompiler()
+        val manager: StandardJavaFileManager = compiler.getStandardFileManager(null, null, Charsets.UTF_8)
+        val recordedManager: StandardJavaFileManager = spy(manager)
+        val recordedCompiler: JavaCompiler = spy(compiler)
+        doReturn(recordedManager).`when`(recordedCompiler).getStandardFileManager(null, null, Charsets.UTF_8)
+
+        val compilerProvider: MockedStatic<ToolProvider> = mockStatic(ToolProvider::class.java)
+        try {
+            compilerProvider.`when`<JavaCompiler> { ToolProvider.getSystemJavaCompiler() }.thenReturn(recordedCompiler)
+
+            val found: Map<File, List<UndescriptiveName>> = VariableNames.findInFiles(listOf(file))
+            val names: List<String> = found.values.flatten().map { it.name }
+            assertEquals(listOf("x"), names)
+
+            verify(recordedManager).close()
+        } finally {
+            compilerProvider.close()
+            recordedManager.close()
+            manager.close()
+        }
     }
 
     private fun nameAndKindOf(variable: UndescriptiveName): String {
