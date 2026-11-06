@@ -93,8 +93,9 @@ before it starts; call it on the main thread, and call `release()` on the return
   }
 ```
 
-Configured viewers who connect while the video is running receive a full snapshot before incremental updates.
-Include each intended viewer's UUID in the configuration; connecting alone does not add a player to that collection.
+Configured viewers who connect while the video is running, or while it is paused once `start()` was called, receive a
+full snapshot before incremental updates. Include each intended viewer's UUID in the configuration; connecting alone
+does not add a player to that collection.
 
 The default budget of 128 KiB per frame limits incremental updates on average. Each frame is sent whole or not at all: a
 frame larger than the budget waits until the frames before it saved enough credit, so a large wall that changes
