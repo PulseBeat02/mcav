@@ -90,6 +90,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.InOrder;
 import org.mockito.MockedConstruction;
 import org.mockito.Mockito;
@@ -340,13 +342,7 @@ final class Mcv2ResultTest {
 
   // the encoder takes the second frame and the keyframe request of the viewer it was the first frame for
   private Mcv2Result showAFrame(final ImageBuffer frame) {
-    final Mcv2Result result = new Mcv2Result(
-      this.configuration,
-      new Mcv2Channel(this.configuration, this.viewers, this.screen),
-      this.algorithm,
-      System::nanoTime,
-      Runnable::run
-    );
+    final Mcv2Result result = this.createSynchronousResult();
     result.applyFilter(frame, this.metadata);
     this.server.runTasks();
     result.applyFilter(frame, this.metadata);
@@ -358,6 +354,16 @@ final class Mcv2ResultTest {
     assertTrue(requested);
 
     return result;
+  }
+
+  private Mcv2Result createSynchronousResult() {
+    return new Mcv2Result(
+      this.configuration,
+      new Mcv2Channel(this.configuration, this.viewers, this.screen),
+      this.algorithm,
+      System::nanoTime,
+      Runnable::run
+    );
   }
 
   @Test
@@ -433,6 +439,19 @@ final class Mcv2ResultTest {
   }
 
   @Test
+  void shouldRepeatNothingBeforeAnyFrameWasEncoded() {
+    final Mcv2Result result = this.createSynchronousResult();
+    result.applyFilter(Images.solid(64, 32, FRAME_COLOR), this.metadata);
+    this.server.runTasks();
+
+    result.repeatWhileIdle();
+    result.repeatWhileIdle();
+
+    final Mcv2Result.@Nullable Arrival repeated = result.poll();
+    assertNull(repeated);
+  }
+
+  @Test
   void shouldRepeatNothingWhileEveryViewerIsDitheredFor() throws InterruptedException {
     final AtomicLong clock = new AtomicLong(TimeUnit.SECONDS.toNanos(1));
     final Mcv2Configuration onlyPack = this.packScreen(Settings.FAST);
@@ -469,8 +488,9 @@ final class Mcv2ResultTest {
     assertEquals(tasks, tasksAfterTheChecks);
   }
 
-  @Test
-  void shouldRepeatNoPictureOfTheLargerSizeButShowTheSmallerScreen() throws InterruptedException {
+  @ParameterizedTest(name = "{0}x{1}")
+  @CsvSource({ "16, 32", "64, 16" })
+  void shouldRepeatNoPictureOfTheLargerSizeButShowTheSmallerScreen(final int width, final int height) throws InterruptedException {
     final AtomicLong clock = new AtomicLong(TimeUnit.SECONDS.toNanos(1));
     final Mcv2Configuration onlyPack = this.packScreen(Settings.FAST);
     final Mcv2Result result = new Mcv2Result(
@@ -482,8 +502,9 @@ final class Mcv2ResultTest {
     );
     final Mcv2Screen smallScreen = mock(Mcv2Screen.class);
     when(smallScreen.getAnchors()).thenReturn(List.of());
-    final List<Mcv2Configuration> resized = new ArrayList<>();
-    result.setSmallerSizes(List.of(new int[] { 16, 32 }), configuration -> this.recordResizedChannel(configuration, resized, smallScreen));
+    result.setSmallerSizes(List.of(new int[] { width, height }), configuration ->
+      new Mcv2Channel(configuration, this.viewers, smallScreen)
+    );
     result.resetPacer();
     final AtomicLong fullNanoseconds = new AtomicLong(TimeUnit.MILLISECONDS.toNanos(5));
     final List<Integer> widths = new ArrayList<>();
@@ -500,8 +521,12 @@ final class Mcv2ResultTest {
     this.play(result, clock, encoder, frame, PROFILE_CHANGE_FRAMES);
     this.server.runTasks();
 
-    final int smallWidth = result.getConfiguration().getVideoWidth();
-    assertEquals(16, smallWidth);
+    final Mcv2Configuration small = result.getConfiguration();
+    final int smallWidth = small.getVideoWidth();
+    assertEquals(width, smallWidth);
+
+    final int smallHeight = small.getVideoHeight();
+    assertEquals(height, smallHeight);
 
     result.repeatWhileIdle();
     result.repeatWhileIdle();
