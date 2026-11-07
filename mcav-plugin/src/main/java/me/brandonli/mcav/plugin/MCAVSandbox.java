@@ -47,6 +47,7 @@ import net.kyori.adventure.text.logger.slf4j.ComponentLogger;
 import org.bukkit.Server;
 import org.bukkit.plugin.PluginManager;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bytedeco.javacpp.Pointer;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -136,8 +137,9 @@ public final class MCAVSandbox extends JavaPlugin {
 
   /**
    * Disables the plugin: stops the video and the images, the jukebox listener, the commands, the audio outputs, the
-   * MCV2 support and the online player tracking, and releases the library. Parts that were never created, because the
-   * plugin failed to enable, are skipped.
+   * MCV2 support and the online player tracking, releases the library, and stops JavaCPP's deallocator thread, which
+   * would keep the plugin's classes loaded after a reload. Parts that were never created, because the plugin failed to
+   * enable, are skipped.
    *
    * @throws RuntimeException if a part fails to stop, after every other part was stopped
    * @since 1.0.0
@@ -172,7 +174,8 @@ public final class MCAVSandbox extends JavaPlugin {
       this.whenPresent(audio, AudioProvider::shutdown),
       this.whenPresent(mcv2, Mcv2Support::shutdown),
       this.whenPresent(online, OnlinePlayers::shutdown),
-      this.whenPresent(library, MCAVApi::release)
+      this.whenPresent(library, MCAVApi::release),
+      this.whenPresent(library, _ -> Pointer.interruptDeallocatorThread())
     );
   }
 
