@@ -589,7 +589,7 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
     }
 
     final boolean succeeded = failure == null && Boolean.TRUE.equals(started);
-    if (!succeeded) {
+    if (!succeeded && !this.isRefusal(failure)) {
       final String description = attempt.description();
       LOGGER.error("Starting {} failed.", description, failure);
     }
@@ -1009,6 +1009,18 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
    * @since 1.0.0
    */
   protected abstract Component createStartMessage(final StartOutcome outcome, final @Nullable Throwable failure);
+
+  /**
+   * Returns whether {@code failure} is a refusal that the sender's reply explains, so it is not logged as an error. By
+   * default no failure is a refusal.
+   *
+   * @param failure why the player failed to start, if known
+   * @return whether the failure is a refusal
+   * @since 1.0.0
+   */
+  protected boolean isRefusal(final @Nullable Throwable failure) {
+    return false;
+  }
 
   /**
    * Releases a player; its maps are released by the caller.

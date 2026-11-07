@@ -71,7 +71,8 @@ A page is untrusted content, and the browser runs without Chromium's sandbox, wh
   server can reach: a router, a database console, an admin page. Set `browser.allow-private-networks: true` only to show
   a page of your own network, and only if you trust everyone who may create a browser, every page they open, and every
   player who may click it. Inside a container (Docker, Pterodactyl) the guard cannot see the public address of the
-  machine around it: list it, or its name, in `browser.refused-hosts`.
+  machine around it: list it, or its name, in `browser.refused-hosts`. A page the guard refuses gets the reply `The page
+  was refused` and logs no error.
 - No JavaScript compiler. JavaScript runs without V8's just-in-time compiler, the part most exploits target. Pages with
   heavy scripts run slower; `browser.javascript-jit: true` turns it on for pages you trust.
 - Only `http` and `https`. `file:` and other schemes are refused, downloads, file choosers, logins and invalid
