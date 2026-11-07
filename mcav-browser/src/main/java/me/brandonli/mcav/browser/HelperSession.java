@@ -156,11 +156,13 @@ final class HelperSession implements BrowserSession {
   private final Object deliveryLock;
   private final Set<StartEvent> startEvents;
   private final LogBudget logBudget;
+  private final String refusalNotice;
 
   private volatile Thread reader;
   private volatile Thread delivery;
   private volatile Thread drain;
   private boolean frameWaiting;
+  private volatile boolean pageRefused;
 
   private HelperSession(
     final Path folder,
@@ -168,7 +170,8 @@ final class HelperSession implements BrowserSession {
     final Writer standardInput,
     final SocketChannel channel,
     final FrameCanvas canvas,
-    final Listener listener
+    final Listener listener,
+    final String refusalNotice
   ) {
     this.folder = folder;
     this.process = process;
@@ -193,6 +196,7 @@ final class HelperSession implements BrowserSession {
     this.deliveryLock = new Object();
     this.startEvents = EnumSet.noneOf(StartEvent.class);
     this.logBudget = new LogBudget(System::nanoTime);
+    this.refusalNotice = refusalNotice;
     this.reader = NOT_STARTED;
     this.delivery = NOT_STARTED;
     this.drain = NOT_STARTED;
@@ -244,7 +248,8 @@ final class HelperSession implements BrowserSession {
       final int width = source.getWidth();
       final int height = source.getHeight();
       final FrameCanvas canvas = new FrameCanvas(width, height);
-      session = new HelperSession(folder, process, standardInput, channel, canvas, listener);
+      final String refusalNotice = NetworkGuard.REFUSAL_NOTICE.formatted(uri.getHost());
+      session = new HelperSession(folder, process, standardInput, channel, canvas, listener, refusalNotice);
       pendingChannel = null;
 
       if (!HelperProcesses.register(session, generation)) {
@@ -552,12 +557,17 @@ final class HelperSession implements BrowserSession {
       throw new BrowserException(message, exception);
     } catch (final ExecutionException exception) {
       final Throwable cause = requireNonNull(exception.getCause(), "A failed start has a cause!");
+      final String address = AddressText.describe(uri.toString());
+      if (this.pageRefused) {
+        final String message = "The browser refused page %s, because its address is not public!".formatted(address);
+        throw new PageRefusedException(message, cause);
+      }
+
       final String tail = this.getOutputTail();
       if (!tail.isEmpty()) {
         LOGGER.warn("The browser helper wrote these lines before its start failed.{}{}", System.lineSeparator(), tail);
       }
 
-      final String address = AddressText.describe(uri.toString());
       final @Nullable String reason = cause.getMessage();
       final String message = "Because of \"%s\", page %s could not be opened!".formatted(reason, address);
       throw new BrowserException(message, cause);
@@ -704,6 +714,11 @@ final class HelperSession implements BrowserSession {
   private void onNotice(final HelperMessage message) {
     final String text = message.getText();
     this.logBudget.log(() -> LOGGER.debug("The browser sent the notice \"{}\" about the page.", text), this::logSkipped);
+
+    // the guard's notice comes before Chromium's load error, which cannot tell a refusal from an unreachable host
+    if (text.equals(this.refusalNotice)) {
+      this.pageRefused = true;
+    }
   }
 
   private void onFailure(final HelperMessage message) {

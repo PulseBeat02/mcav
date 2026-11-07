@@ -87,7 +87,7 @@ of the page and its frames (at most 4096 pixels per side), and how many painted 
 
 The example opens a page, clicks into it, and types a search. The `display` filter is yours and shows the frames;
 release the returned browser when you are done with the page. `start` throws a `BrowserException` if the page cannot be
-shown.
+shown, and a `PageRefusedException`, a `BrowserException` too, when the network guard refuses the page's own address.
 
 ```java
   public BrowserPlayer searchWikipedia(final VideoFilter display) {
