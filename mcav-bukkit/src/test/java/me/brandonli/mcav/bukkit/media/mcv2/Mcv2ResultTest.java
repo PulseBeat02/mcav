@@ -113,6 +113,7 @@ final class Mcv2ResultTest {
 
   private static final long FRAME_INTERVAL_NANOSECONDS = 16_666_667L;
   private static final int WAIT_TIMEOUT_MILLISECONDS = 5000;
+  private static final int CHECKS_UNTIL_A_NEW_VIEWER_IS_SHOWN = 3;
   private static final int SLOW_ENCODE_SECONDS = 2;
   private static final int SEARCH_DURATION_MILLISECONDS = 300;
 
@@ -267,6 +268,291 @@ final class Mcv2ResultTest {
     }
 
     verify(this.screen).remove();
+  }
+
+  @Test
+  void shouldShowTheScreenToAViewerWhoLoadsThePackWhileNoFrameArrives() throws InterruptedException {
+    final Mcv2Result result = this.result(this.configuration, this.algorithm);
+    try {
+      result.start();
+      final ImageBuffer frame = Images.solid(64, 32, FRAME_COLOR);
+      result.applyFilter(frame, this.metadata);
+      verify(this.algorithm, timeout(WAIT_TIMEOUT_MILLISECONDS)).ditherIntoBytes(any());
+
+      this.server.runTasks();
+      result.applyFilter(frame, this.metadata);
+      this.awaitFrames(result, 1);
+
+      when(this.viewers.isLoaded(WITHOUT)).thenReturn(true);
+      for (int check = 0; check < CHECKS_UNTIL_A_NEW_VIEWER_IS_SHOWN; check++) {
+        this.server.runTasks();
+      }
+
+      final Player without = requireNonNull(Bukkit.getPlayer(WITHOUT));
+      verify(this.screen).show(without);
+    } finally {
+      result.release();
+    }
+  }
+
+  @Test
+  void shouldSendTheLastPictureAgainAsAKeyframeOnceTheFramesStop() throws InterruptedException {
+    final Mcv2Result result = this.result(this.configuration, this.algorithm);
+    try {
+      result.start();
+      final ImageBuffer frame = Images.solid(64, 32, FRAME_COLOR);
+      result.applyFilter(frame, this.metadata);
+      verify(this.algorithm, timeout(WAIT_TIMEOUT_MILLISECONDS)).ditherIntoBytes(any());
+
+      this.server.runTasks();
+      result.applyFilter(frame, this.metadata);
+      this.awaitFrames(result, 1);
+      result.applyFilter(Images.solid(64, 32, 0xFF336698), this.metadata);
+      this.awaitFrames(result, 2);
+
+      this.server.runTasks();
+      this.server.runTasks();
+
+      this.awaitFrames(result, 3);
+      final Mcv2Result.Statistics statistics = result.getStatistics();
+      final long keyframes = statistics.getKeyframes();
+      assertEquals(2, keyframes);
+    } finally {
+      result.release();
+    }
+  }
+
+  @Test
+  void shouldRepeatNothingWhileFramesKeepComing() {
+    final ImageBuffer frame = Images.solid(64, 32, FRAME_COLOR);
+    final Mcv2Result result = this.showAFrame(frame);
+
+    result.repeatWhileIdle();
+    result.applyFilter(frame, this.metadata);
+    final Mcv2Result.@Nullable Arrival handed = result.poll();
+    assertNotNull(handed);
+
+    result.repeatWhileIdle();
+
+    final Mcv2Result.@Nullable Arrival repeated = result.poll();
+    assertNull(repeated);
+  }
+
+  // the encoder takes the second frame and the keyframe request of the viewer it was the first frame for
+  private Mcv2Result showAFrame(final ImageBuffer frame) {
+    final Mcv2Result result = new Mcv2Result(
+      this.configuration,
+      new Mcv2Channel(this.configuration, this.viewers, this.screen),
+      this.algorithm,
+      System::nanoTime,
+      Runnable::run
+    );
+    result.applyFilter(frame, this.metadata);
+    this.server.runTasks();
+    result.applyFilter(frame, this.metadata);
+    final Mcv2Result.@Nullable Arrival handed = result.poll();
+    assertNotNull(handed);
+
+    final Mcv2Channel channel = result.getChannel();
+    final boolean requested = channel.takeKeyframeRequest();
+    assertTrue(requested);
+
+    return result;
+  }
+
+  @Test
+  void shouldRepeatTheLastPictureOnceEachTimeTheFramesStop() {
+    final ImageBuffer frame = Images.solid(64, 32, FRAME_COLOR);
+    final Mcv2Result result = this.showAFrame(frame);
+    final Mcv2Channel channel = result.getChannel();
+
+    result.repeatWhileIdle();
+    result.repeatWhileIdle();
+    final Mcv2Result.@Nullable Arrival repeated = result.poll();
+    assertNotNull(repeated);
+
+    final boolean requested = channel.takeKeyframeRequest();
+    assertTrue(requested);
+
+    result.repeatWhileIdle();
+    final Mcv2Result.@Nullable Arrival repeatedAgain = result.poll();
+    assertNull(repeatedAgain);
+
+    result.applyFilter(frame, this.metadata);
+    final Mcv2Result.@Nullable Arrival handed = result.poll();
+    assertNotNull(handed);
+
+    result.repeatWhileIdle();
+    result.repeatWhileIdle();
+    final Mcv2Result.@Nullable Arrival repeatedAfterTheNextStop = result.poll();
+    assertNotNull(repeatedAfterTheNextStop);
+  }
+
+  @Test
+  void shouldRepeatTheLastPictureForAViewerShownTheScreenWhileNoFrameArrives() {
+    final ImageBuffer frame = Images.solid(64, 32, FRAME_COLOR);
+    final Mcv2Result result = this.showAFrame(frame);
+    final Mcv2Channel channel = result.getChannel();
+    result.repeatWhileIdle();
+    result.repeatWhileIdle();
+    final Mcv2Result.@Nullable Arrival repeated = result.poll();
+    assertNotNull(repeated);
+
+    final boolean requested = channel.takeKeyframeRequest();
+    assertTrue(requested);
+
+    when(this.viewers.isLoaded(WITHOUT)).thenReturn(true);
+    result.repeatWhileIdle();
+    final Mcv2Result.@Nullable Arrival repeatedBeforeTheShow = result.poll();
+    assertNull(repeatedBeforeTheShow);
+
+    this.server.runTasks();
+    result.repeatWhileIdle();
+
+    final Player without = requireNonNull(Bukkit.getPlayer(WITHOUT));
+    verify(this.screen).show(without);
+
+    final Mcv2Result.@Nullable Arrival repeatedForTheViewer = result.poll();
+    assertNotNull(repeatedForTheViewer);
+
+    final boolean stillRequested = channel.takeKeyframeRequest();
+    assertTrue(stillRequested);
+  }
+
+  @Test
+  void shouldRepeatNothingWithoutRecipients() {
+    final ImageBuffer frame = Images.solid(64, 32, FRAME_COLOR);
+    final Mcv2Result result = this.showAFrame(frame);
+    when(this.viewers.isLoaded(WITH_PACK)).thenReturn(false);
+
+    result.repeatWhileIdle();
+    result.repeatWhileIdle();
+
+    final Mcv2Result.@Nullable Arrival repeated = result.poll();
+    assertNull(repeated);
+  }
+
+  @Test
+  void shouldRepeatNothingWhileEveryViewerIsDitheredFor() throws InterruptedException {
+    final AtomicLong clock = new AtomicLong(TimeUnit.SECONDS.toNanos(1));
+    final Mcv2Configuration onlyPack = this.packScreen(Settings.FAST);
+    final Mcv2Result result = new Mcv2Result(
+      onlyPack,
+      new Mcv2Channel(onlyPack, this.viewers, this.screen),
+      this.algorithm,
+      clock::get,
+      Runnable::run
+    );
+    result.resetPacer();
+    final AtomicLong encodeNanoseconds = new AtomicLong(TimeUnit.MILLISECONDS.toNanos(5));
+    final Mcv2 encoder = mock(Mcv2.class);
+    when(encoder.encode(any(), anyInt(), anyInt(), anyLong())).thenAnswer(_ -> this.advanceEncodeClock(clock, encodeNanoseconds));
+    when(encoder.getStatistics()).thenReturn(Optional.of(Mcv2.Statistics.of(1, false, 1, 1, LAMBDA)));
+    final ImageBuffer frame = Images.solid(64, 32, FRAME_COLOR);
+    result.applyFilter(frame, this.metadata);
+    this.server.runTasks();
+    this.play(result, clock, encoder, frame, 300);
+    encodeNanoseconds.set(TimeUnit.SECONDS.toNanos(2));
+    this.play(result, clock, encoder, frame, ADAPTATION_FRAMES);
+    this.server.runTasks();
+
+    final Mcv2Pacer.Rung rung = result.getRung().orElseThrow();
+    assertEquals(Mcv2Pacer.Rung.DITHERED, rung);
+
+    final int tasks = this.server.getScheduledTaskCount();
+    result.repeatWhileIdle();
+    result.repeatWhileIdle();
+    final Mcv2Result.@Nullable Arrival repeated = result.poll();
+    assertNull(repeated);
+
+    final int tasksAfterTheChecks = this.server.getScheduledTaskCount();
+    assertEquals(tasks, tasksAfterTheChecks);
+  }
+
+  @Test
+  void shouldRepeatNoPictureOfTheLargerSizeButShowTheSmallerScreen() throws InterruptedException {
+    final AtomicLong clock = new AtomicLong(TimeUnit.SECONDS.toNanos(1));
+    final Mcv2Configuration onlyPack = this.packScreen(Settings.FAST);
+    final Mcv2Result result = new Mcv2Result(
+      onlyPack,
+      new Mcv2Channel(onlyPack, this.viewers, this.screen),
+      this.algorithm,
+      clock::get,
+      Runnable::run
+    );
+    final Mcv2Screen smallScreen = mock(Mcv2Screen.class);
+    when(smallScreen.getAnchors()).thenReturn(List.of());
+    final List<Mcv2Configuration> resized = new ArrayList<>();
+    result.setSmallerSizes(List.of(new int[] { 16, 32 }), configuration -> this.recordResizedChannel(configuration, resized, smallScreen));
+    result.resetPacer();
+    final AtomicLong fullNanoseconds = new AtomicLong(TimeUnit.MILLISECONDS.toNanos(5));
+    final List<Integer> widths = new ArrayList<>();
+    final Mcv2 encoder = mock(Mcv2.class);
+    when(encoder.encode(any(), anyInt(), anyInt(), anyLong())).thenAnswer(invocation ->
+      this.recordWidthAndAdvanceClock(invocation, widths, clock, fullNanoseconds)
+    );
+    when(encoder.getStatistics()).thenReturn(Optional.of(Mcv2.Statistics.of(1, false, 1, 1, LAMBDA)));
+    final ImageBuffer frame = Images.solid(64, 32, FRAME_COLOR);
+    result.applyFilter(frame, this.metadata);
+    this.server.runTasks();
+    this.play(result, clock, encoder, frame, 300);
+    fullNanoseconds.set(TimeUnit.MILLISECONDS.toNanos(100));
+    this.play(result, clock, encoder, frame, PROFILE_CHANGE_FRAMES);
+    this.server.runTasks();
+
+    final int smallWidth = result.getConfiguration().getVideoWidth();
+    assertEquals(16, smallWidth);
+
+    result.repeatWhileIdle();
+    result.repeatWhileIdle();
+    this.server.runTasks();
+    result.repeatWhileIdle();
+
+    final Player withPack = requireNonNull(Bukkit.getPlayer(WITH_PACK));
+    verify(smallScreen).show(withPack);
+
+    final Mcv2Result.@Nullable Arrival repeated = result.poll();
+    assertNull(repeated);
+  }
+
+  @Test
+  void shouldRepeatTheLastPictureWithThePresetOfTheCurrentRung() throws InterruptedException {
+    final AtomicLong clock = new AtomicLong(TimeUnit.SECONDS.toNanos(1));
+    final Mcv2Configuration live = this.packScreen(Settings.DEFAULT);
+    final AtomicLong encodeNanoseconds = new AtomicLong(TimeUnit.MILLISECONDS.toNanos(5));
+    final List<Settings> switched = new ArrayList<>();
+    final Mcv2Result result = new Mcv2Result(live, new Mcv2Channel(live, this.viewers, this.screen), this.algorithm, clock::get, Runnable::run);
+    result.resetPacer();
+    final ImageBuffer frame = Images.solid(64, 32, FRAME_COLOR);
+    result.applyFilter(frame, this.metadata);
+    this.server.runTasks();
+    final Mcv2 first = this.timedEncoder(Settings.DEFAULT, clock, encodeNanoseconds, switched);
+    final Mcv2 encoder = this.playSwitching(result, clock, first, frame, 300);
+    encodeNanoseconds.set(TimeUnit.MILLISECONDS.toNanos(18));
+    this.playSwitching(result, clock, encoder, frame, PROFILE_CHANGE_FRAMES);
+
+    final List<Settings> expectedSwitches = List.of(Settings.FAST);
+    assertEquals(expectedSwitches, switched);
+
+    result.repeatWhileIdle();
+    result.repeatWhileIdle();
+    final Mcv2Result.Arrival repeated = requireNonNull(result.poll());
+
+    final Settings settings = result.settingsFor(repeated);
+    assertEquals(Settings.FAST, settings);
+  }
+
+  @Test
+  void shouldCancelTheIdleCheckOnRelease() {
+    final Mcv2Result result = this.result(this.configuration, this.algorithm);
+    result.start();
+    final int tasksWhileStarted = this.server.getScheduledTaskCount();
+    assertEquals(2, tasksWhileStarted);
+
+    result.release();
+
+    final int tasksAfterRelease = this.server.getScheduledTaskCount();
+    assertEquals(0, tasksAfterRelease);
   }
 
   @Test

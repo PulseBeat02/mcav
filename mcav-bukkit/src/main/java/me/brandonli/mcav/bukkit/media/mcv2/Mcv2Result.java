@@ -54,6 +54,9 @@ import me.brandonli.mcav.media.player.pipeline.filter.video.FunctionalVideoFilte
 import me.brandonli.mcav.media.player.pipeline.filter.video.ResizeFilter;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.DitherAlgorithm;
 import org.bukkit.Bukkit;
+import org.bukkit.plugin.Plugin;
+import org.bukkit.scheduler.BukkitScheduler;
+import org.bukkit.scheduler.BukkitTask;
 import org.checkerframework.checker.initialization.qual.UnderInitialization;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
@@ -89,6 +92,11 @@ import org.slf4j.LoggerFactory;
  * finds room again. Every step is logged, a step down as a warning, and handed to the
  * {@linkplain #setPacingListener(Consumer) pacing listener}, so the operator learns what was chosen and why. A result
  * without dithered maps stays at its lowest frame rate instead.
+ *
+ * <p>While no frame arrives, such as while the video is paused or a page does not change, the screen checks every
+ * second for viewers whose pack loaded meanwhile and shows them the screen. It sends the last picture once more as a
+ * keyframe when the frames stop, and again when it starts showing a viewer, so every client can decode the newest
+ * frame.
  *
  * <p>Call {@link #start()} and {@link #release()} on the main thread.
  *
@@ -129,6 +137,9 @@ public final class Mcv2Result implements FunctionalVideoFilter {
   // Vanilla can initialize a map after its first snapshot; unchanged deltas cannot repair it.
   private static final long FALLBACK_REFRESH_NANOSECONDS = TimeUnit.SECONDS.toNanos(4);
 
+  // A paused video or a still page sends no frames, yet a viewer who starts watching needs a keyframe.
+  private static final long IDLE_CHECK_TICKS = 20L;
+
   private static final double NANOSECONDS_PER_MILLISECOND = 1e6;
   private static final double NANOSECONDS_PER_SECOND = 1e9;
 
@@ -158,6 +169,7 @@ public final class Mcv2Result implements FunctionalVideoFilter {
   private final Executor dithering;
   private final @Nullable ExecutorService ditheringThread;
   private final AtomicBoolean ditheringBusy;
+  private final AtomicBoolean frameTaken;
 
   private final Object lock;
   private final Statistics statistics;
@@ -168,6 +180,8 @@ public final class Mcv2Result implements FunctionalVideoFilter {
   private final List<Mcv2Pacer.Preset> presets;
   private final Function<Settings, Mcv2> encoders;
   private final Mcv2LatestFrame<Arrival> pending;
+
+  private volatile @Nullable Arrival lastArrival;
 
   private double frameCredit;
   private long lastFrame;
@@ -188,6 +202,8 @@ public final class Mcv2Result implements FunctionalVideoFilter {
 
   private volatile Screen screen;
   private boolean opened;
+  private boolean repeated;
+  private @Nullable BukkitTask idleCheck;
 
   private List<int[]> smaller;
   private @Nullable Resizer resizer;
@@ -233,6 +249,7 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     Preconditions.checkNotNull(channel, "Channel must not be null!");
 
     this.ditheringBusy = new AtomicBoolean();
+    this.frameTaken = new AtomicBoolean();
     this.frameCredit = FRAME_CREDIT_CAP;
     this.lastFrame = Long.MIN_VALUE;
     this.pacingListener = _ -> {};
@@ -264,7 +281,8 @@ public final class Mcv2Result implements FunctionalVideoFilter {
   }
 
   /**
-   * Spawns the screen's page frames and starts the encoder. Call on the main thread.
+   * Spawns the screen's page frames, starts the encoder and the check for a screen without frames. Call on the main
+   * thread.
    *
    * @since 1.0.0
    */
@@ -306,11 +324,15 @@ public final class Mcv2Result implements FunctionalVideoFilter {
 
     sender.start();
     worker.start();
+
+    final BukkitScheduler scheduler = Bukkit.getScheduler();
+    final Plugin plugin = BukkitModule.getPlugin();
+    this.idleCheck = scheduler.runTaskTimer(plugin, this::repeatWhileIdle, IDLE_CHECK_TICKS, IDLE_CHECK_TICKS);
   }
 
   /**
-   * Stops the encoder, removes the page frames and clears the wall's maps for every viewer, those dithered for and those
-   * decoding MCV2. Call on the main thread.
+   * Stops the encoder and the check for a screen without frames, removes the page frames and clears the wall's maps for
+   * every viewer, those dithered for and those decoding MCV2. Call on the main thread.
    *
    * <p>Worker joins are bounded; a worker that does not respond to interruption may outlive this call.
    * Fallback executor shutdown does not await termination. Release does not close the shared encoder pool or pack tracker.
@@ -319,6 +341,8 @@ public final class Mcv2Result implements FunctionalVideoFilter {
    */
   @Override
   public void release() {
+    this.cancelIdleCheck();
+
     final Thread worker;
     final Thread sender;
     synchronized (this.lock) {
@@ -352,6 +376,14 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     final Fallback dithered = this.fallback;
     if (dithered != null) {
       dithered.result().release();
+    }
+  }
+
+  private void cancelIdleCheck() {
+    final BukkitTask check = this.idleCheck;
+    if (check != null) {
+      check.cancel();
+      this.idleCheck = null;
     }
   }
 
@@ -453,6 +485,8 @@ public final class Mcv2Result implements FunctionalVideoFilter {
       return false;
     }
 
+    this.frameTaken.set(true);
+
     final boolean encode;
     final boolean everyoneDithered;
     Mcv2Pacer.Preset preset = this.presets.getFirst();
@@ -513,6 +547,7 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     if (encode && !current.channel().getRecipients().isEmpty()) {
       // A full-frame ARGB copy at 1080p adds an 8 MB G1 humongous allocation per frame.
       final Arrival arrival = new Arrival(rgbFromBgr(data.getData(), width * height), width, height, System.currentTimeMillis(), preset);
+      this.lastArrival = arrival;
       this.pending.offer(arrival);
     }
   }
@@ -551,6 +586,64 @@ public final class Mcv2Result implements FunctionalVideoFilter {
 
       return true;
     }
+  }
+
+  void repeatWhileIdle() {
+    if (this.frameTaken.getAndSet(false)) {
+      this.repeated = false;
+      return;
+    }
+
+    final Mcv2Pacer.Preset preset;
+    synchronized (this.lock) {
+      if (this.ditheredForAll) {
+        return;
+      }
+
+      preset = this.currentPreset();
+    }
+
+    final Screen current = this.screen;
+    this.selectFallbackViewers(current, false);
+
+    final @Nullable Arrival last = this.lastArrival;
+    if (last != null && this.isRepeatWanted(current, last)) {
+      this.repeat(current.channel(), last, preset);
+    }
+  }
+
+  private Mcv2Pacer.Preset currentPreset() {
+    final Mcv2Pacer screenPacer = this.pacer;
+    if (screenPacer == null) {
+      return this.presets.getFirst();
+    }
+
+    final Mcv2Pacer.Rung rung = screenPacer.getRung();
+    return rung.getPreset();
+  }
+
+  private boolean isRepeatWanted(final Screen current, final Arrival last) {
+    final Mcv2Configuration configuration = current.configuration();
+    if (last.width != configuration.getVideoWidth() || last.height != configuration.getVideoHeight()) {
+      return false;
+    }
+
+    final Mcv2Channel channel = current.channel();
+    final Set<UUID> recipients = channel.getRecipients();
+    if (recipients.isEmpty()) {
+      return false;
+    }
+
+    return !this.repeated || channel.isKeyframeRequested();
+  }
+
+  private void repeat(final Mcv2Channel channel, final Arrival last, final Mcv2Pacer.Preset preset) {
+    channel.requestKeyframe();
+
+    final long arrived = System.currentTimeMillis();
+    final Arrival again = new Arrival(last.pictureBytes, last.width, last.height, arrived, preset);
+    this.pending.offer(again);
+    this.repeated = true;
   }
 
   private void dither(final Fallback dithered, final int[] packedColors, final int width, final int height) {

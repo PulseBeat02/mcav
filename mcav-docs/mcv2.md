@@ -733,7 +733,9 @@ frames a second. A slower client gets only the keyframes that one of its frames 
 newest frame for a thirtieth of a second, so a client drawing a frame every two seconds keeps one picture for minutes on
 average. A still image from `/mcav image` is sent twice a second, every eighth time as a keyframe, so a client that
 missed one, for example while it compiled the pack's shaders as it first drew the screen, gets the next within four
-seconds.
+seconds. A screen whose frames stop, such as a paused video or a page that does not change, sends its last picture
+once more as a keyframe within two seconds, and again whenever it starts showing a viewer, so the newest frame stays
+one every client can decode.
 
 ## Part 9: The encoder
 
