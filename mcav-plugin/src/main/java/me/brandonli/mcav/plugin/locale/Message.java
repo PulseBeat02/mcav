@@ -664,6 +664,14 @@ public interface Message extends LocaleTools {
   NullComponent BROWSER_UNAVAILABLE = LocaleTools.direct("mcav.command.browser.unavailable");
 
   /**
+   * Key {@code mcav.command.browser.refused}: the browser refused the page, because its address is not public and the
+   * browser on this server opens only public addresses.
+   *
+   * @since 1.0.0
+   */
+  NullComponent BROWSER_REFUSED = LocaleTools.direct("mcav.command.browser.refused");
+
+  /**
    * Key {@code mcav.command.video.start.error}: a video command failed while starting the video; the console has the
    * error.
    *

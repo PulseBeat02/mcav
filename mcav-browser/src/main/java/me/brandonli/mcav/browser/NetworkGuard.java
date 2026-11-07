@@ -65,6 +65,8 @@ final class NetworkGuard implements Closeable {
 
   static final int MAXIMUM_REPORTED_HOSTS = 64;
 
+  static final String REFUSAL_NOTICE = "The connection to %s was refused, because it is not a public address.";
+
   private static final int HANDSHAKE_TIMEOUT_MILLISECONDS = 10_000;
   private static final int CONNECT_TIMEOUT_MILLISECONDS = 10_000;
 
@@ -301,7 +303,7 @@ final class NetworkGuard implements Closeable {
     }
 
     if (first) {
-      this.notices.accept("The connection to %s was refused, because it is not a public address.".formatted(host));
+      this.notices.accept(REFUSAL_NOTICE.formatted(host));
     }
   }
 

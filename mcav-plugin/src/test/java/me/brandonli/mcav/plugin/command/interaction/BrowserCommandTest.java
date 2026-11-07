@@ -40,6 +40,7 @@ import me.brandonli.mcav.browser.BrowserOptions;
 import me.brandonli.mcav.browser.BrowserPlayer;
 import me.brandonli.mcav.browser.BrowserSource;
 import me.brandonli.mcav.browser.BrowserUnavailableException;
+import me.brandonli.mcav.browser.PageRefusedException;
 import me.brandonli.mcav.bukkit.media.result.CompressedMapResult;
 import me.brandonli.mcav.media.player.attachable.AudioAttachableCallback;
 import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
@@ -335,6 +336,20 @@ final class BrowserCommandTest {
 
     final Component expectedError = Message.BROWSER_ERROR.build();
     assertEquals(expectedError, other);
+  }
+
+  @Test
+  void shouldTellTheSenderThatThePageWasRefused() {
+    final PageRefusedException refused = new PageRefusedException(
+      "The browser refused page http://127.0.0.1:8872/browser.html, because its address is not public!"
+    );
+
+    final Component direct = this.command.createStartMessage(StartOutcome.FAILED, refused);
+    final Component wrapped = this.command.createStartMessage(StartOutcome.FAILED, new CompletionException(refused));
+
+    final Component expected = Message.BROWSER_REFUSED.build();
+    assertEquals(expected, direct);
+    assertEquals(expected, wrapped);
   }
 
   @Test
