@@ -406,8 +406,9 @@ class CefBrowserIntegrationTest {
   void shouldRefuseAPageOnThisMachineUnlessPrivateNetworksAreAllowed() {
     final BrowserPlayer player = this.player(BrowserOptions.DEFAULT);
     final BrowserSource local = BrowserSource.uri(this.pages.uri(TestPages.MAIN_PATH), WIDTH, HEIGHT, 1);
-    final BrowserException failure = assertThrows(BrowserException.class, () -> player.start(local));
-    final String message = failure.getMessage();
+    final PageRefusedException failure = assertThrows(PageRefusedException.class, () -> player.start(local));
+    final Throwable loadError = failure.getCause();
+    final String message = loadError.getMessage();
     final boolean namesTheProxyRefusal = message.contains("SOCKS") || message.contains("PROXY") || message.contains("TUNNEL");
     assertTrue(namesTheProxyRefusal, message);
 

@@ -31,6 +31,7 @@ import me.brandonli.mcav.browser.BrowserOptions;
 import me.brandonli.mcav.browser.BrowserPlayer;
 import me.brandonli.mcav.browser.BrowserSource;
 import me.brandonli.mcav.browser.BrowserUnavailableException;
+import me.brandonli.mcav.browser.PageRefusedException;
 import me.brandonli.mcav.media.player.attachable.AudioAttachableCallback;
 import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
@@ -396,8 +397,9 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
 
   /**
    * Creates the message that tells the sender whether the browser started. A browser that cannot run on this server,
-   * as when its download failed, gets its own message, also when wrapped in a {@link CompletionException}. The reason
-   * of a failure is logged, not shown, since it may contain details of the server.
+   * as when its download failed, and a page whose address the browser refused, because it is not public, get their own
+   * messages, also when wrapped in a {@link CompletionException}. The reason of any other failure is logged, not shown,
+   * since it may contain details of the server.
    *
    * @param outcome whether the browser started
    * @param failure why the browser failed to start, if known
@@ -413,15 +415,38 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
       return Message.START_BROWSER.build();
     }
 
-    Throwable cause = failure;
-    if (cause instanceof CompletionException) {
-      cause = cause.getCause();
-    }
+    final @Nullable Throwable cause = this.unwrapCompletion(failure);
     if (cause instanceof BrowserUnavailableException) {
       return Message.BROWSER_UNAVAILABLE.build();
     }
 
+    if (cause instanceof PageRefusedException) {
+      return Message.BROWSER_REFUSED.build();
+    }
+
     return Message.BROWSER_ERROR.build();
+  }
+
+  private @Nullable Throwable unwrapCompletion(final @Nullable Throwable failure) {
+    if (failure instanceof CompletionException) {
+      return failure.getCause();
+    }
+
+    return failure;
+  }
+
+  /**
+   * Returns whether {@code failure} is a page whose address the browser refused, because it is not public, also when
+   * wrapped in a {@link CompletionException}. The sender's reply explains it, so it is not logged as an error.
+   *
+   * @param failure why the browser failed to start, if known
+   * @return whether the browser refused the page
+   * @since 1.0.0
+   */
+  @Override
+  protected boolean isRefusal(final @Nullable Throwable failure) {
+    final @Nullable Throwable cause = this.unwrapCompletion(failure);
+    return cause instanceof PageRefusedException;
   }
 
   /**

@@ -18,6 +18,7 @@
 package me.brandonli.mcav.plugin.command.interaction;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -40,6 +41,7 @@ import me.brandonli.mcav.browser.BrowserOptions;
 import me.brandonli.mcav.browser.BrowserPlayer;
 import me.brandonli.mcav.browser.BrowserSource;
 import me.brandonli.mcav.browser.BrowserUnavailableException;
+import me.brandonli.mcav.browser.PageRefusedException;
 import me.brandonli.mcav.bukkit.media.result.CompressedMapResult;
 import me.brandonli.mcav.media.player.attachable.AudioAttachableCallback;
 import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
@@ -55,6 +57,7 @@ import me.brandonli.mcav.plugin.data.PluginDataConfigurationMapper;
 import me.brandonli.mcav.plugin.listener.OnlinePlayers;
 import me.brandonli.mcav.plugin.locale.Message;
 import me.brandonli.mcav.plugin.testing.Components;
+import me.brandonli.mcav.plugin.testing.StandardErrorCapture;
 import me.brandonli.mcav.plugin.testing.TestServer;
 import me.brandonli.mcav.plugin.utils.AudioArgument;
 import me.brandonli.mcav.plugin.utils.DitheringArgument;
@@ -88,6 +91,9 @@ final class BrowserCommandTest {
   private static final String AUDIO_HTTP_URL = "http://mc.example.com:3000/";
 
   private static final String BROWSER_RELEASE_FAILURE_MESSAGE = "release broke!";
+
+  private static final String REFUSED_PAGE_MESSAGE =
+    "The browser refused page https://example.com/page, because its address is not public!";
 
   private BrowserCommand command;
   private MCAVSandbox plugin;
@@ -335,6 +341,49 @@ final class BrowserCommandTest {
 
     final Component expectedError = Message.BROWSER_ERROR.build();
     assertEquals(expectedError, other);
+  }
+
+  @Test
+  void shouldTellTheSenderThatThePageWasRefused() {
+    final PageRefusedException refused = new PageRefusedException(REFUSED_PAGE_MESSAGE);
+
+    final Component direct = this.command.createStartMessage(StartOutcome.FAILED, refused);
+    final Component wrapped = this.command.createStartMessage(StartOutcome.FAILED, new CompletionException(refused));
+
+    final Component expected = Message.BROWSER_REFUSED.build();
+    assertEquals(expected, direct);
+    assertEquals(expected, wrapped);
+  }
+
+  @Test
+  void shouldCountOnlyARefusedPageAsARefusal() {
+    final PageRefusedException refused = new PageRefusedException(REFUSED_PAGE_MESSAGE);
+
+    final boolean direct = this.command.isRefusal(refused);
+    final boolean wrapped = this.command.isRefusal(new CompletionException(refused));
+    final boolean other = this.command.isRefusal(new CompletionException(new IllegalStateException("page!")));
+    assertTrue(direct);
+    assertTrue(wrapped);
+    assertFalse(other);
+  }
+
+  @Test
+  void shouldLogNoErrorForAPageThatWasRefused() {
+    final PageRefusedException refused = new PageRefusedException(REFUSED_PAGE_MESSAGE);
+    final CompletableFuture<Boolean> start = CompletableFuture.failedFuture(new CompletionException(refused));
+    when(this.browser.startAsync(any(BrowserSource.class), any())).thenReturn(start);
+    final String output;
+    try (final StandardErrorCapture capture = StandardErrorCapture.start()) {
+      this.create(RESOLUTION, BLOCK_DIMENSIONS, PAGE_URL);
+      verify(this.browser, timeout(RELEASE_MILLISECONDS)).release();
+      output = capture.getOutput();
+    }
+
+    final boolean logged = output.contains("Starting the browser for");
+    assertFalse(logged, output);
+
+    final Component refusedMessage = Message.BROWSER_REFUSED.build();
+    this.assertReceived(Message.BROWSER_LOADING.build(), refusedMessage);
   }
 
   @Test

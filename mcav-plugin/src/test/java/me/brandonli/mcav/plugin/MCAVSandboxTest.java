@@ -75,6 +75,7 @@ import org.bukkit.Server;
 import org.bukkit.command.CommandSender;
 import org.bukkit.plugin.PluginManager;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bytedeco.javacpp.Pointer;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.incendo.cloud.paper.LegacyPaperCommandManager;
 import org.junit.jupiter.api.AfterEach;
@@ -121,6 +122,9 @@ final class MCAVSandboxTest {
   // the mocked module injects no plugin, which the MCV2 pack server listens for the players with
   private MockedStatic<BukkitModule> bukkitModules;
 
+  // a test must not stop the deallocator thread of the test JVM
+  private MockedStatic<Pointer> pointers;
+
   @BeforeEach
   void createPlugin() {
     final Server server = TestServer.reset();
@@ -145,6 +149,7 @@ final class MCAVSandboxTest {
     this.libraries.close();
     this.paperManagers.close();
     this.bukkitModules.close();
+    this.pointers.close();
   }
 
   private void mockPluginEnvironment(final Server server) {
@@ -177,6 +182,7 @@ final class MCAVSandboxTest {
     this.libraries.when(MCAV::api).thenReturn(this.api);
     this.bukkitModules = Mockito.mockStatic(BukkitModule.class, Mockito.CALLS_REAL_METHODS);
     this.bukkitModules.when(BukkitModule::getPlugin).thenReturn(this.sandbox);
+    this.pointers = Mockito.mockStatic(Pointer.class);
   }
 
   @Test
@@ -218,6 +224,19 @@ final class MCAVSandboxTest {
   void shouldDisableCleanlyWhenItWasNeverEnabled() {
     this.sandbox.onDisable();
     verify(this.api, never()).release();
+  }
+
+  @Test
+  void shouldStopTheJavaCppDeallocatorWhenDisabled() {
+    this.sandbox.onEnable();
+    this.sandbox.onDisable();
+    this.pointers.verify(Pointer::interruptDeallocatorThread);
+  }
+
+  @Test
+  void shouldLeaveJavaCppAloneWhenItWasNeverEnabled() {
+    this.sandbox.onDisable();
+    this.pointers.verify(Pointer::interruptDeallocatorThread, never());
   }
 
   @Test

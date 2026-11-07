@@ -745,6 +745,31 @@ class HelperSessionTest {
   }
 
   @Test
+  void shouldRefuseAPageWhoseAddressTheGuardRefused() {
+    final BrowserException failure = this.openFails(
+      ScriptedEngine.class.getName(),
+      ScriptedEngine.REFUSED_PATH,
+      START_TIMEOUT_MILLISECONDS
+    );
+    assertInstanceOf(PageRefusedException.class, failure);
+  }
+
+  @Test
+  void shouldFailAsBeforeWhenTheGuardRefusedAnotherHost() {
+    final BrowserException failure = this.openFails(
+      ScriptedEngine.class.getName(),
+      ScriptedEngine.REFUSED_ELSEWHERE_PATH,
+      START_TIMEOUT_MILLISECONDS
+    );
+    final String message = failure.getMessage();
+    final boolean refused = failure instanceof PageRefusedException;
+    assertFalse(refused, message);
+
+    final boolean reportsTheLoadError = message.contains("ERR_SOCKS_CONNECTION_FAILED (code -120)");
+    assertTrue(reportsTheLoadError, message);
+  }
+
+  @Test
   void shouldFailTheStartWhenTheHelperExitsDuringIt() {
     final BrowserException failure = this.openFails(ScriptedEngine.class.getName(), ScriptedEngine.EXIT_PATH, START_TIMEOUT_MILLISECONDS);
     final boolean reportsTheExit =

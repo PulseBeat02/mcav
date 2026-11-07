@@ -37,6 +37,11 @@ final class ScriptedEngine implements HelperEngine {
   private static final int NAME_NOT_RESOLVED_CODE = -105;
   private static final String NAME_NOT_RESOLVED_TEXT = "ERR_NAME_NOT_RESOLVED";
 
+  private static final int SOCKS_CONNECTION_FAILED_CODE = -120;
+  private static final String SOCKS_CONNECTION_FAILED_TEXT = "ERR_SOCKS_CONNECTION_FAILED";
+
+  private static final String OTHER_REFUSED_HOST = "10.0.0.1";
+
   private static final String ENGINE_VERSION = "scripted";
 
   private static final int HIGH_BYTE_SHIFT = 8;
@@ -51,6 +56,8 @@ final class ScriptedEngine implements HelperEngine {
   static final String EXIT_PATH = "/exit";
   static final String NEVER_PATH = "/never";
   static final String LOAD_ERROR_PATH = "/load-error";
+  static final String REFUSED_PATH = "/refused";
+  static final String REFUSED_ELSEWHERE_PATH = "/refused-elsewhere";
   static final String SOUND_PATH = "/sound";
   static final String SOUND_ON_INPUT_PATH = "/sound-on-input";
   static final String FAIL_PATH = "/fail";
@@ -117,6 +124,8 @@ final class ScriptedEngine implements HelperEngine {
         events.onLoadError(NAME_NOT_RESOLVED_CODE, NAME_NOT_RESOLVED_TEXT, url.toString());
         events.onLoading(false);
       }
+      case REFUSED_PATH -> this.failRefused(events, url, url.getHost());
+      case REFUSED_ELSEWHERE_PATH -> this.failRefused(events, url, OTHER_REFUSED_HOST);
       case SOUND_PATH -> this.playSound(events);
       case SOUND_ON_INPUT_PATH -> {
         this.soundOnInput = true;
@@ -135,6 +144,15 @@ final class ScriptedEngine implements HelperEngine {
     Thread.sleep(OUTPUT_READ_MILLISECONDS);
     final String message = "The scripted start failed after output!";
     throw new IllegalStateException(message);
+  }
+
+  // the guard tells about the refused host before Chromium reports the failed load
+  private void failRefused(final HelperEvents events, final URI url, final String refusedHost) {
+    events.onReady(ENGINE_VERSION);
+    events.onLoading(true);
+    events.onNotice(NetworkGuard.REFUSAL_NOTICE.formatted(refusedHost));
+    events.onLoadError(SOCKS_CONNECTION_FAILED_CODE, SOCKS_CONNECTION_FAILED_TEXT, url.toString());
+    events.onLoading(false);
   }
 
   private void playSound(final HelperEvents events) {
