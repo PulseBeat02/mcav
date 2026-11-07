@@ -521,7 +521,13 @@ final class Mcv2ResultTest {
     final Mcv2Configuration live = this.packScreen(Settings.DEFAULT);
     final AtomicLong encodeNanoseconds = new AtomicLong(TimeUnit.MILLISECONDS.toNanos(5));
     final List<Settings> switched = new ArrayList<>();
-    final Mcv2Result result = new Mcv2Result(live, new Mcv2Channel(live, this.viewers, this.screen), this.algorithm, clock::get, Runnable::run);
+    final Mcv2Result result = new Mcv2Result(
+      live,
+      new Mcv2Channel(live, this.viewers, this.screen),
+      this.algorithm,
+      clock::get,
+      Runnable::run
+    );
     result.resetPacer();
     final ImageBuffer frame = Images.solid(64, 32, FRAME_COLOR);
     result.applyFilter(frame, this.metadata);
