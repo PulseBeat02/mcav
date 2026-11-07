@@ -374,8 +374,10 @@ final class Mcv2ResultTest {
 
     result.repeatWhileIdle();
     result.repeatWhileIdle();
-    final Mcv2Result.@Nullable Arrival repeated = result.poll();
-    assertNotNull(repeated);
+    final Mcv2Result.Arrival repeated = requireNonNull(result.poll());
+
+    final Settings settings = result.settingsFor(repeated);
+    assertEquals(Settings.FAST, settings);
 
     final boolean requested = channel.takeKeyframeRequest();
     assertTrue(requested);
