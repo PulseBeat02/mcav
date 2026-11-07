@@ -32,6 +32,10 @@ final class Mcv2KeyframeRequest {
     this.requested.set(true);
   }
 
+  boolean isRequested() {
+    return this.requested.get();
+  }
+
   boolean take() {
     return this.requested.getAndSet(false);
   }

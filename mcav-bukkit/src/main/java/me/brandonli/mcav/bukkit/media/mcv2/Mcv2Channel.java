@@ -400,6 +400,10 @@ public final class Mcv2Channel {
     return this.keyframeRequest.take();
   }
 
+  boolean isKeyframeRequested() {
+    return this.keyframeRequest.isRequested();
+  }
+
   /**
    * Sends one frame to the viewers that were shown the screen and can take it, as one bundle: its pages on the page
    * maps, and with a keyframe the anchors, which the server's own map data may have overwritten. A viewer gets the
