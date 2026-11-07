@@ -746,7 +746,11 @@ class HelperSessionTest {
 
   @Test
   void shouldRefuseAPageWhoseAddressTheGuardRefused() {
-    final BrowserException failure = this.openFails(ScriptedEngine.class.getName(), ScriptedEngine.REFUSED_PATH, START_TIMEOUT_MILLISECONDS);
+    final BrowserException failure = this.openFails(
+      ScriptedEngine.class.getName(),
+      ScriptedEngine.REFUSED_PATH,
+      START_TIMEOUT_MILLISECONDS
+    );
     assertInstanceOf(PageRefusedException.class, failure);
   }
 
