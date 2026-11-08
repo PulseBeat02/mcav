@@ -492,6 +492,16 @@ final class GlTextureFilterTest {
   }
 
   @Test
+  void shouldStoreFramesInTheRgb8InternalFormat() {
+    this.filter.start();
+    this.stageAndUpload(this.filter, SMALL_WIDTH, SMALL_HEIGHT, GREEN_ARGB);
+
+    final int texture = this.filter.getTextureId();
+    final int internalFormat = this.levelParameter(texture, GL11.GL_TEXTURE_INTERNAL_FORMAT);
+    assertEquals(GL11.GL_RGB8, internalFormat);
+  }
+
+  @Test
   void shouldResizeTheTextureWhenOnlyTheHeightChanges() {
     this.filter.start();
     this.stageAndUpload(this.filter, INITIAL_WIDTH, INITIAL_HEIGHT, GREEN_ARGB);
