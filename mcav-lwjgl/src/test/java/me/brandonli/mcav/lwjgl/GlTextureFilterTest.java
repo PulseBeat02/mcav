@@ -671,15 +671,23 @@ final class GlTextureFilterTest {
   }
 
   private Throwable failureOnAnotherThread(final Runnable action) throws InterruptedException {
+    final List<Throwable> failures = this.failuresOnAnotherThread(action);
+    final int failureCount = failures.size();
+    assertEquals(1, failureCount, failures::toString);
+
+    return failures.getFirst();
+  }
+
+  private List<Throwable> failuresOnAnotherThread(final Runnable action) throws InterruptedException {
     final List<Throwable> failures = new CopyOnWriteArrayList<>();
     final Thread other = new Thread(() -> this.runWithMockedOpenGl(action, failures));
     other.start();
     other.join(JOIN_TIMEOUT_MILLISECONDS);
 
-    final int failureCount = failures.size();
-    assertEquals(1, failureCount, failures::toString);
+    final boolean alive = other.isAlive();
+    assertFalse(alive, "the other thread finished");
 
-    return failures.getFirst();
+    return failures;
   }
 
   private void runWithMockedOpenGl(final Runnable action, final List<Throwable> failures) {
@@ -695,6 +703,27 @@ final class GlTextureFilterTest {
     } catch (final AssertionError exception) {
       failures.add(exception);
     }
+  }
+
+  @Test
+  void shouldReleaseWithoutAContextWhenItOwnsNoTexture() throws InterruptedException {
+    final int borrowedTexture = GL11.glGenTextures();
+    final GlTextureFilter borrowing = new GlTextureFilter(borrowedTexture);
+    this.stage(borrowing, SQUARE_SIZE, SQUARE_SIZE, GREEN_ARGB);
+    this.stage(this.filter, SQUARE_SIZE, SQUARE_SIZE, GREEN_ARGB);
+
+    final List<Throwable> borrowedFailures = this.failuresOnAnotherThread(borrowing::release);
+    final List<Throwable> unstartedFailures = this.failuresOnAnotherThread(this.filter::release);
+    final boolean borrowedPending = borrowing.hasPendingFrame();
+    final boolean unstartedPending = this.filter.hasPendingFrame();
+    final int borrowed = borrowing.getTextureId();
+    assertEquals(List.of(), borrowedFailures);
+    assertEquals(List.of(), unstartedFailures);
+    assertFalse(borrowedPending);
+    assertFalse(unstartedPending);
+    assertEquals(borrowedTexture, borrowed);
+
+    GL11.glDeleteTextures(borrowedTexture);
   }
 
   @Test
