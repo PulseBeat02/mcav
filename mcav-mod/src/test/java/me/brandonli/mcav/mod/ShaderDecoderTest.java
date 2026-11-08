@@ -83,9 +83,7 @@ final class ShaderDecoderTest {
   private final AtomicBoolean shaderPack = new AtomicBoolean(true);
   private final AtomicBoolean shadowPass = new AtomicBoolean();
   private final AtomicInteger layoutReads = new AtomicInteger();
-  private final AtomicReference<Optional<String>> packConstants = new AtomicReference<>(
-    Optional.of(PACK_CONSTANTS)
-  );
+  private final AtomicReference<Optional<String>> packConstants = new AtomicReference<>(Optional.of(PACK_CONSTANTS));
   private final StripOutput output = mock(StripOutput.class);
   private final GraphicsResourceAllocator allocator = mock(GraphicsResourceAllocator.class);
   private final CameraRenderState camera = new CameraRenderState();
