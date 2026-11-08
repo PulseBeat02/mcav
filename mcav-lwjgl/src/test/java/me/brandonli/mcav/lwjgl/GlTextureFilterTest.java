@@ -40,7 +40,6 @@ import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-import me.brandonli.mcav.lwjgl.testing.Await;
 import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.metadata.OriginalVideoMetadata;
 import org.junit.jupiter.api.AfterAll;
@@ -752,14 +751,17 @@ final class GlTextureFilterTest {
   }
 
   @Test
-  void shouldAcceptFramesFromAnotherThread() throws InterruptedException {
+  void shouldAcceptFramesFromAnotherThreadWithoutOpenGlCalls() throws InterruptedException {
     this.filter.start();
-    final Thread player = this.startThread(() -> this.stage(this.filter, SQUARE_SIZE, SQUARE_SIZE, BLUE_ARGB));
-    Await.until("the frame of the player thread is staged", this.filter::hasPendingFrame);
-    player.join(JOIN_TIMEOUT_MILLISECONDS);
+
+    final List<Throwable> failures = this.failuresOnAnotherThread(() -> this.stage(this.filter, SQUARE_SIZE, SQUARE_SIZE, BLUE_ARGB));
+    assertEquals(List.of(), failures);
 
     final boolean uploaded = this.filter.upload();
+    final int texture = this.filter.getTextureId();
+    final byte[] pixels = this.readTexture(texture, SQUARE_SIZE, SQUARE_SIZE);
     assertTrue(uploaded);
+    this.assertAllPixels(pixels, BLUE_RGB);
   }
 
   @Test
