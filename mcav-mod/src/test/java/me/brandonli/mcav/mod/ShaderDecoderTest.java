@@ -48,7 +48,8 @@ final class ShaderDecoderTest {
   private static final boolean TESTED_IRIS = true;
   private static final boolean UNTESTED_IRIS = false;
 
-  private static final PackLayout LAYOUT = PackLayout.parse(PackLayoutTest.packConstants("7u", "2", "0", 1)).orElseThrow();
+  private static final String PACK_CONSTANTS = PackLayoutTest.packConstants("7u", "2", "0", 1);
+  private static final PackLayout LAYOUT = PackLayout.parse(PACK_CONSTANTS).orElseThrow();
 
   private static final byte[] PAGE = MapFixtures.colors(MapFixtures.pageSymbols(7, 1));
 
@@ -83,7 +84,7 @@ final class ShaderDecoderTest {
   private final AtomicBoolean shadowPass = new AtomicBoolean();
   private final AtomicInteger layoutReads = new AtomicInteger();
   private final AtomicReference<Optional<String>> packConstants = new AtomicReference<>(
-    Optional.of(PackLayoutTest.packConstants("7u", "2", "0", 1))
+    Optional.of(PACK_CONSTANTS)
   );
   private final StripOutput output = mock(StripOutput.class);
   private final GraphicsResourceAllocator allocator = mock(GraphicsResourceAllocator.class);
@@ -295,6 +296,27 @@ final class ShaderDecoderTest {
     final int layoutReads = this.layoutReads.get();
     assertEquals(3, layoutReads);
     verify(this.output, times(5)).decode(any(), eq(ROWS), same(this.allocator));
+  }
+
+  @Test
+  void shouldDecodeWithAPackLoadedLaterAndStopOnceItIsGone() throws ReflectiveOperationException {
+    this.packConstants.set(Optional.empty());
+    final ShaderDecoder decoder = this.decoder(TESTED_IRIS, WIDTH, HEIGHT);
+    this.frame(decoder);
+    decoder.rendered(this.allocator, this.camera);
+    verify(this.output, never()).decode(any(), anyInt(), any());
+
+    this.packConstants.set(Optional.of(PACK_CONSTANTS));
+    this.clock.set(LAYOUT_NANOSECONDS);
+    this.frame(decoder);
+    decoder.rendered(this.allocator, this.camera);
+    verify(this.output).decode(any(), eq(ROWS), same(this.allocator));
+
+    this.packConstants.set(Optional.empty());
+    this.clock.set(2 * LAYOUT_NANOSECONDS);
+    this.frame(decoder);
+    decoder.rendered(this.allocator, this.camera);
+    verify(this.output).decode(any(), anyInt(), any());
   }
 
   @Test
