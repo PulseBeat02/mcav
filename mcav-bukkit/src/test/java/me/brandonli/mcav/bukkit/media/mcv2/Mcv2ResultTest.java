@@ -543,6 +543,63 @@ final class Mcv2ResultTest {
   }
 
   @Test
+  void shouldSendTheNextFrameAfterAStepToAViewerWhoLoadsTheNewPackWhileNoFrameComes() throws InterruptedException {
+    final AtomicLong clock = new AtomicLong(TimeUnit.SECONDS.toNanos(1));
+    final Mcv2Configuration onlyPack = this.packScreen(Settings.FAST);
+    final Mcv2Result result = new Mcv2Result(
+      onlyPack,
+      new Mcv2Channel(onlyPack, this.viewers, this.screen),
+      this.algorithm,
+      clock::get,
+      Runnable::run
+    );
+    final Mcv2Screen smallScreen = mock(Mcv2Screen.class);
+    when(smallScreen.getAnchors()).thenReturn(List.of());
+    final List<Mcv2Configuration> resized = new ArrayList<>();
+    result.setSmallerSizes(List.of(new int[] { 16, 32 }), configuration -> this.recordResizedChannel(configuration, resized, smallScreen));
+    result.resetPacer();
+    final AtomicLong fullNanoseconds = new AtomicLong(TimeUnit.MILLISECONDS.toNanos(5));
+    final List<Integer> widths = new ArrayList<>();
+    final Mcv2 encoder = mock(Mcv2.class);
+    when(encoder.encode(any(), anyInt(), anyInt(), anyLong())).thenAnswer(invocation ->
+      this.recordWidthAndAdvanceClock(invocation, widths, clock, fullNanoseconds)
+    );
+    when(encoder.getStatistics()).thenReturn(Optional.of(Mcv2.Statistics.of(1, false, 1, 1, LAMBDA)));
+    final ImageBuffer frame = Images.solid(64, 32, FRAME_COLOR);
+    result.applyFilter(frame, this.metadata);
+    this.server.runTasks();
+    this.play(result, clock, encoder, frame, 300);
+    fullNanoseconds.set(TimeUnit.MILLISECONDS.toNanos(100));
+    this.play(result, clock, encoder, frame, PROFILE_CHANGE_FRAMES);
+    when(this.viewers.isLoaded(WITH_PACK)).thenReturn(false);
+    this.server.runTasks();
+
+    final int smallWidth = result.getConfiguration().getVideoWidth();
+    assertEquals(16, smallWidth);
+
+    when(this.viewers.isLoaded(WITH_PACK)).thenReturn(true);
+    for (int check = 0; check < CHECKS_UNTIL_A_NEW_VIEWER_IS_SHOWN; check++) {
+      result.repeatWhileIdle();
+      this.server.runTasks();
+    }
+
+    final Player withPack = requireNonNull(Bukkit.getPlayer(WITH_PACK));
+    verify(smallScreen).show(withPack);
+
+    widths.clear();
+    final Mcv2Pacer.Rung rung = result.getRung().orElseThrow();
+    final int encoded = this.play(result, clock, encoder, frame, rung.getDivisor());
+    assertEquals(1, encoded);
+
+    final List<Integer> expectedWidths = List.of(16);
+    assertEquals(expectedWidths, widths);
+
+    final Set<UUID> expectedRecipients = Set.of(WITH_PACK);
+    final Set<UUID> recipients = result.getChannel().getRecipients();
+    assertEquals(expectedRecipients, recipients);
+  }
+
+  @Test
   void shouldRepeatTheLastPictureWithThePresetOfTheCurrentRung() throws InterruptedException {
     final AtomicLong clock = new AtomicLong(TimeUnit.SECONDS.toNanos(1));
     final Mcv2Configuration live = this.packScreen(Settings.DEFAULT);
