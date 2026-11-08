@@ -36,6 +36,7 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -827,16 +828,35 @@ final class Mcv2ResultTest {
   }
 
   @Test
-  void shouldKeepItsInterruptWhileReleasing() {
-    final Mcv2Result result = this.result(this.configuration, null);
+  void shouldKeepItsInterruptWhileReleasing() throws InterruptedException {
+    final CountDownLatch taking = new CountDownLatch(1);
+    final CountDownLatch takeMayReturn = new CountDownLatch(1);
+    final Mcv2Result original = this.result(this.configuration, null);
+    final Mcv2Result result = spy(original);
+    // The screen thread stays alive through the release, so its join always meets the interrupt.
+    doAnswer(_ -> this.holdTake(taking, takeMayReturn)).when(result).take();
     result.start();
+    final boolean takeStarted = taking.await(PIPELINE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+    assertTrue(takeStarted);
+
     final Thread current = Thread.currentThread();
     current.interrupt();
-    result.release();
+    try {
+      result.release();
+    } finally {
+      takeMayReturn.countDown();
+    }
 
     final boolean interrupted = Thread.interrupted();
     assertTrue(interrupted);
     verify(this.screen).remove();
+  }
+
+  private @Nullable Object holdTake(final CountDownLatch taking, final CountDownLatch takeMayReturn) {
+    taking.countDown();
+    this.awaitUninterruptibly(takeMayReturn);
+
+    return null;
   }
 
   @Test
