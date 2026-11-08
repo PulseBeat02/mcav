@@ -28,9 +28,13 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.abort;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.Mockito.CALLS_REAL_METHODS;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.never;
 
 import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
@@ -40,7 +44,6 @@ import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-import me.brandonli.mcav.lwjgl.testing.Await;
 import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.metadata.OriginalVideoMetadata;
 import org.junit.jupiter.api.AfterAll;
@@ -114,6 +117,7 @@ final class GlTextureFilterTest {
   private static final int SQUARE_SIZE = 2;
   private static final int TRUNCATED_SIZE = 4;
   private static final int SINGLE_PIXEL = 1;
+  private static final int PADDING_PIXELS = 2;
 
   private static final int NEGATIVE_TEXTURE_ID = -3;
 
@@ -300,7 +304,9 @@ final class GlTextureFilterTest {
     assertEquals(GL12.GL_CLAMP_TO_EDGE, wrapT);
 
     final int width = this.filter.getWidth();
+    final int height = this.filter.getHeight();
     assertEquals(0, width);
+    assertEquals(0, height);
   }
 
   private int parameter(final int texture, final int name) {
@@ -466,7 +472,11 @@ final class GlTextureFilterTest {
   void shouldUpdateFramesOfTheSameSizeInPlaceAndResizeForNewSizes() {
     this.filter.start();
     this.stageAndUpload(this.filter, INITIAL_WIDTH, INITIAL_HEIGHT, GREEN_ARGB);
-    this.stageAndUpload(this.filter, INITIAL_WIDTH, INITIAL_HEIGHT, WHITE_ARGB);
+    try (final MockedStatic<GL11> calls = mockStatic(GL11.class, CALLS_REAL_METHODS)) {
+      this.stageAndUpload(this.filter, INITIAL_WIDTH, INITIAL_HEIGHT, WHITE_ARGB);
+
+      calls.verify(this::allocateStorageOfAnySize, never());
+    }
 
     final int texture = this.filter.getTextureId();
     final byte[] white = this.readTexture(texture, INITIAL_WIDTH, INITIAL_HEIGHT);
@@ -484,11 +494,25 @@ final class GlTextureFilterTest {
     assertEquals(RESIZED_WIDTH, textureWidth);
   }
 
+  private void allocateStorageOfAnySize() {
+    GL11.glTexImage2D(anyInt(), anyInt(), anyInt(), anyInt(), anyInt(), anyInt(), anyInt(), anyInt(), any(ByteBuffer.class));
+  }
+
   private int levelParameter(final int texture, final int name) {
     GL11.glBindTexture(GL11.GL_TEXTURE_2D, texture);
     final int value = GL11.glGetTexLevelParameteri(GL11.GL_TEXTURE_2D, BASE_LEVEL, name);
     GL11.glBindTexture(GL11.GL_TEXTURE_2D, NO_TEXTURE);
     return value;
+  }
+
+  @Test
+  void shouldStoreFramesInTheRgb8InternalFormat() {
+    this.filter.start();
+    this.stageAndUpload(this.filter, SMALL_WIDTH, SMALL_HEIGHT, GREEN_ARGB);
+
+    final int texture = this.filter.getTextureId();
+    final int internalFormat = this.levelParameter(texture, GL11.GL_TEXTURE_INTERNAL_FORMAT);
+    assertEquals(GL11.GL_RGB8, internalFormat);
   }
 
   @Test
@@ -671,15 +695,23 @@ final class GlTextureFilterTest {
   }
 
   private Throwable failureOnAnotherThread(final Runnable action) throws InterruptedException {
+    final List<Throwable> failures = this.failuresOnAnotherThread(action);
+    final int failureCount = failures.size();
+    assertEquals(1, failureCount, failures::toString);
+
+    return failures.getFirst();
+  }
+
+  private List<Throwable> failuresOnAnotherThread(final Runnable action) throws InterruptedException {
     final List<Throwable> failures = new CopyOnWriteArrayList<>();
     final Thread other = new Thread(() -> this.runWithMockedOpenGl(action, failures));
     other.start();
     other.join(JOIN_TIMEOUT_MILLISECONDS);
 
-    final int failureCount = failures.size();
-    assertEquals(1, failureCount, failures::toString);
+    final boolean alive = other.isAlive();
+    assertFalse(alive, "the other thread finished");
 
-    return failures.getFirst();
+    return failures;
   }
 
   private void runWithMockedOpenGl(final Runnable action, final List<Throwable> failures) {
@@ -698,39 +730,108 @@ final class GlTextureFilterTest {
   }
 
   @Test
+  void shouldReleaseWithoutAContextWhenItOwnsNoTexture() throws InterruptedException {
+    final int borrowedTexture = GL11.glGenTextures();
+    final GlTextureFilter borrowing = new GlTextureFilter(borrowedTexture);
+    this.stage(borrowing, SQUARE_SIZE, SQUARE_SIZE, GREEN_ARGB);
+    this.stage(this.filter, SQUARE_SIZE, SQUARE_SIZE, GREEN_ARGB);
+
+    final List<Throwable> borrowedFailures = this.failuresOnAnotherThread(borrowing::release);
+    final List<Throwable> unstartedFailures = this.failuresOnAnotherThread(this.filter::release);
+    final boolean borrowedPending = borrowing.hasPendingFrame();
+    final boolean unstartedPending = this.filter.hasPendingFrame();
+    final int borrowed = borrowing.getTextureId();
+    assertEquals(List.of(), borrowedFailures);
+    assertEquals(List.of(), unstartedFailures);
+    assertFalse(borrowedPending);
+    assertFalse(unstartedPending);
+    assertEquals(borrowedTexture, borrowed);
+
+    GL11.glDeleteTextures(borrowedTexture);
+  }
+
+  @Test
   void shouldIgnoreFramesWithTooLittleData() {
     this.filter.start();
-    final ImageBuffer truncated = mock(ImageBuffer.class);
-
-    final Stubber widthStubbing = doReturn(TRUNCATED_SIZE);
-    final ImageBuffer stubbedWidth = widthStubbing.when(truncated);
-    stubbedWidth.getWidth();
-
-    final Stubber heightStubbing = doReturn(TRUNCATED_SIZE);
-    final ImageBuffer stubbedHeight = heightStubbing.when(truncated);
-    stubbedHeight.getHeight();
-
     final int truncatedLength = TRUNCATED_SIZE * TRUNCATED_SIZE * CHANNELS - 1;
     final ByteBuffer data = ByteBuffer.allocateDirect(truncatedLength);
-    final Stubber dataStubbing = doReturn(data);
-    final ImageBuffer stubbedData = dataStubbing.when(truncated);
-    stubbedData.getData();
-
+    final ImageBuffer truncated = this.stubbedFrame(TRUNCATED_SIZE, TRUNCATED_SIZE, data);
     this.apply(this.filter, truncated);
 
     final boolean pending = this.filter.hasPendingFrame();
     assertFalse(pending);
   }
 
+  private ImageBuffer stubbedFrame(final int width, final int height, final ByteBuffer data) {
+    final ImageBuffer frame = mock(ImageBuffer.class);
+
+    final Stubber widthStubbing = doReturn(width);
+    final ImageBuffer stubbedWidth = widthStubbing.when(frame);
+    stubbedWidth.getWidth();
+
+    final Stubber heightStubbing = doReturn(height);
+    final ImageBuffer stubbedHeight = heightStubbing.when(frame);
+    stubbedHeight.getHeight();
+
+    final Stubber dataStubbing = doReturn(data);
+    final ImageBuffer stubbedData = dataStubbing.when(frame);
+    stubbedData.getData();
+
+    return frame;
+  }
+
   @Test
-  void shouldAcceptFramesFromAnotherThread() throws InterruptedException {
+  void shouldCopyOnlyTheRemainingPixelsAndLeaveTheFrameBufferAsItWas() {
     this.filter.start();
-    final Thread player = this.startThread(() -> this.stage(this.filter, SQUARE_SIZE, SQUARE_SIZE, BLUE_ARGB));
-    Await.until("the frame of the player thread is staged", this.filter::hasPendingFrame);
-    player.join(JOIN_TIMEOUT_MILLISECONDS);
+    final ByteBuffer data = this.paddedRedSquare();
+    final int remaining = data.remaining();
+    final ByteBuffer original = data.duplicate();
+    final ByteBuffer expected = ByteBuffer.allocate(remaining);
+    expected.put(original);
+    expected.flip();
+    final ImageBuffer padded = this.stubbedFrame(SQUARE_SIZE, SQUARE_SIZE, data);
+    this.apply(this.filter, padded);
+
+    final int position = data.position();
+    final int limit = data.limit();
+    final int capacity = data.capacity();
+    assertEquals(CHANNELS, position);
+    assertEquals(capacity, limit);
+    assertEquals(expected, data);
 
     final boolean uploaded = this.filter.upload();
+    final int texture = this.filter.getTextureId();
+    final byte[] pixels = this.readTexture(texture, SQUARE_SIZE, SQUARE_SIZE);
     assertTrue(uploaded);
+    this.assertAllPixels(pixels, RED_RGB);
+  }
+
+  private ByteBuffer paddedRedSquare() {
+    final int squareLength = SQUARE_SIZE * SQUARE_SIZE * CHANNELS;
+    final ByteBuffer data = ByteBuffer.allocateDirect(squareLength + PADDING_PIXELS * CHANNELS);
+    try (final ImageBuffer red = this.frame(SQUARE_SIZE, SQUARE_SIZE, RED_ARGB)) {
+      final ByteBuffer redPixels = red.getData();
+      data.put(WHITE_RGB);
+      data.put(redPixels);
+      data.put(WHITE_RGB);
+    }
+
+    data.position(CHANNELS);
+    return data;
+  }
+
+  @Test
+  void shouldAcceptFramesFromAnotherThreadWithoutOpenGlCalls() throws InterruptedException {
+    this.filter.start();
+
+    final List<Throwable> failures = this.failuresOnAnotherThread(() -> this.stage(this.filter, SQUARE_SIZE, SQUARE_SIZE, BLUE_ARGB));
+    assertEquals(List.of(), failures);
+
+    final boolean uploaded = this.filter.upload();
+    final int texture = this.filter.getTextureId();
+    final byte[] pixels = this.readTexture(texture, SQUARE_SIZE, SQUARE_SIZE);
+    assertTrue(uploaded);
+    this.assertAllPixels(pixels, BLUE_RGB);
   }
 
   @Test
