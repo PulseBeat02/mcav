@@ -2058,7 +2058,7 @@ final class Mcv2ResultTest {
   private Mcv2Configuration packScreen(final Settings settings) {
     return Mcv2Configuration.builder()
       .viewers(List.of(WITH_PACK))
-      .origin(new Location(mock(World.class), 0, 64, 0))
+      .origin(new Location(WORLD, 0, 64, 0))
       .facing(BlockFace.SOUTH)
       .map(WALL_MAP)
       .columns(1)
