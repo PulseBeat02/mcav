@@ -107,6 +107,9 @@ final class PlaybackSessionTest {
 
   private static final int FRAMES_PAST_THE_FIRST_STRETCH = 320;
 
+  private static final long LAGGING_FRAME_MICROSECONDS = 16_667L;
+  private static final long LAGGING_FRAME_LATENESS_NANOSECONDS = 500_000_000L;
+
   private static final String PICTURE_RELEASED_MESSAGE = "the picture was released";
   private static final String SESSION_STOPPED_MESSAGE = "the session stopped and closed its decoder";
 
@@ -810,6 +813,71 @@ final class PlaybackSessionTest {
 
     final int frameCount = frames.get();
     assertEquals(2, frameCount, "the second frame is exactly as late as allowed, so it is still shown");
+  }
+
+  @Test
+  void shouldShowALateFrameOnceNoFrameWasShownForTheMaximumGap() throws Exception {
+    final AtomicLong now = new AtomicLong();
+    final AtomicInteger frames = new AtomicInteger();
+    this.onVideo((_, _) -> this.advanceClockAfterFirstFrame(frames, now, LAGGING_FRAME_LATENESS_NANOSECONDS));
+    final Timing controlled = new Timing(PlaybackSession.AUDIO_LEAD_NANOSECONDS, PlaybackSession.MAXIMUM_VIDEO_LAG_NANOSECONDS, now::get);
+    final List<Object> script = framesDecodedInRealTime(181, now);
+    final ScriptedFrameGrabber grabber = new ScriptedFrameGrabber(FRAME_WIDTH, FRAME_HEIGHT, script);
+    final PlaybackSession.GrabberFactory factory = factoryOf(grabber);
+    final PlaybackSession session = this.session(factory, null, this.videoCallback, controlled, 0L, StartState.PLAYING);
+    session.start();
+    awaitEnd(session);
+
+    final int frameCount = frames.get();
+    assertEquals(4, frameCount, "every frame after the first comes half a second late for three seconds, and one a second is still shown");
+  }
+
+  // Each frame takes its own length to decode, so once the first frame's filter is slow, every later frame comes equally late.
+  private static List<Object> framesDecodedInRealTime(final int count, final AtomicLong now) {
+    final long decodingNanoseconds = TimeUnit.MICROSECONDS.toNanos(LAGGING_FRAME_MICROSECONDS);
+    final Runnable decoding = () -> now.addAndGet(decodingNanoseconds);
+    final List<Object> script = new ArrayList<>();
+    for (int index = 0; index < count; index++) {
+      final Frame frame = ScriptedFrameGrabber.video(index * LAGGING_FRAME_MICROSECONDS);
+      script.add(decoding);
+      script.add(frame);
+    }
+
+    return script;
+  }
+
+  @Test
+  void shouldDropLateFramesWithinTheMaximumGapOfAShownFrame() throws Exception {
+    final AtomicLong now = new AtomicLong();
+    final AtomicInteger frames = new AtomicInteger();
+    this.onVideo((_, _) -> this.advanceClockAfterFirstFrame(frames, now, LAGGING_FRAME_LATENESS_NANOSECONDS));
+    final Timing controlled = new Timing(PlaybackSession.AUDIO_LEAD_NANOSECONDS, PlaybackSession.MAXIMUM_VIDEO_LAG_NANOSECONDS, now::get);
+    final List<Object> script = framesDecodedInRealTime(21, now);
+    final ScriptedFrameGrabber grabber = new ScriptedFrameGrabber(FRAME_WIDTH, FRAME_HEIGHT, script);
+    final PlaybackSession.GrabberFactory factory = factoryOf(grabber);
+    final PlaybackSession session = this.session(factory, null, this.videoCallback, controlled, 0L, StartState.PLAYING);
+    session.start();
+    awaitEnd(session);
+
+    final int frameCount = frames.get();
+    assertEquals(1, frameCount, "every late frame comes less than a second after the first frame, so none is shown");
+  }
+
+  @Test
+  void shouldShowALateFrameThatComesExactlyTheMaximumGapAfterTheLastShownFrame() throws Exception {
+    final AtomicLong now = new AtomicLong();
+    final AtomicInteger frames = new AtomicInteger();
+    this.onVideo((_, _) -> this.advanceClockAfterFirstFrame(frames, now, PlaybackSession.MAXIMUM_VIDEO_GAP_NANOSECONDS));
+    final Timing controlled = new Timing(PlaybackSession.AUDIO_LEAD_NANOSECONDS, PlaybackSession.MAXIMUM_VIDEO_LAG_NANOSECONDS, now::get);
+    final List<Object> script = frames(2, FRAME_MICROSECONDS);
+    final ScriptedFrameGrabber grabber = new ScriptedFrameGrabber(FRAME_WIDTH, FRAME_HEIGHT, script);
+    final PlaybackSession.GrabberFactory factory = factoryOf(grabber);
+    final PlaybackSession session = this.session(factory, null, this.videoCallback, controlled, 0L, StartState.PLAYING);
+    session.start();
+    awaitEnd(session);
+
+    final int frameCount = frames.get();
+    assertEquals(2, frameCount, "the second frame comes exactly the maximum gap after the first, so it is shown however late");
   }
 
   @Test
