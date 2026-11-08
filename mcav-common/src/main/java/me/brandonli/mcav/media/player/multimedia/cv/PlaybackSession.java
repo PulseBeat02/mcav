@@ -78,6 +78,9 @@ final class PlaybackSession {
   // How late a frame may be before players drop it instead of showing it.
   static final long MAXIMUM_VIDEO_LAG_NANOSECONDS = 100_000_000L;
 
+  // How long players may go without showing a frame before they show a late one.
+  static final long MAXIMUM_VIDEO_GAP_NANOSECONDS = 1_000_000_000L;
+
   static final long AUDIO_LEAD_NANOSECONDS = 50_000_000L;
   private static final long VIDEO_LEAD_NANOSECONDS = 0L;
 
@@ -120,6 +123,7 @@ final class PlaybackSession {
   private volatile OriginalAudioMetadata audioMetadata;
   private volatile boolean seekable;
   private @Nullable FrameGrabber videoGrabber;
+  private long lastFrameShownNanoseconds;
 
   // Nothing is opened until open() or start() is called.
   PlaybackSession(
@@ -184,6 +188,7 @@ final class PlaybackSession {
     this.running = new AtomicBoolean(true);
     this.threads = new ArrayList<>();
     this.positionMicroseconds = startMicroseconds;
+    this.lastFrameShownNanoseconds = nanosecondClock.getAsLong();
     this.videoMetadata = OriginalVideoMetadata.EMPTY;
     this.audioMetadata = DEFAULT_AUDIO_METADATA;
 
@@ -563,13 +568,15 @@ final class PlaybackSession {
     final long timestamp = frame.getTimestampMicroseconds();
     final long lateNanoseconds = this.awaitDue(timestamp, VIDEO_LEAD_NANOSECONDS);
     final boolean late = lateNanoseconds > this.maximumVideoLagNanoseconds;
-    if (late) {
+    final boolean gapTooLong = this.isVideoGapTooLong();
+    if (late && !gapTooLong) {
       this.lateFrames.countDropped(timestamp);
       return;
     }
 
     this.lateFrames.countShown(timestamp);
     this.positionMicroseconds = timestamp;
+    this.lastFrameShownNanoseconds = this.nanosecondClock.getAsLong();
 
     final VideoPipelineStep step = this.videoCallback.retrieve();
     final boolean empty = step.isNoOperation();
@@ -578,6 +585,12 @@ final class PlaybackSession {
     }
 
     this.runVideoPipeline(step, image);
+  }
+
+  private boolean isVideoGapTooLong() {
+    final long now = this.nanosecondClock.getAsLong();
+    final long gap = now - this.lastFrameShownNanoseconds;
+    return gap >= MAXIMUM_VIDEO_GAP_NANOSECONDS;
   }
 
   private void runVideoPipeline(final VideoPipelineStep first, final MatImageBuffer image) {

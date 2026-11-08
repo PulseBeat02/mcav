@@ -29,7 +29,7 @@ import java.util.concurrent.locks.LockSupport;
 import org.bytedeco.javacv.Frame;
 import org.bytedeco.javacv.FrameGrabber;
 
-// Plays a script of frames, exceptions to throw and delays that ignore interrupts, then ends; the length is unknown unless set.
+// Plays a script of frames, exceptions to throw and steps to run, then ends; delays ignore interrupts and the length is unknown unless set.
 final class ScriptedFrameGrabber extends FrameGrabber {
 
   private static final int FRAME_WIDTH = 4;
@@ -123,8 +123,8 @@ final class ScriptedFrameGrabber extends FrameGrabber {
     this.grabbingThread.set(currentThread);
 
     Object next = this.takeNextStep();
-    while (next instanceof final Delay delay) {
-      delay.block();
+    while (next instanceof final Runnable step) {
+      step.run();
       next = this.takeNextStep();
     }
 
@@ -207,7 +207,7 @@ final class ScriptedFrameGrabber extends FrameGrabber {
     return this.length;
   }
 
-  static final class Delay {
+  static final class Delay implements Runnable {
 
     private static final long NANOSECONDS_PER_MILLISECOND = 1_000_000L;
 
@@ -217,7 +217,8 @@ final class ScriptedFrameGrabber extends FrameGrabber {
       this.milliseconds = milliseconds;
     }
 
-    void block() {
+    @Override
+    public void run() {
       final long delayNanoseconds = this.milliseconds * NANOSECONDS_PER_MILLISECOND;
       final long end = System.nanoTime() + delayNanoseconds;
       boolean interrupted = false;

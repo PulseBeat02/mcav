@@ -96,8 +96,9 @@ it again whenever it ends; the speed and loop need the `FFMPEG` player, and a li
 If playback pauses or arrives in bursts without an error, try a lower-resolution, lower-frame-rate H.264 file and
 compare it with the original on the same screen. Decoding a high-resolution AV1 source can fall behind on a busy server;
 when the player drops most frames of ten seconds of video for coming too late, the server log says
-`Playback falls behind`. The playing message reports player state; it does not guarantee frames are arriving, and a
-static image can also produce no map updates, so packet silence alone does not identify a decoder failure.
+`Playback falls behind`. While frames keep coming too late, the player still shows one frame a second. The playing
+message reports player state; it does not guarantee frames are arriving, and a static image can also produce no map
+updates, so packet silence alone does not identify a decoder failure.
 
 ### Creating a browser
 1) Use the `/mcav browser create` command to create a new browser on that screen. You can create a browser only on a

@@ -97,7 +97,8 @@ players see what the server sends them: maps, blocks, entities, the scoreboard a
 
 If playback pauses or arrives in bursts without an error, try a lower-resolution, lower-frame-rate H.264 file and
 compare it with the original on the same screen: decoding a high-resolution AV1 source can fall behind on a busy server,
-and the player drops frames that are more than 100 ms late. When it drops most frames of ten seconds of video, the
-server log says `Playback falls behind: <dropped> of the last <frames> frames came too late to show`, at most once a
-minute of video. The playing message reports the player's state, not whether frames are arriving, and a still image
-sends no map updates at all, so silence on the network alone does not mean a failure.
+and the player drops frames that are more than 100 ms late. While frames keep coming too late, it still shows one
+frame a second. When it drops most frames of ten seconds of video, the server log says
+`Playback falls behind: <dropped> of the last <frames> frames came too late to show`, at most once a minute of video.
+The playing message reports the player's state, not whether frames are arriving, and a still image sends no map
+updates at all, so silence on the network alone does not mean a failure.

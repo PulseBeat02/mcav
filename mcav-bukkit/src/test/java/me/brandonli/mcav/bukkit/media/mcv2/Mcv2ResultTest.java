@@ -36,6 +36,7 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -543,6 +544,63 @@ final class Mcv2ResultTest {
   }
 
   @Test
+  void shouldSendTheNextFrameAfterAStepToAViewerWhoLoadsTheNewPackWhileNoFrameComes() throws InterruptedException {
+    final AtomicLong clock = new AtomicLong(TimeUnit.SECONDS.toNanos(1));
+    final Mcv2Configuration onlyPack = this.packScreen(Settings.FAST);
+    final Mcv2Result result = new Mcv2Result(
+      onlyPack,
+      new Mcv2Channel(onlyPack, this.viewers, this.screen),
+      this.algorithm,
+      clock::get,
+      Runnable::run
+    );
+    final Mcv2Screen smallScreen = mock(Mcv2Screen.class);
+    when(smallScreen.getAnchors()).thenReturn(List.of());
+    final List<Mcv2Configuration> resized = new ArrayList<>();
+    result.setSmallerSizes(List.of(new int[] { 16, 32 }), configuration -> this.recordResizedChannel(configuration, resized, smallScreen));
+    result.resetPacer();
+    final AtomicLong fullNanoseconds = new AtomicLong(TimeUnit.MILLISECONDS.toNanos(5));
+    final List<Integer> widths = new ArrayList<>();
+    final Mcv2 encoder = mock(Mcv2.class);
+    when(encoder.encode(any(), anyInt(), anyInt(), anyLong())).thenAnswer(invocation ->
+      this.recordWidthAndAdvanceClock(invocation, widths, clock, fullNanoseconds)
+    );
+    when(encoder.getStatistics()).thenReturn(Optional.of(Mcv2.Statistics.of(1, false, 1, 1, LAMBDA)));
+    final ImageBuffer frame = Images.solid(64, 32, FRAME_COLOR);
+    result.applyFilter(frame, this.metadata);
+    this.server.runTasks();
+    this.play(result, clock, encoder, frame, 300);
+    fullNanoseconds.set(TimeUnit.MILLISECONDS.toNanos(100));
+    this.play(result, clock, encoder, frame, PROFILE_CHANGE_FRAMES);
+    when(this.viewers.isLoaded(WITH_PACK)).thenReturn(false);
+    this.server.runTasks();
+
+    final int smallWidth = result.getConfiguration().getVideoWidth();
+    assertEquals(16, smallWidth);
+
+    when(this.viewers.isLoaded(WITH_PACK)).thenReturn(true);
+    for (int check = 0; check < CHECKS_UNTIL_A_NEW_VIEWER_IS_SHOWN; check++) {
+      result.repeatWhileIdle();
+      this.server.runTasks();
+    }
+
+    final Player withPack = requireNonNull(Bukkit.getPlayer(WITH_PACK));
+    verify(smallScreen).show(withPack);
+
+    widths.clear();
+    final Mcv2Pacer.Rung rung = result.getRung().orElseThrow();
+    final int encoded = this.play(result, clock, encoder, frame, rung.getDivisor());
+    assertEquals(1, encoded);
+
+    final List<Integer> expectedWidths = List.of(16);
+    assertEquals(expectedWidths, widths);
+
+    final Set<UUID> expectedRecipients = Set.of(WITH_PACK);
+    final Set<UUID> recipients = result.getChannel().getRecipients();
+    assertEquals(expectedRecipients, recipients);
+  }
+
+  @Test
   void shouldRepeatTheLastPictureWithThePresetOfTheCurrentRung() throws InterruptedException {
     final AtomicLong clock = new AtomicLong(TimeUnit.SECONDS.toNanos(1));
     final Mcv2Configuration live = this.packScreen(Settings.DEFAULT);
@@ -770,16 +828,37 @@ final class Mcv2ResultTest {
   }
 
   @Test
-  void shouldKeepItsInterruptWhileReleasing() {
-    final Mcv2Result result = this.result(this.configuration, null);
+  void shouldKeepItsInterruptWhileReleasing() throws InterruptedException {
+    final CountDownLatch taking = new CountDownLatch(1);
+    final CountDownLatch takeMayReturn = new CountDownLatch(1);
+    final Mcv2Result original = this.result(this.configuration, null);
+    final Mcv2Result result = spy(original);
+    // The screen thread stays alive through the release, so its join always meets the interrupt.
+    doAnswer(_ -> this.holdTake(taking, takeMayReturn))
+      .when(result)
+      .take();
     result.start();
+    final boolean takeStarted = taking.await(PIPELINE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+    assertTrue(takeStarted);
+
     final Thread current = Thread.currentThread();
     current.interrupt();
-    result.release();
+    try {
+      result.release();
+    } finally {
+      takeMayReturn.countDown();
+    }
 
     final boolean interrupted = Thread.interrupted();
     assertTrue(interrupted);
     verify(this.screen).remove();
+  }
+
+  private @Nullable Object holdTake(final CountDownLatch taking, final CountDownLatch takeMayReturn) {
+    taking.countDown();
+    this.awaitUninterruptibly(takeMayReturn);
+
+    return null;
   }
 
   @Test
@@ -2058,7 +2137,7 @@ final class Mcv2ResultTest {
   private Mcv2Configuration packScreen(final Settings settings) {
     return Mcv2Configuration.builder()
       .viewers(List.of(WITH_PACK))
-      .origin(new Location(mock(World.class), 0, 64, 0))
+      .origin(new Location(WORLD, 0, 64, 0))
       .facing(BlockFace.SOUTH)
       .map(WALL_MAP)
       .columns(1)
