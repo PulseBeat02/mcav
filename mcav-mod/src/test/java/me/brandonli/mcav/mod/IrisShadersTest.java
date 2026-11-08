@@ -89,7 +89,7 @@ final class IrisShadersTest {
   }
 
   @Test
-  void shouldTreatIris1Point11Point7AsTestedWhateverItsBuildMetadata() {
+  void shouldTreatOnlyIris1Point11Point7AsTestedWhateverItsBuildMetadata() {
     final boolean releaseTested = IrisShaders.isTested("1.11.7");
     final boolean buildMetadataTested = IrisShaders.isTested("1.11.7+mc26.3");
     final boolean longerPatchTested = IrisShaders.isTested("1.11.70");
