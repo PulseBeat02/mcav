@@ -74,9 +74,11 @@ final class Mcv2MapsTest {
     final boolean readAsAnchor = Mcv2Maps.isAnchor(anchor);
     final boolean readAsPage = Mcv2Maps.isPage(anchor);
     final boolean shorterReadAsAnchor = Mcv2Maps.isAnchor(Arrays.copyOf(anchor, Mcv2Maps.COLORS - 1));
+    final boolean longerReadAsAnchor = Mcv2Maps.isAnchor(Arrays.copyOf(anchor, Mcv2Maps.COLORS + 1));
     assertTrue(readAsAnchor);
     assertFalse(readAsPage);
     assertFalse(shorterReadAsAnchor);
+    assertFalse(longerReadAsAnchor);
     for (int index = 0; index < MapFixtures.ANCHOR_SIGNATURE.length; index++) {
       final byte[] changed = anchor.clone();
       changed[index] = (byte) (changed[index] == 4 ? 5 : 4);
