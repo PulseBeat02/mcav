@@ -28,9 +28,13 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.abort;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.Mockito.CALLS_REAL_METHODS;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.never;
 
 import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
@@ -468,7 +472,11 @@ final class GlTextureFilterTest {
   void shouldUpdateFramesOfTheSameSizeInPlaceAndResizeForNewSizes() {
     this.filter.start();
     this.stageAndUpload(this.filter, INITIAL_WIDTH, INITIAL_HEIGHT, GREEN_ARGB);
-    this.stageAndUpload(this.filter, INITIAL_WIDTH, INITIAL_HEIGHT, WHITE_ARGB);
+    try (final MockedStatic<GL11> calls = mockStatic(GL11.class, CALLS_REAL_METHODS)) {
+      this.stageAndUpload(this.filter, INITIAL_WIDTH, INITIAL_HEIGHT, WHITE_ARGB);
+
+      calls.verify(this::allocateStorageOfAnySize, never());
+    }
 
     final int texture = this.filter.getTextureId();
     final byte[] white = this.readTexture(texture, INITIAL_WIDTH, INITIAL_HEIGHT);
@@ -484,6 +492,10 @@ final class GlTextureFilterTest {
     assertEquals(RESIZED_WIDTH, width);
     assertEquals(RESIZED_HEIGHT, height);
     assertEquals(RESIZED_WIDTH, textureWidth);
+  }
+
+  private void allocateStorageOfAnySize() {
+    GL11.glTexImage2D(anyInt(), anyInt(), anyInt(), anyInt(), anyInt(), anyInt(), anyInt(), anyInt(), any(ByteBuffer.class));
   }
 
   private int levelParameter(final int texture, final int name) {
