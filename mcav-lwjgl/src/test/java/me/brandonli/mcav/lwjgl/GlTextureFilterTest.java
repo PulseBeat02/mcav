@@ -300,7 +300,9 @@ final class GlTextureFilterTest {
     assertEquals(GL12.GL_CLAMP_TO_EDGE, wrapT);
 
     final int width = this.filter.getWidth();
+    final int height = this.filter.getHeight();
     assertEquals(0, width);
+    assertEquals(0, height);
   }
 
   private int parameter(final int texture, final int name) {
