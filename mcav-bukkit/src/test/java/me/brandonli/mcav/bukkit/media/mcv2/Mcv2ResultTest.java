@@ -834,7 +834,9 @@ final class Mcv2ResultTest {
     final Mcv2Result original = this.result(this.configuration, null);
     final Mcv2Result result = spy(original);
     // The screen thread stays alive through the release, so its join always meets the interrupt.
-    doAnswer(_ -> this.holdTake(taking, takeMayReturn)).when(result).take();
+    doAnswer(_ -> this.holdTake(taking, takeMayReturn))
+      .when(result)
+      .take();
     result.start();
     final boolean takeStarted = taking.await(PIPELINE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
     assertTrue(takeStarted);
