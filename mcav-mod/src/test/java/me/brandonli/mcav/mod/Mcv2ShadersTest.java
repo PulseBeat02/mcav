@@ -66,6 +66,8 @@ final class Mcv2ShadersTest {
 
   private static final String LAYOUT_PATH = "shaders/include/mcv2_config.glsl";
 
+  private static final String TESTED_IRIS_VERSION = "1.11.7+mc26.3";
+
   @BeforeAll
   static void bootstrap() {
     SharedConstants.tryDetectVersion();
@@ -124,7 +126,7 @@ final class Mcv2ShadersTest {
     final IrisApi api = mock(IrisApi.class);
     try (final MockedStatic<IrisApi> iris = mockStatic(IrisApi.class)) {
       iris.when(IrisApi::getInstance).thenReturn(api);
-      final boolean testedHooked = this.hooked(Mcv2Shaders.start("1.11.7+mc26.3"));
+      final boolean testedHooked = this.hooked(Mcv2Shaders.start(TESTED_IRIS_VERSION));
       assertTrue(testedHooked);
       verify(api).isRenderingShadowPass();
       final boolean newerHooked = this.hooked(Mcv2Shaders.start("1.11.8+mc26.3"));
@@ -147,6 +149,24 @@ final class Mcv2ShadersTest {
     decoder.projected(PoseStack.Pose.class.getMethod("pose").invoke(stack.last()));
     decoder.rendered(mock(GraphicsResourceAllocator.class), new CameraRenderState());
     return decodes.getAsBoolean();
+  }
+
+  @Test
+  void shouldStartNoDecoderAndNeverDecodeWhenTheGamesMatricesCannotBeRead() {
+    ShaderDecoder.install(mock(ShaderDecoder.class));
+    try (final MockedStatic<GameMatrices> matrices = mockStatic(GameMatrices.class)) {
+      matrices.when(GameMatrices::find).thenReturn(Optional.empty());
+      final BooleanSupplier decodes = Mcv2Shaders.start(TESTED_IRIS_VERSION);
+
+      final Optional<ShaderDecoder> current = ShaderDecoder.findCurrent();
+      assertEquals(Optional.empty(), current);
+
+      final ShaderDecoder later = mock(ShaderDecoder.class);
+      when(later.decodesUnderShaders()).thenReturn(true);
+      ShaderDecoder.install(later);
+      final boolean decodesUnderShaders = decodes.getAsBoolean();
+      assertFalse(decodesUnderShaders);
+    }
   }
 
   @Test
