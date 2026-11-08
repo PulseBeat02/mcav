@@ -113,6 +113,7 @@ final class GlTextureFilterTest {
   private static final int SQUARE_SIZE = 2;
   private static final int TRUNCATED_SIZE = 4;
   private static final int SINGLE_PIXEL = 1;
+  private static final int PADDING_PIXELS = 2;
 
   private static final int NEGATIVE_TEXTURE_ID = -3;
 
@@ -728,26 +729,71 @@ final class GlTextureFilterTest {
   @Test
   void shouldIgnoreFramesWithTooLittleData() {
     this.filter.start();
-    final ImageBuffer truncated = mock(ImageBuffer.class);
-
-    final Stubber widthStubbing = doReturn(TRUNCATED_SIZE);
-    final ImageBuffer stubbedWidth = widthStubbing.when(truncated);
-    stubbedWidth.getWidth();
-
-    final Stubber heightStubbing = doReturn(TRUNCATED_SIZE);
-    final ImageBuffer stubbedHeight = heightStubbing.when(truncated);
-    stubbedHeight.getHeight();
-
     final int truncatedLength = TRUNCATED_SIZE * TRUNCATED_SIZE * CHANNELS - 1;
     final ByteBuffer data = ByteBuffer.allocateDirect(truncatedLength);
-    final Stubber dataStubbing = doReturn(data);
-    final ImageBuffer stubbedData = dataStubbing.when(truncated);
-    stubbedData.getData();
-
+    final ImageBuffer truncated = this.stubbedFrame(TRUNCATED_SIZE, TRUNCATED_SIZE, data);
     this.apply(this.filter, truncated);
 
     final boolean pending = this.filter.hasPendingFrame();
     assertFalse(pending);
+  }
+
+  private ImageBuffer stubbedFrame(final int width, final int height, final ByteBuffer data) {
+    final ImageBuffer frame = mock(ImageBuffer.class);
+
+    final Stubber widthStubbing = doReturn(width);
+    final ImageBuffer stubbedWidth = widthStubbing.when(frame);
+    stubbedWidth.getWidth();
+
+    final Stubber heightStubbing = doReturn(height);
+    final ImageBuffer stubbedHeight = heightStubbing.when(frame);
+    stubbedHeight.getHeight();
+
+    final Stubber dataStubbing = doReturn(data);
+    final ImageBuffer stubbedData = dataStubbing.when(frame);
+    stubbedData.getData();
+
+    return frame;
+  }
+
+  @Test
+  void shouldCopyOnlyTheRemainingPixelsAndLeaveTheFrameBufferAsItWas() {
+    this.filter.start();
+    final ByteBuffer data = this.paddedRedSquare();
+    final int remaining = data.remaining();
+    final ByteBuffer original = data.duplicate();
+    final ByteBuffer expected = ByteBuffer.allocate(remaining);
+    expected.put(original);
+    expected.flip();
+    final ImageBuffer padded = this.stubbedFrame(SQUARE_SIZE, SQUARE_SIZE, data);
+    this.apply(this.filter, padded);
+
+    final int position = data.position();
+    final int limit = data.limit();
+    final int capacity = data.capacity();
+    assertEquals(CHANNELS, position);
+    assertEquals(capacity, limit);
+    assertEquals(expected, data);
+
+    final boolean uploaded = this.filter.upload();
+    final int texture = this.filter.getTextureId();
+    final byte[] pixels = this.readTexture(texture, SQUARE_SIZE, SQUARE_SIZE);
+    assertTrue(uploaded);
+    this.assertAllPixels(pixels, RED_RGB);
+  }
+
+  private ByteBuffer paddedRedSquare() {
+    final int squareLength = SQUARE_SIZE * SQUARE_SIZE * CHANNELS;
+    final ByteBuffer data = ByteBuffer.allocateDirect(squareLength + PADDING_PIXELS * CHANNELS);
+    try (final ImageBuffer red = this.frame(SQUARE_SIZE, SQUARE_SIZE, RED_ARGB)) {
+      final ByteBuffer redPixels = red.getData();
+      data.put(WHITE_RGB);
+      data.put(redPixels);
+      data.put(WHITE_RGB);
+    }
+
+    data.position(CHANNELS);
+    return data;
   }
 
   @Test
