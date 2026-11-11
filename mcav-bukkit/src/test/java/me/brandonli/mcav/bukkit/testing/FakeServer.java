@@ -139,6 +139,7 @@ public final class FakeServer implements AutoCloseable {
     when(this.scheduler.runTask(any(Plugin.class), any(Runnable.class))).thenAnswer(this::scheduleOnce);
     when(this.scheduler.runTaskAsynchronously(any(Plugin.class), any(Runnable.class))).thenAnswer(this::scheduleOnce);
     when(this.scheduler.runTaskLater(any(Plugin.class), any(Runnable.class), anyLong())).thenAnswer(this::scheduleLater);
+    when(this.scheduler.runTaskLaterAsynchronously(any(Plugin.class), any(Runnable.class), anyLong())).thenAnswer(this::scheduleLater);
   }
 
   private BukkitTask scheduleRepeating(final InvocationOnMock invocation) {

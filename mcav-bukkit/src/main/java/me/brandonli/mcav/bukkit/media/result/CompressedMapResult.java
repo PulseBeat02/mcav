@@ -66,9 +66,11 @@ import org.slf4j.LoggerFactory;
  * before it covers it and skipped otherwise, so a scene cut does not flood the connections of the viewers and they
  * never see parts of two frames. See {@link DeltaMapEncoder} for how the changes are found.
  *
- * <p>Players that start viewing, for example because they joined the server, first receive the current picture once
- * and then follow the updates like every other viewer. After {@link #start()}, a player who joins receives it at once,
- * even while no frames arrive, such as while the video is paused; otherwise on the next frame.
+ * <p>Players that start viewing, for example because they joined the server, first receive the current picture and
+ * then follow the updates like every other viewer. After {@link #start()}, a player who joins receives it at once,
+ * even while no frames arrive, such as while the video is paused; otherwise on the next frame. A client can drop map
+ * data that arrives while it is still joining, so a player who joins receives the picture again three seconds later,
+ * unless a frame arrived meanwhile.
  *
  * <p>When the frame size changes or a viewer starts watching again, pixels previously sent by this result but
  * outside the current snapshot are cleared. Cleanup leaves pixels never sent by this result untouched. Coverage history
@@ -117,6 +119,9 @@ public final class CompressedMapResult implements DitherResultStep {
 
   private static final String DITHER_THREAD_NAME_PREFIX = "mcav-map-dither-";
 
+  // A client can drop map data that arrives while it is still joining.
+  private static final long JOIN_RESEND_TICKS = 60L;
+
   private final MapConfiguration configuration;
   private final int maximumBytesPerFrame;
   private final Map<UUID, Object> activeViewers;
@@ -127,6 +132,7 @@ public final class CompressedMapResult implements DitherResultStep {
   private @Nullable ForkJoinPool ditherPool;
   private @Nullable Listener joinListener;
   private boolean released;
+  private long processedFrames;
 
   /**
    * Creates a result with an ordinary-update budget of
@@ -232,10 +238,10 @@ public final class CompressedMapResult implements DitherResultStep {
 
   private void sendToNewViewersLater(final Plugin plugin) {
     final BukkitScheduler scheduler = Bukkit.getScheduler();
-    scheduler.runTaskAsynchronously(plugin, this::sendToNewViewers);
+    scheduler.runTaskAsynchronously(plugin, () -> this.sendToNewViewers(plugin));
   }
 
-  private void sendToNewViewers() {
+  private void sendToNewViewers(final Plugin plugin) {
     this.lock.lock();
     try {
       final DeltaMapEncoder currentEncoder = this.encoder;
@@ -243,7 +249,32 @@ public final class CompressedMapResult implements DitherResultStep {
         return;
       }
 
-      this.sendToViewers(currentEncoder, List.of());
+      final List<UUID> joined = this.sendToViewers(currentEncoder, List.of());
+      this.sendSnapshotAgainLater(plugin, joined);
+    } finally {
+      this.lock.unlock();
+    }
+  }
+
+  private void sendSnapshotAgainLater(final Plugin plugin, final List<UUID> joined) {
+    final long frame = this.processedFrames;
+    final BukkitScheduler scheduler = Bukkit.getScheduler();
+    scheduler.runTaskLaterAsynchronously(plugin, () -> this.sendSnapshotAgain(joined, frame), JOIN_RESEND_TICKS);
+  }
+
+  private void sendSnapshotAgain(final List<UUID> joined, final long frame) {
+    this.lock.lock();
+    try {
+      final DeltaMapEncoder currentEncoder = this.encoder;
+      if (currentEncoder == null || this.processedFrames > frame) {
+        return;
+      }
+
+      final Collection<UUID> viewers = this.configuration.getViewers();
+      final List<UUID> watching = joined.stream().filter(viewers::contains).toList();
+      if (!watching.isEmpty()) {
+        this.sendSnapshot(currentEncoder, watching);
+      }
     } finally {
       this.lock.unlock();
     }
@@ -304,6 +335,7 @@ public final class CompressedMapResult implements DitherResultStep {
     final DeltaMapEncoder currentEncoder = this.createEncoderIfLayoutChanged(width, height);
     final List<MapTilePatch> patches = currentEncoder.encode(dithered);
     this.sendToViewers(currentEncoder, patches);
+    this.processedFrames++;
   }
 
   private void resizeIfConfigured(final ImageBuffer samples) {
@@ -318,7 +350,7 @@ public final class CompressedMapResult implements DitherResultStep {
     filter.applyFilter(samples);
   }
 
-  private void sendToViewers(final DeltaMapEncoder currentEncoder, final List<MapTilePatch> patches) {
+  private List<UUID> sendToViewers(final DeltaMapEncoder currentEncoder, final List<MapTilePatch> patches) {
     final List<UUID> existingViewers = new ArrayList<>();
     final List<UUID> newViewers = new ArrayList<>();
     this.sortConnectedViewers(existingViewers, newViewers);
@@ -329,16 +361,22 @@ public final class CompressedMapResult implements DitherResultStep {
     }
 
     if (!newViewers.isEmpty()) {
-      /*
-       * A layout change forgets the viewer baseline, so old viewers also receive this reset. Keep historical cleanup
-       * available for viewers absent during earlier resizes, including when the snapshot is empty.
-       */
-      final List<MapTilePatch> currentSnapshot = currentEncoder.snapshot();
-      final List<MapTilePatch> snapshot = this.createHistoryClears(currentSnapshot);
-      snapshot.addAll(currentSnapshot);
-      MapPacketFactory.send(newViewers, snapshot);
-      this.rememberCoverage(currentSnapshot);
+      this.sendSnapshot(currentEncoder, newViewers);
     }
+
+    return newViewers;
+  }
+
+  private void sendSnapshot(final DeltaMapEncoder currentEncoder, final List<UUID> viewers) {
+    /*
+     * A layout change forgets the viewer baseline, so old viewers also receive this reset. Keep historical cleanup
+     * available for viewers absent during earlier resizes, including when the snapshot is empty.
+     */
+    final List<MapTilePatch> currentSnapshot = currentEncoder.snapshot();
+    final List<MapTilePatch> snapshot = this.createHistoryClears(currentSnapshot);
+    snapshot.addAll(currentSnapshot);
+    MapPacketFactory.send(viewers, snapshot);
+    this.rememberCoverage(currentSnapshot);
   }
 
   private void rememberCoverage(final List<MapTilePatch> patches) {
