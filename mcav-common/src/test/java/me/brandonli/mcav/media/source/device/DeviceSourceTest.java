@@ -85,9 +85,34 @@ final class DeviceSourceTest {
   }
 
   @Test
+  void shouldAcceptEveryIndexFromZeroToTheLargestInt() {
+    final DeviceSourceDetector detector = new DeviceSourceDetector();
+    final String largest = String.valueOf(Integer.MAX_VALUE);
+    final String tooLarge = String.valueOf(Integer.MAX_VALUE + 1L);
+    final DeviceSource first = DeviceSource.device(0);
+    final int firstId = first.getDeviceId();
+    final boolean largestDetected = detector.isDetectedSource(largest);
+    final boolean tooLargeDetected = detector.isDetectedSource(tooLarge);
+    final DeviceSource created = detector.createSource(largest);
+    final DeviceSource expected = DeviceSource.device(Integer.MAX_VALUE);
+    assertEquals(0, firstId);
+    assertTrue(largestDetected);
+    assertFalse(tooLargeDetected);
+    assertEquals(expected, created);
+    assertThrows(NumberFormatException.class, () -> detector.createSource(tooLarge));
+  }
+
+  @Test
   void shouldRejectNullInputInTheDetector() {
     final DeviceSourceDetector detector = new DeviceSourceDetector();
     assertThrows(NullPointerException.class, () -> detector.isDetectedSource(null));
     assertThrows(NullPointerException.class, () -> detector.createSource(null));
+  }
+
+  @Test
+  void shouldRejectTextThatIsNotADeviceIndexWhenCreatingTheSource() {
+    final DeviceSourceDetector detector = new DeviceSourceDetector();
+    assertThrows(NumberFormatException.class, () -> detector.createSource("camera"));
+    assertThrows(IllegalArgumentException.class, () -> detector.createSource("-1"));
   }
 }

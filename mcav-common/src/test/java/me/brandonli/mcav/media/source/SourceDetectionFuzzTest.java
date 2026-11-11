@@ -59,18 +59,28 @@ final class SourceDetectionFuzzTest {
       }
       case final FfmpegDirectSource direct -> {
         final String format = direct.getFormat();
-        final boolean blank = format.isBlank();
-        assertFalse(blank, () -> "a raw FFmpeg input without a format from '%s'".formatted(resource));
+        final String mrl = direct.getMrl();
+        final boolean blank = format.isBlank() || mrl.isBlank();
+        assertFalse(blank, () -> "a raw FFmpeg input without a format or an input from '%s'".formatted(resource));
+
+        final String rebuilt = "%s||%s".formatted(format, mrl);
+        assertEquals(resource, rebuilt, "a raw FFmpeg input is the format and the input that were written");
       }
       case final FileSource file -> {
         final Path path = file.getPath();
         final boolean exists = Files.exists(path);
         assertTrue(exists, () -> "a file that does not exist from '%s'".formatted(resource));
+
+        final Path written = Path.of(resource);
+        assertEquals(written, path, "a file is the path that was written");
       }
       case final UriSource uri -> {
         final URI address = uri.getUri();
         final boolean complete = address.getScheme() != null && address.getHost() != null;
         assertTrue(complete, () -> "a URL without a scheme or a host from '%s'".formatted(resource));
+
+        final String text = address.toString();
+        assertEquals(resource, text, "a URL is the text that was written");
       }
       default -> {
         final String message = "Source %s from '%s' is of an unknown kind!".formatted(source, resource);

@@ -24,8 +24,11 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
+import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import me.brandonli.mcav.media.source.device.DeviceSource;
@@ -59,16 +62,21 @@ final class SourceDetectionHelperTest {
 
   @Test
   void shouldDetectUrisDevicesAndFfmpegInputs() {
+    final String address = "https://example.com/video.mp4";
     final SourceDetectionHelper helper = new SourceDetectionHelper();
-    final Optional<Source> uri = helper.detectSource("https://example.com/video.mp4");
+    final Optional<Source> uri = helper.detectSource(address);
     final Optional<Source> device = helper.detectSource("2");
     final Optional<Source> ffmpeg = helper.detectSource("gdigrab||desktop");
     final Source uriSource = uri.orElseThrow();
     final Source deviceSource = device.orElseThrow();
     final Source ffmpegSource = ffmpeg.orElseThrow();
-    assertInstanceOf(UriSource.class, uriSource);
-    assertInstanceOf(DeviceSource.class, deviceSource);
-    assertInstanceOf(FfmpegDirectSource.class, ffmpegSource);
+    final URI expectedUri = URI.create(address);
+    final Source expectedUriSource = UriSource.uri(expectedUri);
+    final Source expectedDeviceSource = DeviceSource.device(2);
+    final Source expectedFfmpegSource = FfmpegDirectSource.mrl("desktop", "gdigrab");
+    assertEquals(expectedUriSource, uriSource);
+    assertEquals(expectedDeviceSource, deviceSource);
+    assertEquals(expectedFfmpegSource, ffmpegSource);
   }
 
   @Test
@@ -113,10 +121,43 @@ final class SourceDetectionHelperTest {
   }
 
   @Test
+  void shouldKeepItsOwnCopyOfTheDetectors() {
+    final Source source = DeviceSource.device(1);
+    final SourceDetector<Source> detector = new FixedDetector(source, SourceDetector.NORMAL_PRIORITY, Acceptance.ACCEPTS);
+    final List<SourceDetector<? extends Source>> detectors = new ArrayList<>();
+    detectors.add(detector);
+    final SourceDetectionHelper helper = new SourceDetectionHelper(detectors);
+    detectors.clear();
+
+    final Optional<Source> detected = helper.detectSource(ANY_RESOURCE);
+    final Source detectedSource = detected.orElseThrow();
+    assertSame(source, detectedSource);
+  }
+
+  @Test
+  void shouldPropagateADetectorFailureInsteadOfFallingBack() {
+    final Source source = DeviceSource.device(1);
+    final SourceDetector<Source> fallback = new FixedDetector(source, SourceDetector.LOW_PRIORITY, Acceptance.ACCEPTS);
+    final SourceDetector<Source> failingCheck = new FailingDetector(FailurePoint.CHECK);
+    final SourceDetector<Source> failingCreation = new FailingDetector(FailurePoint.CREATION);
+    final List<SourceDetector<? extends Source>> checkDetectors = List.of(fallback, failingCheck);
+    final List<SourceDetector<? extends Source>> creationDetectors = List.of(fallback, failingCreation);
+    final SourceDetectionHelper checkHelper = new SourceDetectionHelper(checkDetectors);
+    final SourceDetectionHelper creationHelper = new SourceDetectionHelper(creationDetectors);
+    assertThrows(IllegalStateException.class, () -> checkHelper.detectSource(ANY_RESOURCE));
+    assertThrows(IllegalStateException.class, () -> creationHelper.detectSource(ANY_RESOURCE));
+  }
+
+  @Test
   void shouldRejectMissingArguments() {
     final SourceDetectionHelper helper = new SourceDetectionHelper();
     assertThrows(NullPointerException.class, () -> helper.detectSource(null));
     assertThrows(NullPointerException.class, () -> new SourceDetectionHelper(null));
+
+    final Source source = DeviceSource.device(1);
+    final SourceDetector<Source> detector = new FixedDetector(source, SourceDetector.NORMAL_PRIORITY, Acceptance.ACCEPTS);
+    final List<SourceDetector<? extends Source>> withNull = Arrays.asList(detector, null);
+    assertThrows(NullPointerException.class, () -> new SourceDetectionHelper(withNull));
   }
 
   private static final class FixedDetector implements SourceDetector<Source> {
@@ -147,8 +188,43 @@ final class SourceDetectionHelperTest {
     }
   }
 
+  private static final class FailingDetector implements SourceDetector<Source> {
+
+    private final FailurePoint failurePoint;
+
+    FailingDetector(final FailurePoint failurePoint) {
+      this.failurePoint = failurePoint;
+    }
+
+    @Override
+    public boolean isDetectedSource(final String resource) {
+      if (this.failurePoint == FailurePoint.CHECK) {
+        final String message = "Detector failed while checking %s!".formatted(resource);
+        throw new IllegalStateException(message);
+      }
+
+      return true;
+    }
+
+    @Override
+    public Source createSource(final String resource) {
+      final String message = "Detector failed while creating %s!".formatted(resource);
+      throw new IllegalStateException(message);
+    }
+
+    @Override
+    public int getPriority() {
+      return SourceDetector.HIGH_PRIORITY;
+    }
+  }
+
   private enum Acceptance {
     ACCEPTS,
     REFUSES,
+  }
+
+  private enum FailurePoint {
+    CHECK,
+    CREATION,
   }
 }

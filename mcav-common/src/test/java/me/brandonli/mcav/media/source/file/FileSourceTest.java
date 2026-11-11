@@ -28,8 +28,11 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.file.Files;
+import java.nio.file.InvalidPathException;
 import java.nio.file.NoSuchFileException;
+import java.nio.file.OpenOption;
 import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.util.Objects;
 import me.brandonli.mcav.media.source.SourceDetector;
 import me.brandonli.mcav.testing.EqualityAssertions;
@@ -119,6 +122,28 @@ final class FileSourceTest {
   }
 
   @Test
+  void shouldTruncateWithoutOptionsAndAppendWhenAsked() throws IOException {
+    final Path path = this.directory.resolve(DATA_FILE_NAME);
+    final Writable writable = Writable.path(path);
+    final byte[] first = { 1, 2, 3 };
+    final byte[] second = { 4 };
+    final byte[] appended = { 5 };
+    this.write(writable, first);
+    this.write(writable, second);
+    this.write(writable, appended, StandardOpenOption.APPEND);
+
+    final byte[] content = Files.readAllBytes(path);
+    final byte[] expected = { 4, 5 };
+    assertArrayEquals(expected, content);
+  }
+
+  private void write(final Writable writable, final byte[] content, final OpenOption... options) throws IOException {
+    try (final OutputStream output = writable.newOutputStream(options)) {
+      output.write(content);
+    }
+  }
+
+  @Test
   void shouldReportFilesThatCannotBeOpened() {
     final Path missing = this.directory.resolve(MISSING_FILE_NAME);
     final Path unreachable = missing.resolve(OUTPUT_FILE_NAME);
@@ -130,6 +155,17 @@ final class FileSourceTest {
     final Throwable writingCause = writing.getCause();
     assertInstanceOf(NoSuchFileException.class, readingCause);
     assertInstanceOf(NoSuchFileException.class, writingCause);
+  }
+
+  @Test
+  void shouldRejectMissingAndDisallowedOptions() throws IOException {
+    final Path path = this.directory.resolve(DATA_FILE_NAME);
+    Files.createFile(path);
+    final Writable writable = Writable.path(path);
+    assertThrows(NullPointerException.class, () -> writable.newInputStream((OpenOption[]) null));
+    assertThrows(NullPointerException.class, () -> writable.newOutputStream((OpenOption[]) null));
+    assertThrows(UnsupportedOperationException.class, () -> writable.newInputStream(StandardOpenOption.APPEND));
+    assertThrows(IllegalArgumentException.class, () -> writable.newOutputStream(StandardOpenOption.READ));
   }
 
   @Test
@@ -193,10 +229,27 @@ final class FileSourceTest {
   }
 
   @Test
+  void shouldDetectExistingDirectories() {
+    final FileSourceDetector detector = new FileSourceDetector();
+    final String resource = this.directory.toString();
+    final boolean detected = detector.isDetectedSource(resource);
+    final FileSource created = detector.createSource(resource);
+    final FileSource expected = FileSource.path(this.directory);
+    assertTrue(detected);
+    assertEquals(expected, created);
+  }
+
+  @Test
   void shouldRejectNullInput() {
     final FileSourceDetector detector = new FileSourceDetector();
     assertThrows(NullPointerException.class, () -> FileSource.path(null));
     assertThrows(NullPointerException.class, () -> detector.isDetectedSource(null));
     assertThrows(NullPointerException.class, () -> detector.createSource(null));
+  }
+
+  @Test
+  void shouldRejectAnInvalidPathWhenCreatingTheSource() {
+    final FileSourceDetector detector = new FileSourceDetector();
+    assertThrows(InvalidPathException.class, () -> detector.createSource(INVALID_PATH));
   }
 }

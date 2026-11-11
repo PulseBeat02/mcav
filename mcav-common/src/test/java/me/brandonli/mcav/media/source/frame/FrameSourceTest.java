@@ -19,6 +19,7 @@ package me.brandonli.mcav.media.source.frame;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -82,6 +83,23 @@ final class FrameSourceTest {
     assertEquals(FrameSource.DEFAULT_FRAME_RATE, frameRate);
   }
 
+  @Test
+  void shouldCopyEveryImageIntoANewArray() {
+    final int color = 0xFF0A0B0C;
+    final BufferedImage image = new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB);
+    final ImageSupplier images = () -> image;
+    final SampleSupplier supplier = images.toSampleSupplier();
+    final int[] before = supplier.getFrameSamples();
+    image.setRGB(0, 0, color);
+
+    final int[] after = supplier.getFrameSamples();
+    final int[] expectedBefore = { 0 };
+    final int[] expectedAfter = { color };
+    assertNotSame(before, after);
+    assertArrayEquals(expectedBefore, before);
+    assertArrayEquals(expectedAfter, after);
+  }
+
   private static int[] supply(final BufferedImage image) {
     final int width = image.getWidth();
     final int height = image.getHeight();
@@ -98,7 +116,21 @@ final class FrameSourceTest {
 
   @Test
   void shouldReadEveryImageTypeExactlyLikeGetRgb() {
-    final int[] types = { BufferedImage.TYPE_INT_ARGB, BufferedImage.TYPE_INT_RGB, BufferedImage.TYPE_3BYTE_BGR };
+    final int[] types = {
+      BufferedImage.TYPE_INT_RGB,
+      BufferedImage.TYPE_INT_ARGB,
+      BufferedImage.TYPE_INT_ARGB_PRE,
+      BufferedImage.TYPE_INT_BGR,
+      BufferedImage.TYPE_3BYTE_BGR,
+      BufferedImage.TYPE_4BYTE_ABGR,
+      BufferedImage.TYPE_4BYTE_ABGR_PRE,
+      BufferedImage.TYPE_USHORT_565_RGB,
+      BufferedImage.TYPE_USHORT_555_RGB,
+      BufferedImage.TYPE_BYTE_GRAY,
+      BufferedImage.TYPE_USHORT_GRAY,
+      BufferedImage.TYPE_BYTE_BINARY,
+      BufferedImage.TYPE_BYTE_INDEXED,
+    };
     for (final int type : types) {
       final BufferedImage image = new BufferedImage(3, 2, type);
       image.setRGB(0, 0, 0x80123456);

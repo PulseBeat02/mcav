@@ -34,6 +34,8 @@ final class UriSourceTest {
 
   private static final String DRIVE_PATH = "c:/videos/clip.mp4";
 
+  private static final String RELATIVE_PATH = "videos/clip.mp4";
+
   @Test
   void shouldDescribeTheUri() {
     final URI uri = URI.create("https://example.com/clip.mp4");
@@ -51,6 +53,16 @@ final class UriSourceTest {
   }
 
   @Test
+  void shouldKeepAUriWithoutASchemeOrAHost() {
+    final URI relative = URI.create(RELATIVE_PATH);
+    final UriSource source = UriSource.uri(relative);
+    final URI kept = source.getUri();
+    final String resource = source.getResource();
+    assertEquals(relative, kept);
+    assertEquals(RELATIVE_PATH, resource);
+  }
+
+  @Test
   void shouldKnowWhetherTheUriPointsAtAMediaFile() {
     final URI file = URI.create("https://example.com/live/stream.m3u8");
     final URI page = URI.create("https://www.youtube.com/watch?v=abc");
@@ -60,6 +72,22 @@ final class UriSourceTest {
     final boolean pageDirect = pageSource.isDirect();
     assertTrue(fileDirect);
     assertFalse(pageDirect);
+  }
+
+  @Test
+  void shouldJudgeOnlyThePathWhetherTheUriPointsAtAMediaFile() {
+    final URI withQuery = URI.create("https://example.com/clip.mp4?token=1#t=10");
+    final URI fileInQuery = URI.create("https://example.com/watch?file=clip.mp4");
+    final URI fileInFragment = URI.create("https://example.com/page#clip.mp4");
+    final UriSource withQuerySource = UriSource.uri(withQuery);
+    final UriSource fileInQuerySource = UriSource.uri(fileInQuery);
+    final UriSource fileInFragmentSource = UriSource.uri(fileInFragment);
+    final boolean withQueryDirect = withQuerySource.isDirect();
+    final boolean fileInQueryDirect = fileInQuerySource.isDirect();
+    final boolean fileInFragmentDirect = fileInFragmentSource.isDirect();
+    assertTrue(withQueryDirect);
+    assertFalse(fileInQueryDirect);
+    assertFalse(fileInFragmentDirect);
   }
 
   @Test
@@ -95,6 +123,15 @@ final class UriSourceTest {
     assertFalse(isDrivePath);
     assertEquals(expected, created);
     assertEquals(SourceDetector.NORMAL_PRIORITY, priority);
+  }
+
+  @Test
+  void shouldRejectTextThatIsNotAUriWhenCreatingTheSource() {
+    final String text = "not a uri";
+    final UriSourceDetector detector = new UriSourceDetector();
+    final boolean detected = detector.isDetectedSource(text);
+    assertFalse(detected);
+    assertThrows(IllegalArgumentException.class, () -> detector.createSource(text));
   }
 
   @Test

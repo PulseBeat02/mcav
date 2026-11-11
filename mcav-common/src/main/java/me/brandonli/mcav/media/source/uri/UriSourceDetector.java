@@ -73,7 +73,7 @@ public final class UriSourceDetector implements SourceDetector<UriSource> {
   }
 
   /**
-   * Returns {@link SourceDetector#NORMAL_PRIORITY}, so device, FFmpeg and file detectors are asked first.
+   * Returns {@link SourceDetector#NORMAL_PRIORITY}, so the device, FFmpeg and file detectors win when they accept the same string.
    *
    * @return the priority, higher wins
    * @since 1.0.0

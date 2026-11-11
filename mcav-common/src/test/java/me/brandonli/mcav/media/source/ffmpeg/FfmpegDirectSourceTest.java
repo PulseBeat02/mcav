@@ -81,6 +81,13 @@ final class FfmpegDirectSourceTest {
   }
 
   @Test
+  void shouldLeaveTheInputToFfmpegInTheFactory() {
+    final FfmpegDirectSource source = FfmpegDirectSource.mrl("", SCREEN_CAPTURE_FORMAT);
+    final String mrl = source.getMrl();
+    assertEquals("", mrl);
+  }
+
+  @Test
   void shouldDetectFormatAndInputPairs() {
     final FfmpegDirectSourceDetector detector = new FfmpegDirectSourceDetector();
     final boolean detected = detector.isDetectedSource("dshow||video=Camera");
@@ -93,7 +100,7 @@ final class FfmpegDirectSourceTest {
   }
 
   @ParameterizedTest
-  @ValueSource(strings = { "plain", "format||", "||input", " ||input", "a||b||c" })
+  @ValueSource(strings = { "plain", "format||", "||input", " ||input", "a||b||c", "a||b||", "format|| " })
   void shouldIgnoreTextThatIsNotAPair(final String resource) {
     final FfmpegDirectSourceDetector detector = new FfmpegDirectSourceDetector();
     final boolean detected = detector.isDetectedSource(resource);
@@ -104,6 +111,8 @@ final class FfmpegDirectSourceTest {
   void shouldRejectInvalidInputInTheDetector() {
     final FfmpegDirectSourceDetector detector = new FfmpegDirectSourceDetector();
     assertThrows(IllegalArgumentException.class, () -> detector.createSource("no separator"));
+    assertThrows(IllegalArgumentException.class, () -> detector.createSource("a||b||"));
+    assertThrows(IllegalArgumentException.class, () -> detector.createSource("||input"));
     assertThrows(NullPointerException.class, () -> detector.isDetectedSource(null));
     assertThrows(NullPointerException.class, () -> detector.createSource(null));
   }
