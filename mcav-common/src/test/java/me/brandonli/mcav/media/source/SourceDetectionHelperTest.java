@@ -24,6 +24,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
+import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -59,16 +60,21 @@ final class SourceDetectionHelperTest {
 
   @Test
   void shouldDetectUrisDevicesAndFfmpegInputs() {
+    final String address = "https://example.com/video.mp4";
     final SourceDetectionHelper helper = new SourceDetectionHelper();
-    final Optional<Source> uri = helper.detectSource("https://example.com/video.mp4");
+    final Optional<Source> uri = helper.detectSource(address);
     final Optional<Source> device = helper.detectSource("2");
     final Optional<Source> ffmpeg = helper.detectSource("gdigrab||desktop");
     final Source uriSource = uri.orElseThrow();
     final Source deviceSource = device.orElseThrow();
     final Source ffmpegSource = ffmpeg.orElseThrow();
-    assertInstanceOf(UriSource.class, uriSource);
-    assertInstanceOf(DeviceSource.class, deviceSource);
-    assertInstanceOf(FfmpegDirectSource.class, ffmpegSource);
+    final URI expectedUri = URI.create(address);
+    final Source expectedUriSource = UriSource.uri(expectedUri);
+    final Source expectedDeviceSource = DeviceSource.device(2);
+    final Source expectedFfmpegSource = FfmpegDirectSource.mrl("desktop", "gdigrab");
+    assertEquals(expectedUriSource, uriSource);
+    assertEquals(expectedDeviceSource, deviceSource);
+    assertEquals(expectedFfmpegSource, ffmpegSource);
   }
 
   @Test
