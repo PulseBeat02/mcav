@@ -266,7 +266,7 @@ public final class CompressedMapResult implements DitherResultStep {
     this.lock.lock();
     try {
       final DeltaMapEncoder currentEncoder = this.encoder;
-      if (currentEncoder == null || this.processedFrames != frame) {
+      if (currentEncoder == null || this.processedFrames > frame) {
         return;
       }
 
