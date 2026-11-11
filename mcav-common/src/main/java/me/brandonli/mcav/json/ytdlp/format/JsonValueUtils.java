@@ -65,4 +65,20 @@ final class JsonValueUtils {
 
     return Collections.unmodifiableMap(copy);
   }
+
+  // Gson reads a JSON null in an array as a null element
+  static <ElementType> @Nullable List<ElementType> withoutNulls(final @Nullable List<ElementType> list) {
+    if (list == null) {
+      return null;
+    }
+
+    final List<ElementType> present = new ArrayList<>(list.size());
+    for (final ElementType element : list) {
+      if (element != null) {
+        present.add(element);
+      }
+    }
+
+    return present;
+  }
 }

@@ -278,8 +278,8 @@ public final class UrlParseDump {
   private UrlParseDump(final Fields fields) {
     this.id = fields.id();
     this.title = fields.title();
-    this.formats = fields.formats();
-    this.thumbnails = fields.thumbnails();
+    this.formats = JsonValueUtils.withoutNulls(fields.formats());
+    this.thumbnails = JsonValueUtils.withoutNulls(fields.thumbnails());
     this.thumbnail = fields.thumbnail();
     this.description = fields.description();
     this.channelId = fields.channelId();
@@ -289,15 +289,15 @@ public final class UrlParseDump {
     this.averageRating = JsonValueUtils.toUnmodifiable(fields.averageRating());
     this.ageLimit = Objects.requireNonNullElse(fields.ageLimit(), 0);
     this.webpageUrl = fields.webpageUrl();
-    this.categories = fields.categories();
-    this.tags = fields.tags();
+    this.categories = JsonValueUtils.withoutNulls(fields.categories());
+    this.tags = JsonValueUtils.withoutNulls(fields.tags());
     this.playableInEmbed = Objects.requireNonNullElse(fields.playableInEmbed(), false);
     this.liveStatus = fields.liveStatus();
     this.releaseTimestamp = JsonValueUtils.toUnmodifiable(fields.releaseTimestamp());
-    this.formatSortFields = fields.formatSortFields();
+    this.formatSortFields = JsonValueUtils.withoutNulls(fields.formatSortFields());
     this.commentCount = Objects.requireNonNullElse(fields.commentCount(), 0L);
     this.chapters = JsonValueUtils.toUnmodifiable(fields.chapters());
-    this.heatmap = fields.heatmap();
+    this.heatmap = JsonValueUtils.withoutNulls(fields.heatmap());
     this.likeCount = Objects.requireNonNullElse(fields.likeCount(), 0L);
     this.channel = fields.channel();
     this.channelFollowerCount = Objects.requireNonNullElse(fields.channelFollowerCount(), 0L);

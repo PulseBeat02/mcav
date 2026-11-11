@@ -158,7 +158,7 @@ public final class Format {
     this.framesPerSecond = Objects.requireNonNullElse(fields.framesPerSecond(), 0.0);
     this.rows = Objects.requireNonNullElse(fields.rows(), 0);
     this.columns = Objects.requireNonNullElse(fields.columns(), 0);
-    this.fragments = fields.fragments();
+    this.fragments = JsonValueUtils.withoutNulls(fields.fragments());
     this.resolution = fields.resolution();
     this.aspectRatio = Objects.requireNonNullElse(fields.aspectRatio(), 0.0);
     this.approximateFileSize = Objects.requireNonNullElse(fields.approximateFileSize(), 0L);

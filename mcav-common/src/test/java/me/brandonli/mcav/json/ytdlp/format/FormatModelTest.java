@@ -29,6 +29,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
+import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.gson.JsonPrimitive;
@@ -744,6 +745,27 @@ final class FormatModelTest {
     return json;
   }
 
+  private static Object parseWithList(final Class<?> clazz, final Field field, final JsonArray entries) {
+    final JsonObject json = baseJson(clazz);
+    json.add(jsonName(field), entries);
+    return parse(clazz, json);
+  }
+
+  private static Type elementType(final Field field) {
+    final ParameterizedType listType = (ParameterizedType) field.getGenericType();
+    final Type[] elementTypes = listType.getActualTypeArguments();
+    return elementTypes[0];
+  }
+
+  private static JsonArray arrayOf(final JsonElement... elements) {
+    final JsonArray array = new JsonArray();
+    for (final JsonElement element : elements) {
+      array.add(element);
+    }
+
+    return array;
+  }
+
   private static String jsonName(final Field field) {
     final Field component = findComponentField(field);
     final SerializedName serializedName = component.getAnnotation(SerializedName.class);
@@ -975,6 +997,23 @@ final class FormatModelTest {
     assertEquals(expected, list);
     assertThrows(UnsupportedOperationException.class, list::clear);
     assertThrows(UnsupportedOperationException.class, map::clear);
+  }
+
+  @ParameterizedTest(name = "{0}.{1}")
+  @MethodSource("listFields")
+  void shouldLeaveOutTheNullEntriesOfAReportedList(final Class<?> clazz, final String fieldName) throws ReflectiveOperationException {
+    final Field field = clazz.getDeclaredField(fieldName);
+    final Type elementType = elementType(field);
+    final JsonElement first = baseValue(elementType);
+    final JsonElement second = changedValue(elementType);
+    final JsonArray entries = arrayOf(first, second);
+    final JsonArray entriesWithNulls = arrayOf(JsonNull.INSTANCE, first, JsonNull.INSTANCE, second, JsonNull.INSTANCE);
+    final Object model = parseWithList(clazz, field, entries);
+    final Object modelWithNulls = parseWithList(clazz, field, entriesWithNulls);
+    final Method getter = findGetter(clazz, fieldName);
+    final Object expected = getter.invoke(model);
+    final Object reported = getter.invoke(modelWithNulls);
+    assertEquals(expected, reported);
   }
 
   @Test

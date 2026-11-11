@@ -31,7 +31,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *
  * <p>yt-dlp lists many streams per video, typically separate audio and video streams in several qualities and
  * protocols. A strategy encodes a preference, such as the best quality audio or an MP4 video over plain HTTPS,
- * which players decode most reliably. Built-in strategies skip null entries and entries missing the extension
+ * which players decode most reliably. Built-in strategies skip entries missing the extension
  * or protocol marker they require. A missing format list selects nothing. Quality strategies compare the
  * numeric {@link Format#getQuality()} value, including its default zero value; they do not calculate a bitrate or
  * resolution score. Built-in strategies are stateless, and the metadata they read is immutable. Selected formats
@@ -192,7 +192,7 @@ public interface FormatStrategy {
   private static Optional<Format> first(final UrlParseDump dump, final Predicate<Format> filter) {
     final List<Format> formats = formats(dump);
     for (final Format format : formats) {
-      if (format != null && filter.test(format)) {
+      if (filter.test(format)) {
         return Optional.of(format);
       }
     }
@@ -208,7 +208,7 @@ public interface FormatStrategy {
     final List<Format> formats = formats(dump);
     @Nullable Format picked = null;
     for (final Format format : formats) {
-      if (format == null || !filter.test(format)) {
+      if (!filter.test(format)) {
         continue;
       }
       if (picked == null || replaces.test(format, picked)) {
