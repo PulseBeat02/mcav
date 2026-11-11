@@ -1054,6 +1054,20 @@ final class FormatModelTest {
   }
 
   @Test
+  void shouldCreateTheSameMetadataAsJsonWithOnlyATitle() {
+    final UrlParseDump created = UrlParseDump.of(TITLE);
+    final JsonObject json = new JsonObject();
+    json.addProperty("title", TITLE);
+    final Gson gson = GsonProvider.getSimple();
+    final UrlParseDump read = gson.fromJson(json, UrlParseDump.class);
+    assertEquals(read, created);
+
+    final int createdHash = created.hashCode();
+    final int readHash = read.hashCode();
+    assertEquals(readHash, createdHash);
+  }
+
+  @Test
   void shouldRejectMissingTitlesAndDescriptions() {
     assertThrows(NullPointerException.class, () -> UrlParseDump.of(null));
     assertThrows(NullPointerException.class, () -> UrlParseDump.of(null, DESCRIPTION));
