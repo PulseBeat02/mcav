@@ -34,6 +34,8 @@ final class UriSourceTest {
 
   private static final String DRIVE_PATH = "c:/videos/clip.mp4";
 
+  private static final String RELATIVE_PATH = "videos/clip.mp4";
+
   @Test
   void shouldDescribeTheUri() {
     final URI uri = URI.create("https://example.com/clip.mp4");
@@ -48,6 +50,16 @@ final class UriSourceTest {
     assertEquals("uri", name);
     assertTrue(isDynamic);
     assertEquals("DefaultUriSource{uri=https://example.com/clip.mp4, direct=true}", text);
+  }
+
+  @Test
+  void shouldKeepAUriWithoutASchemeOrAHost() {
+    final URI relative = URI.create(RELATIVE_PATH);
+    final UriSource source = UriSource.uri(relative);
+    final URI kept = source.getUri();
+    final String resource = source.getResource();
+    assertEquals(relative, kept);
+    assertEquals(RELATIVE_PATH, resource);
   }
 
   @Test
