@@ -19,6 +19,7 @@ package me.brandonli.mcav.media.source.frame;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -80,6 +81,23 @@ final class FrameSourceTest {
     final float frameRate = source.getFrameRate();
     assertArrayEquals(expected, pixels);
     assertEquals(FrameSource.DEFAULT_FRAME_RATE, frameRate);
+  }
+
+  @Test
+  void shouldCopyEveryImageIntoANewArray() {
+    final int color = 0xFF0A0B0C;
+    final BufferedImage image = new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB);
+    final ImageSupplier images = () -> image;
+    final SampleSupplier supplier = images.toSampleSupplier();
+    final int[] before = supplier.getFrameSamples();
+    image.setRGB(0, 0, color);
+
+    final int[] after = supplier.getFrameSamples();
+    final int[] expectedBefore = { 0 };
+    final int[] expectedAfter = { color };
+    assertNotSame(before, after);
+    assertArrayEquals(expectedBefore, before);
+    assertArrayEquals(expectedAfter, after);
   }
 
   private static int[] supply(final BufferedImage image) {
