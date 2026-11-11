@@ -112,6 +112,8 @@ final class DependencyLoaderTest {
   private static final String HOME_NAME = "home";
   private static final String HOME_CACHE_PATH = ".javacpp/cache";
   private static final String FALLBACK_CACHE_PATH = "mcav/cache/javacpp";
+  private static final String JAVACPP_FOLDER_NAME = ".javacpp";
+  private static final String MCAV_CACHE_PATH = ".mcav/cache/javacpp";
   private static final String CUSTOM_CACHE = "custom-cache";
 
   private static final Pattern NATIVES_LOADED = Pattern.compile("JavaCV natives loaded in (\\d+) ms");
@@ -315,6 +317,19 @@ final class DependencyLoaderTest {
     final boolean warned = log.contains(warning);
     assertEquals(expected, cache);
     assertTrue(warned, log);
+  }
+
+  @Test
+  void shouldMoveTheJavaCppCacheIntoTheMCAVCacheWhenOnlyItsOwnFolderIsUnusable(@TempDir final Path directory) throws IOException {
+    final Path home = directory.resolve(HOME_NAME);
+    final Path javaCppFolder = home.resolve(JAVACPP_FOLDER_NAME);
+    Files.createDirectories(home);
+    Files.writeString(javaCppFolder, JAVACPP_FOLDER_NAME);
+
+    final @Nullable String cache = this.configureJavaCppIn(home, directory, Map.of());
+    final Path mcavCache = home.resolve(MCAV_CACHE_PATH);
+    final String expected = mcavCache.toString();
+    assertEquals(expected, cache);
   }
 
   @Test
