@@ -158,7 +158,7 @@ public final class Format {
     this.framesPerSecond = Objects.requireNonNullElse(fields.framesPerSecond(), 0.0);
     this.rows = Objects.requireNonNullElse(fields.rows(), 0);
     this.columns = Objects.requireNonNullElse(fields.columns(), 0);
-    this.fragments = fields.fragments();
+    this.fragments = JsonValueUtils.withoutNulls(fields.fragments());
     this.resolution = fields.resolution();
     this.aspectRatio = Objects.requireNonNullElse(fields.aspectRatio(), 0.0);
     this.approximateFileSize = Objects.requireNonNullElse(fields.approximateFileSize(), 0L);
@@ -169,10 +169,10 @@ public final class Format {
     this.audioBitrate = Objects.requireNonNullElse(fields.audioBitrate(), 0.0);
     this.totalBitrate = Objects.requireNonNullElse(fields.totalBitrate(), 0.0);
     this.format = fields.format();
-    this.formatIndex = fields.formatIndex();
+    this.formatIndex = JsonValueUtils.toUnmodifiable(fields.formatIndex());
     this.manifestUrl = fields.manifestUrl();
     this.language = fields.language();
-    this.preference = fields.preference();
+    this.preference = JsonValueUtils.toUnmodifiable(fields.preference());
     this.quality = Objects.requireNonNullElse(fields.quality(), 0.0);
     this.drmProtected = Objects.requireNonNullElse(fields.drmProtected(), false);
     this.sourcePreference = Objects.requireNonNullElse(fields.sourcePreference(), 0);

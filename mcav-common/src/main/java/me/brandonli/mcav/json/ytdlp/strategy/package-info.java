@@ -23,7 +23,7 @@
  * and video strategies and throws {@link me.brandonli.mcav.json.ytdlp.strategy.NoMatchingFormatException} when
  * a required selection is empty. Direct strategy calls instead return an empty {@link java.util.Optional}.
  *
- * <p>Built-in strategies are stateless and skip missing format lists, null entries and absent required markers.
+ * <p>Built-in strategies are stateless and skip missing format lists and absent required markers.
  * They return the original format objects of the dump; custom strategies define their own threading requirements.
  * Selection performs no media download or decoding.
  *

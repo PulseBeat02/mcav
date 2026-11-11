@@ -19,6 +19,7 @@ package me.brandonli.mcav.json.ytdlp.format;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -28,7 +29,9 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
+import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.google.gson.JsonPrimitive;
 import com.google.gson.ReflectionAccessFilter;
 import com.google.gson.ReflectionAccessFilter.FilterResult;
@@ -41,10 +44,12 @@ import java.lang.reflect.Modifier;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Stream;
@@ -322,7 +327,7 @@ final class FormatModelTest {
   }
 
   @Test
-  void shouldLeaveUnknownValuesNullOrZero() throws IOException {
+  void shouldReturnAbsentValuesAsEmptyZeroOrFalse() throws IOException {
     final UrlParseDump dump = fixture();
     final List<Format> formats = dump.getFormats();
 
@@ -384,7 +389,7 @@ final class FormatModelTest {
   }
 
   @Test
-  void shouldReadEveryFormatField() throws IOException {
+  void shouldReadTheFieldsOfAnAudioAndAVideoFormat() throws IOException {
     final UrlParseDump dump = fixture();
     final List<Format> formats = dump.getFormats();
 
@@ -572,6 +577,86 @@ final class FormatModelTest {
   }
 
   @Test
+  void shouldReadTheValuesThatTheFixtureLeavesNull() {
+    final String json = """
+    {
+      "average_rating": 4.5,
+      "release_timestamp": 1256453800,
+      "chapters": [{"title": "Intro"}],
+      "playlist": "Example Playlist",
+      "playlist_index": 1,
+      "release_year": 2009,
+      "requested_subtitles": {"en": {"ext": "vtt"}},
+      "_has_drm": false,
+      "filesize": 6442450944,
+      "url": "https://rr1---sn.example.googlevideo.com/videoplayback?itag=18",
+      "preference": -1,
+      "vbr": 2500.25,
+      "abr": 160.5,
+      "formats": [{"format_index": 0, "manifest_url": "https://manifest.googlevideo.com/api/manifest/dash", "preference": -2}],
+      "_version": {"current_git_head": "def456abc123"}
+    }
+    """;
+    final Gson gson = GsonProvider.getSimple();
+    final UrlParseDump dump = gson.fromJson(json, UrlParseDump.class);
+    final Optional<Object> averageRating = dump.getAverageRating();
+    final Optional<Object> expectedAverageRating = Optional.of(4.5);
+    final Optional<Object> releaseTimestamp = dump.getReleaseTimestamp();
+    final Optional<Object> expectedReleaseTimestamp = Optional.of(1256453800.0);
+    final Optional<Object> chapters = dump.getChapters();
+    final Optional<Object> expectedChapters = Optional.of(List.of(Map.of("title", "Intro")));
+    final Optional<Object> playlist = dump.getPlaylist();
+    final Optional<Object> expectedPlaylist = Optional.of("Example Playlist");
+    final Optional<Object> playlistIndex = dump.getPlaylistIndex();
+    final Optional<Object> expectedPlaylistIndex = Optional.of(1.0);
+    final Optional<Object> releaseYear = dump.getReleaseYear();
+    final Optional<Object> expectedReleaseYear = Optional.of(2009.0);
+    final Optional<Object> requestedSubtitles = dump.getRequestedSubtitles();
+    final Optional<Object> expectedRequestedSubtitles = Optional.of(Map.of(LANGUAGE, Map.of("ext", "vtt")));
+    final Optional<Object> anyStreamDrmProtected = dump.getAnyStreamDrmProtected();
+    final Optional<Object> expectedAnyStreamDrmProtected = Optional.of(false);
+    final Optional<Object> fileSize = dump.getFileSize();
+    final Optional<Object> expectedFileSize = Optional.of(6442450944.0);
+    final Optional<String> url = dump.getUrl();
+    final Optional<String> expectedUrl = Optional.of("https://rr1---sn.example.googlevideo.com/videoplayback?itag=18");
+    final Optional<Object> preference = dump.getPreference();
+    final Optional<Object> expectedPreference = Optional.of(-1.0);
+    final Optional<Object> videoBitrate = dump.getVideoBitrate();
+    final Optional<Object> expectedVideoBitrate = Optional.of(2500.25);
+    final Optional<Object> audioBitrate = dump.getAudioBitrate();
+    final Optional<Object> expectedAudioBitrate = Optional.of(160.5);
+    assertEquals(expectedAverageRating, averageRating);
+    assertEquals(expectedReleaseTimestamp, releaseTimestamp);
+    assertEquals(expectedChapters, chapters);
+    assertEquals(expectedPlaylist, playlist);
+    assertEquals(expectedPlaylistIndex, playlistIndex);
+    assertEquals(expectedReleaseYear, releaseYear);
+    assertEquals(expectedRequestedSubtitles, requestedSubtitles);
+    assertEquals(expectedAnyStreamDrmProtected, anyStreamDrmProtected);
+    assertEquals(expectedFileSize, fileSize);
+    assertEquals(expectedUrl, url);
+    assertEquals(expectedPreference, preference);
+    assertEquals(expectedVideoBitrate, videoBitrate);
+    assertEquals(expectedAudioBitrate, audioBitrate);
+
+    final List<Format> formats = dump.getFormats();
+    final Format format = formats.getFirst();
+    final Version version = dump.getVersion().orElseThrow();
+    final Optional<Object> formatIndex = format.getFormatIndex();
+    final Optional<Object> expectedFormatIndex = Optional.of(0.0);
+    final Optional<String> manifestUrl = format.getManifestUrl();
+    final Optional<String> expectedManifestUrl = Optional.of("https://manifest.googlevideo.com/api/manifest/dash");
+    final Optional<Object> formatPreference = format.getPreference();
+    final Optional<Object> expectedFormatPreference = Optional.of(-2.0);
+    final Optional<Object> currentGitHead = version.getCurrentGitHead();
+    final Optional<Object> expectedCurrentGitHead = Optional.of("def456abc123");
+    assertEquals(expectedFormatIndex, formatIndex);
+    assertEquals(expectedManifestUrl, manifestUrl);
+    assertEquals(expectedFormatPreference, formatPreference);
+    assertEquals(expectedCurrentGitHead, currentGitHead);
+  }
+
+  @Test
   void shouldConvertTheStreamUrlIntoASource() {
     final Format format = format("{\"url\": \"https://cdn.example.com/video.mp4?token=a%20b\"}");
     final UriSource source = format.toUriSource();
@@ -588,12 +673,28 @@ final class FormatModelTest {
     assertEquals("Stream has no URL!", message);
   }
 
+  @Test
+  void shouldRejectAStreamUrlThatIsNoUri() {
+    final Format format = format("{\"url\": \"https://cdn.example.com/a video.mp4\"}");
+    final IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, format::toUriSource);
+    final Throwable cause = exception.getCause();
+    assertInstanceOf(URISyntaxException.class, cause);
+  }
+
   static Stream<Named<Class<?>>> models() {
     return MODELS.stream().map(FormatModelTest::named);
   }
 
   static Stream<Arguments> modelFields() {
     return MODELS.stream().flatMap(FormatModelTest::fieldsOf);
+  }
+
+  static Stream<Arguments> listFields() {
+    return MODELS.stream().flatMap(clazz -> fieldsOfType(clazz, List.class));
+  }
+
+  static Stream<Arguments> untypedFields() {
+    return MODELS.stream().flatMap(clazz -> fieldsOfType(clazz, Object.class));
   }
 
   private static Named<Class<?>> named(final Class<?> clazz) {
@@ -610,6 +711,14 @@ final class FormatModelTest {
     return Arrays.stream(fields)
       .filter(field -> !Modifier.isStatic(field.getModifiers()))
       .toList();
+  }
+
+  private static Stream<Arguments> fieldsOfType(final Class<?> clazz, final Class<?> type) {
+    final List<Field> fields = instanceFields(clazz);
+    return fields
+      .stream()
+      .filter(field -> field.getType() == type)
+      .map(field -> Arguments.of(named(clazz), field.getName()));
   }
 
   private static Object parse(final Class<?> clazz, final JsonObject json) {
@@ -635,6 +744,27 @@ final class FormatModelTest {
     final JsonElement value = changedValue(type);
     json.add(jsonName(field), value);
     return json;
+  }
+
+  private static Object parseWithList(final Class<?> clazz, final Field field, final JsonArray entries) {
+    final JsonObject json = baseJson(clazz);
+    json.add(jsonName(field), entries);
+    return parse(clazz, json);
+  }
+
+  private static Type elementType(final Field field) {
+    final ParameterizedType listType = (ParameterizedType) field.getGenericType();
+    final Type[] elementTypes = listType.getActualTypeArguments();
+    return elementTypes[0];
+  }
+
+  private static JsonArray arrayOf(final JsonElement... elements) {
+    final JsonArray array = new JsonArray();
+    for (final JsonElement element : elements) {
+      array.add(element);
+    }
+
+    return array;
   }
 
   private static String jsonName(final Field field) {
@@ -840,11 +970,51 @@ final class FormatModelTest {
     assertEquals(List.of(), value);
   }
 
-  @Test
-  void shouldNotLetCallersChangeTheLists() throws IOException {
-    final UrlParseDump dump = fixture();
-    final List<Format> formats = dump.getFormats();
-    assertThrows(UnsupportedOperationException.class, formats::clear);
+  @ParameterizedTest(name = "{0}.{1}")
+  @MethodSource("listFields")
+  void shouldNotLetCallersChangeAReportedList(final Class<?> clazz, final String fieldName) throws ReflectiveOperationException {
+    final Object model = parse(clazz, baseJson(clazz));
+    final Method getter = findGetter(clazz, fieldName);
+    final Object value = getter.invoke(model);
+    final List<?> list = assertInstanceOf(List.class, value);
+    assertThrows(UnsupportedOperationException.class, list::clear);
+  }
+
+  @ParameterizedTest(name = "{0}.{1}")
+  @MethodSource("untypedFields")
+  void shouldNotLetCallersChangeAnUntypedValue(final Class<?> clazz, final String fieldName) throws ReflectiveOperationException {
+    final Field field = clazz.getDeclaredField(fieldName);
+    final JsonElement reportedValue = JsonParser.parseString("[{\"key\": \"value\"}]");
+    final JsonObject json = new JsonObject();
+    json.add(jsonName(field), reportedValue);
+    final Object model = parse(clazz, json);
+    final Method getter = findGetter(clazz, fieldName);
+    final Object reported = getter.invoke(model);
+    final Object value = unwrap(reported);
+    final List<?> list = assertInstanceOf(List.class, value);
+    final Object first = list.getFirst();
+    final Map<?, ?> map = assertInstanceOf(Map.class, first);
+    final List<Map<String, String>> expected = List.of(Map.of("key", "value"));
+    assertEquals(expected, list);
+    assertThrows(UnsupportedOperationException.class, list::clear);
+    assertThrows(UnsupportedOperationException.class, map::clear);
+  }
+
+  @ParameterizedTest(name = "{0}.{1}")
+  @MethodSource("listFields")
+  void shouldLeaveOutTheNullEntriesOfAReportedList(final Class<?> clazz, final String fieldName) throws ReflectiveOperationException {
+    final Field field = clazz.getDeclaredField(fieldName);
+    final Type elementType = elementType(field);
+    final JsonElement first = baseValue(elementType);
+    final JsonElement second = changedValue(elementType);
+    final JsonArray entries = arrayOf(first, second);
+    final JsonArray entriesWithNulls = arrayOf(JsonNull.INSTANCE, first, JsonNull.INSTANCE, second, JsonNull.INSTANCE);
+    final Object model = parseWithList(clazz, field, entries);
+    final Object modelWithNulls = parseWithList(clazz, field, entriesWithNulls);
+    final Method getter = findGetter(clazz, fieldName);
+    final Object expected = getter.invoke(model);
+    final Object reported = getter.invoke(modelWithNulls);
+    assertEquals(expected, reported);
   }
 
   @Test
@@ -881,6 +1051,20 @@ final class FormatModelTest {
     final UrlParseDump unknown = UrlParseDump.of(TITLE, DESCRIPTION);
     final double unknownSeconds = unknown.getDuration();
     assertEquals(0.0, unknownSeconds);
+  }
+
+  @Test
+  void shouldCreateTheSameMetadataAsJsonWithOnlyATitle() {
+    final UrlParseDump created = UrlParseDump.of(TITLE);
+    final JsonObject json = new JsonObject();
+    json.addProperty("title", TITLE);
+    final Gson gson = GsonProvider.getSimple();
+    final UrlParseDump read = gson.fromJson(json, UrlParseDump.class);
+    assertEquals(read, created);
+
+    final int createdHash = created.hashCode();
+    final int readHash = read.hashCode();
+    assertEquals(readHash, createdHash);
   }
 
   @Test

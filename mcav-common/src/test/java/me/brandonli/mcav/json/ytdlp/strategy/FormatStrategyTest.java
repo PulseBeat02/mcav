@@ -54,7 +54,6 @@ final class FormatStrategyTest {
   private static final String SECOND_AUDIO_ID = "a2";
   private static final String WEBM_HTTPS_ID = "webm-https";
 
-  private static final String NULL_ENTRY = "null";
   private static final String EMPTY_JSON = "{}";
   private static final String AUDIO_ONLY_JSON = "{\"audio_ext\": \"webm\", \"video_ext\": \"none\"}";
   private static final String VIDEO_ONLY_JSON = "{\"audio_ext\": \"none\", \"video_ext\": \"mp4\"}";
@@ -103,19 +102,15 @@ final class FormatStrategyTest {
   void shouldSelectNothingWithoutStreams() {
     final UrlParseDump missing = dump(EMPTY_JSON);
     final UrlParseDump empty = formats();
-    final UrlParseDump onlyNulls = formats(NULL_ENTRY, NULL_ENTRY);
     final UrlParseDump storyboards = formats("{\"format_id\": \"sb0\", \"audio_ext\": \"none\", \"video_ext\": \"none\", \"quality\": 99}");
     for (final FormatStrategy strategy : ALL_STRATEGIES) {
       final Optional<Format> fromMissing = strategy.select(missing);
       final Optional<Format> fromEmpty = strategy.select(empty);
-      final Optional<Format> fromNulls = strategy.select(onlyNulls);
       final Optional<Format> fromStoryboards = strategy.select(storyboards);
       final boolean fromMissingEmpty = fromMissing.isEmpty();
       assertTrue(fromMissingEmpty);
       final boolean fromEmptyEmpty = fromEmpty.isEmpty();
       assertTrue(fromEmptyEmpty);
-      final boolean fromNullsEmpty = fromNulls.isEmpty();
-      assertTrue(fromNullsEmpty);
       final boolean fromStoryboardsEmpty = fromStoryboards.isEmpty();
       assertTrue(fromStoryboardsEmpty);
     }
@@ -126,25 +121,6 @@ final class FormatStrategyTest {
     for (final FormatStrategy strategy : ALL_STRATEGIES) {
       assertThrows(NullPointerException.class, () -> strategy.select(null));
     }
-  }
-
-  @Test
-  void shouldSkipNullEntries() {
-    final String audioStream = audio("a", 1, WEBM_EXTENSION, HTTPS_PROTOCOL);
-    final String videoStream = video("v", 5, MP4_EXTENSION, HTTPS_PROTOCOL);
-    final UrlParseDump dump = formats(NULL_ENTRY, audioStream, NULL_ENTRY, videoStream, NULL_ENTRY);
-    final String firstAudio = select(FormatStrategy.FIRST_AUDIO, dump);
-    final String firstVideo = select(FormatStrategy.FIRST_VIDEO, dump);
-    final String bestAudio = select(FormatStrategy.BEST_QUALITY_AUDIO, dump);
-    final String lowestVideo = select(FormatStrategy.LOWEST_QUALITY_VIDEO, dump);
-    final String webm = select(FormatStrategy.PREFER_WEBM_AUDIO, dump);
-    final String mp4 = select(FormatStrategy.PREFER_MP4_VIDEO, dump);
-    assertEquals("a", firstAudio);
-    assertEquals("v", firstVideo);
-    assertEquals("a", bestAudio);
-    assertEquals("v", lowestVideo);
-    assertEquals("a", webm);
-    assertEquals("v", mp4);
   }
 
   @Test
