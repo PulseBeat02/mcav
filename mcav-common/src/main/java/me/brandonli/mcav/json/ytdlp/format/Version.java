@@ -55,7 +55,7 @@ public final class Version {
 
   private Version(final Fields fields) {
     this.version = fields.version();
-    this.currentGitHead = fields.currentGitHead();
+    this.currentGitHead = JsonValueUtils.toUnmodifiable(fields.currentGitHead());
     this.releaseGitHead = fields.releaseGitHead();
     this.repository = fields.repository();
   }

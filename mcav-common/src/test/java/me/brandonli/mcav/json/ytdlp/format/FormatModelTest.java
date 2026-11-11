@@ -30,6 +30,7 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.google.gson.JsonPrimitive;
 import com.google.gson.ReflectionAccessFilter;
 import com.google.gson.ReflectionAccessFilter.FilterResult;
@@ -691,6 +692,10 @@ final class FormatModelTest {
     return MODELS.stream().flatMap(clazz -> fieldsOfType(clazz, List.class));
   }
 
+  static Stream<Arguments> untypedFields() {
+    return MODELS.stream().flatMap(clazz -> fieldsOfType(clazz, Object.class));
+  }
+
   private static Named<Class<?>> named(final Class<?> clazz) {
     return Named.of(clazz.getSimpleName(), clazz);
   }
@@ -950,6 +955,26 @@ final class FormatModelTest {
     final Object value = getter.invoke(model);
     final List<?> list = assertInstanceOf(List.class, value);
     assertThrows(UnsupportedOperationException.class, list::clear);
+  }
+
+  @ParameterizedTest(name = "{0}.{1}")
+  @MethodSource("untypedFields")
+  void shouldNotLetCallersChangeAnUntypedValue(final Class<?> clazz, final String fieldName) throws ReflectiveOperationException {
+    final Field field = clazz.getDeclaredField(fieldName);
+    final JsonElement reportedValue = JsonParser.parseString("[{\"key\": \"value\"}]");
+    final JsonObject json = new JsonObject();
+    json.add(jsonName(field), reportedValue);
+    final Object model = parse(clazz, json);
+    final Method getter = findGetter(clazz, fieldName);
+    final Object reported = getter.invoke(model);
+    final Object value = unwrap(reported);
+    final List<?> list = assertInstanceOf(List.class, value);
+    final Object first = list.getFirst();
+    final Map<?, ?> map = assertInstanceOf(Map.class, first);
+    final List<Map<String, String>> expected = List.of(Map.of("key", "value"));
+    assertEquals(expected, list);
+    assertThrows(UnsupportedOperationException.class, list::clear);
+    assertThrows(UnsupportedOperationException.class, map::clear);
   }
 
   @Test
