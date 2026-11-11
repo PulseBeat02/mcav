@@ -38,7 +38,8 @@ public interface MCAVModule {
   void start();
 
   /**
-   * Stops the module and releases every resource it holds. Called once while the library is released.
+   * Stops the module and releases every resource it holds. Called once while the library is released, or right after a
+   * failed {@link #start()}, so the module can release what it acquired before it failed.
    *
    * @since 1.0.0
    */
