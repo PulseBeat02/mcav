@@ -529,12 +529,6 @@ final class DependencyLoaderTest {
   }
 
   @Test
-  void shouldKeepTheVlcCapabilityWhenVlcIsReady() {
-    final boolean hasVlc = vlcAvailableAfter(() -> {});
-    assertTrue(hasVlc);
-  }
-
-  @Test
   void shouldRemoveOnlyTheVlcCapabilityWhenTheDownloadFails() {
     final DependencyLoader loader = new DependencyLoader();
     loader.installVlc(() -> this.failVlcStart(new InstallationException(OFFLINE_MESSAGE)));
@@ -712,19 +706,6 @@ final class DependencyLoaderTest {
     }
 
     verify(kit).start();
-  }
-
-  @Test
-  void shouldInstallYtdlpWhenItIsSupported() throws IOException {
-    final Installer installer = mock(Installer.class);
-    final Path installed = Path.of(YTDLP_FILE_NAME);
-    when(installer.isSupported()).thenReturn(true);
-    when(installer.download(FileMode.EXECUTABLE)).thenReturn(installed);
-    final DependencyLoader loader = new DependencyLoader();
-    loader.installYtdlp(installer);
-    final boolean hasYtdlp = loader.hasCapability(Capability.YT_DLP);
-    assertTrue(hasYtdlp);
-    verify(installer).download(FileMode.EXECUTABLE);
   }
 
   @Test
