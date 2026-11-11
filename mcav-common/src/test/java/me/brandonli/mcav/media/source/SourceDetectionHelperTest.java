@@ -135,6 +135,20 @@ final class SourceDetectionHelperTest {
   }
 
   @Test
+  void shouldPropagateADetectorFailureInsteadOfFallingBack() {
+    final Source source = DeviceSource.device(1);
+    final SourceDetector<Source> fallback = new FixedDetector(source, SourceDetector.LOW_PRIORITY, Acceptance.ACCEPTS);
+    final SourceDetector<Source> failingCheck = new FailingDetector(FailurePoint.CHECK);
+    final SourceDetector<Source> failingCreation = new FailingDetector(FailurePoint.CREATION);
+    final List<SourceDetector<? extends Source>> checkDetectors = List.of(fallback, failingCheck);
+    final List<SourceDetector<? extends Source>> creationDetectors = List.of(fallback, failingCreation);
+    final SourceDetectionHelper checkHelper = new SourceDetectionHelper(checkDetectors);
+    final SourceDetectionHelper creationHelper = new SourceDetectionHelper(creationDetectors);
+    assertThrows(IllegalStateException.class, () -> checkHelper.detectSource(ANY_RESOURCE));
+    assertThrows(IllegalStateException.class, () -> creationHelper.detectSource(ANY_RESOURCE));
+  }
+
+  @Test
   void shouldRejectMissingArguments() {
     final SourceDetectionHelper helper = new SourceDetectionHelper();
     assertThrows(NullPointerException.class, () -> helper.detectSource(null));
@@ -174,8 +188,43 @@ final class SourceDetectionHelperTest {
     }
   }
 
+  private static final class FailingDetector implements SourceDetector<Source> {
+
+    private final FailurePoint failurePoint;
+
+    FailingDetector(final FailurePoint failurePoint) {
+      this.failurePoint = failurePoint;
+    }
+
+    @Override
+    public boolean isDetectedSource(final String resource) {
+      if (this.failurePoint == FailurePoint.CHECK) {
+        final String message = "Detector failed while checking %s!".formatted(resource);
+        throw new IllegalStateException(message);
+      }
+
+      return true;
+    }
+
+    @Override
+    public Source createSource(final String resource) {
+      final String message = "Detector failed while creating %s!".formatted(resource);
+      throw new IllegalStateException(message);
+    }
+
+    @Override
+    public int getPriority() {
+      return SourceDetector.HIGH_PRIORITY;
+    }
+  }
+
   private enum Acceptance {
     ACCEPTS,
     REFUSES,
+  }
+
+  private enum FailurePoint {
+    CHECK,
+    CREATION,
   }
 }
