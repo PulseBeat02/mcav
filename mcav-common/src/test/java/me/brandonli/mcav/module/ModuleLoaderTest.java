@@ -18,6 +18,7 @@
 package me.brandonli.mcav.module;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
@@ -35,6 +36,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.jupiter.api.Test;
 
@@ -341,6 +343,17 @@ final class ModuleLoaderTest {
   }
 
   @Test
+  void shouldFindAModuleOnlyOnceItHasStarted() {
+    final ModuleLoader loader = new ModuleLoader();
+    SelfLookupModule.LOADER.set(loader);
+    loader.loadModules(SelfLookupModule.class);
+
+    final SelfLookupModule module = loader.getModule(SelfLookupModule.class);
+    final boolean foundWhileStarting = module.foundWhileStarting;
+    assertFalse(foundWhileStarting);
+  }
+
+  @Test
   void shouldStartEachModuleOnceUnderConcurrentLoads() throws Exception {
     CountedModule.STARTS.set(0);
     final ModuleLoader loader = new ModuleLoader();
@@ -471,6 +484,29 @@ final class ModuleLoaderTest {
     public void start() {
       super.start();
       STARTS.incrementAndGet();
+    }
+  }
+
+  static final class SelfLookupModule extends RecordingModule {
+
+    private static final AtomicReference<ModuleLoader> LOADER = new AtomicReference<>();
+
+    volatile boolean foundWhileStarting;
+
+    @Override
+    public void start() {
+      super.start();
+      final ModuleLoader loader = LOADER.get();
+      this.foundWhileStarting = this.isFoundBy(loader);
+    }
+
+    private boolean isFoundBy(final ModuleLoader loader) {
+      try {
+        final SelfLookupModule _ = loader.getModule(SelfLookupModule.class);
+        return true;
+      } catch (final ModuleException exception) {
+        return false;
+      }
     }
   }
 
