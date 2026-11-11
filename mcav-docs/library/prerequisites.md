@@ -78,7 +78,7 @@ describes. When that installation fails, MCAV logs a warning, and FFmpeg loads o
 Face detection loads the object detection module of OpenCV, which links GTK 2 on Linux. When the system has no GTK 2,
 MCAV installs the Debian 12 packages of `libgtk2.0-0` and its dependencies on x86-64 and ARM64 Linux, the same way as
 VLC above: pinned, checked against their hashes, unpacked into the cache without administrator rights, and loaded before
-OpenCV. When that installation fails, only face detection is unavailable.
+OpenCV's object detection module. When that installation fails, only face detection is unavailable.
 
 For the [virtual machine module](vm.md), MCAV uses the QEMU of the system when the `qemu-system-*` program of the guest
 is on the `PATH`. Otherwise:
