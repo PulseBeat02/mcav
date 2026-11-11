@@ -384,7 +384,7 @@ final class FormatModelTest {
   }
 
   @Test
-  void shouldReadEveryFormatField() throws IOException {
+  void shouldReadTheFieldsOfAnAudioAndAVideoFormat() throws IOException {
     final UrlParseDump dump = fixture();
     final List<Format> formats = dump.getFormats();
 
