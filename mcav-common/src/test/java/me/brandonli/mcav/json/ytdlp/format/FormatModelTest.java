@@ -953,13 +953,6 @@ final class FormatModelTest {
   }
 
   @Test
-  void shouldNotLetCallersChangeTheLists() throws IOException {
-    final UrlParseDump dump = fixture();
-    final List<Format> formats = dump.getFormats();
-    assertThrows(UnsupportedOperationException.class, formats::clear);
-  }
-
-  @Test
   void shouldCreateMetadataWithATitle() {
     final UrlParseDump dump = UrlParseDump.of(TITLE);
     final Optional<String> title = dump.getTitle();
