@@ -38,6 +38,7 @@ import mcv2_reference
 from rejection_cases import rejected_frames
 import numpy
 from mcv2_reference import (
+    ALPHABET_SIZE,
     BITS_PER_BYTE,
     BIT_ORDER,
     CHANNELS,
@@ -50,6 +51,7 @@ from mcv2_reference import (
     LEAF_SIZES,
     LEVEL_COUNTS,
     MAGIC,
+    MAP_SIDE,
     MAXIMUM_CHANNEL,
     MAXIMUM_DIMENSION,
     MINIMUM_DIMENSION,
@@ -183,6 +185,7 @@ DIGESTS_COMMAND: str = "digests"
 BENCHMARK_COMMAND: str = "bench"
 SHADER_COMPILE_COMMAND: str = "shader-compile"
 POST_ONLY_FLAG: str = "--post-only"
+ALPHABET_COMMAND: str = "alphabet"
 
 JFR_PRINT_COMMAND: str = "print"
 JFR_JSON_FLAG: str = "--json"
@@ -218,6 +221,8 @@ SLOTS_OPTION: str = "--slots"
 BACKEND_OPTION: str = "--backend"
 PACK_OPTION: str = "--pack"
 SPIRV_OPTION: str = "--spirv"
+TEXT_SHADERS_OPTION: str = "--text-shaders"
+WINDOW_OPTION: str = "--window"
 JSON_OPTION: str = "--json"
 CROP_OPTION: str = "--crop"
 FRAME_OPTION: str = "--frame"
@@ -709,10 +714,15 @@ SPIRV_HELP: str = (
     "run compiled Mcv2Tools shader-compile; use the test runtime classpath from "
     "mcav-bukkit/build/mcv2-tools-classpath.txt"
 )
+TEXT_SHADERS_HELP: str = (
+    "draw the page and anchor maps through the pack's text shaders and compare their strip with the model's; the "
+    "classpath (mcav-bukkit/build/mcv2-tools-classpath.txt) runs Mcv2Tools alphabet"
+)
 
 shader_check_pack: Path = REPOSITORY_ROOT / "mcav-bukkit/src/main/resources/mcav/mcv2/pack"
 shader_check_screen: tuple[int, int] = (DEFAULT_WIDTH, DEFAULT_HEIGHT)
 SHADER_CHECK_STREAM_ID: int = 7
+SHADER_CHECK_IDLE_STREAM_ID: int = 1
 shader_check_screen_index: int = 0
 shader_check_first_slot: int = 0
 SHADER_CHECK_IDLE_SLOTS: int = 8
@@ -737,6 +747,62 @@ void main() {
     fragColor = texelFetch(InSampler, ivec2(gl_FragCoord.xy), 0);
 }
 """
+
+TEXT_SHADER_PATH: str = "assets/minecraft/shaders/core/text"
+ALPHABET_INCLUDE: str = "mcav:mcv2_alphabet.glsl"
+ALPHABET_TABLE_PATTERN: re.Pattern[str] = re.compile(r"\]\(([^)]*)\)")
+ALPHABET_ENTRY_PATTERN: re.Pattern[str] = re.compile(r"\d+")
+NO_SYMBOL_ENTRY: int = 0xFFFFFFFF
+
+# Plain uniforms stand in for Minecraft's blocks; page and descriptor writes use neither fog nor the lightmap.
+TEXT_SHADER_MINECRAFT_INCLUDES: dict[str, str] = {
+    "minecraft:dynamictransforms.glsl": "uniform mat4 ModelViewMat;\nuniform vec4 ColorModulator;\n",
+    "minecraft:projection.glsl": "uniform mat4 ProjMat;\n",
+    "minecraft:globals.glsl": "uniform vec2 ScreenSize;\n",
+    "minecraft:fog.glsl": """uniform vec4 FogColor;
+uniform float FogEnvironmentalStart;
+uniform float FogEnvironmentalEnd;
+uniform float FogRenderDistanceStart;
+uniform float FogRenderDistanceEnd;
+float fog_spherical_distance(vec3 position) {
+    return length(position);
+}
+float fog_cylindrical_distance(vec3 position) {
+    return length(position.xz);
+}
+vec4 apply_fog(vec4 color, float sphericalDistance, float cylindricalDistance, float environmentalStart,
+               float environmentalEnd, float renderDistanceStart, float renderDistanceEnd, vec4 fogColor) {
+    return color;
+}
+""",
+    "minecraft:sample_lightmap.glsl": """vec4 sample_lightmap(sampler2D lightMap, ivec2 uv) {
+    return vec4(1.0);
+}
+""",
+    "minecraft:oit.glsl": "",
+}
+
+ANCHOR_MAGIC: tuple[int, ...] = (21, 3, 58, 44, 9, 37, 60, 17)
+ANCHOR_TILE: tuple[int, int] = (0, 0)
+ANCHOR_FACING: int = 0
+
+TEXT_WALL_TILES: tuple[int, int] = (15, 9)
+TEXT_WALL_TOP_LEFT: tuple[float, float, float] = (-7.5, 4.5, -10.0)
+TEXT_WALL_RIGHT: tuple[float, float, float] = (1.0, 0.0, 0.0)
+TEXT_WALL_DOWN: tuple[float, float, float] = (0.0, -1.0, 0.0)
+
+SHADER_CHECK_PIXEL_CENTER: float = 0.5
+SHADER_CHECK_RAY_DEPTH: float = 0.5
+SHADER_CHECK_TEXEL_MARGIN: float = 0.02
+# Behind the camera, so a page shows only where the text vertex shader places it.
+TEXT_HIDDEN_CORNER: tuple[float, float, float] = (0.0, 0.0, 1.0)
+
+TEXT_QUAD_CORNERS: tuple[tuple[float, float], ...] = ((0.0, 0.0), (0.0, 1.0), (1.0, 1.0), (1.0, 0.0))
+TEXT_QUAD_INDICES: tuple[int, ...] = (0, 1, 2, 2, 3, 0)
+TEXT_VERTEX_FORMAT: str = "3f 4f 2f"
+TEXT_VERTEX_ATTRIBUTES: tuple[str, str, str] = ("Position", "Color", "UV0")
+TEXT_WHITE: tuple[float, float, float, float] = (1.0, 1.0, 1.0, 1.0)
+TEXT_MAP_UNIT: int = 0
 
 STRIP_CHECK_HEADER_SYMBOLS: int = (PAGE_HEADER.size * BITS_PER_BYTE + SYMBOL_BITS - 1) // SYMBOL_BITS
 STRIP_CHECK_SQUARE: int = 20
@@ -2133,8 +2199,9 @@ def shader_check_main() -> None:
         description=(
             "Run the pack post chain outside Minecraft and require byte-exact reference pictures and decode "
             "decisions. --drop exercises missing frames; --restart-check exercises keyframe restart ordering. "
-            "Frames with more pages than slots cannot be decoded, as Mcv2Channel.send refuses them. Exit 1 on a "
-            "failed check; 2 on invalid options."
+            "--renders-per-frame and --split-uploads run the chain at the game's cadence; with --text-shaders every "
+            "render also checks the wall that the screen pass draws. Frames with more pages than slots cannot be "
+            "decoded, as Mcv2Channel.send refuses them. Exit 1 on a failed check; 2 on invalid options."
         ),
     )
     parser.add_argument("streams", nargs="+")
@@ -2143,13 +2210,27 @@ def shader_check_main() -> None:
     parser.add_argument(BACKEND_OPTION, choices=(EGL_BACKEND, GLX_BACKEND), default=None)
     parser.add_argument(PACK_OPTION, type=Path, help="another pack source folder with its sibling chain.json")
     parser.add_argument(SPIRV_OPTION, metavar=SPIRV_USAGE_NAME, help=SPIRV_HELP)
+    parser.add_argument(TEXT_SHADERS_OPTION, metavar=SPIRV_USAGE_NAME, help=TEXT_SHADERS_HELP)
+    parser.add_argument(WINDOW_OPTION, type=parse_size, default=(DEFAULT_WIDTH, DEFAULT_HEIGHT), help="the window size, WxH")
     parser.add_argument(
         "--second-screen", action="store_true", help="play on the second screen of a two-screen pack"
     )
     parser.add_argument(
         "--restart-check", action="store_true", help="also check keyframe restart and P-frame ordering"
     )
+    parser.add_argument(
+        "--renders-per-frame", type=int, default=1, help="run the chain this often after each upload, as the game draws"
+    )
+    parser.add_argument(
+        "--split-uploads", action="store_true", help="upload a frame's pages one at a time, each followed by its renders"
+    )
     arguments: argparse.Namespace = parser.parse_args()
+    if arguments.renders_per_frame < 1:
+        message: str = "The check needs at least one render per frame!"
+        parser.error(message)
+
+    global shader_check_screen
+    shader_check_screen = arguments.window
     if arguments.second_screen:
         global shader_check_screen_index, shader_check_first_slot
         shader_check_screen_index, shader_check_first_slot = (1, SHADER_CHECK_IDLE_SLOTS)
@@ -2167,6 +2248,10 @@ def shader_check_main() -> None:
     sys.exit(FAILURE_EXIT_CODE if failures else SUCCESS_EXIT_CODE)
 
 
+def parse_size(text: str) -> tuple[int, ...]:
+    return tuple(int(value) for value in text.split(SIZE_SEPARATOR))
+
+
 def shader_check_create_context(backend: str | None) -> "moderngl.Context":
     import moderngl
 
@@ -2178,9 +2263,13 @@ def shader_check_stream(context: "moderngl.Context", arguments: argparse.Namespa
     check: ShaderStreamCheck = ShaderStreamCheck(context, arguments)
     for index, frame in enumerate(read_archive(stream)):
         check.check_frame(index, frame)
-    print(f"{Path(stream).name}: {check.decoded} frames decoded, {check.skipped} skipped, {check.wrong} wrong")
+    name: str = Path(stream).name
+    print(f"{name}: {check.decoded} frames decoded, {check.skipped} skipped, {check.wrong} wrong in {check.renders} renders")
+    if check.text is not None:
+        print(f"{name}: {check.strips_differ} of {check.strips} text shader strips differ")
+        print(f"{name}: {check.walls_differ} of {check.walls} walls differ")
 
-    return check.wrong
+    return check.wrong + check.strips_differ + check.walls_differ
 
 
 class ShaderStreamCheck:
@@ -2188,11 +2277,19 @@ class ShaderStreamCheck:
         self.context: Any = context
         self.arguments: argparse.Namespace = arguments
         self.chain: ShaderChain | None = None
+        self.text: TextShaderPass | None = None
+        self.wall: tuple[tuple[numpy.ndarray, ...], tuple[numpy.ndarray, ...]] | None = None
+        self.held: dict[int, bytes] = {}
         self.last_id: int | None = None
         self.shown: numpy.ndarray | None = None
         self.decoded: int = 0
         self.skipped: int = 0
         self.wrong: int = 0
+        self.renders: int = 0
+        self.strips: int = 0
+        self.strips_differ: int = 0
+        self.walls: int = 0
+        self.walls_differ: int = 0
 
     def check_frame(self, index: int, frame: bytes) -> None:
         width: int
@@ -2204,6 +2301,8 @@ class ShaderStreamCheck:
         keyframe: Any = frame_id == reference_id
         if self.chain is None:
             self.chain = self.create_chain(width, height)
+            self.text = self.create_text_pass(self.chain)
+            self.wall = shader_check_wall_texels(width, height)
 
         if self.arguments.drop and index % self.arguments.drop == self.arguments.drop - 1:
             return
@@ -2218,26 +2317,78 @@ class ShaderStreamCheck:
             and ((width, height) == (self.chain.width, self.chain.height))
             and (len(pages) <= self.arguments.slots)
         )
-        self.chain.show(pages[: self.arguments.slots])
+        shown_pages: list[bytes] = pages[: self.arguments.slots]
+        schedule: list[tuple[list[bytes], bool]] = shader_check_schedule(
+            shown_pages, self.arguments.split_uploads, self.arguments.renders_per_frame
+        )
+        for render, (upload, complete) in enumerate(schedule):
+            label: str = f"frame {index}" if len(schedule) == 1 else f"frame {index} render {render}"
+            self.upload(upload)
+            if not self.check_render(label, frame, decodable and complete):
+                return
+
+    def upload(self, pages: list[bytes]) -> None:
+        for page in pages:
+            self.held[shader_check_page_number(page)] = page
+
+    def check_render(self, label: str, frame: bytes, should_decode: bool) -> bool:
+        self.draw_world(label)
         chain_decoded: bool
         picture: numpy.ndarray
         chain_decoded, picture = self.chain.render_frame()
-        if chain_decoded != decodable:
+        self.renders += 1
+        if chain_decoded != should_decode:
             self.wrong += 1
             chain_action: str = "decoded" if chain_decoded else "skipped"
-            client_action: str = "can" if decodable else "cannot"
-            print(f"  frame {index}: the chain {chain_action} it, the client model {client_action}")
-            return
+            client_action: str = "can" if should_decode else "cannot"
+            print(f"  {label}: the chain {chain_action} it, the client model {client_action}")
+            return False
 
-        if not chain_decoded:
-            self.check_skipped(index, picture)
-            return
+        if chain_decoded:
+            self.check_decoded(label, frame, picture)
+        else:
+            self.check_skipped(label, picture)
+        self.check_wall(label)
+        return True
 
+    # The game draws its world before every render, so the text shaders write the strip again each time.
+    def draw_world(self, label: str) -> None:
+        pages: list[bytes] = list(self.held.values())
+        self.chain.show(pages)
+        if self.text is not None:
+            self.check_strip(label, self.text, pages)
+
+    def check_decoded(self, label: str, frame: bytes, picture: numpy.ndarray) -> None:
+        frame_id: int
+        reference_id: int
+        frame_id, reference_id = struct.unpack_from(FRAME_IDS_FORMAT, frame, FRAME_ID_OFFSET)
+        keyframe: bool = frame_id == reference_id
         self.decoded += 1
         expected: numpy.ndarray = decode(frame, None if keyframe else self.shown, self.last_id)
         self.shown = expected
         self.last_id = frame_id
-        self.check_picture(index, picture, expected)
+        self.check_picture(label, picture, expected)
+
+    def check_wall(self, label: str) -> None:
+        if self.text is None or self.shown is None:
+            return
+
+        positions: tuple[numpy.ndarray, ...]
+        texels: tuple[numpy.ndarray, ...]
+        positions, texels = self.wall
+        width: int
+        height: int
+        width, height = shader_check_screen
+        screen: numpy.ndarray = numpy.frombuffer(self.chain.main.read(), numpy.uint8).reshape(height, width, RGBA_CHANNELS)
+        drawn: numpy.ndarray = screen[positions][:, :CHANNELS]
+        expected: numpy.ndarray = self.shown[texels]
+        changed: int = int((drawn != expected).any(axis=1).sum())
+        self.walls += 1
+        if changed == 0:
+            return
+
+        self.walls_differ += 1
+        print(f"  {label}: the wall differs from the picture in {changed} of {len(drawn)} pixels")
 
     def create_chain(self, width: Any, height: Any) -> "ShaderChain":
         chain: ShaderChain = ShaderChain(self.context, width, height, self.arguments.slots)
@@ -2246,18 +2397,88 @@ class ShaderStreamCheck:
 
         return chain
 
-    def check_skipped(self, index: int, picture: Any) -> None:
+    def create_text_pass(self, chain: "ShaderChain") -> "TextShaderPass | None":
+        if not self.arguments.text_shaders:
+            return None
+
+        alphabet: str = shader_check_alphabet(self.arguments.text_shaders)
+        return TextShaderPass(self.context, chain, alphabet)
+
+    # show() wrote the model's strip; the text shaders draw over it
+    def check_strip(self, label: str, text: "TextShaderPass", pages: list[bytes]) -> None:
+        expected: numpy.ndarray = text.read_strip()
+        text.draw(pages)
+        actual: numpy.ndarray = text.read_strip()
+        self.strips += 1
+        difference: tuple[int, int] | None = shader_check_first_difference(expected, actual)
+        if difference is None:
+            return
+
+        self.strips_differ += 1
+        print(f"  {label}: the text shaders' strip differs first in slot {difference[0]}, row {difference[1]}")
+
+    def check_skipped(self, label: str, picture: Any) -> None:
         self.skipped += 1
         if self.shown is not None and (not numpy.array_equal(picture, self.shown)):
             self.wrong += 1
-            print(f"  frame {index} was skipped but the picture changed")
+            print(f"  {label} was skipped but the picture changed")
 
-    def check_picture(self, index: int, picture: Any, expected: numpy.ndarray) -> None:
+    def check_picture(self, label: str, picture: Any, expected: numpy.ndarray) -> None:
         if not numpy.array_equal(picture, expected):
             self.wrong += 1
             difference: Any = numpy.abs(picture.astype(int) - expected.astype(int))
             changed: int = int((difference.max(axis=2) > 0).sum())
-            print(f"  frame {index} differs: {changed} pixels, max {difference.max()}")
+            print(f"  {label} differs: {changed} pixels, max {difference.max()}")
+
+
+# Each render's pages that arrive just before it, and whether it is the first render that holds the whole frame.
+def shader_check_schedule(pages: list[bytes], split: bool, renders_per_upload: int) -> list[tuple[list[bytes], bool]]:
+    uploads: list[list[bytes]] = [[page] for page in pages] if split else [pages]
+    schedule: list[tuple[list[bytes], bool]] = []
+    for upload_index, upload in enumerate(uploads):
+        schedule.append((upload, upload_index == len(uploads) - 1))
+        schedule.extend(([], False) for _ in range(renders_per_upload - 1))
+
+    return schedule
+
+
+# The screen pass's ray through each pixel center to the anchored wall, without pixels that float rounding moves to another texel.
+def shader_check_wall_texels(video_width: int, video_height: int) -> tuple[tuple[numpy.ndarray, ...], tuple[numpy.ndarray, ...]]:
+    width: int
+    height: int
+    width, height = shader_check_screen
+    projection: numpy.ndarray = shader_timing_perspective(
+        SHADER_TIMING_FIELD_OF_VIEW, width / height, SHADER_TIMING_NEAR, SHADER_TIMING_FAR
+    ).astype(numpy.float64)
+    rows: numpy.ndarray
+    columns: numpy.ndarray
+    rows, columns = numpy.mgrid[0:height, 0:width]
+    normalized: numpy.ndarray = numpy.stack(
+        [
+            (columns + SHADER_CHECK_PIXEL_CENTER) / width * 2 - 1,
+            (rows + SHADER_CHECK_PIXEL_CENTER) / height * 2 - 1,
+            numpy.full(rows.shape, SHADER_CHECK_RAY_DEPTH),
+            numpy.ones(rows.shape),
+        ],
+        axis=-1,
+    )
+    far: numpy.ndarray = normalized @ numpy.linalg.inv(projection)
+    direction: numpy.ndarray = far[..., :-1] / far[..., -1:]
+    top_left: numpy.ndarray = numpy.array(TEXT_WALL_TOP_LEFT)
+    right: numpy.ndarray = numpy.array(TEXT_WALL_RIGHT)
+    down: numpy.ndarray = numpy.array(TEXT_WALL_DOWN)
+    normal: numpy.ndarray = numpy.cross(right, down)
+    distance: numpy.ndarray = top_left @ normal / (direction @ normal)
+    local: numpy.ndarray = direction * distance[..., None] - top_left
+    across: numpy.ndarray = local @ right / (right @ right) / TEXT_WALL_TILES[0] * video_width
+    along: numpy.ndarray = local @ down / (down @ down) / TEXT_WALL_TILES[1] * video_height
+    inside: numpy.ndarray = (distance > 0) & (across >= 0) & (across < video_width) & (along >= 0) & (along < video_height)
+    clear: numpy.ndarray = (numpy.abs(across - numpy.round(across)) > SHADER_CHECK_TEXEL_MARGIN) & (
+        numpy.abs(along - numpy.round(along)) > SHADER_CHECK_TEXEL_MARGIN
+    )
+    positions: tuple[numpy.ndarray, ...] = numpy.nonzero(inside & clear)
+    texels: tuple[numpy.ndarray, ...] = (along[positions].astype(int), across[positions].astype(int))
+    return positions, texels
 
 
 class ShaderChain:
@@ -2412,6 +2633,132 @@ def page_rows(width: int) -> int:
     return (PAGE_PIXELS + width - 1) // width
 
 
+class TextShaderPass:
+    def __init__(self, context: Any, chain: ShaderChain, alphabet: str) -> None:
+        self.context: Any = context
+        self.chain: ShaderChain = chain
+        self.colors: numpy.ndarray = shader_check_alphabet_colors(alphabet)
+        includes: dict[str, str] = {**chain.includes, **TEXT_SHADER_MINECRAFT_INCLUDES, ALPHABET_INCLUDE: alphabet}
+        self.program: Any = context.program(
+            vertex_shader=self.resolve(VERTEX_SHADER_SUFFIX, includes),
+            fragment_shader=self.resolve(FRAGMENT_SHADER_SUFFIX, includes),
+        )
+        self.framebuffer: Any = context.framebuffer(color_attachments=[chain.main])
+        self.set_uniforms()
+
+    def resolve(self, suffix: str, includes: dict[str, str]) -> str:
+        source: str = (shader_check_pack / f"{TEXT_SHADER_PATH}{suffix}").read_text()
+        return shader_check_resolve(source, includes)
+
+    def set_uniforms(self) -> None:
+        width: int
+        height: int
+        width, height = shader_check_screen
+        projection: numpy.ndarray = shader_timing_perspective(
+            SHADER_TIMING_FIELD_OF_VIEW, width / height, SHADER_TIMING_NEAR, SHADER_TIMING_FAR
+        )
+        model_view: numpy.ndarray = numpy.identity(len(projection), numpy.float32)
+        self.program["ModelViewMat"].write(model_view.tobytes())
+        self.program["ProjMat"].write(projection.tobytes())
+        self.program["ScreenSize"].value = (width, height)
+        self.program["ColorModulator"].value = TEXT_WHITE
+        self.program["Sampler0"].value = TEXT_MAP_UNIT
+
+    def draw(self, pages: list[bytes]) -> None:
+        self.framebuffer.use()
+        self.framebuffer.clear()
+        for page in pages:
+            symbols: numpy.ndarray = numpy.frombuffer(page, numpy.uint8)
+            self.draw_map(symbols, TEXT_HIDDEN_CORNER)
+        for stream in shader_check_screen_streams():
+            anchor: numpy.ndarray = shader_check_anchor_symbols(stream)
+            self.draw_map(anchor, TEXT_WALL_TOP_LEFT)
+
+    def draw_map(self, symbols: numpy.ndarray, corner: tuple[float, float, float]) -> None:
+        texture: Any = self.create_map(symbols)
+        texture.use(TEXT_MAP_UNIT)
+        quad: numpy.ndarray = shader_check_quad(corner)
+        vertices: Any = self.context.buffer(quad.tobytes())
+        indices: Any = self.context.buffer(numpy.array(TEXT_QUAD_INDICES, numpy.int32).tobytes())
+        array: Any = self.context.vertex_array(
+            self.program, [(vertices, TEXT_VERTEX_FORMAT, *TEXT_VERTEX_ATTRIBUTES)], index_buffer=indices
+        )
+        array.render(mode=self.context.TRIANGLES)
+        for resource in (array, indices, vertices, texture):
+            resource.release()
+
+    def create_map(self, symbols: numpy.ndarray) -> Any:
+        padded: numpy.ndarray = numpy.zeros(PAGE_SYMBOLS, numpy.uint8)
+        padded[: len(symbols)] = symbols
+        texels: numpy.ndarray = numpy.full((PAGE_SYMBOLS, RGBA_CHANNELS), MAXIMUM_CHANNEL, numpy.uint8)
+        texels[:, :CHANNELS] = self.colors[padded]
+        return self.context.texture((MAP_SIDE, MAP_SIDE), RGBA_CHANNELS, texels.tobytes())
+
+    def read_strip(self) -> numpy.ndarray:
+        width: int
+        height: int
+        width, height = shader_check_screen
+        screen: numpy.ndarray = numpy.frombuffer(self.chain.main.read(), numpy.uint8).reshape(height, width, RGBA_CHANNELS)
+        rows: int = page_rows(width) * (shader_check_first_slot + self.chain.slots)
+        return screen[::-1][:rows]
+
+
+def shader_check_alphabet_colors(alphabet: str) -> numpy.ndarray:
+    table: re.Match[str] | None = ALPHABET_TABLE_PATTERN.search(alphabet)
+    if table is None:
+        message: str = "The alphabet has no symbol table!"
+        raise ValueError(message)
+
+    colors: numpy.ndarray = numpy.zeros((ALPHABET_SIZE, CHANNELS), numpy.uint8)
+    for value in ALPHABET_ENTRY_PATTERN.findall(table.group(1)):
+        entry: int = int(value)
+        if entry == NO_SYMBOL_ENTRY:
+            continue
+        color: int = entry >> SYMBOL_BITS
+        colors[entry & SYMBOL_MASK] = (color >> 2 * BITS_PER_BYTE, color >> BITS_PER_BYTE & MAXIMUM_CHANNEL, color & MAXIMUM_CHANNEL)
+
+    return colors
+
+
+def shader_check_screen_streams() -> list[int]:
+    if shader_check_screen_index == 0:
+        return [SHADER_CHECK_STREAM_ID]
+
+    return [SHADER_CHECK_IDLE_STREAM_ID, SHADER_CHECK_STREAM_ID]
+
+
+def shader_check_anchor_symbols(stream: int) -> numpy.ndarray:
+    fields: list[int] = [*ANCHOR_TILE, *TEXT_WALL_TILES, ANCHOR_FACING, stream & SYMBOL_MASK, stream >> SYMBOL_BITS & SYMBOL_MASK]
+    check: int = sum(fields) & SYMBOL_MASK
+    return numpy.array([*ANCHOR_MAGIC, *fields, check], numpy.uint8)
+
+
+def shader_check_quad(corner: tuple[float, float, float]) -> numpy.ndarray:
+    origin: numpy.ndarray = numpy.array(corner, numpy.float32)
+    right: numpy.ndarray = numpy.array(TEXT_WALL_RIGHT, numpy.float32)
+    down: numpy.ndarray = numpy.array(TEXT_WALL_DOWN, numpy.float32)
+    vertices: list[list[float]] = [
+        [*(origin + across * right + along * down), *TEXT_WHITE, across, along] for across, along in TEXT_QUAD_CORNERS
+    ]
+    return numpy.array(vertices, numpy.float32)
+
+
+def shader_check_alphabet(classpath: str) -> str:
+    command: list[str] = [JAVA_COMMAND, NATIVE_ACCESS_FLAG, CLASSPATH_FLAG, classpath, MCV2_TOOLS_CLASS, ALPHABET_COMMAND]
+    result: subprocess.CompletedProcess[str] = subprocess.run(command, check=True, capture_output=True, text=True)
+    return result.stdout
+
+
+def shader_check_first_difference(expected: numpy.ndarray, actual: numpy.ndarray) -> tuple[int, int] | None:
+    differing: numpy.ndarray = numpy.flatnonzero((expected != actual).any(axis=(1, 2)))
+    if differing.size == 0:
+        return None
+
+    rows: int = page_rows(shader_check_screen[0])
+    first: int = int(differing[0])
+    return (first // rows, first % rows)
+
+
 def shader_check_generated(width: Any, height: Any, slots: Any) -> dict[Any, Any]:
     configuration: str = LINE_SEPARATOR.join(
         shader_check_screens_configuration(slots)
@@ -2453,7 +2800,7 @@ def shader_check_screens_configuration(slots: Any) -> list[Any]:
     return [
         "const int MCV2_SCREENS = 2;",
         f"{TOTAL_SLOTS_DECLARATION_PREFIX}{total_slots};",
-        f"const uint MCV2_SCREEN_STREAMS[2] = uint[2](1u, {SHADER_CHECK_STREAM_ID}u);",
+        f"const uint MCV2_SCREEN_STREAMS[2] = uint[2]({SHADER_CHECK_IDLE_STREAM_ID}u, {SHADER_CHECK_STREAM_ID}u);",
         f"const int MCV2_SCREEN_SLOTS[2] = int[2]({SHADER_CHECK_IDLE_SLOTS}, {slots});",
         f"const int MCV2_SCREEN_FIRST_SLOTS[2] = int[2](0, {SHADER_CHECK_IDLE_SLOTS});",
     ]
@@ -3653,7 +4000,7 @@ def samples_main() -> None:
         ),
     )
     parser.add_argument(
-        "--size", type=lambda text: tuple(int(value) for value in text.split(SIZE_SEPARATOR)), default=(DEFAULT_WIDTH, DEFAULT_HEIGHT)
+        "--size", type=parse_size, default=(DEFAULT_WIDTH, DEFAULT_HEIGHT)
     )
     commands: argparse._SubParsersAction[argparse.ArgumentParser] = parser.add_subparsers(dest="command", required=True)
     tree: argparse.ArgumentParser = commands.add_parser(TREE_COMMAND)

@@ -734,8 +734,8 @@ newest frame for a thirtieth of a second, so a client drawing a frame every two 
 average. A still image from `/mcav image` is sent twice a second, every eighth time as a keyframe, so a client that
 missed one, for example while it compiled the pack's shaders as it first drew the screen, gets the next within four
 seconds. A screen whose frames stop, such as a paused video or a page that does not change, sends its last picture
-once more as a keyframe within two seconds, and again whenever it starts showing a viewer, so the newest frame stays
-one every client can decode.
+once more as a keyframe after about three seconds without a frame, and again whenever it starts showing a viewer, so
+the newest frame stays one every client can decode.
 
 ## Part 9: The encoder
 
@@ -1726,7 +1726,7 @@ in the `natives` field of its final JSON line (logging may precede it). Use `nat
 | Python `rate_quality` | `--classpath CP --source RGB --frames N --fps FPS --lambdas L1,L2,... --ffmpeg FFMPEG --out JSON -- profile=DEFAULT ...`; run `Mcv2Tools bench` and score its pictures |
 | Python `codec_curves` | `--ffmpeg FFMPEG --source RGB --name NAME --width W --height H --frames N --fps FPS --qualities CRF... --out JSON`; resumable H.264/VP9/AV1 curves |
 | Python `bd_rate` | `REFERENCE_JSON TEST_JSON [--metric vmaf_mean] [--rate map_mbps]`; compare rate-quality curves |
-| Python `shader_check` | `ARCHIVE... [--slots N] [--drop N] [--backend egl\|glx] [--pack DIR] [--spirv CP] [--second-screen] [--restart-check]`; exact pack/reference picture comparison |
+| Python `shader_check` | `ARCHIVE... [--slots N] [--drop N] [--backend egl\|glx] [--pack DIR] [--spirv CP] [--text-shaders CP] [--window WxH] [--second-screen] [--restart-check] [--renders-per-frame N] [--split-uploads]`; exact pack/reference picture comparison; `--renders-per-frame` and `--split-uploads` run the post chain at the game's cadence, and with `--text-shaders` every render also checks the wall that the screen pass draws |
 | Python `shader_timing` | `ARCHIVE... [--backend egl\|glx] [--slots N] [--rounds N] [--repeats N] [--pack DIR] [--reference DIR] [--spirv CP] [--json FILE]`; GPU pass timings and deterministic decode checks; `--reference` supports an archived v2 package |
 | Python `strip_fit_check` | `[--backend egl\|glx] [--spirv CP]`; verify screens too small for the transport strip, and that only the first screen's pass covers it |
 | Python `strip_check` | `CAPTURES --slots N --video-width W [--screens N] [--screen INDEX] [--first-slot N] [--total-slots N] [--debug-top ROWS]`; six-bit strip page, anchor and status validation |
