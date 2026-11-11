@@ -28,6 +28,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.file.Files;
+import java.nio.file.InvalidPathException;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.util.Objects;
@@ -209,5 +210,11 @@ final class FileSourceTest {
     assertThrows(NullPointerException.class, () -> FileSource.path(null));
     assertThrows(NullPointerException.class, () -> detector.isDetectedSource(null));
     assertThrows(NullPointerException.class, () -> detector.createSource(null));
+  }
+
+  @Test
+  void shouldRejectAnInvalidPathWhenCreatingTheSource() {
+    final FileSourceDetector detector = new FileSourceDetector();
+    assertThrows(InvalidPathException.class, () -> detector.createSource(INVALID_PATH));
   }
 }
