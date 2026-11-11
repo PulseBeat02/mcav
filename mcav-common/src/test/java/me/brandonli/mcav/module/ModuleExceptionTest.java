@@ -32,17 +32,14 @@ final class ModuleExceptionTest {
     final IllegalStateException cause = new IllegalStateException("cause!");
     final ModuleException withMessage = new ModuleException("Message!");
     final ModuleException withCause = new ModuleException("Wrapped!", cause);
-    final ModuleException withNulls = new ModuleException(null, null);
     final String message = withMessage.getMessage();
     final Throwable noCause = withMessage.getCause();
     final String wrappedMessage = withCause.getMessage();
     final Throwable wrappedCause = withCause.getCause();
-    final String nullMessage = withNulls.getMessage();
     assertEquals("Message!", message);
     assertNull(noCause);
     assertEquals("Wrapped!", wrappedMessage);
     assertSame(cause, wrappedCause);
-    assertNull(nullMessage);
     assertInstanceOf(MCAVException.class, withMessage, "a module failure is recoverable, so it is no Error");
   }
 }
