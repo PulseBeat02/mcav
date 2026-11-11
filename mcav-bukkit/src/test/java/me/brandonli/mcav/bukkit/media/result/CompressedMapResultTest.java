@@ -473,6 +473,32 @@ final class CompressedMapResultTest {
   }
 
   @Test
+  void shouldSendTheCurrentPictureToAViewerWhoRejoinsWhileNoFrameArrives() throws EventException {
+    final MapConfiguration configuration = this.createConfiguration(1, 1, Sizing.ORIGINAL);
+    final CompressedMapResult result = new CompressedMapResult(configuration, LARGE_BYTE_BUDGET);
+    try (final ImageBuffer image = Images.solid(MAP_SIZE, MAP_SIZE, BLACK)) {
+      result.start();
+      this.join(SECOND);
+      result.process(image, this.algorithm);
+      this.nextFrame = this.changedFrame();
+      result.process(image, this.algorithm);
+      final byte[] current = this.nextFrame.clone();
+
+      this.server.removePlayer(SECOND);
+      PacketUtils.initialize();
+      this.join(SECOND);
+
+      final int secondPacketCount = this.secondViewerPacketCount();
+      assertEquals(1, secondPacketCount, "the returning viewer does not wait for the next frame");
+
+      final List<ClientboundMapItemDataPacket> snapshot = this.packetsOf(SECOND, 0);
+      MapPackets.assertMapPacket(snapshot.getFirst(), 3, 0, 0, MAP_SIZE, MAP_SIZE, current);
+    } finally {
+      result.release();
+    }
+  }
+
+  @Test
   void shouldSendNothingToAViewerWhoJoinsBeforeTheFirstFrame() throws EventException {
     final MapConfiguration configuration = this.createConfiguration(1, 1, Sizing.ORIGINAL);
     final CompressedMapResult result = new CompressedMapResult(configuration, LARGE_BYTE_BUDGET);
