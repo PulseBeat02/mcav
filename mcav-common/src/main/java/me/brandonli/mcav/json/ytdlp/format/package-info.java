@@ -20,9 +20,9 @@
  *
  * <p>{@link me.brandonli.mcav.json.ytdlp.format.UrlParseDump} describes a resolved video and its available
  * {@link me.brandonli.mcav.json.ytdlp.format.Format} objects. Other models describe thumbnails, fragments,
- * headers, download hints and extractor version metadata. Gson fills the private fields; getters return absent
- * references as empty {@code Optional}s or empty lists, and absent primitive values as zero or false. These models do
- * not validate ranges, URLs or consistency between fields.
+ * headers, download hints and extractor version metadata. Gson builds each model through its constructor and never
+ * writes its fields; getters return absent references as empty {@code Optional}s or empty lists, and absent primitive
+ * values as zero or false. These models do not validate ranges, URLs or consistency between fields.
  *
  * <p>Instances are immutable and thread-safe, and their lists are unmodifiable. Format selection returns objects
  * from these lists. {@link me.brandonli.mcav.json.ytdlp.format.Format#toUriSource()} wraps only the URL; request
