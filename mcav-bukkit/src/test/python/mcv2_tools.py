@@ -790,6 +790,10 @@ TEXT_WALL_TILES: tuple[int, int] = (15, 9)
 TEXT_WALL_TOP_LEFT: tuple[float, float, float] = (-7.5, 4.5, -10.0)
 TEXT_WALL_RIGHT: tuple[float, float, float] = (1.0, 0.0, 0.0)
 TEXT_WALL_DOWN: tuple[float, float, float] = (0.0, -1.0, 0.0)
+
+SHADER_CHECK_PIXEL_CENTER: float = 0.5
+SHADER_CHECK_RAY_DEPTH: float = 0.5
+SHADER_CHECK_TEXEL_MARGIN: float = 0.02
 # Behind the camera, so a page shows only where the text vertex shader places it.
 TEXT_HIDDEN_CORNER: tuple[float, float, float] = (0.0, 0.0, 1.0)
 
@@ -2195,8 +2199,9 @@ def shader_check_main() -> None:
         description=(
             "Run the pack post chain outside Minecraft and require byte-exact reference pictures and decode "
             "decisions. --drop exercises missing frames; --restart-check exercises keyframe restart ordering. "
-            "Frames with more pages than slots cannot be decoded, as Mcv2Channel.send refuses them. Exit 1 on a "
-            "failed check; 2 on invalid options."
+            "--renders-per-frame and --split-uploads run the chain at the game's cadence; with --text-shaders every "
+            "render also checks the wall that the screen pass draws. Frames with more pages than slots cannot be "
+            "decoded, as Mcv2Channel.send refuses them. Exit 1 on a failed check; 2 on invalid options."
         ),
     )
     parser.add_argument("streams", nargs="+")
@@ -2213,7 +2218,17 @@ def shader_check_main() -> None:
     parser.add_argument(
         "--restart-check", action="store_true", help="also check keyframe restart and P-frame ordering"
     )
+    parser.add_argument(
+        "--renders-per-frame", type=int, default=1, help="run the chain this often after each upload, as the game draws"
+    )
+    parser.add_argument(
+        "--split-uploads", action="store_true", help="upload a frame's pages one at a time, each followed by its renders"
+    )
     arguments: argparse.Namespace = parser.parse_args()
+    if arguments.renders_per_frame < 1:
+        message: str = "The check needs at least one render per frame!"
+        parser.error(message)
+
     global shader_check_screen
     shader_check_screen = arguments.window
     if arguments.second_screen:
@@ -2249,11 +2264,12 @@ def shader_check_stream(context: "moderngl.Context", arguments: argparse.Namespa
     for index, frame in enumerate(read_archive(stream)):
         check.check_frame(index, frame)
     name: str = Path(stream).name
-    print(f"{name}: {check.decoded} frames decoded, {check.skipped} skipped, {check.wrong} wrong")
+    print(f"{name}: {check.decoded} frames decoded, {check.skipped} skipped, {check.wrong} wrong in {check.renders} renders")
     if check.text is not None:
         print(f"{name}: {check.strips_differ} of {check.strips} text shader strips differ")
+        print(f"{name}: {check.walls_differ} of {check.walls} walls differ")
 
-    return check.wrong + check.strips_differ
+    return check.wrong + check.strips_differ + check.walls_differ
 
 
 class ShaderStreamCheck:
@@ -2262,13 +2278,18 @@ class ShaderStreamCheck:
         self.arguments: argparse.Namespace = arguments
         self.chain: ShaderChain | None = None
         self.text: TextShaderPass | None = None
+        self.wall: tuple[tuple[numpy.ndarray, ...], tuple[numpy.ndarray, ...]] | None = None
+        self.held: dict[int, bytes] = {}
         self.last_id: int | None = None
         self.shown: numpy.ndarray | None = None
         self.decoded: int = 0
         self.skipped: int = 0
         self.wrong: int = 0
+        self.renders: int = 0
         self.strips: int = 0
         self.strips_differ: int = 0
+        self.walls: int = 0
+        self.walls_differ: int = 0
 
     def check_frame(self, index: int, frame: bytes) -> None:
         width: int
@@ -2281,6 +2302,7 @@ class ShaderStreamCheck:
         if self.chain is None:
             self.chain = self.create_chain(width, height)
             self.text = self.create_text_pass(self.chain)
+            self.wall = shader_check_wall_texels(width, height)
 
         if self.arguments.drop and index % self.arguments.drop == self.arguments.drop - 1:
             return
@@ -2296,28 +2318,77 @@ class ShaderStreamCheck:
             and (len(pages) <= self.arguments.slots)
         )
         shown_pages: list[bytes] = pages[: self.arguments.slots]
-        self.chain.show(shown_pages)
-        if self.text is not None:
-            self.check_strip(index, self.text, shown_pages)
+        schedule: list[tuple[list[bytes], bool]] = shader_check_schedule(
+            shown_pages, self.arguments.split_uploads, self.arguments.renders_per_frame
+        )
+        for render, (upload, complete) in enumerate(schedule):
+            label: str = f"frame {index}" if len(schedule) == 1 else f"frame {index} render {render}"
+            self.upload(upload)
+            if not self.check_render(label, frame, decodable and complete):
+                return
+
+    def upload(self, pages: list[bytes]) -> None:
+        for page in pages:
+            self.held[shader_check_page_number(page)] = page
+
+    def check_render(self, label: str, frame: bytes, should_decode: bool) -> bool:
+        self.draw_world(label)
         chain_decoded: bool
         picture: numpy.ndarray
         chain_decoded, picture = self.chain.render_frame()
-        if chain_decoded != decodable:
+        self.renders += 1
+        if chain_decoded != should_decode:
             self.wrong += 1
             chain_action: str = "decoded" if chain_decoded else "skipped"
-            client_action: str = "can" if decodable else "cannot"
-            print(f"  frame {index}: the chain {chain_action} it, the client model {client_action}")
-            return
+            client_action: str = "can" if should_decode else "cannot"
+            print(f"  {label}: the chain {chain_action} it, the client model {client_action}")
+            return False
 
-        if not chain_decoded:
-            self.check_skipped(index, picture)
-            return
+        if chain_decoded:
+            self.check_decoded(label, frame, picture)
+        else:
+            self.check_skipped(label, picture)
+        self.check_wall(label)
+        return True
 
+    # The game draws its world before every render, so the text shaders write the strip again each time.
+    def draw_world(self, label: str) -> None:
+        pages: list[bytes] = list(self.held.values())
+        self.chain.show(pages)
+        if self.text is not None:
+            self.check_strip(label, self.text, pages)
+
+    def check_decoded(self, label: str, frame: bytes, picture: numpy.ndarray) -> None:
+        frame_id: int
+        reference_id: int
+        frame_id, reference_id = struct.unpack_from(FRAME_IDS_FORMAT, frame, FRAME_ID_OFFSET)
+        keyframe: bool = frame_id == reference_id
         self.decoded += 1
         expected: numpy.ndarray = decode(frame, None if keyframe else self.shown, self.last_id)
         self.shown = expected
         self.last_id = frame_id
-        self.check_picture(index, picture, expected)
+        self.check_picture(label, picture, expected)
+
+    def check_wall(self, label: str) -> None:
+        if self.text is None or self.shown is None:
+            return
+
+        positions: tuple[numpy.ndarray, ...]
+        texels: tuple[numpy.ndarray, ...]
+        positions, texels = self.wall
+        width: int
+        height: int
+        width, height = shader_check_screen
+        screen: numpy.ndarray = numpy.frombuffer(self.chain.main.read(), numpy.uint8).reshape(height, width, RGBA_CHANNELS)
+        drawn: numpy.ndarray = screen[positions][:, :CHANNELS]
+        expected: numpy.ndarray = self.shown[texels]
+        changed: int = int((drawn != expected).any(axis=1).sum())
+        self.walls += 1
+        if changed == 0:
+            return
+
+        self.walls_differ += 1
+        print(f"  {label}: the wall differs from the picture in {changed} of {len(drawn)} pixels")
 
     def create_chain(self, width: Any, height: Any) -> "ShaderChain":
         chain: ShaderChain = ShaderChain(self.context, width, height, self.arguments.slots)
@@ -2334,7 +2405,7 @@ class ShaderStreamCheck:
         return TextShaderPass(self.context, chain, alphabet)
 
     # show() wrote the model's strip; the text shaders draw over it
-    def check_strip(self, index: int, text: "TextShaderPass", pages: list[bytes]) -> None:
+    def check_strip(self, label: str, text: "TextShaderPass", pages: list[bytes]) -> None:
         expected: numpy.ndarray = text.read_strip()
         text.draw(pages)
         actual: numpy.ndarray = text.read_strip()
@@ -2344,20 +2415,70 @@ class ShaderStreamCheck:
             return
 
         self.strips_differ += 1
-        print(f"  frame {index}: the text shaders' strip differs first in slot {difference[0]}, row {difference[1]}")
+        print(f"  {label}: the text shaders' strip differs first in slot {difference[0]}, row {difference[1]}")
 
-    def check_skipped(self, index: int, picture: Any) -> None:
+    def check_skipped(self, label: str, picture: Any) -> None:
         self.skipped += 1
         if self.shown is not None and (not numpy.array_equal(picture, self.shown)):
             self.wrong += 1
-            print(f"  frame {index} was skipped but the picture changed")
+            print(f"  {label} was skipped but the picture changed")
 
-    def check_picture(self, index: int, picture: Any, expected: numpy.ndarray) -> None:
+    def check_picture(self, label: str, picture: Any, expected: numpy.ndarray) -> None:
         if not numpy.array_equal(picture, expected):
             self.wrong += 1
             difference: Any = numpy.abs(picture.astype(int) - expected.astype(int))
             changed: int = int((difference.max(axis=2) > 0).sum())
-            print(f"  frame {index} differs: {changed} pixels, max {difference.max()}")
+            print(f"  {label} differs: {changed} pixels, max {difference.max()}")
+
+
+# Each render's pages that arrive just before it, and whether it is the first render that holds the whole frame.
+def shader_check_schedule(pages: list[bytes], split: bool, renders_per_upload: int) -> list[tuple[list[bytes], bool]]:
+    uploads: list[list[bytes]] = [[page] for page in pages] if split else [pages]
+    schedule: list[tuple[list[bytes], bool]] = []
+    for upload_index, upload in enumerate(uploads):
+        schedule.append((upload, upload_index == len(uploads) - 1))
+        schedule.extend(([], False) for _ in range(renders_per_upload - 1))
+
+    return schedule
+
+
+# The screen pass's ray through each pixel center to the anchored wall, without pixels that float rounding moves to another texel.
+def shader_check_wall_texels(video_width: int, video_height: int) -> tuple[tuple[numpy.ndarray, ...], tuple[numpy.ndarray, ...]]:
+    width: int
+    height: int
+    width, height = shader_check_screen
+    projection: numpy.ndarray = shader_timing_perspective(
+        SHADER_TIMING_FIELD_OF_VIEW, width / height, SHADER_TIMING_NEAR, SHADER_TIMING_FAR
+    ).astype(numpy.float64)
+    rows: numpy.ndarray
+    columns: numpy.ndarray
+    rows, columns = numpy.mgrid[0:height, 0:width]
+    normalized: numpy.ndarray = numpy.stack(
+        [
+            (columns + SHADER_CHECK_PIXEL_CENTER) / width * 2 - 1,
+            (rows + SHADER_CHECK_PIXEL_CENTER) / height * 2 - 1,
+            numpy.full(rows.shape, SHADER_CHECK_RAY_DEPTH),
+            numpy.ones(rows.shape),
+        ],
+        axis=-1,
+    )
+    far: numpy.ndarray = normalized @ numpy.linalg.inv(projection)
+    direction: numpy.ndarray = far[..., :-1] / far[..., -1:]
+    top_left: numpy.ndarray = numpy.array(TEXT_WALL_TOP_LEFT)
+    right: numpy.ndarray = numpy.array(TEXT_WALL_RIGHT)
+    down: numpy.ndarray = numpy.array(TEXT_WALL_DOWN)
+    normal: numpy.ndarray = numpy.cross(right, down)
+    distance: numpy.ndarray = top_left @ normal / (direction @ normal)
+    local: numpy.ndarray = direction * distance[..., None] - top_left
+    across: numpy.ndarray = local @ right / (right @ right) / TEXT_WALL_TILES[0] * video_width
+    along: numpy.ndarray = local @ down / (down @ down) / TEXT_WALL_TILES[1] * video_height
+    inside: numpy.ndarray = (distance > 0) & (across >= 0) & (across < video_width) & (along >= 0) & (along < video_height)
+    clear: numpy.ndarray = (numpy.abs(across - numpy.round(across)) > SHADER_CHECK_TEXEL_MARGIN) & (
+        numpy.abs(along - numpy.round(along)) > SHADER_CHECK_TEXEL_MARGIN
+    )
+    positions: tuple[numpy.ndarray, ...] = numpy.nonzero(inside & clear)
+    texels: tuple[numpy.ndarray, ...] = (along[positions].astype(int), across[positions].astype(int))
+    return positions, texels
 
 
 class ShaderChain:
