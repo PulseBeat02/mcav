@@ -112,6 +112,21 @@ final class RepeatingFrameSourceTest {
   }
 
   @Test
+  void shouldKeepOneCursorForEverySupplierOfTheSource() {
+    final ImageBuffer first = frame(1);
+    final ImageBuffer second = frame(SECOND_FRAME_COLOR);
+    final List<ImageBuffer> frames = List.of(first, second);
+    final DynamicImageBuffer animation = animation(frames);
+    final RepeatingFrameSource source = RepeatingFrameSource.repeating(animation);
+    final SampleSupplier earlier = source.getSampleSupplier();
+    final int earlierColor = nextColor(earlier);
+    final SampleSupplier later = source.getSampleSupplier();
+    final int laterColor = nextColor(later);
+    assertEquals(1, earlierColor);
+    assertEquals(SECOND_FRAME_COLOR, laterColor);
+  }
+
+  @Test
   void shouldHandOutTheCachedPixelsOfTheFramesWithoutCopying() {
     final ImageBuffer only = frame(1);
     final List<ImageBuffer> frames = List.of(only);
