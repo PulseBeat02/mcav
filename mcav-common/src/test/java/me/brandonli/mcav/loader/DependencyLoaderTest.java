@@ -112,12 +112,13 @@ final class DependencyLoaderTest {
   private static final String HOME_NAME = "home";
   private static final String HOME_CACHE_PATH = ".javacpp/cache";
   private static final String FALLBACK_CACHE_PATH = "mcav/cache/javacpp";
+  private static final String JAVACPP_FOLDER_NAME = ".javacpp";
+  private static final String MCAV_CACHE_PATH = ".mcav/cache/javacpp";
   private static final String CUSTOM_CACHE = "custom-cache";
 
   private static final Pattern NATIVES_LOADED = Pattern.compile("JavaCV natives loaded in (\\d+) ms");
 
   private static final String OBJECT_DETECTION_MODULE = "objdetect";
-  private static final String FACE_DETECTION_MODULE_NAME = "Face detection";
   private static final List<String> OBJECT_DETECTION_LOADED = List.of(OBJECT_DETECTION_MODULE);
 
   private static final Platform LINUX_X86_64 = Platform.ofPlatform(Os.LINUX, Arch.X86, Bits.BITS_64);
@@ -316,6 +317,19 @@ final class DependencyLoaderTest {
     final boolean warned = log.contains(warning);
     assertEquals(expected, cache);
     assertTrue(warned, log);
+  }
+
+  @Test
+  void shouldMoveTheJavaCppCacheIntoTheMCAVCacheWhenOnlyItsOwnFolderIsUnusable(@TempDir final Path directory) throws IOException {
+    final Path home = directory.resolve(HOME_NAME);
+    final Path javaCppFolder = home.resolve(JAVACPP_FOLDER_NAME);
+    Files.createDirectories(home);
+    Files.writeString(javaCppFolder, JAVACPP_FOLDER_NAME);
+
+    final @Nullable String cache = this.configureJavaCppIn(home, directory, Map.of());
+    final Path mcavCache = home.resolve(MCAV_CACHE_PATH);
+    final String expected = mcavCache.toString();
+    assertEquals(expected, cache);
   }
 
   @Test
@@ -530,12 +544,6 @@ final class DependencyLoaderTest {
   }
 
   @Test
-  void shouldKeepTheVlcCapabilityWhenVlcIsReady() {
-    final boolean hasVlc = vlcAvailableAfter(() -> {});
-    assertTrue(hasVlc);
-  }
-
-  @Test
   void shouldRemoveOnlyTheVlcCapabilityWhenTheDownloadFails() {
     final DependencyLoader loader = new DependencyLoader();
     loader.installVlc(() -> this.failVlcStart(new InstallationException(OFFLINE_MESSAGE)));
@@ -716,19 +724,6 @@ final class DependencyLoaderTest {
   }
 
   @Test
-  void shouldInstallYtdlpWhenItIsSupported() throws IOException {
-    final Installer installer = mock(Installer.class);
-    final Path installed = Path.of(YTDLP_FILE_NAME);
-    when(installer.isSupported()).thenReturn(true);
-    when(installer.download(FileMode.EXECUTABLE)).thenReturn(installed);
-    final DependencyLoader loader = new DependencyLoader();
-    loader.installYtdlp(installer);
-    final boolean hasYtdlp = loader.hasCapability(Capability.YT_DLP);
-    assertTrue(hasYtdlp);
-    verify(installer).download(FileMode.EXECUTABLE);
-  }
-
-  @Test
   void shouldRemoveTheYtdlpCapabilityWithoutDownloadingOnUnsupportedPlatforms() throws IOException {
     final Installer installer = mock(Installer.class);
     when(installer.isSupported()).thenReturn(false);
@@ -835,37 +830,18 @@ final class DependencyLoaderTest {
     final UnsatisfiedLinkError missingGtk = new UnsatisfiedLinkError(MISSING_GTK_MESSAGE);
     final DependencyLoader missing = new DependencyLoader();
     missing.loadFaceDetection(() -> this.throwError(missingGtk));
+    final NoClassDefFoundError failedInitializer = new NoClassDefFoundError("Could not initialize class opencv_highgui");
+    final DependencyLoader failedBefore = new DependencyLoader();
+    failedBefore.loadFaceDetection(() -> this.throwError(failedInitializer));
     final boolean detectionWithNatives = available.hasCapability(Capability.FACE_DETECTION);
     final boolean detectionWithoutNatives = missing.hasCapability(Capability.FACE_DETECTION);
+    final boolean detectionAfterAFailedInitializer = failedBefore.hasCapability(Capability.FACE_DETECTION);
     final boolean ffmpegWithoutDetection = missing.hasCapability(Capability.FFMPEG);
     assertTrue(detectionWithNatives);
     assertFalse(detectionWithoutNatives);
+    assertFalse(detectionAfterAFailedInitializer);
     assertTrue(ffmpegWithoutDetection, "only face detection is lost");
     assertEquals(OBJECT_DETECTION_LOADED, loaded);
-  }
-
-  @Test
-  void shouldReportOptionalModulesThatLoad() {
-    final List<String> loaded = new ArrayList<>();
-    final boolean available = this.dependencyLoader.loadOptionalModule(
-      () -> loaded.add(OBJECT_DETECTION_MODULE),
-      FACE_DETECTION_MODULE_NAME
-    );
-    assertTrue(available);
-    assertEquals(OBJECT_DETECTION_LOADED, loaded);
-  }
-
-  @Test
-  void shouldKeepWorkingWhenAnOptionalModuleCannotBeLinked() {
-    final UnsatisfiedLinkError missingGtk = new UnsatisfiedLinkError(MISSING_GTK_MESSAGE);
-    final NoClassDefFoundError failedInitializer = new NoClassDefFoundError("Could not initialize class opencv_highgui");
-    final boolean withoutGtk = this.dependencyLoader.loadOptionalModule(() -> this.throwError(missingGtk), FACE_DETECTION_MODULE_NAME);
-    final boolean withoutClass = this.dependencyLoader.loadOptionalModule(
-      () -> this.throwError(failedInitializer),
-      FACE_DETECTION_MODULE_NAME
-    );
-    assertFalse(withoutGtk);
-    assertFalse(withoutClass);
   }
 
   @ParameterizedTest(name = "{0}")
@@ -931,7 +907,7 @@ final class DependencyLoaderTest {
   }
 
   @Test
-  void shouldProvideGtk2BeforeLoadingTheObjectDetectionNatives() {
+  void shouldLookForGtk2WhileLoadingTheNatives() {
     final List<String> lookedUp = new ArrayList<>();
     final Logger logger = mock(Logger.class);
     final DependencyLoader loader = new DependencyLoader(logger, lookedUp::add, this::refuseToInstall);

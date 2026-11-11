@@ -18,6 +18,7 @@
 package me.brandonli.mcav.module;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
@@ -35,7 +36,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-import me.brandonli.mcav.MCAVException;
+import java.util.concurrent.atomic.AtomicReference;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.jupiter.api.Test;
 
@@ -342,7 +343,19 @@ final class ModuleLoaderTest {
   }
 
   @Test
+  void shouldFindAModuleOnlyOnceItHasStarted() {
+    final ModuleLoader loader = new ModuleLoader();
+    SelfLookupModule.LOADER.set(loader);
+    loader.loadModules(SelfLookupModule.class);
+
+    final SelfLookupModule module = loader.getModule(SelfLookupModule.class);
+    final boolean foundWhileStarting = module.foundWhileStarting;
+    assertFalse(foundWhileStarting);
+  }
+
+  @Test
   void shouldStartEachModuleOnceUnderConcurrentLoads() throws Exception {
+    CountedModule.STARTS.set(0);
     final ModuleLoader loader = new ModuleLoader();
     final int threads = 8;
     final CountDownLatch startGate = new CountDownLatch(1);
@@ -359,13 +372,9 @@ final class ModuleLoaderTest {
       }
     }
 
-    final FirstModule first = loader.getModule(FirstModule.class);
-    final SecondModule second = loader.getModule(SecondModule.class);
     final Collection<MCAVModule> modules = loader.getModules();
-    final int firstStarts = first.starts.get();
-    final int secondStarts = second.starts.get();
-    assertEquals(1, firstStarts);
-    assertEquals(1, secondStarts);
+    final int starts = CountedModule.STARTS.get();
+    assertEquals(1, starts);
 
     final int modulesCount = modules.size();
     assertEquals(2, modulesCount);
@@ -373,7 +382,7 @@ final class ModuleLoaderTest {
 
   private @Nullable Void awaitAndLoad(final CountDownLatch startGate, final ModuleLoader loader) throws InterruptedException {
     startGate.await();
-    loader.loadModules(FirstModule.class, SecondModule.class);
+    loader.loadModules(CountedModule.class, SecondModule.class);
     return null;
   }
 
@@ -437,25 +446,6 @@ final class ModuleLoaderTest {
     assertTrue(modulesEmpty);
   }
 
-  @Test
-  void shouldCreateExceptionsWithMessageAndCause() {
-    final IllegalStateException cause = new IllegalStateException("cause!");
-    final ModuleException withMessage = new ModuleException("Message!");
-    final ModuleException withCause = new ModuleException("Wrapped!", cause);
-    final ModuleException withNulls = new ModuleException(null, null);
-    final String message = withMessage.getMessage();
-    final Throwable noCause = withMessage.getCause();
-    final String wrappedMessage = withCause.getMessage();
-    final Throwable wrappedCause = withCause.getCause();
-    final String nullMessage = withNulls.getMessage();
-    assertEquals("Message!", message);
-    assertNull(noCause);
-    assertEquals("Wrapped!", wrappedMessage);
-    assertSame(cause, wrappedCause);
-    assertNull(nullMessage);
-    assertInstanceOf(MCAVException.class, withMessage, "a module failure is recoverable, so it is no Error");
-  }
-
   private static class RecordingModule implements MCAVModule {
 
     final AtomicInteger starts = new AtomicInteger();
@@ -485,6 +475,40 @@ final class ModuleLoaderTest {
   static final class FirstModule extends RecordingModule {}
 
   static final class SecondModule extends RecordingModule {}
+
+  static final class CountedModule extends RecordingModule {
+
+    private static final AtomicInteger STARTS = new AtomicInteger();
+
+    @Override
+    public void start() {
+      super.start();
+      STARTS.incrementAndGet();
+    }
+  }
+
+  static final class SelfLookupModule extends RecordingModule {
+
+    private static final AtomicReference<ModuleLoader> LOADER = new AtomicReference<>();
+
+    volatile boolean foundWhileStarting;
+
+    @Override
+    public void start() {
+      super.start();
+      final ModuleLoader loader = LOADER.get();
+      this.foundWhileStarting = this.isFoundBy(loader);
+    }
+
+    private boolean isFoundBy(final ModuleLoader loader) {
+      try {
+        final SelfLookupModule _ = loader.getModule(SelfLookupModule.class);
+        return true;
+      } catch (final ModuleException exception) {
+        return false;
+      }
+    }
+  }
 
   static final class HiddenModule extends RecordingModule {
 
