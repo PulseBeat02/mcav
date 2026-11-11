@@ -47,6 +47,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Stream;
@@ -571,6 +572,86 @@ final class FormatModelTest {
     assertEquals(Optional.empty(), currentGitHead);
     assertEquals(expectedReleaseGitHead, releaseGitHead);
     assertEquals(expectedRepository, repository);
+  }
+
+  @Test
+  void shouldReadTheValuesThatTheFixtureLeavesNull() {
+    final String json = """
+      {
+        "average_rating": 4.5,
+        "release_timestamp": 1256453800,
+        "chapters": [{"title": "Intro"}],
+        "playlist": "Example Playlist",
+        "playlist_index": 1,
+        "release_year": 2009,
+        "requested_subtitles": {"en": {"ext": "vtt"}},
+        "_has_drm": false,
+        "filesize": 6442450944,
+        "url": "https://rr1---sn.example.googlevideo.com/videoplayback?itag=18",
+        "preference": -1,
+        "vbr": 2500.25,
+        "abr": 160.5,
+        "formats": [{"format_index": 0, "manifest_url": "https://manifest.googlevideo.com/api/manifest/dash", "preference": -2}],
+        "_version": {"current_git_head": "def456abc123"}
+      }
+      """;
+    final Gson gson = GsonProvider.getSimple();
+    final UrlParseDump dump = gson.fromJson(json, UrlParseDump.class);
+    final Optional<Object> averageRating = dump.getAverageRating();
+    final Optional<Object> expectedAverageRating = Optional.of(4.5);
+    final Optional<Object> releaseTimestamp = dump.getReleaseTimestamp();
+    final Optional<Object> expectedReleaseTimestamp = Optional.of(1256453800.0);
+    final Optional<Object> chapters = dump.getChapters();
+    final Optional<Object> expectedChapters = Optional.of(List.of(Map.of("title", "Intro")));
+    final Optional<Object> playlist = dump.getPlaylist();
+    final Optional<Object> expectedPlaylist = Optional.of("Example Playlist");
+    final Optional<Object> playlistIndex = dump.getPlaylistIndex();
+    final Optional<Object> expectedPlaylistIndex = Optional.of(1.0);
+    final Optional<Object> releaseYear = dump.getReleaseYear();
+    final Optional<Object> expectedReleaseYear = Optional.of(2009.0);
+    final Optional<Object> requestedSubtitles = dump.getRequestedSubtitles();
+    final Optional<Object> expectedRequestedSubtitles = Optional.of(Map.of(LANGUAGE, Map.of("ext", "vtt")));
+    final Optional<Object> anyStreamDrmProtected = dump.getAnyStreamDrmProtected();
+    final Optional<Object> expectedAnyStreamDrmProtected = Optional.of(false);
+    final Optional<Object> fileSize = dump.getFileSize();
+    final Optional<Object> expectedFileSize = Optional.of(6442450944.0);
+    final Optional<String> url = dump.getUrl();
+    final Optional<String> expectedUrl = Optional.of("https://rr1---sn.example.googlevideo.com/videoplayback?itag=18");
+    final Optional<Object> preference = dump.getPreference();
+    final Optional<Object> expectedPreference = Optional.of(-1.0);
+    final Optional<Object> videoBitrate = dump.getVideoBitrate();
+    final Optional<Object> expectedVideoBitrate = Optional.of(2500.25);
+    final Optional<Object> audioBitrate = dump.getAudioBitrate();
+    final Optional<Object> expectedAudioBitrate = Optional.of(160.5);
+    assertEquals(expectedAverageRating, averageRating);
+    assertEquals(expectedReleaseTimestamp, releaseTimestamp);
+    assertEquals(expectedChapters, chapters);
+    assertEquals(expectedPlaylist, playlist);
+    assertEquals(expectedPlaylistIndex, playlistIndex);
+    assertEquals(expectedReleaseYear, releaseYear);
+    assertEquals(expectedRequestedSubtitles, requestedSubtitles);
+    assertEquals(expectedAnyStreamDrmProtected, anyStreamDrmProtected);
+    assertEquals(expectedFileSize, fileSize);
+    assertEquals(expectedUrl, url);
+    assertEquals(expectedPreference, preference);
+    assertEquals(expectedVideoBitrate, videoBitrate);
+    assertEquals(expectedAudioBitrate, audioBitrate);
+
+    final List<Format> formats = dump.getFormats();
+    final Format format = formats.getFirst();
+    final Version version = dump.getVersion().orElseThrow();
+    final Optional<Object> formatIndex = format.getFormatIndex();
+    final Optional<Object> expectedFormatIndex = Optional.of(0.0);
+    final Optional<String> manifestUrl = format.getManifestUrl();
+    final Optional<String> expectedManifestUrl = Optional.of("https://manifest.googlevideo.com/api/manifest/dash");
+    final Optional<Object> formatPreference = format.getPreference();
+    final Optional<Object> expectedFormatPreference = Optional.of(-2.0);
+    final Optional<Object> currentGitHead = version.getCurrentGitHead();
+    final Optional<Object> expectedCurrentGitHead = Optional.of("def456abc123");
+    assertEquals(expectedFormatIndex, formatIndex);
+    assertEquals(expectedManifestUrl, manifestUrl);
+    assertEquals(expectedFormatPreference, formatPreference);
+    assertEquals(expectedCurrentGitHead, currentGitHead);
   }
 
   @Test
