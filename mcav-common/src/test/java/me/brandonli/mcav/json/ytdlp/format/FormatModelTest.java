@@ -687,6 +687,10 @@ final class FormatModelTest {
     return MODELS.stream().flatMap(FormatModelTest::fieldsOf);
   }
 
+  static Stream<Arguments> listFields() {
+    return MODELS.stream().flatMap(clazz -> fieldsOfType(clazz, List.class));
+  }
+
   private static Named<Class<?>> named(final Class<?> clazz) {
     return Named.of(clazz.getSimpleName(), clazz);
   }
@@ -701,6 +705,13 @@ final class FormatModelTest {
     return Arrays.stream(fields)
       .filter(field -> !Modifier.isStatic(field.getModifiers()))
       .toList();
+  }
+
+  private static Stream<Arguments> fieldsOfType(final Class<?> clazz, final Class<?> type) {
+    final List<Field> fields = instanceFields(clazz);
+    return fields.stream()
+      .filter(field -> field.getType() == type)
+      .map(field -> Arguments.of(named(clazz), field.getName()));
   }
 
   private static Object parse(final Class<?> clazz, final JsonObject json) {
@@ -929,6 +940,16 @@ final class FormatModelTest {
     final Method getter = findGetter(clazz, field.getName());
     final Object value = getter.invoke(model);
     assertEquals(List.of(), value);
+  }
+
+  @ParameterizedTest(name = "{0}.{1}")
+  @MethodSource("listFields")
+  void shouldNotLetCallersChangeAReportedList(final Class<?> clazz, final String fieldName) throws ReflectiveOperationException {
+    final Object model = parse(clazz, baseJson(clazz));
+    final Method getter = findGetter(clazz, fieldName);
+    final Object value = getter.invoke(model);
+    final List<?> list = assertInstanceOf(List.class, value);
+    assertThrows(UnsupportedOperationException.class, list::clear);
   }
 
   @Test
