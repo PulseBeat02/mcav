@@ -231,12 +231,13 @@ final class Mcv2Tools {
 
   static void main(final String[] arguments) throws Exception {
     if (arguments.length == 0) {
-      final String message = "Expected bench, digests, generate-fixtures or shader-compile!";
+      final String message = "Expected alphabet, bench, digests, generate-fixtures or shader-compile!";
       throw new IllegalArgumentException(message);
     }
 
     final String[] options = Arrays.copyOfRange(arguments, 1, arguments.length);
     switch (arguments[0]) {
+      case "alphabet" -> printAlphabet();
       case "bench" -> bench(options);
       case "digests" -> printDigests(options);
       case "generate-fixtures" -> generateFixtures(options);
@@ -246,6 +247,12 @@ final class Mcv2Tools {
         throw new IllegalArgumentException(message);
       }
     }
+  }
+
+  private static void printAlphabet() {
+    final int[] palette = Mcv2Pack.palette();
+    final String alphabet = Mcv2Pack.alphabet(palette);
+    System.out.print(alphabet);
   }
 
   // on Windows, loaded DLLs and their folder may outlive the JVM
