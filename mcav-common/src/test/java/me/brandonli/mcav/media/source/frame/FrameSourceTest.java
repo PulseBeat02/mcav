@@ -116,7 +116,21 @@ final class FrameSourceTest {
 
   @Test
   void shouldReadEveryImageTypeExactlyLikeGetRgb() {
-    final int[] types = { BufferedImage.TYPE_INT_ARGB, BufferedImage.TYPE_INT_RGB, BufferedImage.TYPE_3BYTE_BGR };
+    final int[] types = {
+      BufferedImage.TYPE_INT_RGB,
+      BufferedImage.TYPE_INT_ARGB,
+      BufferedImage.TYPE_INT_ARGB_PRE,
+      BufferedImage.TYPE_INT_BGR,
+      BufferedImage.TYPE_3BYTE_BGR,
+      BufferedImage.TYPE_4BYTE_ABGR,
+      BufferedImage.TYPE_4BYTE_ABGR_PRE,
+      BufferedImage.TYPE_USHORT_565_RGB,
+      BufferedImage.TYPE_USHORT_555_RGB,
+      BufferedImage.TYPE_BYTE_GRAY,
+      BufferedImage.TYPE_USHORT_GRAY,
+      BufferedImage.TYPE_BYTE_BINARY,
+      BufferedImage.TYPE_BYTE_INDEXED,
+    };
     for (final int type : types) {
       final BufferedImage image = new BufferedImage(3, 2, type);
       image.setRGB(0, 0, 0x80123456);
