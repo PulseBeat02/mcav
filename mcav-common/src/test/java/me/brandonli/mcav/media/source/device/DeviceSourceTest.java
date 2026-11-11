@@ -108,4 +108,11 @@ final class DeviceSourceTest {
     assertThrows(NullPointerException.class, () -> detector.isDetectedSource(null));
     assertThrows(NullPointerException.class, () -> detector.createSource(null));
   }
+
+  @Test
+  void shouldRejectTextThatIsNotADeviceIndexWhenCreatingTheSource() {
+    final DeviceSourceDetector detector = new DeviceSourceDetector();
+    assertThrows(NumberFormatException.class, () -> detector.createSource("camera"));
+    assertThrows(IllegalArgumentException.class, () -> detector.createSource("-1"));
+  }
 }
