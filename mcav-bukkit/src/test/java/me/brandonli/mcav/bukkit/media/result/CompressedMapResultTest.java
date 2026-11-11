@@ -82,6 +82,7 @@ import org.bukkit.plugin.EventExecutor;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.PluginManager;
 import org.bukkit.plugin.RegisteredListener;
+import org.bukkit.scheduler.BukkitScheduler;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -493,6 +494,88 @@ final class CompressedMapResultTest {
 
       final List<ClientboundMapItemDataPacket> snapshot = this.packetsOf(SECOND, 0);
       MapPackets.assertMapPacket(snapshot.getFirst(), 3, 0, 0, MAP_SIZE, MAP_SIZE, current);
+    } finally {
+      result.release();
+    }
+  }
+
+  @Test
+  void shouldSendThePictureAgainShortlyAfterAViewerJoinsWhileNoFrameArrives() throws EventException {
+    final MapConfiguration configuration = this.createConfiguration(1, 1, Sizing.ORIGINAL);
+    final CompressedMapResult result = new CompressedMapResult(configuration, LARGE_BYTE_BUDGET);
+    final byte[] firstFrame = this.nextFrame.clone();
+    try (final ImageBuffer image = Images.solid(MAP_SIZE, MAP_SIZE, BLACK)) {
+      result.start();
+      result.process(image, this.algorithm);
+      this.join(SECOND);
+      this.server.runLaterTasks();
+
+      final int secondPacketCount = this.secondViewerPacketCount();
+      assertEquals(2, secondPacketCount, "the joining viewer is sent the picture once more");
+
+      final List<ClientboundMapItemDataPacket> resent = this.packetsOf(SECOND, 1);
+      MapPackets.assertMapPacket(resent.getFirst(), 3, 0, 0, MAP_SIZE, MAP_SIZE, firstFrame);
+      final int firstPacketCount = this.firstViewerPacketCount();
+      assertEquals(1, firstPacketCount, "a viewer who already watches is sent nothing again");
+
+      final BukkitScheduler scheduler = this.server.getScheduler();
+      verify(scheduler).runTaskLaterAsynchronously(any(Plugin.class), any(Runnable.class), eq(60L));
+    } finally {
+      result.release();
+    }
+  }
+
+  @Test
+  void shouldSendThePictureOnlyOnceWhenAFrameArrivesAfterTheJoin() throws EventException {
+    final MapConfiguration configuration = this.createConfiguration(1, 1, Sizing.ORIGINAL);
+    final CompressedMapResult result = new CompressedMapResult(configuration, LARGE_BYTE_BUDGET);
+    try (final ImageBuffer image = Images.solid(MAP_SIZE, MAP_SIZE, BLACK)) {
+      result.start();
+      result.process(image, this.algorithm);
+      this.join(SECOND);
+      this.nextFrame = this.changedFrame();
+      result.process(image, this.algorithm);
+      this.server.runLaterTasks();
+
+      final int secondPacketCount = this.secondViewerPacketCount();
+      assertEquals(2, secondPacketCount, "the frame after the join is sent instead of the picture again");
+    } finally {
+      result.release();
+    }
+  }
+
+  @Test
+  void shouldSendThePictureOnlyOnceWhenTheResultIsReleasedAfterTheJoin() throws EventException {
+    final MapConfiguration configuration = this.createConfiguration(1, 1, Sizing.ORIGINAL);
+    final CompressedMapResult result = new CompressedMapResult(configuration, LARGE_BYTE_BUDGET);
+    try (final ImageBuffer image = Images.solid(MAP_SIZE, MAP_SIZE, BLACK)) {
+      result.start();
+      result.process(image, this.algorithm);
+      this.join(SECOND);
+      result.release();
+      final int packetsAfterTheRelease = this.secondViewerPacketCount();
+      this.server.runLaterTasks();
+
+      final int secondPacketCount = this.secondViewerPacketCount();
+      assertEquals(packetsAfterTheRelease, secondPacketCount, "a released result sends no picture again");
+    } finally {
+      result.release();
+    }
+  }
+
+  @Test
+  void shouldSendThePictureOnlyOnceToAViewerWhoStopsWatchingAfterTheJoin() throws EventException {
+    final MapConfiguration configuration = this.createConfiguration(1, 1, Sizing.ORIGINAL);
+    final CompressedMapResult result = new CompressedMapResult(configuration, LARGE_BYTE_BUDGET);
+    try (final ImageBuffer image = Images.solid(MAP_SIZE, MAP_SIZE, BLACK)) {
+      result.start();
+      result.process(image, this.algorithm);
+      this.join(SECOND);
+      this.viewers.remove(SECOND);
+      this.server.runLaterTasks();
+
+      final int secondPacketCount = this.secondViewerPacketCount();
+      assertEquals(1, secondPacketCount, "a player who is no longer a viewer is sent no picture again");
     } finally {
       result.release();
     }
