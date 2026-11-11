@@ -117,7 +117,6 @@ final class DependencyLoaderTest {
   private static final Pattern NATIVES_LOADED = Pattern.compile("JavaCV natives loaded in (\\d+) ms");
 
   private static final String OBJECT_DETECTION_MODULE = "objdetect";
-  private static final String FACE_DETECTION_MODULE_NAME = "Face detection";
   private static final List<String> OBJECT_DETECTION_LOADED = List.of(OBJECT_DETECTION_MODULE);
 
   private static final Platform LINUX_X86_64 = Platform.ofPlatform(Os.LINUX, Arch.X86, Bits.BITS_64);
@@ -835,37 +834,18 @@ final class DependencyLoaderTest {
     final UnsatisfiedLinkError missingGtk = new UnsatisfiedLinkError(MISSING_GTK_MESSAGE);
     final DependencyLoader missing = new DependencyLoader();
     missing.loadFaceDetection(() -> this.throwError(missingGtk));
+    final NoClassDefFoundError failedInitializer = new NoClassDefFoundError("Could not initialize class opencv_highgui");
+    final DependencyLoader failedBefore = new DependencyLoader();
+    failedBefore.loadFaceDetection(() -> this.throwError(failedInitializer));
     final boolean detectionWithNatives = available.hasCapability(Capability.FACE_DETECTION);
     final boolean detectionWithoutNatives = missing.hasCapability(Capability.FACE_DETECTION);
+    final boolean detectionAfterAFailedInitializer = failedBefore.hasCapability(Capability.FACE_DETECTION);
     final boolean ffmpegWithoutDetection = missing.hasCapability(Capability.FFMPEG);
     assertTrue(detectionWithNatives);
     assertFalse(detectionWithoutNatives);
+    assertFalse(detectionAfterAFailedInitializer);
     assertTrue(ffmpegWithoutDetection, "only face detection is lost");
     assertEquals(OBJECT_DETECTION_LOADED, loaded);
-  }
-
-  @Test
-  void shouldReportOptionalModulesThatLoad() {
-    final List<String> loaded = new ArrayList<>();
-    final boolean available = this.dependencyLoader.loadOptionalModule(
-      () -> loaded.add(OBJECT_DETECTION_MODULE),
-      FACE_DETECTION_MODULE_NAME
-    );
-    assertTrue(available);
-    assertEquals(OBJECT_DETECTION_LOADED, loaded);
-  }
-
-  @Test
-  void shouldKeepWorkingWhenAnOptionalModuleCannotBeLinked() {
-    final UnsatisfiedLinkError missingGtk = new UnsatisfiedLinkError(MISSING_GTK_MESSAGE);
-    final NoClassDefFoundError failedInitializer = new NoClassDefFoundError("Could not initialize class opencv_highgui");
-    final boolean withoutGtk = this.dependencyLoader.loadOptionalModule(() -> this.throwError(missingGtk), FACE_DETECTION_MODULE_NAME);
-    final boolean withoutClass = this.dependencyLoader.loadOptionalModule(
-      () -> this.throwError(failedInitializer),
-      FACE_DETECTION_MODULE_NAME
-    );
-    assertFalse(withoutGtk);
-    assertFalse(withoutClass);
   }
 
   @ParameterizedTest(name = "{0}")
