@@ -579,24 +579,24 @@ final class FormatModelTest {
   @Test
   void shouldReadTheValuesThatTheFixtureLeavesNull() {
     final String json = """
-      {
-        "average_rating": 4.5,
-        "release_timestamp": 1256453800,
-        "chapters": [{"title": "Intro"}],
-        "playlist": "Example Playlist",
-        "playlist_index": 1,
-        "release_year": 2009,
-        "requested_subtitles": {"en": {"ext": "vtt"}},
-        "_has_drm": false,
-        "filesize": 6442450944,
-        "url": "https://rr1---sn.example.googlevideo.com/videoplayback?itag=18",
-        "preference": -1,
-        "vbr": 2500.25,
-        "abr": 160.5,
-        "formats": [{"format_index": 0, "manifest_url": "https://manifest.googlevideo.com/api/manifest/dash", "preference": -2}],
-        "_version": {"current_git_head": "def456abc123"}
-      }
-      """;
+    {
+      "average_rating": 4.5,
+      "release_timestamp": 1256453800,
+      "chapters": [{"title": "Intro"}],
+      "playlist": "Example Playlist",
+      "playlist_index": 1,
+      "release_year": 2009,
+      "requested_subtitles": {"en": {"ext": "vtt"}},
+      "_has_drm": false,
+      "filesize": 6442450944,
+      "url": "https://rr1---sn.example.googlevideo.com/videoplayback?itag=18",
+      "preference": -1,
+      "vbr": 2500.25,
+      "abr": 160.5,
+      "formats": [{"format_index": 0, "manifest_url": "https://manifest.googlevideo.com/api/manifest/dash", "preference": -2}],
+      "_version": {"current_git_head": "def456abc123"}
+    }
+    """;
     final Gson gson = GsonProvider.getSimple();
     final UrlParseDump dump = gson.fromJson(json, UrlParseDump.class);
     final Optional<Object> averageRating = dump.getAverageRating();
@@ -715,7 +715,8 @@ final class FormatModelTest {
 
   private static Stream<Arguments> fieldsOfType(final Class<?> clazz, final Class<?> type) {
     final List<Field> fields = instanceFields(clazz);
-    return fields.stream()
+    return fields
+      .stream()
       .filter(field -> field.getType() == type)
       .map(field -> Arguments.of(named(clazz), field.getName()));
   }
