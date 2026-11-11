@@ -582,6 +582,26 @@ final class CompressedMapResultTest {
   }
 
   @Test
+  void shouldLetAnotherThreadInAgainAfterSendingThePictureAgain() throws EventException {
+    final MapConfiguration configuration = this.createConfiguration(1, 1, Sizing.ORIGINAL);
+    final CompressedMapResult result = new CompressedMapResult(configuration, LARGE_BYTE_BUDGET);
+    try (final ImageBuffer image = Images.solid(MAP_SIZE, MAP_SIZE, BLACK)) {
+      result.start();
+      result.process(image, this.algorithm);
+      this.join(SECOND);
+      this.server.runLaterTasks();
+
+      assertTimeoutPreemptively(
+        TIMEOUT,
+        () -> this.runInAnotherThread(() -> result.process(image, this.algorithm)),
+        "sending the picture again releases the lock again"
+      );
+    } finally {
+      result.release();
+    }
+  }
+
+  @Test
   void shouldSendNothingToAViewerWhoJoinsBeforeTheFirstFrame() throws EventException {
     final MapConfiguration configuration = this.createConfiguration(1, 1, Sizing.ORIGINAL);
     final CompressedMapResult result = new CompressedMapResult(configuration, LARGE_BYTE_BUDGET);
