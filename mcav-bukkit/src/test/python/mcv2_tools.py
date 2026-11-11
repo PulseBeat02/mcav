@@ -2200,7 +2200,9 @@ def shader_check_main() -> None:
             "Run the pack post chain outside Minecraft and require byte-exact reference pictures and decode "
             "decisions. --drop exercises missing frames; --restart-check exercises keyframe restart ordering. "
             "--renders-per-frame and --split-uploads run the chain at the game's cadence; with --text-shaders every "
-            "render also checks the wall that the screen pass draws. Frames with more pages than slots cannot be "
+            "render also checks the wall that the screen pass draws. --merge-uploads leaves P frames unseen, as a client that "
+            "takes in two frames' maps before one render; the model still expects the frames after them to decode. "
+            "Frames with more pages than slots cannot be "
             "decoded, as Mcv2Channel.send refuses them. Exit 1 on a failed check; 2 on invalid options."
         ),
     )
@@ -2224,10 +2226,17 @@ def shader_check_main() -> None:
     parser.add_argument(
         "--split-uploads", action="store_true", help="upload a frame's pages one at a time, each followed by its renders"
     )
+    parser.add_argument(
+        "--merge-uploads", type=int, default=0, help="leave every Nth P frame unseen: upload the next frame's pages over its own"
+    )
+    parser.add_argument("--unseen-frames", type=int, default=1, help="how many P frames in a row each merge leaves unseen")
     arguments: argparse.Namespace = parser.parse_args()
     if arguments.renders_per_frame < 1:
         message: str = "The check needs at least one render per frame!"
         parser.error(message)
+    if arguments.unseen_frames < 1 or arguments.merge_uploads < 0 or 0 < arguments.merge_uploads <= arguments.unseen_frames:
+        merge_message: str = "Every merge needs an unseen frame and a rendered P frame before the next merge!"
+        parser.error(merge_message)
 
     global shader_check_screen
     shader_check_screen = arguments.window
@@ -2268,6 +2277,8 @@ def shader_check_stream(context: "moderngl.Context", arguments: argparse.Namespa
     if check.text is not None:
         print(f"{name}: {check.strips_differ} of {check.strips} text shader strips differ")
         print(f"{name}: {check.walls_differ} of {check.walls} walls differ")
+    if arguments.merge_uploads:
+        print(f"{name}: {check.unseen} frames unseen")
 
     return check.wrong + check.strips_differ + check.walls_differ
 
@@ -2290,6 +2301,8 @@ class ShaderStreamCheck:
         self.strips_differ: int = 0
         self.walls: int = 0
         self.walls_differ: int = 0
+        self.predicted: int = 0
+        self.unseen: int = 0
 
     def check_frame(self, index: int, frame: bytes) -> None:
         width: int
@@ -2318,6 +2331,12 @@ class ShaderStreamCheck:
             and (len(pages) <= self.arguments.slots)
         )
         shown_pages: list[bytes] = pages[: self.arguments.slots]
+        if not keyframe:
+            self.predicted += 1
+            if shader_check_is_unseen(self.predicted, self.arguments.merge_uploads, self.arguments.unseen_frames):
+                self.see_unseen(frame, shown_pages, decodable)
+                return
+
         schedule: list[tuple[list[bytes], bool]] = shader_check_schedule(
             shown_pages, self.arguments.split_uploads, self.arguments.renders_per_frame
         )
@@ -2326,6 +2345,13 @@ class ShaderStreamCheck:
             self.upload(upload)
             if not self.check_render(label, frame, decodable and complete):
                 return
+
+    # The client takes in the frame's maps but renders only after the next frame's arrive.
+    def see_unseen(self, frame: bytes, pages: list[bytes], decodable: bool) -> None:
+        self.upload(pages)
+        self.unseen += 1
+        if decodable:
+            self.take_frame(frame)
 
     def upload(self, pages: list[bytes]) -> None:
         for page in pages:
@@ -2342,6 +2368,9 @@ class ShaderStreamCheck:
             chain_action: str = "decoded" if chain_decoded else "skipped"
             client_action: str = "can" if should_decode else "cannot"
             print(f"  {label}: the chain {chain_action} it, the client model {client_action}")
+            # The model goes on as the client should, so each later frame the chain misses counts too.
+            if should_decode:
+                self.take_frame(frame)
             return False
 
         if chain_decoded:
@@ -2359,15 +2388,19 @@ class ShaderStreamCheck:
             self.check_strip(label, self.text, pages)
 
     def check_decoded(self, label: str, frame: bytes, picture: numpy.ndarray) -> None:
+        self.decoded += 1
+        expected: numpy.ndarray = self.take_frame(frame)
+        self.check_picture(label, picture, expected)
+
+    def take_frame(self, frame: bytes) -> numpy.ndarray:
         frame_id: int
         reference_id: int
         frame_id, reference_id = struct.unpack_from(FRAME_IDS_FORMAT, frame, FRAME_ID_OFFSET)
         keyframe: bool = frame_id == reference_id
-        self.decoded += 1
         expected: numpy.ndarray = decode(frame, None if keyframe else self.shown, self.last_id)
         self.shown = expected
         self.last_id = frame_id
-        self.check_picture(label, picture, expected)
+        return expected
 
     def check_wall(self, label: str) -> None:
         if self.text is None or self.shown is None:
@@ -2429,6 +2462,11 @@ class ShaderStreamCheck:
             difference: Any = numpy.abs(picture.astype(int) - expected.astype(int))
             changed: int = int((difference.max(axis=2) > 0).sum())
             print(f"  {label} differs: {changed} pixels, max {difference.max()}")
+
+
+# From the merge-th P frame on, every merge-th P frame starts a run of unseen ones.
+def shader_check_is_unseen(ordinal: int, merge: int, unseen: int) -> bool:
+    return merge > 0 and ordinal >= merge and ordinal % merge < unseen
 
 
 # Each render's pages that arrive just before it, and whether it is the first render that holds the whole frame.
