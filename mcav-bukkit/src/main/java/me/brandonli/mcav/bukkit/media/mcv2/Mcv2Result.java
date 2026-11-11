@@ -95,8 +95,8 @@ import org.slf4j.LoggerFactory;
  *
  * <p>While no frame arrives, such as while the video is paused or a page does not change, the screen checks every
  * second for viewers whose pack loaded meanwhile and shows them the screen. It sends the last picture once more as a
- * keyframe when the frames stop, and again when it starts showing a viewer, so every client can decode the newest
- * frame.
+ * keyframe after about three seconds without a frame, and again when it starts showing a viewer, so every client can
+ * decode the newest frame.
  *
  * <p>Call {@link #start()} and {@link #release()} on the main thread.
  *
@@ -139,6 +139,9 @@ public final class Mcv2Result implements FunctionalVideoFilter {
 
   // A paused video or a still page sends no frames, yet a viewer who starts watching needs a keyframe.
   private static final long IDLE_CHECK_TICKS = 20L;
+
+  // A source at about one frame a second leaves single idle checks between its frames.
+  private static final int IDLE_CHECKS_BEFORE_REPEAT = 3;
 
   private static final double NANOSECONDS_PER_MILLISECOND = 1e6;
   private static final double NANOSECONDS_PER_SECOND = 1e9;
@@ -203,6 +206,7 @@ public final class Mcv2Result implements FunctionalVideoFilter {
   private volatile Screen screen;
   private boolean opened;
   private boolean repeated;
+  private int idleChecks;
   private @Nullable BukkitTask idleCheck;
 
   private List<int[]> smaller;
@@ -591,8 +595,11 @@ public final class Mcv2Result implements FunctionalVideoFilter {
   void repeatWhileIdle() {
     if (this.frameTaken.getAndSet(false)) {
       this.repeated = false;
+      this.idleChecks = 0;
       return;
     }
+
+    this.idleChecks++;
 
     final Mcv2Pacer.Preset preset;
     synchronized (this.lock) {
@@ -634,7 +641,8 @@ public final class Mcv2Result implements FunctionalVideoFilter {
       return false;
     }
 
-    return !this.repeated || channel.isKeyframeRequested();
+    final boolean stopped = this.idleChecks >= IDLE_CHECKS_BEFORE_REPEAT;
+    return (stopped && !this.repeated) || channel.isKeyframeRequested();
   }
 
   private void repeat(final Mcv2Channel channel, final Arrival last, final Mcv2Pacer.Preset preset) {

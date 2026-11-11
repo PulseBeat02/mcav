@@ -315,6 +315,8 @@ final class Mcv2ResultTest {
 
       this.server.runTasks();
       this.server.runTasks();
+      this.server.runTasks();
+      this.server.runTasks();
 
       this.awaitFrames(result, 3);
       final Mcv2Result.Statistics statistics = result.getStatistics();
@@ -375,6 +377,8 @@ final class Mcv2ResultTest {
 
     result.repeatWhileIdle();
     result.repeatWhileIdle();
+    result.repeatWhileIdle();
+    result.repeatWhileIdle();
     final Mcv2Result.Arrival repeated = requireNonNull(result.poll());
 
     final Settings settings = result.settingsFor(repeated);
@@ -393,8 +397,57 @@ final class Mcv2ResultTest {
 
     result.repeatWhileIdle();
     result.repeatWhileIdle();
+    result.repeatWhileIdle();
+    result.repeatWhileIdle();
     final Mcv2Result.@Nullable Arrival repeatedAfterTheNextStop = result.poll();
     assertNotNull(repeatedAfterTheNextStop);
+  }
+
+  @Test
+  void shouldRepeatNothingWhileFramesComeEveryOtherCheck() {
+    final ImageBuffer frame = Images.solid(64, 32, FRAME_COLOR);
+    final Mcv2Result result = this.showAFrame(frame);
+
+    int repeats = 0;
+    for (int round = 0; round < 5; round++) {
+      result.applyFilter(frame, this.metadata);
+      final Mcv2Result.@Nullable Arrival handed = result.poll();
+      assertNotNull(handed);
+
+      result.repeatWhileIdle();
+      result.repeatWhileIdle();
+      final Mcv2Result.@Nullable Arrival repeated = result.poll();
+      if (repeated != null) {
+        repeats++;
+      }
+    }
+
+    assertEquals(0, repeats);
+  }
+
+  @Test
+  void shouldRepeatTheLastPictureOnceTheFramesStopForThreeChecks() {
+    final ImageBuffer frame = Images.solid(64, 32, FRAME_COLOR);
+    final Mcv2Result result = this.showAFrame(frame);
+    final Mcv2Channel channel = result.getChannel();
+
+    result.repeatWhileIdle();
+    result.repeatWhileIdle();
+    result.repeatWhileIdle();
+    final Mcv2Result.@Nullable Arrival repeatedTooSoon = result.poll();
+    assertNull(repeatedTooSoon);
+
+    result.repeatWhileIdle();
+    final Mcv2Result.@Nullable Arrival repeated = result.poll();
+    assertNotNull(repeated);
+
+    final boolean requested = channel.takeKeyframeRequest();
+    assertTrue(requested);
+
+    result.repeatWhileIdle();
+    result.repeatWhileIdle();
+    final Mcv2Result.@Nullable Arrival repeatedAgain = result.poll();
+    assertNull(repeatedAgain);
   }
 
   @Test
@@ -402,6 +455,8 @@ final class Mcv2ResultTest {
     final ImageBuffer frame = Images.solid(64, 32, FRAME_COLOR);
     final Mcv2Result result = this.showAFrame(frame);
     final Mcv2Channel channel = result.getChannel();
+    result.repeatWhileIdle();
+    result.repeatWhileIdle();
     result.repeatWhileIdle();
     result.repeatWhileIdle();
     final Mcv2Result.@Nullable Arrival repeated = result.poll();
@@ -429,11 +484,31 @@ final class Mcv2ResultTest {
   }
 
   @Test
+  void shouldRepeatTheLastPictureForAViewerShownTheScreenBeforeTheFramesStopForThreeChecks() {
+    final ImageBuffer frame = Images.solid(64, 32, FRAME_COLOR);
+    final Mcv2Result result = this.showAFrame(frame);
+    result.repeatWhileIdle();
+
+    when(this.viewers.isLoaded(WITHOUT)).thenReturn(true);
+    result.repeatWhileIdle();
+    final Mcv2Result.@Nullable Arrival repeatedBeforeTheShow = result.poll();
+    assertNull(repeatedBeforeTheShow);
+
+    this.server.runTasks();
+    result.repeatWhileIdle();
+
+    final Mcv2Result.@Nullable Arrival repeatedForTheViewer = result.poll();
+    assertNotNull(repeatedForTheViewer);
+  }
+
+  @Test
   void shouldRepeatNothingWithoutRecipients() {
     final ImageBuffer frame = Images.solid(64, 32, FRAME_COLOR);
     final Mcv2Result result = this.showAFrame(frame);
     when(this.viewers.isLoaded(WITH_PACK)).thenReturn(false);
 
+    result.repeatWhileIdle();
+    result.repeatWhileIdle();
     result.repeatWhileIdle();
     result.repeatWhileIdle();
 
@@ -447,6 +522,8 @@ final class Mcv2ResultTest {
     result.applyFilter(Images.solid(64, 32, FRAME_COLOR), this.metadata);
     this.server.runTasks();
 
+    result.repeatWhileIdle();
+    result.repeatWhileIdle();
     result.repeatWhileIdle();
     result.repeatWhileIdle();
 
@@ -482,6 +559,8 @@ final class Mcv2ResultTest {
     assertEquals(Mcv2Pacer.Rung.DITHERED, rung);
 
     final int tasks = this.server.getScheduledTaskCount();
+    result.repeatWhileIdle();
+    result.repeatWhileIdle();
     result.repeatWhileIdle();
     result.repeatWhileIdle();
     final Mcv2Result.@Nullable Arrival repeated = result.poll();
@@ -531,6 +610,7 @@ final class Mcv2ResultTest {
     final int smallHeight = small.getVideoHeight();
     assertEquals(height, smallHeight);
 
+    result.repeatWhileIdle();
     result.repeatWhileIdle();
     result.repeatWhileIdle();
     this.server.runTasks();
@@ -625,6 +705,8 @@ final class Mcv2ResultTest {
     final List<Settings> expectedSwitches = List.of(Settings.FAST);
     assertEquals(expectedSwitches, switched);
 
+    result.repeatWhileIdle();
+    result.repeatWhileIdle();
     result.repeatWhileIdle();
     result.repeatWhileIdle();
     final Mcv2Result.Arrival repeated = requireNonNull(result.poll());
