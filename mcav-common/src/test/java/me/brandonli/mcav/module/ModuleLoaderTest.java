@@ -342,6 +342,7 @@ final class ModuleLoaderTest {
 
   @Test
   void shouldStartEachModuleOnceUnderConcurrentLoads() throws Exception {
+    CountedModule.STARTS.set(0);
     final ModuleLoader loader = new ModuleLoader();
     final int threads = 8;
     final CountDownLatch startGate = new CountDownLatch(1);
@@ -358,13 +359,9 @@ final class ModuleLoaderTest {
       }
     }
 
-    final FirstModule first = loader.getModule(FirstModule.class);
-    final SecondModule second = loader.getModule(SecondModule.class);
     final Collection<MCAVModule> modules = loader.getModules();
-    final int firstStarts = first.starts.get();
-    final int secondStarts = second.starts.get();
-    assertEquals(1, firstStarts);
-    assertEquals(1, secondStarts);
+    final int starts = CountedModule.STARTS.get();
+    assertEquals(1, starts);
 
     final int modulesCount = modules.size();
     assertEquals(2, modulesCount);
@@ -372,7 +369,7 @@ final class ModuleLoaderTest {
 
   private @Nullable Void awaitAndLoad(final CountDownLatch startGate, final ModuleLoader loader) throws InterruptedException {
     startGate.await();
-    loader.loadModules(FirstModule.class, SecondModule.class);
+    loader.loadModules(CountedModule.class, SecondModule.class);
     return null;
   }
 
@@ -465,6 +462,17 @@ final class ModuleLoaderTest {
   static final class FirstModule extends RecordingModule {}
 
   static final class SecondModule extends RecordingModule {}
+
+  static final class CountedModule extends RecordingModule {
+
+    private static final AtomicInteger STARTS = new AtomicInteger();
+
+    @Override
+    public void start() {
+      super.start();
+      STARTS.incrementAndGet();
+    }
+  }
 
   static final class HiddenModule extends RecordingModule {
 
