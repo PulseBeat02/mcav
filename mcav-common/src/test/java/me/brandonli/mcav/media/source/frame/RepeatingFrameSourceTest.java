@@ -155,4 +155,15 @@ final class RepeatingFrameSourceTest {
     assertThrows(NullPointerException.class, () -> RepeatingFrameSource.repeating(null, 1));
     assertThrows(NullPointerException.class, () -> RepeatingFrameSource.repeating(null));
   }
+
+  @Test
+  void shouldRejectAnAnimationWhoseFirstFrameWasReleased() {
+    final int[] pixels = { 1, 1 };
+    try (final ImageBuffer released = ImageBuffer.buffer(pixels, FRAME_WIDTH, 1)) {
+      released.release();
+      final List<ImageBuffer> frames = List.of(released);
+      final DynamicImageBuffer animation = animation(frames);
+      assertThrows(IllegalStateException.class, () -> RepeatingFrameSource.repeating(animation));
+    }
+  }
 }
