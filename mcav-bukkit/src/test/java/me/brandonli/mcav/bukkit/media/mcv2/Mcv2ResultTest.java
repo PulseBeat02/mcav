@@ -64,6 +64,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
+import java.util.function.LongSupplier;
 import jdk.jfr.Recording;
 import jdk.jfr.consumer.RecordedEvent;
 import jdk.jfr.consumer.RecordingFile;
@@ -124,6 +125,10 @@ final class Mcv2ResultTest {
 
   private static final long HANDOFF_DURATION_NANOSECONDS = TimeUnit.MILLISECONDS.toNanos(25);
   private static final long HANDOFF_INTERVAL_NANOSECONDS = TimeUnit.SECONDS.toNanos(1);
+
+  private static final long CLOCK_START_NANOSECONDS = TimeUnit.SECONDS.toNanos(1);
+  private static final long KEYFRAME_PERIOD_NANOSECONDS = TimeUnit.SECONDS.toNanos(4);
+  private static final long SLOW_FRAME_INTERVAL_NANOSECONDS = TimeUnit.SECONDS.toNanos(1);
 
   private static final int FRAME_COLOR = 0xFF336699;
   private static final int BLACK = 0xFF000000;
@@ -360,11 +365,15 @@ final class Mcv2ResultTest {
   }
 
   private Mcv2Result createSynchronousResult() {
+    return this.createSynchronousResult(System::nanoTime);
+  }
+
+  private Mcv2Result createSynchronousResult(final LongSupplier clock) {
     return new Mcv2Result(
       this.configuration,
       new Mcv2Channel(this.configuration, this.viewers, this.screen),
       this.algorithm,
-      System::nanoTime,
+      clock,
       Runnable::run
     );
   }
@@ -973,6 +982,67 @@ final class Mcv2ResultTest {
 
     final long frames = result.getStatistics().getFrames();
     assertEquals(0, frames);
+  }
+
+  @Test
+  void shouldRequestAKeyframeOnceTheLastIsFourSecondsOld() throws InterruptedException {
+    final AtomicLong clock = new AtomicLong(CLOCK_START_NANOSECONDS);
+    final Mcv2Result result = this.createSynchronousResult(clock::get);
+    final Mcv2 encoder = this.createFrameEncoder();
+    this.sendFrame(result, encoder, Mcv2FrameKind.KEYFRAME);
+    clearInvocations(encoder);
+    while (clock.get() - CLOCK_START_NANOSECONDS < KEYFRAME_PERIOD_NANOSECONDS) {
+      clock.addAndGet(SLOW_FRAME_INTERVAL_NANOSECONDS);
+      this.sendFrame(result, encoder, Mcv2FrameKind.PREDICTED);
+    }
+
+    verify(encoder).requestKeyframe();
+  }
+
+  @Test
+  void shouldRequestNoKeyframeBeforeTheLastIsFourSecondsOld() throws InterruptedException {
+    final AtomicLong clock = new AtomicLong(CLOCK_START_NANOSECONDS);
+    final Mcv2Result result = this.createSynchronousResult(clock::get);
+    final Mcv2 encoder = this.createFrameEncoder();
+    this.sendFrame(result, encoder, Mcv2FrameKind.KEYFRAME);
+    clearInvocations(encoder);
+    clock.addAndGet(KEYFRAME_PERIOD_NANOSECONDS - 1);
+    this.sendFrame(result, encoder, Mcv2FrameKind.PREDICTED);
+
+    verify(encoder, never()).requestKeyframe();
+  }
+
+  @Test
+  void shouldCountTheFourSecondsFromTheLatestKeyframe() throws InterruptedException {
+    final AtomicLong clock = new AtomicLong(CLOCK_START_NANOSECONDS);
+    final Mcv2Result result = this.createSynchronousResult(clock::get);
+    final Mcv2 encoder = this.createFrameEncoder();
+    this.sendFrame(result, encoder, Mcv2FrameKind.KEYFRAME);
+    clock.addAndGet(TimeUnit.SECONDS.toNanos(2));
+    this.sendFrame(result, encoder, Mcv2FrameKind.KEYFRAME);
+    clearInvocations(encoder);
+    clock.addAndGet(TimeUnit.SECONDS.toNanos(3));
+    this.sendFrame(result, encoder, Mcv2FrameKind.PREDICTED);
+
+    verify(encoder, never()).requestKeyframe();
+
+    clock.addAndGet(SLOW_FRAME_INTERVAL_NANOSECONDS);
+    this.sendFrame(result, encoder, Mcv2FrameKind.PREDICTED);
+
+    verify(encoder).requestKeyframe();
+  }
+
+  private Mcv2 createFrameEncoder() {
+    final Mcv2 encoder = mock(Mcv2.class);
+    when(encoder.encode(any(), anyInt(), anyInt(), anyLong())).thenReturn(Mcv2ChannelTest.keyframe());
+
+    return encoder;
+  }
+
+  private void sendFrame(final Mcv2Result result, final Mcv2 encoder, final Mcv2FrameKind kind) throws InterruptedException {
+    final boolean keyframe = kind == Mcv2FrameKind.KEYFRAME;
+    when(encoder.getStatistics()).thenReturn(Optional.of(Mcv2.Statistics.of(1, keyframe, 1, 1, LAMBDA)));
+    result.send(encoder, new Mcv2Result.Arrival(new byte[32 * 32 * 3], 32, 32, 0, Mcv2Pacer.Preset.ONLY), 0);
   }
 
   @Test

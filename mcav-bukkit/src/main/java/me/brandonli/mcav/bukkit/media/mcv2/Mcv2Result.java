@@ -76,12 +76,13 @@ import org.slf4j.LoggerFactory;
  * ({@link Mcv2#begin}), then hands it to the screen's sender thread, which verifies it ({@link Mcv2#finish})
  * and sends it while the next frame is searched: one frame is in flight at most, and a frame is sent only once
  * verified. A frame that fails its verification stops the screen. A keyframe the channel asks for while a frame is in
- * flight comes with the frame after it; another preset begins only after the frame in flight is sent. The screen's
- * threads only wait for the budget. When the encoder is slower than the video, frames that arrive while it works
- * replace each other and only the newest is encoded, which the encoder's previous-frame reference allows. The encoder
- * bounds every frame to what the screen's page slots carry ({@link Mcv2#setFrameLimit}): a frame that would take
- * more pages is searched again at a higher lambda. One that still has more pages than the screen has slots is not sent,
- * and the next is a keyframe.
+ * flight comes with the frame after it; another preset begins only after the frame in flight is sent. The screen also
+ * asks for a keyframe once its last keyframe is four seconds old, so a client that missed a frame waits at most four
+ * seconds and one frame for a picture it can decode. The screen's threads only wait for the budget. When the encoder
+ * is slower than the video, frames that arrive while it works replace each other and only the newest is encoded, which
+ * the encoder's previous-frame reference allows. The encoder bounds every frame to what the screen's page slots carry
+ * ({@link Mcv2#setFrameLimit}): a frame that would take more pages is searched again at a higher lambda. One that still
+ * has more pages than the screen has slots is not sent, and the next is a keyframe.
  *
  * <p>A {@link Mcv2Pacer} keeps the screen within what its budget sustains: when the frames take longer than the video
  * gives them, it first searches less hard, down the preset ladder from the screen's settings
@@ -137,6 +138,9 @@ public final class Mcv2Result implements FunctionalVideoFilter {
   // Vanilla can initialize a map after its first snapshot; unchanged deltas cannot repair it.
   private static final long FALLBACK_REFRESH_NANOSECONDS = TimeUnit.SECONDS.toNanos(4);
 
+  // A viewer who missed a frame waits for a keyframe, and the encoder's 120 frames take long at low frame rates.
+  private static final long KEYFRAME_PERIOD_NANOSECONDS = TimeUnit.SECONDS.toNanos(4);
+
   // A paused video or a still page sends no frames, yet a viewer who starts watching needs a keyframe.
   private static final long IDLE_CHECK_TICKS = 20L;
 
@@ -189,6 +193,7 @@ public final class Mcv2Result implements FunctionalVideoFilter {
   private double frameCredit;
   private long lastFrame;
   private long lastFallbackRefresh;
+  private long lastKeyframe;
 
   private boolean running;
   private @Nullable Thread worker;
@@ -278,6 +283,7 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     this.statistics = new Statistics();
     this.clock = clock;
     this.lastFallbackRefresh = clock.getAsLong();
+    this.lastKeyframe = clock.getAsLong();
     this.framesPerNanosecond = configuration.getMaximumFrameRate() / NANOSECONDS_PER_SECOND;
     this.ladder = ladder(configuration.getSettings());
     this.presets = this.presets(this.ladder);
@@ -751,7 +757,9 @@ public final class Mcv2Result implements FunctionalVideoFilter {
 
   void send(final Mcv2 encoder, final Arrival arrival, final long frameId) throws InterruptedException {
     final Screen current = this.screen;
-    if (current.channel().takeKeyframeRequest()) {
+    final long now = this.clock.getAsLong();
+    final boolean requested = current.channel().takeKeyframeRequest();
+    if (requested || this.isKeyframeDue(now)) {
       encoder.requestKeyframe();
     }
 
@@ -771,11 +779,20 @@ public final class Mcv2Result implements FunctionalVideoFilter {
       isKeyframe = this.handoff(running, encoder, arrival, frameId);
     }
 
+    if (isKeyframe) {
+      this.lastKeyframe = now;
+    }
+
     this.followEncodeTime(started, isKeyframe);
 
     if (delivery != null) {
       this.deliver(delivery);
     }
+  }
+
+  private boolean isKeyframeDue(final long now) {
+    final long sinceKeyframe = now - this.lastKeyframe;
+    return sinceKeyframe >= KEYFRAME_PERIOD_NANOSECONDS;
   }
 
   private Delivery encodeSynchronously(final Mcv2 encoder, final Arrival arrival, final long frameId) {
