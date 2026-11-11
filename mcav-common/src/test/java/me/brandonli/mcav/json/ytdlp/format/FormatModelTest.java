@@ -322,7 +322,7 @@ final class FormatModelTest {
   }
 
   @Test
-  void shouldLeaveUnknownValuesNullOrZero() throws IOException {
+  void shouldReturnAbsentValuesAsEmptyZeroOrFalse() throws IOException {
     final UrlParseDump dump = fixture();
     final List<Format> formats = dump.getFormats();
 
