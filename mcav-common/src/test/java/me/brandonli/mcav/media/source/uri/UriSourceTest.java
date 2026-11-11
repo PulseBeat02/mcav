@@ -75,6 +75,22 @@ final class UriSourceTest {
   }
 
   @Test
+  void shouldJudgeOnlyThePathWhetherTheUriPointsAtAMediaFile() {
+    final URI withQuery = URI.create("https://example.com/clip.mp4?token=1#t=10");
+    final URI fileInQuery = URI.create("https://example.com/watch?file=clip.mp4");
+    final URI fileInFragment = URI.create("https://example.com/page#clip.mp4");
+    final UriSource withQuerySource = UriSource.uri(withQuery);
+    final UriSource fileInQuerySource = UriSource.uri(fileInQuery);
+    final UriSource fileInFragmentSource = UriSource.uri(fileInFragment);
+    final boolean withQueryDirect = withQuerySource.isDirect();
+    final boolean fileInQueryDirect = fileInQuerySource.isDirect();
+    final boolean fileInFragmentDirect = fileInFragmentSource.isDirect();
+    assertTrue(withQueryDirect);
+    assertFalse(fileInQueryDirect);
+    assertFalse(fileInFragmentDirect);
+  }
+
+  @Test
   void shouldFollowTheEqualityContract() {
     final URI uri = URI.create(MEDIA_URL);
     final URI otherUri = URI.create("https://example.com/b.mp4");
