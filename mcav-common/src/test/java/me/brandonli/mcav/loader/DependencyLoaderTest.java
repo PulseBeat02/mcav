@@ -931,7 +931,7 @@ final class DependencyLoaderTest {
   }
 
   @Test
-  void shouldProvideGtk2BeforeLoadingTheObjectDetectionNatives() {
+  void shouldLookForGtk2WhileLoadingTheNatives() {
     final List<String> lookedUp = new ArrayList<>();
     final Logger logger = mock(Logger.class);
     final DependencyLoader loader = new DependencyLoader(logger, lookedUp::add, this::refuseToInstall);
