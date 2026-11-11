@@ -2354,7 +2354,7 @@ final class Mcv2ResultTest {
   }
 
   @Test
-  void shouldSearchTheNextFrameWhileTheSenderVerifiesTheLast() throws InterruptedException {
+  void shouldVerifyAFrameBeforeSearchingTheNext() throws InterruptedException {
     final Mcv2Configuration fast = this.packScreen(Settings.FAST);
     final List<Mcv2> made = new CopyOnWriteArrayList<>();
     final CountDownLatch gate = new CountDownLatch(1);
@@ -2372,42 +2372,19 @@ final class Mcv2ResultTest {
     this.server.runTasks();
     result.applyFilter(frame, this.metadata);
     this.awaitEncoders(made, 1);
-    // the sender holds the first frame: a drain waits for it
-    verify(made.getFirst(), timeout(TimeUnit.SECONDS.toMillis(10))).finish(any());
+    final Mcv2 encoder = made.getFirst();
+    verify(encoder, timeout(TimeUnit.SECONDS.toMillis(10))).finish(any());
 
-    final Thread drainer = new Thread(() -> this.drainResult(result));
-    drainer.start();
-    drainer.join(200);
-    final boolean drainerWaits = drainer.isAlive();
-    assertTrue(drainerWaits);
+    result.applyFilter(frame, this.metadata);
+    verify(encoder, Mockito.after(500).times(1)).begin(any(), anyInt(), anyInt(), anyLong());
 
     gate.countDown();
-    drainer.join(TimeUnit.SECONDS.toMillis(10));
-    final boolean drainerStillWaits = drainer.isAlive();
-    assertFalse(drainerStillWaits);
-
-    this.awaitFrames(result, 1);
-    for (int frameNumber = 2; frameNumber <= 3; frameNumber++) {
-      result.applyFilter(frame, this.metadata);
-      this.awaitFrames(result, frameNumber);
-    }
-
-    final int encoderCount = made.size();
-    assertEquals(1, encoderCount);
-    verify(made.getFirst(), times(3)).begin(any(), anyInt(), anyInt(), anyLong());
-    verify(made.getFirst(), times(3)).finish(any());
+    this.awaitFrames(result, 2);
+    verify(encoder, times(2)).begin(any(), anyInt(), anyInt(), anyLong());
+    verify(encoder, times(2)).finish(any());
 
     result.drain();
     result.release();
-  }
-
-  private void drainResult(final Mcv2Result result) {
-    try {
-      result.drain();
-    } catch (final InterruptedException exception) {
-      final Thread current = Thread.currentThread();
-      current.interrupt();
-    }
   }
 
   @Test
@@ -2564,12 +2541,6 @@ final class Mcv2ResultTest {
     result.applyFilter(frame, this.metadata);
     this.awaitEncoders(made, 1);
     verify(made.getFirst(), timeout(TimeUnit.SECONDS.toMillis(10))).finish(any());
-    // the screen searches a frame while the sender verifies the last, so frames are drained only after the failed verification stops it
-    final Thread drainer = new Thread(() -> this.drainResult(result));
-    drainer.start();
-    drainer.join(TimeUnit.SECONDS.toMillis(10));
-    final boolean drainerWaits = drainer.isAlive();
-    assertFalse(drainerWaits, "the failed verification stops the screen");
 
     result.applyFilter(frame, this.metadata);
     result.applyFilter(frame, this.metadata);
