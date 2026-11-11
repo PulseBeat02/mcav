@@ -193,6 +193,17 @@ final class FileSourceTest {
   }
 
   @Test
+  void shouldDetectExistingDirectories() {
+    final FileSourceDetector detector = new FileSourceDetector();
+    final String resource = this.directory.toString();
+    final boolean detected = detector.isDetectedSource(resource);
+    final FileSource created = detector.createSource(resource);
+    final FileSource expected = FileSource.path(this.directory);
+    assertTrue(detected);
+    assertEquals(expected, created);
+  }
+
+  @Test
   void shouldRejectNullInput() {
     final FileSourceDetector detector = new FileSourceDetector();
     assertThrows(NullPointerException.class, () -> FileSource.path(null));
