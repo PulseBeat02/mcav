@@ -27,6 +27,8 @@ import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import me.brandonli.mcav.media.source.device.DeviceSource;
@@ -119,10 +121,29 @@ final class SourceDetectionHelperTest {
   }
 
   @Test
+  void shouldKeepItsOwnCopyOfTheDetectors() {
+    final Source source = DeviceSource.device(1);
+    final SourceDetector<Source> detector = new FixedDetector(source, SourceDetector.NORMAL_PRIORITY, Acceptance.ACCEPTS);
+    final List<SourceDetector<? extends Source>> detectors = new ArrayList<>();
+    detectors.add(detector);
+    final SourceDetectionHelper helper = new SourceDetectionHelper(detectors);
+    detectors.clear();
+
+    final Optional<Source> detected = helper.detectSource(ANY_RESOURCE);
+    final Source detectedSource = detected.orElseThrow();
+    assertSame(source, detectedSource);
+  }
+
+  @Test
   void shouldRejectMissingArguments() {
     final SourceDetectionHelper helper = new SourceDetectionHelper();
     assertThrows(NullPointerException.class, () -> helper.detectSource(null));
     assertThrows(NullPointerException.class, () -> new SourceDetectionHelper(null));
+
+    final Source source = DeviceSource.device(1);
+    final SourceDetector<Source> detector = new FixedDetector(source, SourceDetector.NORMAL_PRIORITY, Acceptance.ACCEPTS);
+    final List<SourceDetector<? extends Source>> withNull = Arrays.asList(detector, null);
+    assertThrows(NullPointerException.class, () -> new SourceDetectionHelper(withNull));
   }
 
   private static final class FixedDetector implements SourceDetector<Source> {
