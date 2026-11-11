@@ -110,6 +110,15 @@ final class UriSourceTest {
   }
 
   @Test
+  void shouldRejectTextThatIsNotAUriWhenCreatingTheSource() {
+    final String text = "not a uri";
+    final UriSourceDetector detector = new UriSourceDetector();
+    final boolean detected = detector.isDetectedSource(text);
+    assertFalse(detected);
+    assertThrows(IllegalArgumentException.class, () -> detector.createSource(text));
+  }
+
+  @Test
   void shouldRejectNullInput() {
     final UriSourceDetector detector = new UriSourceDetector();
     assertThrows(NullPointerException.class, () -> UriSource.uri(null));
