@@ -81,6 +81,13 @@ final class FfmpegDirectSourceTest {
   }
 
   @Test
+  void shouldLeaveTheInputToFfmpegInTheFactory() {
+    final FfmpegDirectSource source = FfmpegDirectSource.mrl("", SCREEN_CAPTURE_FORMAT);
+    final String mrl = source.getMrl();
+    assertEquals("", mrl);
+  }
+
+  @Test
   void shouldDetectFormatAndInputPairs() {
     final FfmpegDirectSourceDetector detector = new FfmpegDirectSourceDetector();
     final boolean detected = detector.isDetectedSource("dshow||video=Camera");
