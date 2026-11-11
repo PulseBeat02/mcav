@@ -158,6 +158,17 @@ final class FileSourceTest {
   }
 
   @Test
+  void shouldRejectMissingAndDisallowedOptions() throws IOException {
+    final Path path = this.directory.resolve(DATA_FILE_NAME);
+    Files.createFile(path);
+    final Writable writable = Writable.path(path);
+    assertThrows(NullPointerException.class, () -> writable.newInputStream((OpenOption[]) null));
+    assertThrows(NullPointerException.class, () -> writable.newOutputStream((OpenOption[]) null));
+    assertThrows(UnsupportedOperationException.class, () -> writable.newInputStream(StandardOpenOption.APPEND));
+    assertThrows(IllegalArgumentException.class, () -> writable.newOutputStream(StandardOpenOption.READ));
+  }
+
+  @Test
   void shouldCreateWritablesForPaths() {
     final Path path = this.directory.resolve(OUTPUT_FILE_NAME);
     final Writable writable = Writable.path(path);
