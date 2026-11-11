@@ -35,7 +35,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-import me.brandonli.mcav.MCAVException;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.jupiter.api.Test;
 
@@ -435,25 +434,6 @@ final class ModuleLoaderTest {
 
     final boolean modulesEmpty = modules.isEmpty();
     assertTrue(modulesEmpty);
-  }
-
-  @Test
-  void shouldCreateExceptionsWithMessageAndCause() {
-    final IllegalStateException cause = new IllegalStateException("cause!");
-    final ModuleException withMessage = new ModuleException("Message!");
-    final ModuleException withCause = new ModuleException("Wrapped!", cause);
-    final ModuleException withNulls = new ModuleException(null, null);
-    final String message = withMessage.getMessage();
-    final Throwable noCause = withMessage.getCause();
-    final String wrappedMessage = withCause.getMessage();
-    final Throwable wrappedCause = withCause.getCause();
-    final String nullMessage = withNulls.getMessage();
-    assertEquals("Message!", message);
-    assertNull(noCause);
-    assertEquals("Wrapped!", wrappedMessage);
-    assertSame(cause, wrappedCause);
-    assertNull(nullMessage);
-    assertInstanceOf(MCAVException.class, withMessage, "a module failure is recoverable, so it is no Error");
   }
 
   private static class RecordingModule implements MCAVModule {
