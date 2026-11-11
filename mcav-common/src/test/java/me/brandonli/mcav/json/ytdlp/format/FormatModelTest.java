@@ -19,6 +19,7 @@ package me.brandonli.mcav.json.ytdlp.format;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -41,6 +42,7 @@ import java.lang.reflect.Modifier;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Arrays;
@@ -586,6 +588,14 @@ final class FormatModelTest {
     final IllegalStateException exception = assertThrows(IllegalStateException.class, format::toUriSource);
     final String message = exception.getMessage();
     assertEquals("Stream has no URL!", message);
+  }
+
+  @Test
+  void shouldRejectAStreamUrlThatIsNoUri() {
+    final Format format = format("{\"url\": \"https://cdn.example.com/a video.mp4\"}");
+    final IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, format::toUriSource);
+    final Throwable cause = exception.getCause();
+    assertInstanceOf(URISyntaxException.class, cause);
   }
 
   static Stream<Named<Class<?>>> models() {
