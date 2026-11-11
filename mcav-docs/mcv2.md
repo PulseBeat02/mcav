@@ -726,16 +726,17 @@ that path; it replaces vanilla's `core/text.vsh`, `core/text.fsh` and `post_effe
 are vanilla's plus the decoder.
 
 One held picture. The pack keeps exactly one picture per screen: the last frame it decoded. A client that misses a frame
-(it draws fewer frames a second than the video has, looks away, or reloads its resources) can't decode the P frames
-after it, and keeps the last picture until it draws a frame while a keyframe is the newest frame of the screen. A client
-that draws at least as many frames a second as the video has gets the next keyframe, at most four seconds later at 30
-frames a second. A slower client gets only the keyframes that one of its frames happens to fall on: each keyframe is the
-newest frame for a thirtieth of a second, so a client drawing a frame every two seconds keeps one picture for minutes on
-average. A still image from `/mcav image` is sent twice a second, every eighth time as a keyframe, so a client that
-missed one, for example while it compiled the pack's shaders as it first drew the screen, gets the next within four
-seconds. A screen whose frames stop, such as a paused video or a page that does not change, sends its last picture
-once more as a keyframe after about three seconds without a frame, and again whenever it starts showing a viewer, so
-the newest frame stays one every client can decode.
+(it draws fewer frames a second than the video has, takes in two frames' maps before it draws one, looks away, or
+reloads its resources) can't decode the P frames after it, and keeps the last picture until it draws a frame while a
+keyframe is the newest frame of the screen. A client that draws at least as many frames a second as the video has gets
+the next keyframe at most four seconds and one frame later, at any frame rate: the screen asks for a keyframe once its
+last keyframe is four seconds old. A slower client gets only the keyframes that one of its frames happens to fall on:
+at 30 frames a second each keyframe is the newest frame for a thirtieth of a second, so a client drawing a frame every
+two seconds keeps one picture for minutes on average. A still image from `/mcav image` is sent twice a second, every
+eighth time as a keyframe, so a client that missed one, for example while it compiled the pack's shaders as it first
+drew the screen, gets the next within four seconds. A screen whose frames stop, such as a paused video or a page that
+does not change, sends its last picture once more as a keyframe after about three seconds without a frame, and again
+whenever it starts showing a viewer, so the newest frame stays one every client can decode.
 
 ## Part 9: The encoder
 
@@ -746,8 +747,9 @@ frame. It's fast enough to encode 1080p video while it plays, and it's also what
 ### Keyframe or P frame
 
 A frame becomes a keyframe when there's nothing to predict from: the first frame, a frame of a new size, a viewer who
-just started watching and holds no picture yet (the screen asks for a keyframe then), and every 120th frame (four
-seconds at 30 fps), so a viewer who missed something never waits longer than that. Every other frame is a P frame that
+just started watching and holds no picture yet (the screen asks for a keyframe then), every 120th frame, and the first
+frame once the last keyframe is four seconds old (the screen asks for that one too), so a viewer who missed something
+never waits longer than four seconds and one frame, whatever the frame rate. Every other frame is a P frame that
 predicts from the frame just before it, even across a cut to a completely different picture: there the P frame simply
 uses SOLID, PALETTE and PATTERN leaves like a keyframe would.
 
@@ -1570,10 +1572,10 @@ decoder the class `Mcv2Decoder`, both in `me.brandonli.mcav.bukkit.media.mcv2`, 
   854x480 window with one screen of eight slots, 25 at 1080p), and the chain covers them with the scene row just below,
   so a detailed sky or ceiling smears there; every screen's picture shows over those rows as anywhere else. A window
   lower than the strip shows no MCV2 picture and leaves the view as it is.
-- Missed frames. A client that draws fewer frames than the video has misses frames, and a missed frame is repaired only
-  by a keyframe the client draws while it is the newest frame. Keyframes come every four seconds at 30 frames a second,
-  but a slow client draws on few of them: one that draws a frame every two seconds keeps a picture for minutes on
-  average.
+- Missed frames. A client that draws fewer frames than the video has, or takes in two frames before it draws one, misses
+  frames, and a missed frame is repaired only by a keyframe the client draws while it is the newest frame. Keyframes
+  come at most four seconds and one frame apart, but a slow client draws on few of them: one that draws a frame every
+  two seconds keeps a picture for minutes on average.
 - Sound. The audio web page keeps a little sound buffered, so its sound comes a moment after the wall shows the same
   picture, with MCV2 as with the dithered maps. The plugin doesn't delay the picture to match.
 
@@ -1726,7 +1728,7 @@ in the `natives` field of its final JSON line (logging may precede it). Use `nat
 | Python `rate_quality` | `--classpath CP --source RGB --frames N --fps FPS --lambdas L1,L2,... --ffmpeg FFMPEG --out JSON -- profile=DEFAULT ...`; run `Mcv2Tools bench` and score its pictures |
 | Python `codec_curves` | `--ffmpeg FFMPEG --source RGB --name NAME --width W --height H --frames N --fps FPS --qualities CRF... --out JSON`; resumable H.264/VP9/AV1 curves |
 | Python `bd_rate` | `REFERENCE_JSON TEST_JSON [--metric vmaf_mean] [--rate map_mbps]`; compare rate-quality curves |
-| Python `shader_check` | `ARCHIVE... [--slots N] [--drop N] [--backend egl\|glx] [--pack DIR] [--spirv CP] [--text-shaders CP] [--window WxH] [--second-screen] [--restart-check] [--renders-per-frame N] [--split-uploads]`; exact pack/reference picture comparison; `--renders-per-frame` and `--split-uploads` run the post chain at the game's cadence, and with `--text-shaders` every render also checks the wall that the screen pass draws |
+| Python `shader_check` | `ARCHIVE... [--slots N] [--drop N] [--backend egl\|glx] [--pack DIR] [--spirv CP] [--text-shaders CP] [--window WxH] [--second-screen] [--restart-check] [--renders-per-frame N] [--split-uploads] [--merge-uploads N] [--unseen-frames N]`; exact pack/reference picture comparison; `--renders-per-frame` and `--split-uploads` run the post chain at the game's cadence, and with `--text-shaders` every render also checks the wall that the screen pass draws; `--merge-uploads` leaves every Nth P frame unseen (its maps arrive with the next frame's before a render, `--unseen-frames` in a row), and the check still expects the frames after it to decode |
 | Python `shader_timing` | `ARCHIVE... [--backend egl\|glx] [--slots N] [--rounds N] [--repeats N] [--pack DIR] [--reference DIR] [--spirv CP] [--json FILE]`; GPU pass timings and deterministic decode checks; `--reference` supports an archived v2 package |
 | Python `strip_fit_check` | `[--backend egl\|glx] [--spirv CP]`; verify screens too small for the transport strip, and that only the first screen's pass covers it |
 | Python `strip_check` | `CAPTURES --slots N --video-width W [--screens N] [--screen INDEX] [--first-slot N] [--total-slots N] [--debug-top ROWS]`; six-bit strip page, anchor and status validation |
