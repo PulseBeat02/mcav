@@ -292,4 +292,13 @@ final class ImageMapCommandTest {
 
     verify(this.support).output(this.sender, configuration, DitheringArgument.NEAREST_COLOR);
   }
+
+  @Test
+  void shouldPassTheFiltersOnToTheImage() {
+    final String filters = "invert";
+    doNothing().when(this.command).displayImage(any(), any(), any(), any(), eq(filters));
+    this.command.showImage(this.sender, this.selector, RESOLUTION, BLOCKS, MAP_ID, DitheringArgument.FILTER_LITE, MRL, null, filters);
+
+    verify(this.command).displayImage(any(), eq(this.sender), eq(RESOLUTION), eq(MRL), eq(filters));
+  }
 }

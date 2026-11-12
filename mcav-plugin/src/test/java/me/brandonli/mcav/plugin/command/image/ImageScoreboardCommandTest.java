@@ -145,4 +145,13 @@ final class ImageScoreboardCommandTest {
     assertThrows(NullPointerException.class, () -> this.command.createImage(null, provider));
     assertThrows(NullPointerException.class, () -> this.command.createImage(resolution, null));
   }
+
+  @Test
+  void shouldPassTheFiltersOnToTheImage() {
+    final String filters = "invert";
+    doNothing().when(this.command).displayImage(any(), any(), any(), any(), eq(filters));
+    this.command.showImage(this.sender, this.selector, RESOLUTION, CHARACTER, MRL, filters);
+
+    verify(this.command).displayImage(any(), eq(this.sender), eq(RESOLUTION), eq(MRL), eq(filters));
+  }
 }
