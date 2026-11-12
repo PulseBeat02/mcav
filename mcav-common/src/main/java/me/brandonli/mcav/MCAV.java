@@ -167,6 +167,9 @@ public final class MCAV implements MCAVApi {
    * is installing it, fails. After {@link #release()}, or after an installation that failed, the library can be
    * installed again.
    *
+   * <p>Installing calls {@link ImageIO#setUseCache(boolean)} with {@code false}, which applies to the whole JVM: every
+   * library and plugin in it then caches image streams in memory instead of in temporary files.
+   *
    * @param modules a non-null array of non-null module classes implementing {@link MCAVModule}, with
    *                accessible no-argument constructors; duplicates are started once and an empty array is allowed
    * @throws MCAVLoadingException if the library cannot be installed, is installed already, or is being installed by

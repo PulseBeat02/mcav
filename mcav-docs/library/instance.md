@@ -21,7 +21,9 @@ state.
   for it, as a pool of its own threads would outlive every player and work outside the encoders' budget
   (`-Dmcav.opencv.threads=<n>` gives it `n` threads);
 - the modules you passed are started;
-- the lookup tables, such as the map color table, are built.
+- the lookup tables, such as the map color table, are built;
+- the disk cache of `ImageIO` is turned off for the whole JVM (`ImageIO.setUseCache(false)`), so every library and
+  plugin in it caches image streams in memory instead of in temporary files.
 
 This takes a few seconds on the first start of a machine and less afterward. FFmpeg players can be used right away.
 
