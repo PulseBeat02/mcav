@@ -34,6 +34,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2.Settings;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Configuration;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Pacer;
@@ -478,26 +479,35 @@ final class Mcv2SupportTest {
 
   @Test
   void shouldWriteThePackIntoItsOwnFolderAndTellThePlayers() {
+    final Function<Path, PackHosting> hosting = PackHosting::injector;
+    final List<List<?>> arguments = new ArrayList<>();
     try (
       final MockedConstruction<Mcv2PackServer> servers = Mockito.mockConstruction(Mcv2PackServer.class, (_, context) ->
-        this.assertPackFolder(context)
+        this.recordArguments(context, arguments)
       )
     ) {
-      final Mcv2Support real = new Mcv2Support(this.folder, PackHosting::injector);
+      final Mcv2Support real = new Mcv2Support(this.folder, hosting);
       real.shutdown();
       verify(servers.constructed().getFirst()).shutdown();
     }
-    final Player player = mock(Player.class);
-    Mcv2Support.tellOffered(player);
-    Mcv2Support.tellRefused(player);
-    verify(player).sendMessage(Message.MCV2_PACK.build());
-    verify(player).sendMessage(Message.MCV2_REFUSED.build());
-  }
-
-  private void assertPackFolder(final MockedConstruction.Context context) {
+    final List<?> serverArguments = arguments.getFirst();
     final Path expected = this.folder.resolve(MCV2_FOLDER_NAME).resolve(PACK_FOLDER_NAME);
-    final Object packFolder = context.arguments().getFirst();
+    final Object packFolder = serverArguments.getFirst();
     assertEquals(expected, packFolder);
+
+    final Object packHosting = serverArguments.get(1);
+    assertSame(hosting, packHosting);
+
+    @SuppressWarnings("unchecked") // the pack server's constructor takes a Consumer<Player>
+    final Consumer<Player> onOffered = (Consumer<Player>) serverArguments.get(3);
+    @SuppressWarnings("unchecked") // the pack server's constructor takes a Consumer<Player>
+    final Consumer<Player> onRefused = (Consumer<Player>) serverArguments.get(4);
+    final Player offered = mock(Player.class);
+    final Player refused = mock(Player.class);
+    onOffered.accept(offered);
+    onRefused.accept(refused);
+    verify(offered).sendMessage(Message.MCV2_PACK.build());
+    verify(refused).sendMessage(Message.MCV2_REFUSED.build());
   }
 
   @Test
