@@ -186,6 +186,16 @@ final class PipelineStepTest {
   }
 
   @Test
+  void shouldEndTheChainAtAStepCreatedWithoutANextStep() {
+    final VideoPipelineStep video = VideoPipelineStep.of(null, VideoFilter.NO_OPERATION);
+    final AudioPipelineStep audio = AudioPipelineStep.of(null, AudioFilter.NO_OPERATION);
+    final boolean videoIsLast = video.isLast();
+    final boolean audioIsLast = audio.isLast();
+    assertTrue(videoIsLast);
+    assertTrue(audioIsLast);
+  }
+
+  @Test
   void shouldRejectMissingSamplesAndMetadata() {
     final ByteBuffer samples = ByteBuffer.allocate(SAMPLE_BUFFER_BYTES);
     final VideoPipelineStep video = VideoPipelineStep.of(VideoFilter.NO_OPERATION);
