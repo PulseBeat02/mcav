@@ -19,6 +19,7 @@ package me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -26,6 +27,7 @@ import java.util.Arrays;
 import java.util.concurrent.ForkJoinPool;
 import java.util.zip.CRC32;
 import me.brandonli.mcav.media.image.ImageBuffer;
+import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.error.DiffusionKernel;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.error.TemporalDitherAlgorithm;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.error.TemporalFloydSteinbergDither;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.palette.DitherPalette;
@@ -465,5 +467,27 @@ final class TemporalDitherTest {
     final TemporalDitherAlgorithm dither = new TemporalFloydSteinbergDither(PRIMARIES, SMALL_THRESHOLD, SMALL_THRESHOLD, 0.3f);
     final float strength = dither.getErrorStrength();
     assertEquals(77 / 256.0f, strength, "0.3 times 256 rounds to 77");
+  }
+
+  @Test
+  void shouldUseFloydSteinbergAndTheDefaultSettingsInTheShortConstructors() {
+    final TemporalDitherAlgorithm mapPaletteDither = new TemporalFloydSteinbergDither();
+    final TemporalDitherAlgorithm primariesDither = new TemporalFloydSteinbergDither(PRIMARIES);
+    final DitherPalette mapPalette = mapPaletteDither.getPalette();
+    final DitherPalette primaries = primariesDither.getPalette();
+    assertSame(DitherPalette.DEFAULT_MAP_PALETTE, mapPalette);
+    assertSame(PRIMARIES, primaries);
+
+    final TemporalDitherAlgorithm[] dithers = { mapPaletteDither, primariesDither };
+    for (final TemporalDitherAlgorithm dither : dithers) {
+      final DiffusionKernel kernel = dither.getKernel();
+      final int temporalThreshold = dither.getTemporalThreshold();
+      final int errorThreshold = dither.getErrorThreshold();
+      final float errorStrength = dither.getErrorStrength();
+      assertSame(DiffusionKernel.FLOYD_STEINBERG, kernel);
+      assertEquals(TemporalDitherAlgorithm.DEFAULT_TEMPORAL_THRESHOLD, temporalThreshold);
+      assertEquals(TemporalDitherAlgorithm.DEFAULT_ERROR_THRESHOLD, errorThreshold);
+      assertEquals(TemporalDitherAlgorithm.DEFAULT_ERROR_STRENGTH, errorStrength);
+    }
   }
 }
