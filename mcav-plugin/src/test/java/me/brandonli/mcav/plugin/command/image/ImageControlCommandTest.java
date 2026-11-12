@@ -73,7 +73,9 @@ final class ImageControlCommandTest {
   void shouldReleaseTheImageOnTheLoadingThreadAndReportIt() {
     final ExecutorService worker = mock(ExecutorService.class);
     final List<Runnable> work = new ArrayList<>();
-    doAnswer(invocation -> this.deferTask(invocation, work)).when(worker).execute(any(Runnable.class));
+    doAnswer(invocation -> this.deferTask(invocation, work))
+      .when(worker)
+      .execute(any(Runnable.class));
     when(this.manager.getService()).thenReturn(worker);
     final CommandSender sender = mock(CommandSender.class);
     this.command.releaseImage(sender);
