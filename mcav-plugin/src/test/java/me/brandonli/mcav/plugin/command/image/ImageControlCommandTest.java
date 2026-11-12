@@ -20,12 +20,17 @@ package me.brandonli.mcav.plugin.command.image;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.google.common.util.concurrent.MoreExecutors;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import me.brandonli.mcav.plugin.MCAVSandbox;
@@ -35,10 +40,12 @@ import me.brandonli.mcav.plugin.testing.StandardErrorCapture;
 import me.brandonli.mcav.plugin.testing.TestServer;
 import net.kyori.adventure.text.Component;
 import org.bukkit.command.CommandSender;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.InOrder;
+import org.mockito.invocation.InvocationOnMock;
 
 final class ImageControlCommandTest {
 
@@ -64,9 +71,20 @@ final class ImageControlCommandTest {
 
   @Test
   void shouldReleaseTheImageOnTheLoadingThreadAndReportIt() {
+    final ExecutorService worker = mock(ExecutorService.class);
+    final List<Runnable> work = new ArrayList<>();
+    doAnswer(invocation -> this.deferTask(invocation, work)).when(worker).execute(any(Runnable.class));
+    when(this.manager.getService()).thenReturn(worker);
     final CommandSender sender = mock(CommandSender.class);
     this.command.releaseImage(sender);
     final Component start = Message.RELEASE_IMAGE_START.build();
+    final List<Component> beforeRelease = Components.received(sender);
+    final List<Component> started = List.of(start);
+    assertEquals(started, beforeRelease);
+    verify(this.manager, never()).releaseImage(any());
+
+    final Runnable release = work.getFirst();
+    release.run();
     final Component done = Message.RELEASE_IMAGE.build();
     final InOrder order = inOrder(sender, this.manager);
     order.verify(sender).sendMessage(start);
@@ -76,6 +94,13 @@ final class ImageControlCommandTest {
     final List<Component> messages = Components.received(sender);
     final List<Component> expected = List.of(start, done);
     assertEquals(expected, messages);
+  }
+
+  private @Nullable Object deferTask(final InvocationOnMock invocation, final List<Runnable> work) {
+    final Runnable task = invocation.getArgument(0);
+    work.add(task);
+
+    return null;
   }
 
   @Test
