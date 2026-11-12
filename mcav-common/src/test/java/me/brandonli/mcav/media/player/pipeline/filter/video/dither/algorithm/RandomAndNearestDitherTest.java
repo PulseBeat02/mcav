@@ -352,6 +352,20 @@ final class RandomAndNearestDitherTest {
   }
 
   @Test
+  void shouldRejectAReleasedImageWhenDitheringIntoBytes() {
+    final ColorMapNearestDither nearest = new ColorMapNearestDither(DitherTestImages.BLACK_WHITE);
+    final UniformNoiseDither random = new UniformNoiseDither(DitherTestImages.BLACK_WHITE, 0);
+    final ImageBuffer image = ImageBuffer.buffer(new int[] { BLACK }, 1, 1);
+    image.release();
+
+    try (final ForkJoinPool pool = new ForkJoinPool(1)) {
+      assertThrows(IllegalStateException.class, () -> nearest.ditherIntoBytes(image));
+      assertThrows(IllegalStateException.class, () -> nearest.ditherIntoBytes(image, pool));
+      assertThrows(IllegalStateException.class, () -> random.ditherIntoBytes(image));
+    }
+  }
+
+  @Test
   void shouldNearestDitherInPlaceAndThroughBuilders() {
     final int[] pixels = { 0xFF101010, 0xFFF0F0F0 };
     final NearestDitherBuilder builder = DitherAlgorithm.nearest();
