@@ -354,6 +354,8 @@ final class OrderedDitherTest {
   void shouldRejectBayerSizesThatAreNotAPositivePowerOfTwo() {
     assertThrows(IllegalArgumentException.class, () -> BayerDither.createBayerMatrix(0));
     assertThrows(IllegalArgumentException.class, () -> BayerDither.createBayerMatrix(3));
+    assertThrows(IllegalArgumentException.class, () -> BayerDither.createBayerMatrix(-2));
+    assertThrows(IllegalArgumentException.class, () -> BayerDither.createBayerMatrix(Integer.MIN_VALUE));
   }
 
   @Test
