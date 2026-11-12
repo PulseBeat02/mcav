@@ -160,8 +160,9 @@ final class FramePixelsTest {
   void shouldRejectAReadOnlyTarget() {
     final ByteBuffer writable = ByteBuffer.allocate(6);
     final ByteBuffer readOnly = writable.asReadOnlyBuffer();
-    try (final Frame compact = frame(2, 1, 6, new byte[6])) {
+    try (final Frame compact = frame(2, 1, 6, new byte[6]); final Frame paddedWithoutRows = frame(2, 0, 8, new byte[0])) {
       assertThrows(ReadOnlyBufferException.class, () -> FramePixels.copyBgr(compact, readOnly));
+      assertThrows(ReadOnlyBufferException.class, () -> FramePixels.copyBgr(paddedWithoutRows, readOnly));
     }
   }
 
