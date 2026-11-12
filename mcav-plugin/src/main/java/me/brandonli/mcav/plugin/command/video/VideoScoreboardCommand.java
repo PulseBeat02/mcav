@@ -108,7 +108,7 @@ public final class VideoScoreboardCommand extends AbstractVideoCommand {
     final MultiplePlayerSelector playerSelector,
     final PlayerArgument playerType,
     final AudioArgument audioType,
-    @Argument(suggestions = SuggestionProvider.DIMENSIONS) @Quoted final String videoResolution,
+    @Argument(suggestions = SuggestionProvider.SCOREBOARD_RESOLUTIONS) @Quoted final String videoResolution,
     @Argument(suggestions = SuggestionProvider.CHAT_CHARACTERS) @Quoted final String character,
     @Quoted final String ytdlpOptions,
     @Quoted final String mrl,

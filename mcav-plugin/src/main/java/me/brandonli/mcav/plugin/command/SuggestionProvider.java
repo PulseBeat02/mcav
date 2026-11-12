@@ -53,6 +53,20 @@ public final class SuggestionProvider implements AnnotationCommandFeature {
   public static final String RESOLUTIONS = "resolutions";
 
   /**
+   * The name of the chat window size suggestions.
+   *
+   * @since 1.0.0
+   */
+  public static final String CHAT_RESOLUTIONS = "chat-resolutions";
+
+  /**
+   * The name of the scoreboard size suggestions.
+   *
+   * @since 1.0.0
+   */
+  public static final String SCOREBOARD_RESOLUTIONS = "scoreboard-resolutions";
+
+  /**
    * The name of the chat character suggestions.
    *
    * @since 1.0.0
@@ -80,6 +94,16 @@ public final class SuggestionProvider implements AnnotationCommandFeature {
   private static final List<String> RESOLUTION_SUGGESTIONS = List.of("512x512", "640x640", "1280x720", "1280x1280", "1920x1080");
 
   private static final List<String> CHAT_RESOLUTION_SUGGESTIONS = List.of("8x8", "16x16", "32x32");
+
+  private static final List<String> SCOREBOARD_RESOLUTION_SUGGESTIONS = List.of("8x8", "16x9", "15x15", "24x15");
+
+  private static final String QUOTE = "\"";
+
+  private static final List<String> CHAT_CHARACTER_SUGGESTIONS = List.of(
+    QUOTE + Characters.FULL_CHARACTER + QUOTE,
+    QUOTE + Characters.BLACK_CIRCLE + QUOTE,
+    QUOTE + Characters.SMALL_BLACK_SQUARE + QUOTE
+  );
 
   private static final List<String> NTH_SUGGESTIONS = List.of("1", "2", "3", "4", "5", "6", "7", "8", "9", "10");
 
@@ -125,7 +149,7 @@ public final class SuggestionProvider implements AnnotationCommandFeature {
 
   /**
    * Suggests sizes for arguments counted in blocks, maps, or characters, such as {@code <blockDimensions>} of the
-   * map commands or {@code <imageResolution>} of the block, chat, entity, and scoreboard commands.
+   * map commands or {@code <imageResolution>} of the block and entity commands.
    *
    * @return the suggested sizes, written as {@code <width>x<height>}
    * @since 1.0.0
@@ -148,26 +172,41 @@ public final class SuggestionProvider implements AnnotationCommandFeature {
   }
 
   /**
-   * Suggests small sizes that fit into the chat window, in characters per line and lines.
+   * Suggests small sizes that fit into the chat window, in characters per line and lines, for the
+   * {@code <imageResolution>} and {@code <videoResolution>} arguments of the chat commands.
    *
    * @return the suggested sizes, written as {@code <width>x<height>}
    * @since 1.0.0
    */
-  @Suggestions("chat-resolutions")
+  @Suggestions(CHAT_RESOLUTIONS)
   public Stream<String> suggestChatResolutions() {
     return CHAT_RESOLUTION_SUGGESTIONS.stream();
   }
 
   /**
-   * Suggests the characters pixels are drawn with in chat, entity, and scoreboard displays: a full block, which
-   * gives the most solid picture, a black circle, and a small black square.
+   * Suggests sizes that fit into the scoreboard sidebar, in characters per line and lines, for the
+   * {@code <imageResolution>} and {@code <videoResolution>} arguments of the scoreboard commands. None is taller than
+   * {@link ScoreboardArguments#isTooTall(String)} allows.
    *
-   * @return the suggested characters
+   * @return the suggested sizes, written as {@code <width>x<height>}
+   * @since 1.0.0
+   */
+  @Suggestions(SCOREBOARD_RESOLUTIONS)
+  public Stream<String> suggestScoreboardResolutions() {
+    return SCOREBOARD_RESOLUTION_SUGGESTIONS.stream();
+  }
+
+  /**
+   * Suggests the characters pixels are drawn with in chat, entity, and scoreboard displays: a full block, which
+   * gives the most solid picture, a black circle, and a small black square. Each is in double quotes, because the
+   * {@code <character>} argument reads only ASCII letters, digits, and {@code _-.+} without them.
+   *
+   * @return the suggested characters, each in double quotes
    * @since 1.0.0
    */
   @Suggestions(CHAT_CHARACTERS)
   public Stream<String> suggestChatCharacters() {
-    return Stream.of(Characters.FULL_CHARACTER, Characters.BLACK_CIRCLE, Characters.SMALL_BLACK_SQUARE);
+    return CHAT_CHARACTER_SUGGESTIONS.stream();
   }
 
   /**

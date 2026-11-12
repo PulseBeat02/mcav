@@ -44,7 +44,7 @@ final class ScoreboardArgumentsTest {
   }
 
   @ParameterizedTest
-  @ValueSource(strings = { "wide", "24x", "0x5" })
+  @ValueSource(strings = { "wide", "24x", "0x5", "0x16", "24X16", "24x16px", "24x9000" })
   void shouldLeaveResolutionsThatCannotBeParsedToTheCommand(final String resolution) {
     final boolean tooTall = ScoreboardArguments.isTooTall(resolution);
     assertFalse(tooTall);

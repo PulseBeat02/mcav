@@ -19,6 +19,7 @@ package me.brandonli.mcav.plugin.command;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -34,6 +35,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.MissingResourceException;
@@ -63,6 +65,8 @@ import org.incendo.cloud.Command;
 import org.incendo.cloud.CommandManager;
 import org.incendo.cloud.bukkit.CloudBukkitCapabilities;
 import org.incendo.cloud.component.CommandComponent;
+import org.incendo.cloud.context.CommandContext;
+import org.incendo.cloud.context.CommandInput;
 import org.incendo.cloud.description.CommandDescription;
 import org.incendo.cloud.description.Description;
 import org.incendo.cloud.execution.CommandExecutor;
@@ -75,6 +79,8 @@ import org.incendo.cloud.parser.flag.CommandFlagParser;
 import org.incendo.cloud.parser.standard.EnumParser;
 import org.incendo.cloud.parser.standard.IntegerParser;
 import org.incendo.cloud.parser.standard.StringParser;
+import org.incendo.cloud.permission.Permission;
+import org.incendo.cloud.suggestion.Suggestion;
 import org.incendo.cloud.type.range.IntRange;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -87,12 +93,16 @@ import org.mockito.Mockito;
 
 final class AnnotationParserHandlerTest {
 
-  private static final List<String> EXPECTED_SYNTAXES = List.of(
+  private static final Set<String> EXPECTED_SYNTAXES = Set.of(
     "mcav dump",
     "mcav help query",
     "mcav screen blockDimensions mapId material location",
     "mcav image release",
     "mcav image map playerSelector imageResolution blockDimensions mapId ditheringAlgorithm mrl flags",
+    "mcav image block playerSelector imageResolution location mrl flags",
+    "mcav image chat playerSelector imageResolution character mrl flags",
+    "mcav image entity playerSelector imageResolution character location mrl flags",
+    "mcav image scoreboard playerSelector imageResolution character mrl flags",
     "mcav video pause",
     "mcav video resume",
     "mcav video release",
@@ -105,9 +115,15 @@ final class AnnotationParserHandlerTest {
     "mcav video hologram disable",
     "mcav video map playerSelector playerType audioType videoResolution blockDimensions mapId ditheringAlgorithm ytdlpOptions mrl flags",
     "mcav video mcv2 playerSelector playerType audioType videoResolution blockDimensions mapId preset ditheringAlgorithm ytdlpOptions mrl flags",
+    "mcav video block playerSelector playerType audioType videoResolution location ytdlpOptions mrl flags",
+    "mcav video chat playerSelector playerType audioType videoResolution character ytdlpOptions mrl flags",
+    "mcav video entity playerSelector playerType audioType videoResolution character location ytdlpOptions mrl flags",
+    "mcav video scoreboard playerSelector playerType audioType videoResolution character ytdlpOptions mrl flags",
     "mcav mcv2 play playerSelector blockDimensions mapId ticks file",
     "mcav mcv2 stream playerSelector blockDimensions mapId framesPerSecond file",
     "mcav mcv2 stop",
+    "mcav mcv2 encode file output resolution preset",
+    "mcav mcv2 cancel",
     "mcav browser interact",
     "mcav browser release",
     "mcav browser create playerSelector browserResolution nth blockDimensions mapId ditheringAlgorithm audioType url flags",
@@ -189,19 +205,27 @@ final class AnnotationParserHandlerTest {
     final AnnotationParserHandler handler = new AnnotationParserHandler(this.plugin);
     handler.registerCommands();
     final Set<String> syntaxes = this.commands.getSyntaxes();
-    final int count = syntaxes.size();
-    final String registeredSyntaxes = String.valueOf(syntaxes);
-    assertEquals(39, count, registeredSyntaxes);
-
-    for (final String syntax : EXPECTED_SYNTAXES) {
-      final boolean registered = syntaxes.contains(syntax);
-      assertTrue(registered, "%s in %s".formatted(syntax, syntaxes));
-    }
+    assertEquals(EXPECTED_SYNTAXES, syntaxes);
 
     final PluginManager pluginManager = TestServer.getPluginManager();
     verify(pluginManager).registerEvents(any(BrowserCommand.class), eq(this.plugin));
     verify(pluginManager).registerEvents(any(VirtualizeCommand.class), eq(this.plugin));
     verify(pluginManager).registerEvents(any(VncCommand.class), eq(this.plugin));
+  }
+
+  @Test
+  void shouldCheckAPermissionOfThePluginForEveryCommand() {
+    final AnnotationParserHandler handler = new AnnotationParserHandler(this.plugin);
+    handler.registerCommands();
+    final Set<String> syntaxes = this.commands.getSyntaxes();
+
+    for (final String syntax : syntaxes) {
+      final Command<CommandSender> command = this.commands.getCommand(syntax);
+      final Permission permission = command.commandPermission();
+      final String name = permission.permissionString();
+      final boolean pluginPermission = name.startsWith("mcav.command.");
+      assertTrue(pluginPermission, syntax);
+    }
   }
 
   @Test
@@ -220,16 +244,104 @@ final class AnnotationParserHandlerTest {
   }
 
   private ArgumentParser<CommandSender, ?> parserOf(final String syntax, final String argument) {
+    final CommandComponent<CommandSender> component = this.componentOf(syntax, argument);
+    return component.parser();
+  }
+
+  private CommandComponent<CommandSender> componentOf(final String syntax, final String argument) {
     final Command<CommandSender> command = this.commands.getCommand(syntax);
     final List<CommandComponent<CommandSender>> components = command.components();
     for (final CommandComponent<CommandSender> component : components) {
       final String name = component.name();
       if (name.equals(argument)) {
-        return component.parser();
+        return component;
       }
     }
     final String message = "Argument %s is missing in syntax %s of the command!".formatted(argument, syntax);
     throw new AssertionError(message);
+  }
+
+  @Test
+  void shouldTakeTheCharacterOfEveryTextDisplayInQuotes() {
+    final AnnotationParserHandler handler = new AnnotationParserHandler(this.plugin);
+    handler.registerCommands();
+    final List<String> textDisplays = this.commands
+      .getSyntaxes()
+      .stream()
+      .filter(syntax -> syntax.contains(" character "))
+      .toList();
+
+    final int size = textDisplays.size();
+    assertEquals(6, size, String.valueOf(textDisplays));
+
+    for (final String syntax : textDisplays) {
+      final ArgumentParser<CommandSender, ?> characterParser = this.parserOf(syntax, "character");
+      final StringParser<?> parser = assertInstanceOf(StringParser.class, characterParser, syntax);
+
+      final StringParser.StringMode stringMode = parser.stringMode();
+      assertEquals(StringParser.StringMode.QUOTED, stringMode, syntax);
+    }
+  }
+
+  @Test
+  void shouldOfferTheChatCommandsTheSizesOfTheChatWindow() {
+    final AnnotationParserHandler handler = new AnnotationParserHandler(this.plugin);
+    handler.registerCommands();
+    final SuggestionProvider provider = new SuggestionProvider();
+    final List<String> expected = provider.suggestChatResolutions().toList();
+
+    final List<String> image = this.suggestionsOf("mcav image chat playerSelector imageResolution character mrl flags", "imageResolution");
+    assertEquals(expected, image);
+
+    final List<String> video = this.suggestionsOf(
+      "mcav video chat playerSelector playerType audioType videoResolution character ytdlpOptions mrl flags",
+      "videoResolution"
+    );
+    assertEquals(expected, video);
+  }
+
+  private List<String> suggestionsOf(final String syntax, final String argument) {
+    final CommandComponent<CommandSender> component = this.componentOf(syntax, argument);
+    final org.incendo.cloud.suggestion.SuggestionProvider<CommandSender> provider = component.suggestionProvider(); // fqn: clashes with the SuggestionProvider of this package
+    final CommandSender sender = mock(CommandSender.class);
+    final CommandContext<CommandSender> context = new CommandContext<>(sender, this.commands);
+    final CommandInput input = CommandInput.empty();
+    final CompletableFuture<? extends Iterable<? extends Suggestion>> future = provider.suggestionsFuture(context, input);
+    final Iterable<? extends Suggestion> suggestions = future.join();
+    final List<String> values = new ArrayList<>();
+    for (final Suggestion suggestion : suggestions) {
+      final String value = suggestion.suggestion();
+      values.add(value);
+    }
+
+    return values;
+  }
+
+  @Test
+  void shouldOfferTheScoreboardCommandsOnlySizesTheyCanShow() {
+    final AnnotationParserHandler handler = new AnnotationParserHandler(this.plugin);
+    handler.registerCommands();
+
+    final List<String> image = this.suggestionsOf(
+      "mcav image scoreboard playerSelector imageResolution character mrl flags",
+      "imageResolution"
+    );
+    this.assertFitsAScoreboard(image);
+
+    final List<String> video = this.suggestionsOf(
+      "mcav video scoreboard playerSelector playerType audioType videoResolution character ytdlpOptions mrl flags",
+      "videoResolution"
+    );
+    this.assertFitsAScoreboard(video);
+  }
+
+  private void assertFitsAScoreboard(final List<String> sizes) {
+    final boolean offered = !sizes.isEmpty();
+    assertTrue(offered, String.valueOf(sizes));
+    for (final String size : sizes) {
+      final boolean tooTall = ScoreboardArguments.isTooTall(size);
+      assertFalse(tooTall, size);
+    }
   }
 
   @Test
@@ -381,13 +493,24 @@ final class AnnotationParserHandlerTest {
   void shouldDescribeTheCommandsInTheLanguageOfThePlugin() {
     final AnnotationParserHandler handler = new AnnotationParserHandler(this.plugin);
     handler.registerCommands();
-    final Command<CommandSender> dump = this.commands.getCommand("mcav dump");
-    final CommandDescription commandDescription = dump.commandDescription();
+    final String dump = this.describeInPlainText("mcav dump");
+    assertEquals("Creates a dump of the current server information", dump);
+
+    final Set<String> syntaxes = this.commands.getSyntaxes();
+    for (final String syntax : syntaxes) {
+      final String text = this.describeInPlainText(syntax);
+      final boolean described = !text.isBlank() && !text.startsWith("mcav.");
+      assertTrue(described, "%s: %s".formatted(syntax, text));
+    }
+  }
+
+  private String describeInPlainText(final String syntax) {
+    final Command<CommandSender> command = this.commands.getCommand(syntax);
+    final CommandDescription commandDescription = command.commandDescription();
     final Description description = commandDescription.description();
-    final RichDescription rich = (RichDescription) description;
+    final RichDescription rich = assertInstanceOf(RichDescription.class, description, syntax);
     final Component contents = rich.contents();
-    final String text = Components.plain(contents);
-    assertEquals("Creates a dump of the current server information", text);
+    return Components.plain(contents);
   }
 
   @Test
@@ -524,7 +647,9 @@ final class AnnotationParserHandlerTest {
 
   @Test
   void shouldRefuseANullPlugin() {
-    assertThrows(NullPointerException.class, () -> new AnnotationParserHandler(null));
+    final NullPointerException exception = assertThrows(NullPointerException.class, () -> new AnnotationParserHandler(null));
+    final String message = exception.getMessage();
+    assertEquals("Plugin must not be null!", message);
   }
 
   @Test

@@ -111,6 +111,20 @@ final class MapDisplaySettingsTest {
   }
 
   @Test
+  void shouldRefuseANegativeMapIdAnEmptySideOrANegativeResolution() {
+    final Pair<Integer, Integer> size = Pair.pair(1, 1);
+    final Pair<Integer, Integer> noWidth = Pair.pair(0, 1);
+    final Pair<Integer, Integer> noHeight = Pair.pair(1, 0);
+    final Pair<Integer, Integer> negativeWidth = Pair.pair(-1, 128);
+    final UUID viewer = UUID.randomUUID();
+    final List<UUID> viewers = List.of(viewer);
+    assertThrows(IllegalArgumentException.class, () -> MapDisplaySettings.createConfiguration(size, size, -1, viewers));
+    assertThrows(IllegalArgumentException.class, () -> MapDisplaySettings.createConfiguration(noWidth, size, 0, viewers));
+    assertThrows(IllegalArgumentException.class, () -> MapDisplaySettings.createConfiguration(noHeight, size, 0, viewers));
+    assertThrows(IllegalArgumentException.class, () -> MapDisplaySettings.createConfiguration(size, negativeWidth, 0, viewers));
+  }
+
+  @Test
   void shouldFollowTheEqualityContract() {
     final MapConfiguration configuration = this.createSingleMapConfiguration();
     final MapDisplaySettings settings = MapDisplaySettings.of(configuration, DitheringArgument.NEAREST_COLOR);
