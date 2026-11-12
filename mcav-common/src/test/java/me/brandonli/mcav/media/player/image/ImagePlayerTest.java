@@ -679,4 +679,40 @@ final class ImagePlayerTest {
 
     return true;
   }
+
+  @Test
+  void shouldReportAFailingFrameOfTheSourceAndKeepPlaying() throws InterruptedException {
+    final IllegalStateException lostFrame = new IllegalStateException("the capture lost a frame!");
+    final AtomicInteger produced = new AtomicInteger();
+    final FrameSource source = FrameSource.supplier(
+      () -> this.failOnTheSecondFrame(produced, lostFrame),
+      SMALL_FRAME_SIZE,
+      SMALL_FRAME_SIZE,
+      QUICK_FRAME_RATE
+    );
+    final List<Throwable> reported = Collections.synchronizedList(new ArrayList<>());
+    final AtomicInteger delivered = new AtomicInteger();
+    final ImagePlayer player = ImagePlayer.player();
+    player.setExceptionHandler((_, failure) -> reported.add(failure));
+    attach(player, (_, _) -> this.countFrame(delivered));
+    try {
+      final boolean started = player.start(source);
+      awaitCount(delivered, 3);
+
+      final List<Throwable> expected = List.of(lostFrame);
+      assertTrue(started);
+      assertEquals(expected, reported, "a failing frame of the source is reported once and playback goes on");
+    } finally {
+      player.release();
+    }
+  }
+
+  private int[] failOnTheSecondFrame(final AtomicInteger produced, final IllegalStateException lostFrame) {
+    final int count = produced.incrementAndGet();
+    if (count == 2) {
+      throw lostFrame;
+    }
+
+    return solidPixels(SMALL_FRAME_SIZE, SMALL_FRAME_SIZE);
+  }
 }
