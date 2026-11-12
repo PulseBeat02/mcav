@@ -31,6 +31,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import me.brandonli.mcav.plugin.locale.Message;
+import me.brandonli.mcav.plugin.testing.StandardErrorCapture;
 import me.brandonli.mcav.plugin.utils.DumpUtils;
 import net.kyori.adventure.text.Component;
 import org.bukkit.command.CommandSender;
@@ -80,6 +81,25 @@ final class DumpCommandTest {
     attempted.countDown();
     final String message = "offline!";
     throw new IllegalStateException(message);
+  }
+
+  @Test
+  void shouldLogAFailedUploadWithItsCause() {
+    final CommandSender sender = mock(CommandSender.class);
+    final CountDownLatch attempted = new CountDownLatch(1);
+    final DumpCommand command = new DumpCommand(() -> this.failUpload(attempted));
+    final Component failure = Message.DUMP_FAILED.build();
+    final String output;
+    try (final StandardErrorCapture errors = StandardErrorCapture.start()) {
+      command.createDump(sender);
+      verify(sender, timeout(TIMEOUT_MILLISECONDS)).sendMessage(failure);
+      output = errors.getOutput();
+    }
+
+    final boolean logged = output.contains("Failed to upload the dump.");
+    final boolean withCause = output.contains("offline!");
+    assertTrue(logged, output);
+    assertTrue(withCause, output);
   }
 
   @Test
