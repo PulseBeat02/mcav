@@ -303,12 +303,14 @@ final class ColorFiltersTest {
   }
 
   @Test
-  void shouldBlendTwoFramesOfTheSameSize() {
-    try (final ImageBuffer white = Images.solid(SOLID_SIDE, SOLID_SIDE, WHITE)) {
-      final BlendFilter filter = new BlendFilter(white, 0.25);
-      final int blended = applyToSolid(filter, BLACK);
-      assertEquals(0xFFBFBFBF, blended);
-    }
+  void shouldBlendWithItsOwnCopyOfTheImageAndRejectAReleasedImage() {
+    final ImageBuffer white = Images.solid(SOLID_SIDE, SOLID_SIDE, WHITE);
+    final BlendFilter filter = new BlendFilter(white, 0.25);
+    white.close();
+
+    final int blended = applyToSolid(filter, BLACK);
+    assertEquals(0xFFBFBFBF, blended, "the filter blends with its own copy of the image");
+    assertThrows(IllegalStateException.class, () -> new BlendFilter(white, BLEND_ALPHA));
   }
 
   @Test

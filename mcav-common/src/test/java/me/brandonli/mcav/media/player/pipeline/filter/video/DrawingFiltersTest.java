@@ -307,6 +307,24 @@ final class DrawingFiltersTest {
   }
 
   @Test
+  void shouldOverlayItsOwnCopyOfTheImageAndRejectAReleasedImage() {
+    final ImageBuffer overlay = Images.solid(OVERLAY_SIZE, OVERLAY_SIZE, RED_ARGB);
+    final OverlayImageFilter filter = new OverlayImageFilter(overlay, 0, 0);
+    overlay.close();
+
+    try (final ImageBuffer image = Images.solid(OVERLAY_FRAME_SIZE, OVERLAY_FRAME_SIZE, BLUE_ARGB)) {
+      final boolean modified = filter.applyFilter(image);
+      final int covered = pixelAt(image, 1, 1);
+      final int uncovered = pixelAt(image, 2, 2);
+      assertTrue(modified);
+      assertEquals(RED_ARGB, covered, "the filter draws its own copy of the image");
+      assertEquals(BLUE_ARGB, uncovered);
+    }
+
+    assertThrows(IllegalStateException.class, () -> new OverlayImageFilter(overlay, 0, 0));
+  }
+
+  @Test
   void shouldOverlayOutsideTheFrameChangeNothing() {
     try (
       final ImageBuffer overlay = Images.solid(OVERLAY_SIZE, OVERLAY_SIZE, RED_ARGB);
