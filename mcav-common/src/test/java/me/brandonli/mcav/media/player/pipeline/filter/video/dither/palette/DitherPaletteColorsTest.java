@@ -37,6 +37,20 @@ final class DitherPaletteColorsTest {
   }
 
   @Test
+  void shouldCopyTheColorArrayDuringConstruction() {
+    final int[] colors = { 0x000000, 0xFFFFFF };
+    final DitherPalette palette = DitherPalette.colors(colors);
+    colors[1] = 0xFF0000;
+
+    final int[] paletteColors = palette.getPalette();
+    final int[] expectedPalette = new int[] { 0xFF000000, 0xFFFFFFFF };
+    assertArrayEquals(expectedPalette, paletteColors, "changing the array afterward does not change the palette");
+
+    final int[] expectedColors = new int[] { 0x000000, 0xFF0000 };
+    assertArrayEquals(expectedColors, colors, "and the palette never writes its opaque colors into the array");
+  }
+
+  @Test
   void shouldRejectMissingColors() {
     final List<Integer> withNull = Arrays.asList(0x000000, null);
     assertThrows(NullPointerException.class, () -> DitherPalette.colors(withNull));
