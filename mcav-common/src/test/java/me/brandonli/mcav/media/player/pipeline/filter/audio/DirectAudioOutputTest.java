@@ -303,6 +303,18 @@ final class DirectAudioOutputTest {
   }
 
   @Test
+  void shouldPassOnTheRejectionOfAChunkThatIsNotAWholeFrame() {
+    final SourceDataLine line = mock(SourceDataLine.class);
+    final IllegalArgumentException rejection = new IllegalArgumentException("Not a whole frame!");
+    doThrow(rejection).when(line).write(ArgumentMatchers.any(byte[].class), eq(0), eq(3));
+    final DirectAudioOutput output = new DirectAudioOutput((_, _) -> line);
+    output.start();
+    final ByteBuffer samples = ByteBuffer.allocate(3);
+    final IllegalArgumentException thrown = assertThrows(IllegalArgumentException.class, () -> output.applyFilter(samples, METADATA));
+    assertSame(rejection, thrown);
+  }
+
+  @Test
   void shouldReuseOneArrayForEveryChunk() {
     final SourceDataLine line = mock(SourceDataLine.class);
     final DirectAudioOutput output = new DirectAudioOutput((_, _) -> line);
