@@ -150,6 +150,7 @@ public final class VideoMcv2Command extends AbstractVideoCommand {
    * @param configurationProvider the provider, which returns {@code Mcv2Settings}
    * @return the pipeline step that encodes the frames, or dithers them onto the maps
    * @throws NullPointerException                       if an argument is null
+   * @throws ClassCastException                         if the provider builds no {@code Mcv2Settings}
    * @throws java.util.concurrent.CancellationException if the video startup was cancelled or the manager is shut down
    * @since 1.0.0
    */
