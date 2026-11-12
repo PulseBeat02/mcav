@@ -607,6 +607,20 @@ final class Mcv2PlayCommandTest {
   }
 
   @Test
+  void shouldStartNothingOnAWallLargerThanMcv2Plays() throws IOException, InterruptedException {
+    final String wall = "64x1";
+    final String file = this.archive(Mcv2PlaybackTest.stream()).toString();
+    this.command.play(this.sender, this.selector, wall, MAP_ID, TICKS, file);
+    this.runHandedOver();
+    this.command.stream(this.sender, this.selector, wall, MAP_ID, FRAMES_PER_SECOND, file);
+    this.runHandedOver();
+
+    verify(this.sender, Mockito.times(2)).sendMessage(Message.MCV2_SIZE_ERROR.build());
+    verify(this.packs, never()).open(any());
+    verify(TestServer.getScheduler(), never()).runTaskTimerAsynchronously(any(Plugin.class), any(Runnable.class), anyLong(), anyLong());
+  }
+
+  @Test
   void shouldEncodeAVideoFileAheadOfTimeOnItsOwnThread() throws Exception {
     final Path output = this.streams.resolve(STREAM_FILE_NAME);
     final SolidFrames frames = new SolidFrames(FRAME_COUNT, new CountDownLatch(0));
