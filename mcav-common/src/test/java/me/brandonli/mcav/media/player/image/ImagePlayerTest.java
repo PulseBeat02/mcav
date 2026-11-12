@@ -198,7 +198,7 @@ final class ImagePlayerTest {
   }
 
   @Test
-  void shouldDeliverFramesAtTheFrameRateOfTheSource() throws InterruptedException {
+  void shouldKeepTheFrameRateOfTheSourceThroughAFrameOfTheWrongSizeAndAFailingFilter() throws InterruptedException {
     final AtomicInteger consumed = new AtomicInteger();
     final List<String> failures = Collections.synchronizedList(new ArrayList<>());
     final FrameSource source = framesWithOneOfTheWrongSize();
@@ -206,20 +206,13 @@ final class ImagePlayerTest {
     final ImagePlayer player = checkingPlayer(failures, times, consumed);
 
     final boolean started = player.start(source);
-    final boolean startedTwice = player.start(source);
     awaitCount(consumed, 30);
-    final boolean released = player.release();
-    final boolean releasedTwice = player.release();
-    final boolean startedAfterRelease = player.start(source);
+    player.release();
 
     final int total = consumed.get();
     final double rate = rate(times);
     final List<String> expectedFailures = List.of("Failed to render a frame.");
     assertTrue(started);
-    assertFalse(startedTwice);
-    assertTrue(released);
-    assertFalse(releasedTwice);
-    assertFalse(startedAfterRelease);
 
     final boolean consumedEnough = total >= 30;
     assertTrue(consumedEnough, "consumed %s".formatted(total));
@@ -227,6 +220,23 @@ final class ImagePlayerTest {
     final boolean rateNearFifty = rate > 35.0 && rate < 65.0;
     assertTrue(rateNearFifty, "frames are delivered at about 50 per second, got %s".formatted(rate));
     assertEquals(expectedFailures, failures);
+  }
+
+  @Test
+  void shouldStartAndReleaseOnlyOnce() {
+    final ImagePlayer player = ImagePlayer.player();
+    final FrameSource source = solidFrames(SMALL_FRAME_SIZE, SMALL_FRAME_SIZE, FRAME_RATE);
+
+    final boolean started = player.start(source);
+    final boolean startedTwice = player.start(source);
+    final boolean released = player.release();
+    final boolean releasedTwice = player.release();
+    final boolean startedAfterRelease = player.start(source);
+    assertTrue(started);
+    assertFalse(startedTwice, "a playing player refuses a second source");
+    assertTrue(released);
+    assertFalse(releasedTwice);
+    assertFalse(startedAfterRelease, "a released player cannot be started again");
   }
 
   @Test
