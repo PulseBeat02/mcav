@@ -97,12 +97,16 @@ final class DirectAudioOutputTest {
     final SourceDataLine line
   ) {
     final float sampleRate = format.getSampleRate();
+    final int sampleSizeInBits = format.getSampleSizeInBits();
     final int channels = format.getChannels();
     final AudioFormat.Encoding encoding = format.getEncoding();
+    final boolean bigEndian = format.isBigEndian();
     final int expected = (48_000 * 4) / 5;
     assertEquals(48_000.0f, sampleRate);
+    assertEquals(16, sampleSizeInBits);
     assertEquals(2, channels);
     assertEquals(AudioFormat.Encoding.PCM_SIGNED, encoding);
+    assertFalse(bigEndian);
     assertEquals(expected, bufferSize);
 
     opened.incrementAndGet();
