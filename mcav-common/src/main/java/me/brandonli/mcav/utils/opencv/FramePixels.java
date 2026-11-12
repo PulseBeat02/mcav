@@ -20,6 +20,7 @@ package me.brandonli.mcav.utils.opencv;
 import com.google.common.base.Preconditions;
 import java.nio.Buffer;
 import java.nio.ByteBuffer;
+import java.nio.ReadOnlyBufferException;
 import org.bytedeco.javacv.Frame;
 
 /**
@@ -98,6 +99,10 @@ public final class FramePixels {
     final int rowBytes = width * BGR_CHANNELS;
     final int capacity = target.capacity();
     Preconditions.checkArgument(capacity >= size, "Target capacity of %s bytes must hold the %s bytes of the frame!", capacity, size);
+
+    if (target.isReadOnly()) {
+      throw new ReadOnlyBufferException();
+    }
 
     copyRows(source, target, rowBytes, height, stride);
   }

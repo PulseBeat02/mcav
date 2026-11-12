@@ -123,7 +123,7 @@ final class FramePixelsTest {
       final Frame audio = new Frame();
       final Frame noPlanes = frame(1, 1, 3, new byte[3]);
       final Frame shortSamples = frame(1, 1, 3, new byte[3]);
-      final Frame shortRows = frame(2, 1, 5, new byte[5])
+      final Frame shortRows = frame(2, 1, 5, new byte[6])
     ) {
       noPlanes.image = new Buffer[0];
       final ShortBuffer samples = ShortBuffer.allocate(3);
@@ -160,8 +160,9 @@ final class FramePixelsTest {
   void shouldRejectAReadOnlyTarget() {
     final ByteBuffer writable = ByteBuffer.allocate(6);
     final ByteBuffer readOnly = writable.asReadOnlyBuffer();
-    try (final Frame compact = frame(2, 1, 6, new byte[6])) {
+    try (final Frame compact = frame(2, 1, 6, new byte[6]); final Frame paddedWithoutRows = frame(2, 0, 8, new byte[0])) {
       assertThrows(ReadOnlyBufferException.class, () -> FramePixels.copyBgr(compact, readOnly));
+      assertThrows(ReadOnlyBufferException.class, () -> FramePixels.copyBgr(paddedWithoutRows, readOnly));
     }
   }
 
