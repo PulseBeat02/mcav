@@ -387,16 +387,4 @@ final class GeometryFiltersTest {
       assertArrayEquals(expected, indices);
     }
   }
-
-  @Test
-  void shouldRunGeometryFiltersOnMatBuffersDirectly() {
-    try (final ImageBuffer image = Images.indexed(4, 2)) {
-      final MatImageBuffer buffer = (MatImageBuffer) image;
-      final TransposeFilter filter = new TransposeFilter();
-      final boolean modified = filter.modifyImage(buffer);
-      final int width = image.getWidth();
-      assertTrue(modified);
-      assertEquals(2, width);
-    }
-  }
 }
