@@ -248,7 +248,7 @@ and the command tells you that the console has the details.
 | &nbsp;&nbsp;&nbsp;&nbsp;`playerSelector`  | A selector for the players that can see the video                                                        |
 | &nbsp;&nbsp;&nbsp;&nbsp;`playerType`      | The type of video player to use                                                                          |
 | &nbsp;&nbsp;&nbsp;&nbsp;`audioType`       | The type of audio output to use                                                                          |
-| &nbsp;&nbsp;&nbsp;&nbsp;`videoResolution` | A resolution in `<width>x<height>` format (example, 640x360)                                             |
+| &nbsp;&nbsp;&nbsp;&nbsp;`videoResolution` | A resolution in `<width>x<height>` format (example, 32x18)                                               |
 | &nbsp;&nbsp;&nbsp;&nbsp;`location`        | The location in the world to display the video                                                           |
 | &nbsp;&nbsp;&nbsp;&nbsp;`ytdlpOptions`           | Additional options if yt-dlp parses the media, in the format `--yt-dlp{name=value,switch}`; see [which options are accepted](#yt-dlp-options)            |
 | &nbsp;&nbsp;&nbsp;&nbsp;`mrl`             | The Media Resource Locator pointing to the video                                                         |
@@ -282,7 +282,7 @@ and the command tells you that the console has the details.
 | &nbsp;&nbsp;&nbsp;&nbsp;`playerSelector`  | A selector for the players that can see the video                                                                     |
 | &nbsp;&nbsp;&nbsp;&nbsp;`playerType`      | The type of video player to use                                                                                       |
 | &nbsp;&nbsp;&nbsp;&nbsp;`audioType`       | The type of audio output to use                                                                                       |
-| &nbsp;&nbsp;&nbsp;&nbsp;`videoResolution` | A resolution in `<width>x<height>` format (example, 640x360)                                                          |
+| &nbsp;&nbsp;&nbsp;&nbsp;`videoResolution` | A resolution in `<width>x<height>` format (example, 64x36)                                                            |
 | &nbsp;&nbsp;&nbsp;&nbsp;`character`       | The character to use for rendering the video; type it in double quotes, such as `"█"`                                 |
 | &nbsp;&nbsp;&nbsp;&nbsp;`location`        | The location where to display the video entity                                                                        |
 | &nbsp;&nbsp;&nbsp;&nbsp;`ytdlpOptions`           | Additional options if yt-dlp parses the media, in the format `--yt-dlp{name=value,switch}`; see [which options are accepted](#yt-dlp-options)            |
