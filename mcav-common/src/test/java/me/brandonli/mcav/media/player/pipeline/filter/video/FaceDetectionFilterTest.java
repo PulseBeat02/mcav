@@ -27,6 +27,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
+import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.util.Arrays;
 import me.brandonli.mcav.media.image.ImageBuffer;
@@ -58,6 +59,7 @@ final class FaceDetectionFilterTest {
   private static final String MISSING_CASCADE_NAME = "missing.xml";
   private static final String UNPARSABLE_CASCADE_NAME = "unparsable.xml";
   private static final String WITHOUT_CASCADE_NAME = "without-cascade.xml";
+  private static final String INVALID_CASCADE_PATH = "cascade\0.xml";
 
   @TempDir
   private Path directory;
@@ -178,6 +180,16 @@ final class FaceDetectionFilterTest {
     assertThrows(IllegalArgumentException.class, () -> new FaceDetectionFilter(unparsable, RED));
     assertThrows(IllegalArgumentException.class, () -> new FaceDetectionFilter(withoutCascade, RED));
     assertThrows(NullPointerException.class, () -> new FaceDetectionFilter((Path) null, RED));
+  }
+
+  @Test
+  void shouldRejectAMissingColorOrPathAndAnInvalidPath() throws IOException {
+    final Path cascade = this.copyCascade(ACCEPTING_CASCADE_NAME);
+    final String cascadePath = cascade.toString();
+    assertThrows(NullPointerException.class, () -> new FaceDetectionFilter(cascade, null));
+    assertThrows(NullPointerException.class, () -> new FaceDetectionFilter(cascadePath, null));
+    assertThrows(NullPointerException.class, () -> new FaceDetectionFilter((String) null, RED));
+    assertThrows(InvalidPathException.class, () -> new FaceDetectionFilter(INVALID_CASCADE_PATH, RED));
   }
 
   private enum RowKind {
