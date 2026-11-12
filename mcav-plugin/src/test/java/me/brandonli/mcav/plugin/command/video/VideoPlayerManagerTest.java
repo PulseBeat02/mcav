@@ -141,8 +141,16 @@ final class VideoPlayerManagerTest {
   }
 
   @Test
-  void shouldRefuseANullPlugin() {
-    assertThrows(NullPointerException.class, () -> new VideoPlayerManager(null));
+  void shouldRefuseNullArguments() {
+    final NullPointerException nullPlugin = assertThrows(NullPointerException.class, () -> new VideoPlayerManager(null));
+    final String pluginMessage = nullPlugin.getMessage();
+    assertEquals("Plugin must not be null!", pluginMessage);
+
+    final NullPointerException nullDevices = assertThrows(NullPointerException.class, () -> this.manager.setDevices(null));
+    final String devicesMessage = nullDevices.getMessage();
+    assertEquals("Devices must not be null!", devicesMessage);
+
+    assertThrows(NullPointerException.class, () -> this.manager.startFilter(null));
   }
 
   @Test
