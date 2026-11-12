@@ -121,21 +121,24 @@ final class MatVideoFilterTest {
     final AtomicReference<OriginalVideoMetadata> received = new AtomicReference<>();
     final VideoFilter recorder = (_, metadata) -> this.recordMetadata(received, metadata);
     try (final ImageBuffer image = Images.indexed(IMAGE_SIDE, IMAGE_SIDE)) {
-      final ByteBuffer before = ByteBuffer.allocate(image.getData().remaining()).put(image.getData()).flip();
       final boolean changed = recorder.applyFilter(image);
       final OriginalVideoMetadata metadata = received.get();
-      final boolean noOperation = VideoFilter.NO_OPERATION.applyFilter(image);
-      assertTrue(changed);
-      assertFalse(noOperation, "the no-op filter leaves every frame untouched");
+      assertTrue(changed, "the single-argument apply returns the result of the filter");
       assertSame(OriginalVideoMetadata.EMPTY, metadata);
+    }
+  }
 
+  @Test
+  void shouldLeaveTheFrameUntouchedWithTheNoOperationFilter() {
+    try (final ImageBuffer image = Images.indexed(IMAGE_SIDE, IMAGE_SIDE)) {
+      final ByteBuffer before = ByteBuffer.allocate(image.getData().remaining()).put(image.getData()).flip();
+      final boolean changed = VideoFilter.NO_OPERATION.applyFilter(image);
       final ByteBuffer data = image.getData();
-      assertEquals(before, data);
-
       final int width = image.getWidth();
-      assertEquals(IMAGE_SIDE, width);
-
       final int height = image.getHeight();
+      assertFalse(changed, "the no-operation filter leaves every frame untouched");
+      assertEquals(before, data);
+      assertEquals(IMAGE_SIDE, width);
       assertEquals(IMAGE_SIDE, height);
     }
   }
