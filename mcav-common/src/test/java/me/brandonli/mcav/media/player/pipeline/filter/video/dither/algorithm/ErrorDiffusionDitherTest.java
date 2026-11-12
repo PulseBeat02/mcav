@@ -161,7 +161,7 @@ final class ErrorDiffusionDitherTest {
   }
 
   @Test
-  void shouldDiffuseErrorsOfSingleChannels() {
+  void shouldKeepNeighboringDarkSingleChannelColorsBlack() {
     final int[] pixels = { DARK_GREEN, DARK_BLUE, DARK_RED, BLACK };
     final ErrorDiffusionDither dither = build(ErrorDiffusionDitherBuilder.Algorithm.FLOYD_STEINBERG);
     try (final ImageBuffer image = ImageBuffer.buffer(pixels, 2, 2)) {
