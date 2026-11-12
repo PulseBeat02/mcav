@@ -46,11 +46,14 @@ import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.plugin.MCAVSandbox;
 import me.brandonli.mcav.plugin.audio.AudioProvider;
 import me.brandonli.mcav.plugin.listener.OnlinePlayers;
+import me.brandonli.mcav.plugin.locale.Message;
+import me.brandonli.mcav.plugin.testing.Components;
 import me.brandonli.mcav.plugin.testing.TestServer;
 import me.brandonli.mcav.plugin.utils.AudioArgument;
 import me.brandonli.mcav.plugin.utils.DitheringArgument;
 import me.brandonli.mcav.plugin.utils.PlayerArgument;
 import me.brandonli.mcav.utils.immutable.Pair;
+import net.kyori.adventure.text.Component;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -237,6 +240,11 @@ final class VideoMcv2CommandTest {
     this.play(RESOLUTION, "65x1", MAP_ID);
     this.play("nope", BLOCK_DIMENSIONS, MAP_ID);
     verify(this.support, never()).configure(any(), any(), any(), eq(MAP_ID), any(), any());
+
+    final Component error = Message.UNSUPPORTED_DIMENSION.build();
+    final List<Component> messages = Components.received(this.sender);
+    final List<Component> expected = List.of(error, error);
+    assertEquals(expected, messages);
 
     this.play(RESOLUTION, BLOCK_DIMENSIONS, 21);
     verify(this.support).configure(any(), any(), any(), eq(21), any(), any());
