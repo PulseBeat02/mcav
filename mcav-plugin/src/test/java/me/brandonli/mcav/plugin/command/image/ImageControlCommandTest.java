@@ -103,7 +103,10 @@ final class ImageControlCommandTest {
 
   @Test
   void shouldRefuseNullArguments() {
-    assertThrows(NullPointerException.class, () -> new ImageControlCommand(null));
+    final NullPointerException exception = assertThrows(NullPointerException.class, () -> new ImageControlCommand(null));
+    final String message = exception.getMessage();
+    assertEquals("Plugin must not be null!", message);
+
     assertThrows(NullPointerException.class, () -> this.command.releaseImage(null));
   }
 }
