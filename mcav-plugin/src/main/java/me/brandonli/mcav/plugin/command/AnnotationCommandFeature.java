@@ -36,6 +36,7 @@ public interface AnnotationCommandFeature {
    * Performs setup that needs the fully constructed feature, such as registering listeners.
    *
    * @param parser the parser the feature's annotations are about to be parsed with
+   * @throws NullPointerException if {@code parser} is null
    * @since 1.0.0
    */
   default void registerFeature(final AnnotationParser<CommandSender> parser) {

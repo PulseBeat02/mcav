@@ -70,7 +70,9 @@ public final class MapDisplaySettings {
    * @param mapId      the id of the top-left map
    * @param players    the players who see the maps
    * @return the configuration
-   * @throws NullPointerException if an argument is null
+   * @throws NullPointerException     if an argument is null
+   * @throws IllegalArgumentException if {@code mapId} is negative, a side of {@code blocks} is not positive, a side of
+   *                                  {@code resolution} is negative, or a default resolution would overflow an integer
    * @since 1.0.0
    */
   public static MapConfiguration createConfiguration(
