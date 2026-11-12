@@ -649,4 +649,34 @@ final class ImagePlayerTest {
 
     return solidPixels(SMALL_FRAME_SIZE, SMALL_FRAME_SIZE);
   }
+
+  @Test
+  void shouldDeliverTheNextFramesToAPipelineAttachedWhilePlaying() throws InterruptedException {
+    final AtomicInteger replacedFrames = new AtomicInteger();
+    final AtomicInteger attachedFrames = new AtomicInteger();
+    final FrameSource source = solidFrames(SMALL_FRAME_SIZE, SMALL_FRAME_SIZE, QUICK_FRAME_RATE);
+    final ImagePlayer player = ImagePlayer.player();
+    attach(player, (_, _) -> this.countFrame(replacedFrames));
+    try {
+      final boolean started = player.start(source);
+      awaitCount(replacedFrames, 1);
+      assertTrue(started);
+
+      attach(player, (_, _) -> this.countFrame(attachedFrames));
+      awaitCount(attachedFrames, 1);
+      final int replacedTotal = replacedFrames.get();
+      awaitCount(attachedFrames, 3);
+
+      final int replacedTotalLater = replacedFrames.get();
+      assertEquals(replacedTotal, replacedTotalLater, "the replaced pipeline receives no further frame");
+    } finally {
+      player.release();
+    }
+  }
+
+  private boolean countFrame(final AtomicInteger frames) {
+    frames.incrementAndGet();
+
+    return true;
+  }
 }
