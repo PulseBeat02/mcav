@@ -68,6 +68,7 @@ public final class MCAV implements MCAVApi {
   private final DependencyLoader dependencyLoader;
   private final ModuleLoader moduleLoader;
   private final CapabilityGuard guard;
+  private final Runnable buildPalette;
   private final AtomicBoolean installing;
   private final Object lifecycleLock;
   private final NativeHeapTrimmer trimmer;
@@ -78,14 +79,16 @@ public final class MCAV implements MCAVApi {
     final DependencyLoader defaultDependencyLoader = new DependencyLoader();
     final ModuleLoader defaultModuleLoader = new ModuleLoader();
     final CapabilityGuard sharedGuard = CapabilityGuard.shared();
-    this(defaultDependencyLoader, defaultModuleLoader, sharedGuard);
+    this(defaultDependencyLoader, defaultModuleLoader, sharedGuard, DitherPalette::init);
   }
 
+  // Takes the palette step, so a test sees install() build the lookup tables, which kills the mutant that skips DitherPalette.init().
   @VisibleForTesting
-  MCAV(final DependencyLoader dependencyLoader, final ModuleLoader moduleLoader, final CapabilityGuard guard) {
+  MCAV(final DependencyLoader dependencyLoader, final ModuleLoader moduleLoader, final CapabilityGuard guard, final Runnable buildPalette) {
     this.dependencyLoader = dependencyLoader;
     this.moduleLoader = moduleLoader;
     this.guard = guard;
+    this.buildPalette = buildPalette;
     this.installing = new AtomicBoolean(false);
     this.lifecycleLock = new Object();
     this.trimmer = NativeHeapTrimmer.create();
@@ -164,6 +167,9 @@ public final class MCAV implements MCAVApi {
    * is installing it, fails. After {@link #release()}, or after an installation that failed, the library can be
    * installed again.
    *
+   * <p>Installing calls {@link ImageIO#setUseCache(boolean)} with {@code false}, which applies to the whole JVM: every
+   * library and plugin in it then caches image streams in memory instead of in temporary files.
+   *
    * @param modules a non-null array of non-null module classes implementing {@link MCAVModule}, with
    *                accessible no-argument constructors; duplicates are started once and an empty array is allowed
    * @throws MCAVLoadingException if the library cannot be installed, is installed already, or is being installed by
@@ -217,7 +223,7 @@ public final class MCAV implements MCAVApi {
   private void loadPalette() {
     LOGGER.info("Building the map color lookup table.");
     final long start = System.currentTimeMillis();
-    DitherPalette.init();
+    this.buildPalette.run();
     final long end = System.currentTimeMillis();
     LOGGER.info("Map color lookup table built in {} ms.", end - start);
   }

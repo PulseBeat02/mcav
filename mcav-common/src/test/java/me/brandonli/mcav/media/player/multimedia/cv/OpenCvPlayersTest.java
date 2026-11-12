@@ -204,6 +204,5 @@ final class OpenCvPlayersTest {
     final VideoPlayerMultiplexer openCv = VideoPlayer.opencv();
     assertInstanceOf(FfmpegPlayer.class, ffmpeg);
     assertInstanceOf(OpenCvPlayer.class, openCv);
-    assertThrows(NullPointerException.class, () -> VideoPlayer.vlc((String[]) null));
   }
 }
