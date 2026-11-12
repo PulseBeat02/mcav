@@ -298,17 +298,7 @@ final class VideoScoreboardCommandTest {
         anyString(),
         eq(filters)
       );
-    this.command.playVideo(
-      this.sender,
-      this.selector,
-      PlayerArgument.FFMPEG,
-      AudioArgument.NONE,
-      RESOLUTION,
-      CHARACTER,
-      "",
-      MRL,
-      filters
-    );
+    this.command.playVideo(this.sender, this.selector, PlayerArgument.FFMPEG, AudioArgument.NONE, RESOLUTION, CHARACTER, "", MRL, filters);
 
     verify(this.command).playVideo(
       any(AbstractVideoCommand.VideoConfigurationProvider.class),
