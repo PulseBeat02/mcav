@@ -504,7 +504,7 @@ final class AbstractImageCommandTest {
   }
 
   @Test
-  void shouldNameTheImageThatFailedToLoadInTheLog() throws IOException {
+  void shouldLogAnImageThatFailedToLoadAsAnErrorWithItsTrace() throws IOException {
     final Path file = this.writeImage(FILTER_FAILURE_FILE_NAME, PNG_FORMAT);
     final String mrl = file.toString();
     final IllegalStateException failure = new IllegalStateException("resize failed after decoding!");
@@ -521,7 +521,11 @@ final class AbstractImageCommandTest {
     }
 
     final boolean named = output.contains("Image %s could not be loaded.".formatted(mrl));
+    final boolean error = output.contains(ERROR_LEVEL);
+    final boolean traced = output.contains(STACK_FRAME);
     assertTrue(named, "the log of a failed image names the media it could not load");
+    assertTrue(error, output);
+    assertTrue(traced, output);
   }
 
   @Test
