@@ -262,6 +262,28 @@ final class AnnotationParserHandlerTest {
   }
 
   @Test
+  void shouldTakeTheCharacterOfEveryTextDisplayInQuotes() {
+    final AnnotationParserHandler handler = new AnnotationParserHandler(this.plugin);
+    handler.registerCommands();
+    final List<String> textDisplays = this.commands
+      .getSyntaxes()
+      .stream()
+      .filter(syntax -> syntax.contains(" character "))
+      .toList();
+
+    final int size = textDisplays.size();
+    assertEquals(6, size, String.valueOf(textDisplays));
+
+    for (final String syntax : textDisplays) {
+      final ArgumentParser<CommandSender, ?> characterParser = this.parserOf(syntax, "character");
+      final StringParser<?> parser = assertInstanceOf(StringParser.class, characterParser, syntax);
+
+      final StringParser.StringMode stringMode = parser.stringMode();
+      assertEquals(StringParser.StringMode.QUOTED, stringMode, syntax);
+    }
+  }
+
+  @Test
   void shouldOfferTheChatCommandsTheSizesOfTheChatWindow() {
     final AnnotationParserHandler handler = new AnnotationParserHandler(this.plugin);
     handler.registerCommands();
