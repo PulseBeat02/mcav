@@ -123,7 +123,7 @@ final class FramePixelsTest {
       final Frame audio = new Frame();
       final Frame noPlanes = frame(1, 1, 3, new byte[3]);
       final Frame shortSamples = frame(1, 1, 3, new byte[3]);
-      final Frame shortRows = frame(2, 1, 5, new byte[5])
+      final Frame shortRows = frame(2, 1, 5, new byte[6])
     ) {
       noPlanes.image = new Buffer[0];
       final ShortBuffer samples = ShortBuffer.allocate(3);
