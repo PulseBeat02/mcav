@@ -121,6 +121,7 @@ final class DirectAudioOutputTest {
     order.verify(line).stop();
     order.verify(line).flush();
     order.verify(line).close();
+    order.verifyNoMoreInteractions();
   }
 
   @Test
