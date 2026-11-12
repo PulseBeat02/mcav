@@ -91,6 +91,19 @@ final class DitherUtilsTest {
   }
 
   @Test
+  void shouldReadMapDataIndicesAsUnsignedAndGiveReservedIndicesNoColor() {
+    final DitherPalette mapPalette = DitherPalette.DEFAULT_MAP_PALETTE;
+    final int[] colors = mapPalette.getPalette();
+    final int highIndex = 200;
+    final int highColor = DitherUtils.getColorFromMinecraftPalette(mapPalette, (byte) highIndex);
+    final int expectedHighColor = colors[highIndex];
+    assertEquals(expectedHighColor, highColor, "the byte of index 200 is negative in Java and still names index 200");
+
+    final int reservedColor = DitherUtils.getColorFromMinecraftPalette(mapPalette, (byte) 0);
+    assertEquals(0, reservedColor, "a reserved transparent index has no color");
+  }
+
+  @Test
   void shouldMapFullyTransparentPixelsToIndexZero() {
     final byte transparent = DitherUtils.getBestColorIncludingTransparent(BLACK_WHITE, TRANSPARENT_WHITE);
     final byte opaque = DitherUtils.getBestColorIncludingTransparent(BLACK_WHITE, OPAQUE_WHITE);
