@@ -31,6 +31,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import me.brandonli.mcav.media.player.ReleasablePlayer;
 import me.brandonli.mcav.media.player.image.ImagePlayer;
@@ -277,5 +278,25 @@ final class AsyncPlayerDefaultsTest {
     }
 
     verify(player, times(ASYNC_CALL_COUNT)).release();
+  }
+
+  @Test
+  void shouldThrowWhenTheExecutorRejectsTheCall() {
+    final VideoPlayerMultiplexer player = mock(VideoPlayerMultiplexer.class, CALLS_REAL_METHODS);
+    final ImagePlayer imagePlayer = mock(ImagePlayer.class, CALLS_REAL_METHODS);
+    final Source video = mock(Source.class);
+    final Source audio = mock(Source.class);
+    final FrameSource frames = mock(FrameSource.class);
+    try (final ExecutorService executor = Executors.newSingleThreadExecutor()) {
+      executor.shutdown();
+
+      assertThrows(RejectedExecutionException.class, () -> player.startAsync(video, executor));
+      assertThrows(RejectedExecutionException.class, () -> player.startAsync(video, audio, executor));
+      assertThrows(RejectedExecutionException.class, () -> player.pauseAsync(executor));
+      assertThrows(RejectedExecutionException.class, () -> player.resumeAsync(executor));
+      assertThrows(RejectedExecutionException.class, () -> player.seekAsync(executor, SEEK_POSITION));
+      assertThrows(RejectedExecutionException.class, () -> player.releaseAsync(executor));
+      assertThrows(RejectedExecutionException.class, () -> imagePlayer.startAsync(frames, executor));
+    }
   }
 }
