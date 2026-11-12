@@ -113,6 +113,8 @@ final class ColorFiltersTest {
     assertThrows(IllegalArgumentException.class, () -> new LuminanceFilter(-1.0, 0.0));
     assertThrows(IllegalArgumentException.class, () -> new LuminanceFilter(1.0, 300.0));
     assertThrows(IllegalArgumentException.class, () -> new LuminanceFilter(1.0, -256.0));
+    assertThrows(IllegalArgumentException.class, () -> new LuminanceFilter(Double.NaN, 0.0));
+    assertThrows(IllegalArgumentException.class, () -> new LuminanceFilter(1.0, Double.NaN));
   }
 
   @Test
@@ -124,6 +126,8 @@ final class ColorFiltersTest {
     assertThrows(IllegalArgumentException.class, () -> new ThresholdFilter(256.0, THRESHOLD_MAXIMUM_VALUE, 0));
     assertThrows(IllegalArgumentException.class, () -> new ThresholdFilter(0.0, -1.0, 0));
     assertThrows(IllegalArgumentException.class, () -> new ThresholdFilter(0.0, 256.0, 0));
+    assertThrows(IllegalArgumentException.class, () -> new ThresholdFilter(Double.NaN, THRESHOLD_MAXIMUM_VALUE, 0));
+    assertThrows(IllegalArgumentException.class, () -> new ThresholdFilter(0.0, Double.NaN, 0));
   }
 
   @Test
@@ -137,6 +141,7 @@ final class ColorFiltersTest {
     assertTrue(isHalfBlue, hexadecimal);
     assertThrows(IllegalArgumentException.class, () -> new TintFilter(BLUE, TOO_LOW_WEIGHT));
     assertThrows(IllegalArgumentException.class, () -> new TintFilter(BLUE, TOO_HIGH_WEIGHT));
+    assertThrows(IllegalArgumentException.class, () -> new TintFilter(BLUE, Double.NaN));
   }
 
   private static int tintedBlue(final TintFilter filter, final int width, final int height) {
@@ -358,6 +363,7 @@ final class ColorFiltersTest {
     assertEquals(WHITE, blended);
     assertThrows(IllegalArgumentException.class, () -> new BlendFilter(other, TOO_LOW_WEIGHT));
     assertThrows(IllegalArgumentException.class, () -> new BlendFilter(other, TOO_HIGH_WEIGHT));
+    assertThrows(IllegalArgumentException.class, () -> new BlendFilter(other, Double.NaN));
     assertThrows(NullPointerException.class, () -> new BlendFilter(null, BLEND_ALPHA));
   }
 
@@ -368,6 +374,8 @@ final class ColorFiltersTest {
     assertThrows(IllegalArgumentException.class, () -> new BilateralFilter(0, 1.0, 1.0));
     assertThrows(IllegalArgumentException.class, () -> new BilateralFilter(1, 0.0, 1.0));
     assertThrows(IllegalArgumentException.class, () -> new BilateralFilter(1, 1.0, 0.0));
+    assertThrows(IllegalArgumentException.class, () -> new BilateralFilter(1, Double.NaN, 1.0));
+    assertThrows(IllegalArgumentException.class, () -> new BilateralFilter(1, 1.0, Double.NaN));
   }
 
   @Test
@@ -420,6 +428,8 @@ final class ColorFiltersTest {
     assertThrows(IllegalArgumentException.class, () -> new BlurFilter(BlurFilter.BlurType.STACK, 2));
     assertThrows(IllegalArgumentException.class, () -> new BlurFilter(BlurFilter.BlurType.GAUSSIAN, KERNEL_SIZE, -1.0, 0.0));
     assertThrows(IllegalArgumentException.class, () -> new BlurFilter(BlurFilter.BlurType.GAUSSIAN, KERNEL_SIZE, 0.0, -1.0));
+    assertThrows(IllegalArgumentException.class, () -> new BlurFilter(BlurFilter.BlurType.GAUSSIAN, KERNEL_SIZE, Double.NaN, 0.0));
+    assertThrows(IllegalArgumentException.class, () -> new BlurFilter(BlurFilter.BlurType.GAUSSIAN, KERNEL_SIZE, 0.0, Double.NaN));
     assertThrows(NullPointerException.class, () -> new BlurFilter(null, KERNEL_SIZE));
   }
 

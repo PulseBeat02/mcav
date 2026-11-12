@@ -194,6 +194,7 @@ final class DrawingFiltersTest {
 
     assertThrows(NullPointerException.class, () -> new TextFilter(null, 0, 0, TextFilter.DEFAULT_FONT, 1.0, WHITE));
     assertThrows(IllegalArgumentException.class, () -> new TextFilter("x", 0, 0, TextFilter.DEFAULT_FONT, 0.0, WHITE));
+    assertThrows(IllegalArgumentException.class, () -> new TextFilter("x", 0, 0, TextFilter.DEFAULT_FONT, Double.NaN, WHITE));
   }
 
   @Test
