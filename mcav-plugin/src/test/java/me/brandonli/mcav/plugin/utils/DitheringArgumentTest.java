@@ -55,13 +55,20 @@ final class DitheringArgumentTest {
   private static final long TIMEOUT_MILLISECONDS = TimeUnit.SECONDS.toMillis(10);
 
   private static final Map<DitheringArgument, Class<? extends DitherAlgorithm>> ERROR_DIFFUSION_ALGORITHMS = Map.of(
-    DitheringArgument.FILTER_LITE, FilterLiteDither.class,
-    DitheringArgument.FLOYD_STEINBERG, FloydDither.class,
-    DitheringArgument.JARVIS_JUDICE_NINKE, JarvisJudiceNinkeDither.class,
-    DitheringArgument.STUCKI, StuckiDither.class,
-    DitheringArgument.ATKINSON, AtkinsonDither.class,
-    DitheringArgument.STEVENSON_ARCE, StevensonArceDither.class,
-    DitheringArgument.BURKES, BurkesDither.class
+    DitheringArgument.FILTER_LITE,
+    FilterLiteDither.class,
+    DitheringArgument.FLOYD_STEINBERG,
+    FloydDither.class,
+    DitheringArgument.JARVIS_JUDICE_NINKE,
+    JarvisJudiceNinkeDither.class,
+    DitheringArgument.STUCKI,
+    StuckiDither.class,
+    DitheringArgument.ATKINSON,
+    AtkinsonDither.class,
+    DitheringArgument.STEVENSON_ARCE,
+    StevensonArceDither.class,
+    DitheringArgument.BURKES,
+    BurkesDither.class
   );
 
   @Test
