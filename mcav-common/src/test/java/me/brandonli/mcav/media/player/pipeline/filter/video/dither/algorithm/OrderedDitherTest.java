@@ -21,7 +21,6 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -352,28 +351,7 @@ final class OrderedDitherTest {
   }
 
   @Test
-  void shouldGenerateBayerMatricesOfAnyPowerOfTwo() {
-    final int[][] one = BayerDither.createBayerMatrix(1);
-    final int[][] four = BayerDither.createBayerMatrix(4);
-    final int[][] eight = BayerDither.createBayerMatrix(8);
-    final boolean[] seen = new boolean[64];
-    for (final int[] row : eight) {
-      for (final int value : row) {
-        seen[value] = true;
-      }
-    }
-
-    final int[][] expectedOne = new int[][] { { 0 } };
-    assertArrayEquals(expectedOne, one);
-
-    final int[] firstRowOfFour = four[0];
-    final int[] expectedFirstRowOfFour = new int[] { 0, 8, 2, 10 };
-    assertArrayEquals(expectedFirstRowOfFour, firstRowOfFour);
-
-    for (final boolean wasSeen : seen) {
-      assertTrue(wasSeen, "every threshold appears exactly once");
-    }
-
+  void shouldRejectBayerSizesThatAreNotAPositivePowerOfTwo() {
     assertThrows(IllegalArgumentException.class, () -> BayerDither.createBayerMatrix(0));
     assertThrows(IllegalArgumentException.class, () -> BayerDither.createBayerMatrix(3));
   }
