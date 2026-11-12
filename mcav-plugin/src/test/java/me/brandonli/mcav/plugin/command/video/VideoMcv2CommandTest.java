@@ -20,6 +20,7 @@ package me.brandonli.mcav.plugin.command.video;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -52,6 +53,7 @@ import me.brandonli.mcav.plugin.utils.PlayerArgument;
 import me.brandonli.mcav.utils.immutable.Pair;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.incendo.cloud.bukkit.data.MultiplePlayerSelector;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -239,5 +241,40 @@ final class VideoMcv2CommandTest {
     this.play(RESOLUTION, BLOCK_DIMENSIONS, 21);
     verify(this.support).configure(any(), any(), any(), eq(21), any(), any());
     verify(this.command, never()).playVideo(any(), any(), any(), any(), any(), anyString(), anyString(), anyString(), isNull());
+  }
+
+  @Test
+  void shouldRefuseNullArguments() {
+    final Mcv2Profile preset = Mcv2Profile.DEFAULT;
+    final DitheringArgument dithering = DitheringArgument.FILTER_LITE;
+    final Pair<Integer, Integer> resolution = Pair.pair(RESOLUTION_WIDTH, RESOLUTION_HEIGHT);
+    final AbstractVideoCommand.VideoConfigurationProvider provider = _ -> new Object();
+
+    assertThrows(NullPointerException.class, () -> this.playWith(null, preset, dithering));
+    assertThrows(NullPointerException.class, () -> this.playWith(this.selector, null, dithering));
+    assertThrows(NullPointerException.class, () -> this.playWith(this.selector, preset, null));
+    assertThrows(NullPointerException.class, () -> this.command.createVideoFilter(null, provider));
+    assertThrows(NullPointerException.class, () -> this.command.createVideoFilter(resolution, null));
+  }
+
+  private void playWith(
+    final @Nullable MultiplePlayerSelector selector,
+    final @Nullable Mcv2Profile preset,
+    final @Nullable DitheringArgument dithering
+  ) {
+    this.command.playMcv2Video(
+      this.sender,
+      selector,
+      PlayerArgument.FFMPEG,
+      AudioArgument.NONE,
+      RESOLUTION,
+      BLOCK_DIMENSIONS,
+      MAP_ID,
+      preset,
+      dithering,
+      "",
+      VIDEO_FILE_NAME,
+      null
+    );
   }
 }
