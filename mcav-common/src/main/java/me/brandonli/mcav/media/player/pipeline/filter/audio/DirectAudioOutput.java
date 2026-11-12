@@ -127,10 +127,13 @@ public final class DirectAudioOutput implements FunctionalAudioFilter {
   }
 
   /**
-   * Opens the default sound device.
+   * Opens the default sound device. A line that opens but fails to start is closed, and a failure to close it is
+   * suppressed on the start failure. Fatal VM errors propagate immediately.
    *
-   * @throws PlayerException if no sound device supports the audio format of the library, for example on a headless
-   *                         machine
+   * @throws PlayerException  if no sound device supports the audio format of the library, for example on a headless
+   *                          machine
+   * @throws RuntimeException if the opened line fails to start
+   * @throws Error            if the opened line reports an error while it starts
    * @since 1.0.0
    */
   @Override
