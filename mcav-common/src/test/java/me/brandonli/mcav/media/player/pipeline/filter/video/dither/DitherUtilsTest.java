@@ -77,6 +77,7 @@ final class DitherUtilsTest {
   void shouldRejectMissingPalettes() {
     assertThrows(NullPointerException.class, () -> DitherUtils.getBestColor(null, 0, 0, 0));
     assertThrows(NullPointerException.class, () -> DitherUtils.getBestFullColor(null, 0, 0, 0));
+    assertThrows(NullPointerException.class, () -> DitherUtils.getBestColorNormal(null, 0, 0, 0));
     assertThrows(NullPointerException.class, () -> DitherUtils.getColorFromMinecraftPalette(null, (byte) 0));
     assertThrows(NullPointerException.class, () -> DitherUtils.getBestColorIncludingTransparent(null, OPAQUE_WHITE));
   }
