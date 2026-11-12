@@ -99,6 +99,21 @@ final class OriginalAudioMetadataTest {
   }
 
   @Test
+  void shouldAcceptAnUnknownBitrateAndSamplingFormat() {
+    final OriginalAudioMetadata metadata = OriginalAudioMetadata.of(
+      CODEC,
+      OriginalAudioMetadata.UNKNOWN,
+      SAMPLE_RATE,
+      STEREO_CHANNELS,
+      OriginalAudioMetadata.UNKNOWN
+    );
+    final int bitrate = metadata.getAudioBitrate();
+    final int samplingFormat = metadata.getSamplingFormat();
+    assertEquals(OriginalAudioMetadata.UNKNOWN, bitrate);
+    assertEquals(OriginalAudioMetadata.UNKNOWN, samplingFormat);
+  }
+
+  @Test
   void shouldRenderEveryProperty() {
     final OriginalAudioMetadata metadata = OriginalAudioMetadata.of(CODEC, 96_000, SAMPLE_RATE, 1, 1);
     final String text = metadata.toString();
