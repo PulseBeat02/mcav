@@ -153,6 +153,19 @@ final class MatVideoFilterTest {
     assertThrows(NullPointerException.class, () -> VideoFilter.NO_OPERATION.applyFilter(null));
   }
 
+  @Test
+  void shouldRejectAReleasedFrame() {
+    final ImageBuffer image = Images.solid(IMAGE_SIDE, IMAGE_SIDE, BLACK);
+    image.close();
+
+    final InvertFilter inPlace = new InvertFilter();
+    final CropFilter cropping = new CropFilter(0, 0, 1, 1);
+    final TransposeFilter transposing = new TransposeFilter();
+    assertThrows(IllegalStateException.class, () -> inPlace.applyFilter(image));
+    assertThrows(IllegalStateException.class, () -> cropping.applyFilter(image));
+    assertThrows(IllegalStateException.class, () -> transposing.applyFilter(image));
+  }
+
   // Copies the pixels written into a foreign image during the call, as their buffer belongs to a temporary image released afterward.
   private static final class WrittenPixels {
 
