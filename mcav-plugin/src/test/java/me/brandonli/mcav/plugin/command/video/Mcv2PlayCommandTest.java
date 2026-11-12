@@ -1015,6 +1015,29 @@ final class Mcv2PlayCommandTest {
   }
 
   @Test
+  void shouldReplaceAnExistingStreamFileWhenTheEncodeEnds() throws Exception {
+    final Path target = this.folder.resolve(OLD_STREAM_FILE_NAME);
+    Files.write(target, new byte[] { 1, 2, 3 });
+    this.command.encodeFile(
+      this.sender,
+      (_, _, _) -> new SolidFrames(FRAME_COUNT, new CountDownLatch(0)),
+      Path.of(VIDEO_FILE_NAME),
+      target,
+      ENCODE_SIDE,
+      ENCODE_SIDE,
+      Mcv2Profile.DEFAULT,
+      Pool.shared(),
+      0
+    );
+
+    final int size = this.command.read(target).size();
+    assertEquals(FRAME_COUNT, size);
+
+    final boolean exists = Files.exists(this.folder.resolve(OLD_PART_FILE_NAME));
+    assertFalse(exists);
+  }
+
+  @Test
   void shouldTellTimesThatTheEncodeCouldHaveTaken() throws Exception {
     final Path output = this.folder.resolve(TIMED_STREAM_FILE_NAME);
     final AtomicLong openingNanoseconds = new AtomicLong();
