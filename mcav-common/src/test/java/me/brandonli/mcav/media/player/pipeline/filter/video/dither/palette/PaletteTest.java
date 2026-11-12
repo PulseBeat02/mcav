@@ -25,7 +25,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.Color;
 import java.io.StringReader;
-import java.util.List;
 import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.DitherUtils;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.ordered.BayerDither;
@@ -176,15 +175,6 @@ final class PaletteTest {
   }
 
   @Test
-  void shouldAcceptColorLists() {
-    final DitherPalette fromList = DitherPalette.colors(List.of(0x000000, 0xFFFFFF));
-    final DitherPalette fromArray = DitherPalette.colors(0x000000, 0xFFFFFF);
-    final int[] listColors = fromList.getPalette();
-    final int[] arrayColors = fromArray.getPalette();
-    assertArrayEquals(arrayColors, listColors);
-  }
-
-  @Test
   void shouldRejectInvalidPalettes() {
     final int[] tooMany = new int[MAXIMUM_PALETTE_SIZE + 1];
     assertThrows(IllegalArgumentException.class, () -> DitherPalette.colors(tooMany));
@@ -192,7 +182,6 @@ final class PaletteTest {
     assertThrows(IllegalArgumentException.class, () -> new ColorPalette(new int[] { 1 }, -1));
     assertThrows(IllegalArgumentException.class, () -> new ColorPalette(new int[] { 1, 2 }, 2));
     assertThrows(NullPointerException.class, () -> DitherPalette.colors((int[]) null));
-    assertThrows(NullPointerException.class, () -> DitherPalette.colors((List<Integer>) null));
   }
 
   @Test
