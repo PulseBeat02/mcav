@@ -79,8 +79,8 @@ public final class ImageEntityCommand extends AbstractImageCommand {
    * @param playerSelector  the players who see the entity, such as a player name or {@code @a}
    * @param imageResolution the size as {@code <width>x<height>}, in characters per line and lines, such as
    *                        {@code 64x36}
-   * @param character       the character every pixel is drawn with, in quotes if it is not a single word; a full
-   *                        block {@code █} gives the most solid picture
+   * @param character       the character every pixel is drawn with, typed in double quotes; a full block
+   *                        {@code "█"} gives the most solid picture
    * @param location        where the entity is spawned, such as {@code ~ ~2 ~}
    * @param mrl             the image to show: a path to a file on the server or an {@code http} or {@code https}
    *                        URL; the rest of the command line, so it may contain spaces
