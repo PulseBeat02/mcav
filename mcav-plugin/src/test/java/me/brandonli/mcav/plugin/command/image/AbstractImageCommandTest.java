@@ -671,6 +671,27 @@ final class AbstractImageCommandTest {
   }
 
   @Test
+  void shouldReplaceTheImageThatAnotherImageCommandShows() throws IOException {
+    final Path file = this.writeImage(PICTURE_FILE_NAME, PNG_FORMAT);
+    final String mrl = file.toString();
+    final DisplayableImage replacement = mock(DisplayableImage.class);
+    final RecordingCommand other = new RecordingCommand(this.command.plugin, replacement);
+    try (final MockedConstruction<MatImageBuffer> buffers = Mockito.mockConstruction(MatImageBuffer.class)) {
+      this.command.displayImage(_ -> CONFIGURATION, this.sender, SCREEN_SIZE, mrl, null);
+      other.displayImage(_ -> CONFIGURATION, this.sender, SCREEN_SIZE, mrl, null);
+      final List<MatImageBuffer> constructed = buffers.constructed();
+      final MatImageBuffer first = constructed.getFirst();
+      final MatImageBuffer second = constructed.getLast();
+      verify(this.display, times(1)).release();
+      verify(first, times(1)).close();
+      verify(replacement, times(1)).displayImage(second);
+
+      verify(replacement, never()).release();
+      verify(second, never()).close();
+    }
+  }
+
+  @Test
   void shouldReleaseTheLoadedImageWhenDisplayConfigurationFails() throws IOException {
     TestServer.resetWithDeferredTasks();
     final Path file = this.writeImage(QUEUED_FILE_NAME, PNG_FORMAT);
