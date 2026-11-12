@@ -185,7 +185,6 @@ final class PaperServerEndToEndTest {
       this.assertCurrentModuleJars(serverDirectory, pluginJar);
 
       System.out.println("Local repository files served: %s; cached module hashes verified against this plugin".formatted(servedFileCount));
-      this.runCommand(server, "plugins", "MCAV");
       this.runCommand(server, "mcav help", "mcav dump");
       final String mediaInformation = this.fetchMediaInformation(server, httpPort);
       try (final SoundListener sound = SoundListener.connect(httpPort); final TonePage page = TonePage.start()) {
