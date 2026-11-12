@@ -261,6 +261,12 @@ final class VideoFlagsParserTest {
   }
 
   @Test
+  void shouldReturnTheSupportedOptionsAsAnUnmodifiableList() {
+    final List<String> supported = VideoFlagsParser.supportedOptions();
+    assertThrows(UnsupportedOperationException.class, supported::clear);
+  }
+
+  @Test
   void shouldEndTheOptionsAtTheFirstUnescapedClosingBrace() {
     final String[] arguments = this.parser.parseYtdlpFlags("--yt-dlp{format=best}extra}");
     final String[] expected = { FORMAT_OPTION, BEST_FORMAT };
