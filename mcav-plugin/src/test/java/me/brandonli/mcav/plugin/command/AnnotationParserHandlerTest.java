@@ -92,12 +92,16 @@ import org.mockito.Mockito;
 
 final class AnnotationParserHandlerTest {
 
-  private static final List<String> EXPECTED_SYNTAXES = List.of(
+  private static final Set<String> EXPECTED_SYNTAXES = Set.of(
     "mcav dump",
     "mcav help query",
     "mcav screen blockDimensions mapId material location",
     "mcav image release",
     "mcav image map playerSelector imageResolution blockDimensions mapId ditheringAlgorithm mrl flags",
+    "mcav image block playerSelector imageResolution location mrl flags",
+    "mcav image chat playerSelector imageResolution character mrl flags",
+    "mcav image entity playerSelector imageResolution character location mrl flags",
+    "mcav image scoreboard playerSelector imageResolution character mrl flags",
     "mcav video pause",
     "mcav video resume",
     "mcav video release",
@@ -110,9 +114,15 @@ final class AnnotationParserHandlerTest {
     "mcav video hologram disable",
     "mcav video map playerSelector playerType audioType videoResolution blockDimensions mapId ditheringAlgorithm ytdlpOptions mrl flags",
     "mcav video mcv2 playerSelector playerType audioType videoResolution blockDimensions mapId preset ditheringAlgorithm ytdlpOptions mrl flags",
+    "mcav video block playerSelector playerType audioType videoResolution location ytdlpOptions mrl flags",
+    "mcav video chat playerSelector playerType audioType videoResolution character ytdlpOptions mrl flags",
+    "mcav video entity playerSelector playerType audioType videoResolution character location ytdlpOptions mrl flags",
+    "mcav video scoreboard playerSelector playerType audioType videoResolution character ytdlpOptions mrl flags",
     "mcav mcv2 play playerSelector blockDimensions mapId ticks file",
     "mcav mcv2 stream playerSelector blockDimensions mapId framesPerSecond file",
     "mcav mcv2 stop",
+    "mcav mcv2 encode file output resolution preset",
+    "mcav mcv2 cancel",
     "mcav browser interact",
     "mcav browser release",
     "mcav browser create playerSelector browserResolution nth blockDimensions mapId ditheringAlgorithm audioType url flags",
@@ -194,14 +204,7 @@ final class AnnotationParserHandlerTest {
     final AnnotationParserHandler handler = new AnnotationParserHandler(this.plugin);
     handler.registerCommands();
     final Set<String> syntaxes = this.commands.getSyntaxes();
-    final int count = syntaxes.size();
-    final String registeredSyntaxes = String.valueOf(syntaxes);
-    assertEquals(39, count, registeredSyntaxes);
-
-    for (final String syntax : EXPECTED_SYNTAXES) {
-      final boolean registered = syntaxes.contains(syntax);
-      assertTrue(registered, "%s in %s".formatted(syntax, syntaxes));
-    }
+    assertEquals(EXPECTED_SYNTAXES, syntaxes);
 
     final PluginManager pluginManager = TestServer.getPluginManager();
     verify(pluginManager).registerEvents(any(BrowserCommand.class), eq(this.plugin));
