@@ -160,6 +160,14 @@ final class RandomAndNearestDitherTest {
   }
 
   @Test
+  void shouldRejectAMissingPaletteInTheNearestAndRandomConstructors() {
+    final RandomNumberProvider provider = new XoroshiroRandomProvider(SEED);
+    assertThrows(NullPointerException.class, () -> new ColorMapNearestDither(null));
+    assertThrows(NullPointerException.class, () -> new UniformNoiseDither(null, RandomDither.NORMAL_WEIGHT));
+    assertThrows(NullPointerException.class, () -> new UniformNoiseDither(null, RandomDither.NORMAL_WEIGHT, provider));
+  }
+
+  @Test
   void shouldReportAMissingImageBeforeReadingItsPixelsWhenRandomDithering() {
     final UniformNoiseDither random = new UniformNoiseDither(DitherTestImages.BLACK_WHITE, 0);
     final NullPointerException missingImage = assertThrows(NullPointerException.class, () -> random.ditherIntoBytes(null));
