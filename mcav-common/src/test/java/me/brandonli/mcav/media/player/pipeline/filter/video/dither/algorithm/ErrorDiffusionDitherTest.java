@@ -38,6 +38,7 @@ import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.err
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.error.StevensonArceDither;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.error.StuckiDither;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.error.TemporalDitherAlgorithm;
+import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.error.TemporalFloydSteinbergDither;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.palette.DitherPalette;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -332,7 +333,20 @@ final class ErrorDiffusionDitherTest {
     assertThrows(NullPointerException.class, () -> dither.dither(null, 1));
     assertThrows(IllegalArgumentException.class, () -> dither.dither(new int[4], 0));
     assertThrows(IllegalArgumentException.class, () -> dither.dither(new int[5], 2));
+  }
+
+  @Test
+  void shouldRejectAMissingPaletteOrKernelInTheConstructors() {
+    assertThrows(NullPointerException.class, () -> new ErrorDiffusionDither(DitherTestImages.BLACK_WHITE, null) {});
+    assertThrows(NullPointerException.class, () -> new AtkinsonDither(null));
+    assertThrows(NullPointerException.class, () -> new BurkesDither(null));
+    assertThrows(NullPointerException.class, () -> new FilterLiteDither(null));
     assertThrows(NullPointerException.class, () -> new FloydDither(null));
+    assertThrows(NullPointerException.class, () -> new JarvisJudiceNinkeDither(null));
+    assertThrows(NullPointerException.class, () -> new StevensonArceDither(null));
+    assertThrows(NullPointerException.class, () -> new StuckiDither(null));
+    assertThrows(NullPointerException.class, () -> new TemporalFloydSteinbergDither(null));
+    assertThrows(NullPointerException.class, () -> new TemporalFloydSteinbergDither(null, 0, 0, 1.0f));
   }
 
   @Test
