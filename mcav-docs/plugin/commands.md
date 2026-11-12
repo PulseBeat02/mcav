@@ -248,7 +248,7 @@ and the command tells you that the console has the details.
 | &nbsp;&nbsp;&nbsp;&nbsp;`playerSelector`  | A selector for the players that can see the video                                                        |
 | &nbsp;&nbsp;&nbsp;&nbsp;`playerType`      | The type of video player to use                                                                          |
 | &nbsp;&nbsp;&nbsp;&nbsp;`audioType`       | The type of audio output to use                                                                          |
-| &nbsp;&nbsp;&nbsp;&nbsp;`videoResolution` | A resolution in width×height format (example, 640x360)                                                   |
+| &nbsp;&nbsp;&nbsp;&nbsp;`videoResolution` | A resolution in `<width>x<height>` format (example, 640x360)                                             |
 | &nbsp;&nbsp;&nbsp;&nbsp;`location`        | The location in the world to display the video                                                           |
 | &nbsp;&nbsp;&nbsp;&nbsp;`ytdlpOptions`           | Additional options if yt-dlp parses the media, in the format `--yt-dlp{name=value,switch}`; see [which options are accepted](#yt-dlp-options)            |
 | &nbsp;&nbsp;&nbsp;&nbsp;`mrl`             | The Media Resource Locator pointing to the video                                                         |
@@ -265,7 +265,7 @@ and the command tells you that the console has the details.
 | &nbsp;&nbsp;&nbsp;&nbsp;`playerSelector`  | A selector for the players that can see the video                                                        |
 | &nbsp;&nbsp;&nbsp;&nbsp;`playerType`      | The type of video player to use                                                                          |
 | &nbsp;&nbsp;&nbsp;&nbsp;`audioType`       | The type of audio output to use                                                                          |
-| &nbsp;&nbsp;&nbsp;&nbsp;`videoResolution` | The size in characters per line and lines, in width×height format (example, 40x20)                       |
+| &nbsp;&nbsp;&nbsp;&nbsp;`videoResolution` | The size in characters per line and lines, in `<width>x<height>` format (example, 40x20)                 |
 | &nbsp;&nbsp;&nbsp;&nbsp;`character`       | The character to use for rendering the video in chat; type it in double quotes, such as `"█"`            |
 | &nbsp;&nbsp;&nbsp;&nbsp;`ytdlpOptions`           | Additional options if yt-dlp parses the media, in the format `--yt-dlp{name=value,switch}`; see [which options are accepted](#yt-dlp-options)            |
 | &nbsp;&nbsp;&nbsp;&nbsp;`mrl`             | The Media Resource Locator pointing to the video                                                         |
@@ -282,7 +282,7 @@ and the command tells you that the console has the details.
 | &nbsp;&nbsp;&nbsp;&nbsp;`playerSelector`  | A selector for the players that can see the video                                                                     |
 | &nbsp;&nbsp;&nbsp;&nbsp;`playerType`      | The type of video player to use                                                                                       |
 | &nbsp;&nbsp;&nbsp;&nbsp;`audioType`       | The type of audio output to use                                                                                       |
-| &nbsp;&nbsp;&nbsp;&nbsp;`videoResolution` | A resolution in width×height format (example, 640x360)                                                                |
+| &nbsp;&nbsp;&nbsp;&nbsp;`videoResolution` | A resolution in `<width>x<height>` format (example, 640x360)                                                          |
 | &nbsp;&nbsp;&nbsp;&nbsp;`character`       | The character to use for rendering the video; type it in double quotes, such as `"█"`                                 |
 | &nbsp;&nbsp;&nbsp;&nbsp;`location`        | The location where to display the video entity                                                                        |
 | &nbsp;&nbsp;&nbsp;&nbsp;`ytdlpOptions`           | Additional options if yt-dlp parses the media, in the format `--yt-dlp{name=value,switch}`; see [which options are accepted](#yt-dlp-options)            |
@@ -300,7 +300,7 @@ and the command tells you that the console has the details.
 | &nbsp;&nbsp;&nbsp;&nbsp;`playerSelector`     | A selector for the players that can see the video                                                                                          |
 | &nbsp;&nbsp;&nbsp;&nbsp;`playerType`         | The type of video player to use                                                                                                            |
 | &nbsp;&nbsp;&nbsp;&nbsp;`audioType`          | The type of audio output to use                                                                                                            |
-| &nbsp;&nbsp;&nbsp;&nbsp;`videoResolution`    | A resolution in width×height format (example, 640x360)                                                                                     |
+| &nbsp;&nbsp;&nbsp;&nbsp;`videoResolution`    | A resolution in `<width>x<height>` format (example, 640x360)                                                                               |
 | &nbsp;&nbsp;&nbsp;&nbsp;`blockDimensions`    | The dimensions of the map blocks                                                                                                           |
 | &nbsp;&nbsp;&nbsp;&nbsp;`mapId`              | The ID of the map. This corresponds with the ID you set in `/mcav screen` to create the map screen                                         |
 | &nbsp;&nbsp;&nbsp;&nbsp;`ditheringAlgorithm` | The algorithm used for dithering the video. Use `FILTER_LITE` for best results                                                             |
@@ -331,7 +331,7 @@ and the command tells you that the console has the details.
 | &nbsp;&nbsp;&nbsp;&nbsp;`playerSelector`  | A selector for the players that can see the video                                                              |
 | &nbsp;&nbsp;&nbsp;&nbsp;`playerType`      | The type of video player to use                                                                                |
 | &nbsp;&nbsp;&nbsp;&nbsp;`audioType`       | The type of audio output to use                                                                                |
-| &nbsp;&nbsp;&nbsp;&nbsp;`videoResolution` | The size in characters per line and lines, in width×height format (example, 24x15), at most 15 lines           |
+| &nbsp;&nbsp;&nbsp;&nbsp;`videoResolution` | The size in characters per line and lines, in `<width>x<height>` format (example, 24x15), at most 15 lines     |
 | &nbsp;&nbsp;&nbsp;&nbsp;`character`       | The character to use for rendering the video in the scoreboard; type it in double quotes, such as `"█"`        |
 | &nbsp;&nbsp;&nbsp;&nbsp;`ytdlpOptions`           | Additional options if yt-dlp parses the media, in the format `--yt-dlp{name=value,switch}`; see [which options are accepted](#yt-dlp-options)            |
 | &nbsp;&nbsp;&nbsp;&nbsp;`mrl`             | The Media Resource Locator pointing to the video                                                               |
@@ -366,7 +366,7 @@ and the command tells you that the console has the details.
 | Description                                  | Opens a web page in an embedded Chromium, which runs in a process of its own, shows it on a wall of maps and plays its sound in the chosen audio output. Only one browser runs at a time, and it takes the audio output over from a video or virtual machine until it is released. The first browser on a server downloads Chromium once (about 136 to 163 MiB), and on Linux the libraries it needs that the server lacks (about 13 MB); nothing has to be installed. As in a desktop browser, a page plays sound only once a player clicked its screen or typed into it, unless `browser.autoplay-sound` is on. A server Chromium does not exist for, a failed download, a size beyond the limits, an address that is not `http` or `https`, or an audio output that is off or not ready, are answered with an error message. |
 | Arguments                                    |                                                                                                                                  |
 | &nbsp;&nbsp;&nbsp;&nbsp;`playerSelector`     | A selector for the players that can see the browser                                                                              |
-| &nbsp;&nbsp;&nbsp;&nbsp;`browserResolution`  | A resolution in width×height format (example, 1280x720), at most 4096 on each side                                               |
+| &nbsp;&nbsp;&nbsp;&nbsp;`browserResolution`  | A resolution in `<width>x<height>` format (example, 1280x720), at most 4096 on each side                                         |
 | &nbsp;&nbsp;&nbsp;&nbsp;`nth`                | How many painted frames make one streamed frame (1 streams every frame, 2 every other frame, up to 1000)                         |
 | &nbsp;&nbsp;&nbsp;&nbsp;`blockDimensions`    | The dimensions of the map blocks                                                                                                 |
 | &nbsp;&nbsp;&nbsp;&nbsp;`mapId`              | The ID of the map. This corresponds with the ID you set in `/mcav screen` to create the map screen                               |
@@ -409,7 +409,7 @@ installed and configured to use these commands.
 | Description                                  | Boots a QEMU virtual machine, shows its display on a wall of maps and plays its sound in the chosen audio output. MCAV gives an `X86_64` machine its sound card itself (Intel HD Audio and the PC speaker) and holds its sound about 70 ms, so that it plays with the picture. Only one machine runs at a time, and it takes the audio output over from a video or browser until it is released. A server without QEMU where MCAV cannot install it, options that are not accepted, and an audio output that is off or not ready are answered with an error message. |
 | Arguments                                    |                                                                                                                                     |
 | &nbsp;&nbsp;&nbsp;&nbsp;`playerSelector`     | A selector for the players that can see the VM                                                                                      |
-| &nbsp;&nbsp;&nbsp;&nbsp;`vmResolution`       | A resolution in width×height format (example, 1280x720)                                                                             |
+| &nbsp;&nbsp;&nbsp;&nbsp;`vmResolution`       | A resolution in `<width>x<height>` format (example, 1280x720)                                                                       |
 | &nbsp;&nbsp;&nbsp;&nbsp;`targetFramesPerSecond`          | Target frames per second for the VM (1 to 240)                                                                                      |
 | &nbsp;&nbsp;&nbsp;&nbsp;`blockDimensions`    | The dimensions of the map blocks                                                                                                    |
 | &nbsp;&nbsp;&nbsp;&nbsp;`mapId`              | The ID of the map. This corresponds with the ID you set in `/mcav screen` to create the map screen                                  |
@@ -436,7 +436,7 @@ encodings outside what the client supports close the connection instead of alloc
 | Description                                  | Connects to a listed VNC server and shows its desktop on a wall of maps; players click it and type into it like the browser         |
 | Arguments                                    |                                                                                                                                     |
 | &nbsp;&nbsp;&nbsp;&nbsp;`playerSelector`     | A selector for the players that can see the desktop                                                                                 |
-| &nbsp;&nbsp;&nbsp;&nbsp;`vncResolution`      | The size the desktop is scaled to, in width×height format (example, 1280x720)                                                       |
+| &nbsp;&nbsp;&nbsp;&nbsp;`vncResolution`      | The size the desktop is scaled to, in `<width>x<height>` format (example, 1280x720)                                                 |
 | &nbsp;&nbsp;&nbsp;&nbsp;`targetFramesPerSecond`          | Frames per second streamed from the desktop (1 to 240)                                                                              |
 | &nbsp;&nbsp;&nbsp;&nbsp;`blockDimensions`    | The dimensions of the map blocks                                                                                                    |
 | &nbsp;&nbsp;&nbsp;&nbsp;`mapId`              | The ID of the map. This corresponds with the ID you set in `/mcav screen` to create the map screen                                  |
@@ -476,7 +476,7 @@ They have no sound. Stream files live in the plugin's `mcv2` folder; a name that
 | Arguments                                 |                                                                                                        |
 | &nbsp;&nbsp;&nbsp;&nbsp;`file`            | The video file on the server                                                                           |
 | &nbsp;&nbsp;&nbsp;&nbsp;`output`          | The stream file to write in the plugin's `mcv2` folder; an existing one is replaced when the encode ends |
-| &nbsp;&nbsp;&nbsp;&nbsp;`resolution`      | The video size in width×height format (example, 1280x720)                                              |
+| &nbsp;&nbsp;&nbsp;&nbsp;`resolution`      | The video size in `<width>x<height>` format (example, 1280x720)                                        |
 | &nbsp;&nbsp;&nbsp;&nbsp;`preset`          | The encoder preset, usually `DEFAULT`, the best picture for its bandwidth; `FAST` is faster |
 
 ---
@@ -623,7 +623,7 @@ device and an FFmpeg input get `Invalid MRL!`.
 | Description                               | Displays an image in blocks.                                            |
 | Arguments                                 |                                                                         |
 | &nbsp;&nbsp;&nbsp;&nbsp;`playerSelector`  | A selector for the players that can see the image                       |
-| &nbsp;&nbsp;&nbsp;&nbsp;`imageResolution` | A resolution in width×height format (example, 640x640)                  |
+| &nbsp;&nbsp;&nbsp;&nbsp;`imageResolution` | A resolution in `<width>x<height>` format (example, 640x640)            |
 | &nbsp;&nbsp;&nbsp;&nbsp;`location`        | The location in the world to display the image                          |
 | &nbsp;&nbsp;&nbsp;&nbsp;`mrl`             | The Media Resource Locator pointing to the image                        |
 | &nbsp;&nbsp;&nbsp;&nbsp;`--filters`       | Optional: filters applied to the image in order, in quotes, such as `"grayscale,blur=3"`; see [filters](#filters) |
@@ -637,7 +637,7 @@ device and an FFmpeg input get `Invalid MRL!`.
 | Description                               | Displays an image in chat.                                              |
 | Arguments                                 |                                                                         |
 | &nbsp;&nbsp;&nbsp;&nbsp;`playerSelector`  | A selector for the players that can see the image                       |
-| &nbsp;&nbsp;&nbsp;&nbsp;`imageResolution` | The size in characters per line and lines, in width×height format (example, 40x20) |
+| &nbsp;&nbsp;&nbsp;&nbsp;`imageResolution` | The size in characters per line and lines, in `<width>x<height>` format (example, 40x20) |
 | &nbsp;&nbsp;&nbsp;&nbsp;`character`       | The character to use for rendering the image in chat; type it in double quotes, such as `"█"` |
 | &nbsp;&nbsp;&nbsp;&nbsp;`mrl`             | The Media Resource Locator pointing to the image                        |
 | &nbsp;&nbsp;&nbsp;&nbsp;`--filters`       | Optional: filters applied to the image in order, in quotes, such as `"grayscale,blur=3"`; see [filters](#filters) |
@@ -651,7 +651,7 @@ device and an FFmpeg input get `Invalid MRL!`.
 | Description                               | Displays an image as a `TextDisplay` entity.                                         |
 | Arguments                                 |                                                                                      |
 | &nbsp;&nbsp;&nbsp;&nbsp;`playerSelector`  | A selector for the players that can see the image                                    |
-| &nbsp;&nbsp;&nbsp;&nbsp;`imageResolution` | A resolution in width×height format (example, 640x640)                               |
+| &nbsp;&nbsp;&nbsp;&nbsp;`imageResolution` | A resolution in `<width>x<height>` format (example, 640x640)                         |
 | &nbsp;&nbsp;&nbsp;&nbsp;`character`       | The character to use for rendering the image; type it in double quotes, such as `"█"` |
 | &nbsp;&nbsp;&nbsp;&nbsp;`location`        | The location where to display the image entity                                       |
 | &nbsp;&nbsp;&nbsp;&nbsp;`mrl`             | The Media Resource Locator pointing to the image                                     |
@@ -666,7 +666,7 @@ device and an FFmpeg input get `Invalid MRL!`.
 | Description                                  | Displays an image on a map screen.                                                                        |
 | Arguments                                    |                                                                                                           |
 | &nbsp;&nbsp;&nbsp;&nbsp;`playerSelector`     | A selector for the players that can see the image                                                         |
-| &nbsp;&nbsp;&nbsp;&nbsp;`imageResolution`    | A resolution in width×height format (example, 640x640)                                                    |
+| &nbsp;&nbsp;&nbsp;&nbsp;`imageResolution`    | A resolution in `<width>x<height>` format (example, 640x640)                                              |
 | &nbsp;&nbsp;&nbsp;&nbsp;`blockDimensions`    | The dimensions of the map blocks                                                                          |
 | &nbsp;&nbsp;&nbsp;&nbsp;`mapId`              | The ID of the map. This corresponds with the ID you set in `/mcav screen` to create the map screen        |
 | &nbsp;&nbsp;&nbsp;&nbsp;`ditheringAlgorithm` | The algorithm used for dithering the image. Use `FILTER_LITE` for best results                            |
@@ -683,7 +683,7 @@ device and an FFmpeg input get `Invalid MRL!`.
 | Description                               | Displays an image in a scoreboard.                                            |
 | Arguments                                 |                                                                               |
 | &nbsp;&nbsp;&nbsp;&nbsp;`playerSelector`  | A selector for the players that can see the image                             |
-| &nbsp;&nbsp;&nbsp;&nbsp;`imageResolution` | The size in characters per line and lines, in width×height format (example, 24x15), at most 15 lines |
+| &nbsp;&nbsp;&nbsp;&nbsp;`imageResolution` | The size in characters per line and lines, in `<width>x<height>` format (example, 24x15), at most 15 lines |
 | &nbsp;&nbsp;&nbsp;&nbsp;`character`       | The character to use for rendering the image in the scoreboard; type it in double quotes, such as `"█"` |
 | &nbsp;&nbsp;&nbsp;&nbsp;`mrl`             | The Media Resource Locator pointing to the image                              |
 | &nbsp;&nbsp;&nbsp;&nbsp;`--filters`       | Optional: filters applied to the image in order, in quotes, such as `"grayscale,blur=3"`; see [filters](#filters) |
