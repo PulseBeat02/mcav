@@ -632,6 +632,7 @@ public final class FilterChain {
    * Makes new filters of the chain, which keep state between pictures, for one video or image.
    *
    * @return the filters, in order
+   * @throws IllegalArgumentException if an overlay file cannot be decoded as a picture
    * @since 1.0.0
    */
   public List<VideoFilter> createFilters() {
@@ -643,7 +644,8 @@ public final class FilterChain {
    *
    * @param output the first step that shows the pictures
    * @return the first step of the filters, or the output if the chain is empty
-   * @throws NullPointerException if {@code output} is null
+   * @throws NullPointerException     if {@code output} is null
+   * @throws IllegalArgumentException if an overlay file cannot be decoded as a picture
    * @since 1.0.0
    */
   public VideoPipelineStep prepend(final VideoPipelineStep output) {
@@ -663,7 +665,8 @@ public final class FilterChain {
    * Filters a picture with new filters of the chain.
    *
    * @param picture the picture, changed in place
-   * @throws NullPointerException if {@code picture} is null
+   * @throws NullPointerException     if {@code picture} is null
+   * @throws IllegalArgumentException if an overlay file cannot be decoded as a picture
    * @since 1.0.0
    */
   public void apply(final ImageBuffer picture) {
