@@ -277,4 +277,50 @@ final class VideoMcv2CommandTest {
       null
     );
   }
+
+  @Test
+  void shouldPassTheFiltersOnToTheVideo() {
+    final String filters = "invert";
+    doNothing()
+      .when(this.command)
+      .playVideo(
+        any(AbstractVideoCommand.VideoConfigurationProvider.class),
+        any(CommandSender.class),
+        any(MultiplePlayerSelector.class),
+        any(PlayerArgument.class),
+        any(AudioArgument.class),
+        anyString(),
+        anyString(),
+        anyString(),
+        eq(filters)
+      );
+    final Mcv2Configuration configuration = mock(Mcv2Configuration.class);
+    when(this.support.configure(any(), any(), any(), eq(MAP_ID), any(), any())).thenReturn(Optional.of(configuration));
+    this.command.playMcv2Video(
+      this.sender,
+      this.selector,
+      PlayerArgument.FFMPEG,
+      AudioArgument.NONE,
+      RESOLUTION,
+      BLOCK_DIMENSIONS,
+      MAP_ID,
+      Mcv2Profile.DEFAULT,
+      DitheringArgument.FILTER_LITE,
+      "",
+      VIDEO_FILE_NAME,
+      filters
+    );
+
+    verify(this.command).playVideo(
+      any(AbstractVideoCommand.VideoConfigurationProvider.class),
+      eq(this.sender),
+      eq(this.selector),
+      eq(PlayerArgument.FFMPEG),
+      eq(AudioArgument.NONE),
+      eq(RESOLUTION),
+      eq(VIDEO_FILE_NAME),
+      eq(""),
+      eq(filters)
+    );
+  }
 }
