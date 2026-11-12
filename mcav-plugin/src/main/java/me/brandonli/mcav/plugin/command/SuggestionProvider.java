@@ -81,6 +81,14 @@ public final class SuggestionProvider implements AnnotationCommandFeature {
 
   private static final List<String> CHAT_RESOLUTION_SUGGESTIONS = List.of("8x8", "16x16", "32x32");
 
+  private static final String QUOTE = "\"";
+
+  private static final List<String> CHAT_CHARACTER_SUGGESTIONS = List.of(
+    QUOTE + Characters.FULL_CHARACTER + QUOTE,
+    QUOTE + Characters.BLACK_CIRCLE + QUOTE,
+    QUOTE + Characters.SMALL_BLACK_SQUARE + QUOTE
+  );
+
   private static final List<String> NTH_SUGGESTIONS = List.of("1", "2", "3", "4", "5", "6", "7", "8", "9", "10");
 
   private static final List<String> TARGET_FRAMES_PER_SECOND_SUGGESTIONS = List.of(
@@ -160,14 +168,15 @@ public final class SuggestionProvider implements AnnotationCommandFeature {
 
   /**
    * Suggests the characters pixels are drawn with in chat, entity, and scoreboard displays: a full block, which
-   * gives the most solid picture, a black circle, and a small black square.
+   * gives the most solid picture, a black circle, and a small black square. Each is in double quotes, because the
+   * {@code <character>} argument reads only ASCII letters, digits, and {@code _-.+} without them.
    *
-   * @return the suggested characters
+   * @return the suggested characters, each in double quotes
    * @since 1.0.0
    */
   @Suggestions(CHAT_CHARACTERS)
   public Stream<String> suggestChatCharacters() {
-    return Stream.of(Characters.FULL_CHARACTER, Characters.BLACK_CIRCLE, Characters.SMALL_BLACK_SQUARE);
+    return CHAT_CHARACTER_SUGGESTIONS.stream();
   }
 
   /**

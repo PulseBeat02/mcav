@@ -266,7 +266,7 @@ and the command tells you that the console has the details.
 | &nbsp;&nbsp;&nbsp;&nbsp;`playerType`      | The type of video player to use                                                                          |
 | &nbsp;&nbsp;&nbsp;&nbsp;`audioType`       | The type of audio output to use                                                                          |
 | &nbsp;&nbsp;&nbsp;&nbsp;`videoResolution` | A resolution in width×height format (example, 640x360)                                                   |
-| &nbsp;&nbsp;&nbsp;&nbsp;`character`       | The character to use for rendering the video in chat                                                     |
+| &nbsp;&nbsp;&nbsp;&nbsp;`character`       | The character to use for rendering the video in chat; type it in double quotes, such as `"█"`            |
 | &nbsp;&nbsp;&nbsp;&nbsp;`ytdlpOptions`           | Additional options if yt-dlp parses the media, in the format `--yt-dlp{name=value,switch}`; see [which options are accepted](#yt-dlp-options)            |
 | &nbsp;&nbsp;&nbsp;&nbsp;`mrl`             | The Media Resource Locator pointing to the video                                                         |
 | &nbsp;&nbsp;&nbsp;&nbsp;`--filters`       | Optional: filters applied to every frame in order, in quotes, such as `"grayscale,blur=3"`; see [filters](#filters) |
@@ -283,7 +283,7 @@ and the command tells you that the console has the details.
 | &nbsp;&nbsp;&nbsp;&nbsp;`playerType`      | The type of video player to use                                                                                       |
 | &nbsp;&nbsp;&nbsp;&nbsp;`audioType`       | The type of audio output to use                                                                                       |
 | &nbsp;&nbsp;&nbsp;&nbsp;`videoResolution` | A resolution in width×height format (example, 640x360)                                                                |
-| &nbsp;&nbsp;&nbsp;&nbsp;`character`       | The character to use for rendering the video                                                                          |
+| &nbsp;&nbsp;&nbsp;&nbsp;`character`       | The character to use for rendering the video; type it in double quotes, such as `"█"`                                 |
 | &nbsp;&nbsp;&nbsp;&nbsp;`location`        | The location where to display the video entity                                                                        |
 | &nbsp;&nbsp;&nbsp;&nbsp;`ytdlpOptions`           | Additional options if yt-dlp parses the media, in the format `--yt-dlp{name=value,switch}`; see [which options are accepted](#yt-dlp-options)            |
 | &nbsp;&nbsp;&nbsp;&nbsp;`mrl`             | The Media Resource Locator pointing to the video                                                                      |
@@ -332,7 +332,7 @@ and the command tells you that the console has the details.
 | &nbsp;&nbsp;&nbsp;&nbsp;`playerType`      | The type of video player to use                                                                                |
 | &nbsp;&nbsp;&nbsp;&nbsp;`audioType`       | The type of audio output to use                                                                                |
 | &nbsp;&nbsp;&nbsp;&nbsp;`videoResolution` | A resolution in width×height format (example, 640x360)                                                         |
-| &nbsp;&nbsp;&nbsp;&nbsp;`character`       | The character to use for rendering the video in the scoreboard                                                 |
+| &nbsp;&nbsp;&nbsp;&nbsp;`character`       | The character to use for rendering the video in the scoreboard; type it in double quotes, such as `"█"`        |
 | &nbsp;&nbsp;&nbsp;&nbsp;`ytdlpOptions`           | Additional options if yt-dlp parses the media, in the format `--yt-dlp{name=value,switch}`; see [which options are accepted](#yt-dlp-options)            |
 | &nbsp;&nbsp;&nbsp;&nbsp;`mrl`             | The Media Resource Locator pointing to the video                                                               |
 | &nbsp;&nbsp;&nbsp;&nbsp;`--filters`       | Optional: filters applied to every frame in order, in quotes, such as `"grayscale,blur=3"`; see [filters](#filters) |
@@ -638,7 +638,7 @@ device and an FFmpeg input get `Invalid MRL!`.
 | Arguments                                 |                                                                         |
 | &nbsp;&nbsp;&nbsp;&nbsp;`playerSelector`  | A selector for the players that can see the image                       |
 | &nbsp;&nbsp;&nbsp;&nbsp;`imageResolution` | A resolution in width×height format (example, 640x640)                  |
-| &nbsp;&nbsp;&nbsp;&nbsp;`character`       | The character to use for rendering the image in chat                    |
+| &nbsp;&nbsp;&nbsp;&nbsp;`character`       | The character to use for rendering the image in chat; type it in double quotes, such as `"█"` |
 | &nbsp;&nbsp;&nbsp;&nbsp;`mrl`             | The Media Resource Locator pointing to the image                        |
 | &nbsp;&nbsp;&nbsp;&nbsp;`--filters`       | Optional: filters applied to the image in order, in quotes, such as `"grayscale,blur=3"`; see [filters](#filters) |
 
@@ -652,7 +652,7 @@ device and an FFmpeg input get `Invalid MRL!`.
 | Arguments                                 |                                                                                      |
 | &nbsp;&nbsp;&nbsp;&nbsp;`playerSelector`  | A selector for the players that can see the image                                    |
 | &nbsp;&nbsp;&nbsp;&nbsp;`imageResolution` | A resolution in width×height format (example, 640x640)                               |
-| &nbsp;&nbsp;&nbsp;&nbsp;`character`       | The character to use for rendering the image                                         |
+| &nbsp;&nbsp;&nbsp;&nbsp;`character`       | The character to use for rendering the image; type it in double quotes, such as `"█"` |
 | &nbsp;&nbsp;&nbsp;&nbsp;`location`        | The location where to display the image entity                                       |
 | &nbsp;&nbsp;&nbsp;&nbsp;`mrl`             | The Media Resource Locator pointing to the image                                     |
 | &nbsp;&nbsp;&nbsp;&nbsp;`--filters`       | Optional: filters applied to the image in order, in quotes, such as `"grayscale,blur=3"`; see [filters](#filters) |
@@ -684,6 +684,6 @@ device and an FFmpeg input get `Invalid MRL!`.
 | Arguments                                 |                                                                               |
 | &nbsp;&nbsp;&nbsp;&nbsp;`playerSelector`  | A selector for the players that can see the image                             |
 | &nbsp;&nbsp;&nbsp;&nbsp;`imageResolution` | A resolution in width×height format (example, 640x640)                        |
-| &nbsp;&nbsp;&nbsp;&nbsp;`character`       | The character to use for rendering the image in the scoreboard                |
+| &nbsp;&nbsp;&nbsp;&nbsp;`character`       | The character to use for rendering the image in the scoreboard; type it in double quotes, such as `"█"` |
 | &nbsp;&nbsp;&nbsp;&nbsp;`mrl`             | The Media Resource Locator pointing to the image                              |
 | &nbsp;&nbsp;&nbsp;&nbsp;`--filters`       | Optional: filters applied to the image in order, in quotes, such as `"grayscale,blur=3"`; see [filters](#filters) |

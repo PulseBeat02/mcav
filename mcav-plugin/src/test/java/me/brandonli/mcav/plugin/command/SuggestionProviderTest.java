@@ -18,7 +18,12 @@
 package me.brandonli.mcav.plugin.command;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.mojang.brigadier.StringReader;
+import com.mojang.brigadier.arguments.StringArgumentType;
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Stream;
 import me.brandonli.mcav.bukkit.media.result.Characters;
@@ -62,10 +67,26 @@ final class SuggestionProviderTest {
   }
 
   @Test
-  void shouldSuggestChatCharacters() {
+  void shouldSuggestChatCharactersThatAQuotedArgumentReadsWhole() throws CommandSyntaxException {
     final Stream<String> suggestions = this.provider.suggestChatCharacters();
+    final List<String> values = suggestions.toList();
+    final List<String> characters = new ArrayList<>();
+    for (final String value : values) {
+      final String character = this.readAsQuotedArgument(value);
+      characters.add(character);
+    }
+
     final List<String> expected = List.of(Characters.FULL_CHARACTER, Characters.BLACK_CIRCLE, Characters.SMALL_BLACK_SQUARE);
-    this.assertSuggests(expected, suggestions);
+    assertEquals(expected, characters);
+  }
+
+  private String readAsQuotedArgument(final String suggestion) throws CommandSyntaxException {
+    final StringReader reader = new StringReader(suggestion);
+    final StringArgumentType argument = StringArgumentType.string();
+    final String character = argument.parse(reader);
+    final boolean wholeSuggestionRead = !reader.canRead();
+    assertTrue(wholeSuggestionRead, suggestion);
+    return character;
   }
 
   @Test
