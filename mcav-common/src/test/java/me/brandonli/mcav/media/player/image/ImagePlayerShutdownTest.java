@@ -22,6 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.google.common.util.concurrent.Uninterruptibles;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -37,6 +38,8 @@ final class ImagePlayerShutdownTest {
 
   private static final long CALLBACK_TIMEOUT_SECONDS = 10L;
   private static final long JOIN_TIMEOUT_MILLISECONDS = 1_000L;
+
+  private static final long STOP_WAIT_NANOSECONDS = TimeUnit.SECONDS.toNanos(2);
 
   private static FrameSource source() {
     return FrameSource.supplier(() -> new int[] { 0xFF102030 }, 1, 1, 0.1f);
@@ -163,6 +166,57 @@ final class ImagePlayerShutdownTest {
 
     repeatedRelease.set(player.release());
     completed.countDown();
+
+    return false;
+  }
+
+  @Test
+  void shouldStopWaitingAfterTwoSecondsForACallbackThatIgnoresInterruption() throws Exception {
+    final ImagePlayer player = ImagePlayer.player();
+    final CountDownLatch entered = new CountDownLatch(1);
+    final CountDownLatch escape = new CountDownLatch(1);
+    final AtomicReference<Thread> worker = new AtomicReference<>();
+    attach(player, (_, _) -> this.ignoreInterruptionUntilEscape(worker, entered, escape));
+    try {
+      final boolean started = player.start(source());
+      final boolean processing = entered.await(CALLBACK_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+      assertTrue(started);
+      assertTrue(processing);
+
+      final long before = System.nanoTime();
+      final boolean released = player.release();
+      final long after = System.nanoTime();
+      final long waited = after - before;
+      final Thread thread = worker.get();
+      assertNotNull(thread);
+
+      final boolean outlived = thread.isAlive();
+      assertTrue(released);
+      assertTrue(outlived, "a callback that ignores interruption outlives the bounded wait");
+
+      final boolean waitedTwoSeconds = waited >= STOP_WAIT_NANOSECONDS;
+      final boolean stoppedWaiting = waited < TimeUnit.SECONDS.toNanos(CALLBACK_TIMEOUT_SECONDS);
+      assertTrue(waitedTwoSeconds, "release waits two seconds for the callback, waited %s ns".formatted(waited));
+      assertTrue(stoppedWaiting, "release stops waiting after two seconds, waited %s ns".formatted(waited));
+    } finally {
+      escape.countDown();
+      player.release();
+      final Thread thread = worker.get();
+      if (thread != null) {
+        thread.join(JOIN_TIMEOUT_MILLISECONDS);
+      }
+    }
+  }
+
+  private boolean ignoreInterruptionUntilEscape(
+    final AtomicReference<Thread> worker,
+    final CountDownLatch entered,
+    final CountDownLatch escape
+  ) {
+    final Thread current = Thread.currentThread();
+    worker.set(current);
+    entered.countDown();
+    Uninterruptibles.awaitUninterruptibly(escape);
 
     return false;
   }
