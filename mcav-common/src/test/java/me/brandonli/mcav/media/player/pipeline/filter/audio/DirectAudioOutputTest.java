@@ -72,6 +72,19 @@ final class DirectAudioOutputTest {
   }
 
   @Test
+  void shouldWriteNothingAfterItIsReleased() {
+    final SourceDataLine line = mock(SourceDataLine.class);
+    final DirectAudioOutput output = new DirectAudioOutput((_, _) -> line);
+    output.start();
+    output.release();
+    final ByteBuffer samples = ByteBuffer.allocate(4);
+    final boolean changed = output.applyFilter(samples, METADATA);
+    assertFalse(changed, READ_ONLY_MESSAGE);
+
+    verify(line, never()).write(ArgumentMatchers.any(byte[].class), ArgumentMatchers.anyInt(), ArgumentMatchers.anyInt());
+  }
+
+  @Test
   void shouldOpenTheLineOnceAndWriteTheRemainingSamples() {
     final SourceDataLine line = mock(SourceDataLine.class);
     final AtomicInteger opened = new AtomicInteger();
