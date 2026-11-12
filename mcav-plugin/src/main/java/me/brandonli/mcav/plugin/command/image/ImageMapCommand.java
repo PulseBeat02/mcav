@@ -193,6 +193,8 @@ public final class ImageMapCommand extends AbstractImageCommand {
    * @param configurationProvider the provider that builds the map display settings
    * @return the map display
    * @throws NullPointerException if an argument is null
+   * @throws ClassCastException   if the provider is not one that {@link #showImage} passes and builds no
+   *                              {@link MapDisplaySettings}
    * @since 1.0.0
    */
   @Override

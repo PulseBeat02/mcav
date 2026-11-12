@@ -122,6 +122,7 @@ public final class ImageEntityCommand extends AbstractImageCommand {
    * @param configurationProvider the provider that builds the entity configuration
    * @return the entity display
    * @throws NullPointerException if an argument is null
+   * @throws ClassCastException   if the provider builds no {@link EntityConfiguration}
    * @since 1.0.0
    */
   @Override

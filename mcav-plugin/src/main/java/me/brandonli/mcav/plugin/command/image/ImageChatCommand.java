@@ -117,6 +117,7 @@ public final class ImageChatCommand extends AbstractImageCommand {
    * @param configurationProvider the provider that builds the chat configuration
    * @return the chat display
    * @throws NullPointerException if an argument is null
+   * @throws ClassCastException   if the provider builds no {@link ChatConfiguration}
    * @since 1.0.0
    */
   @Override

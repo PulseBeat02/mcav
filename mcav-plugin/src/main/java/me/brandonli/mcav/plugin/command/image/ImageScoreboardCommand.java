@@ -129,6 +129,7 @@ public final class ImageScoreboardCommand extends AbstractImageCommand {
    * @param configurationProvider the provider that builds the scoreboard configuration
    * @return the scoreboard display
    * @throws NullPointerException if an argument is null
+   * @throws ClassCastException   if the provider builds no {@link ScoreboardConfiguration}
    * @since 1.0.0
    */
   @Override
