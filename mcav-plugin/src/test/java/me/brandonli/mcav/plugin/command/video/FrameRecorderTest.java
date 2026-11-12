@@ -68,7 +68,10 @@ final class FrameRecorderTest {
     assertFalse(exists);
 
     final String warning = "Cannot record the MCV2 frames into %s, the recording stops.".formatted(file.toAbsolutePath());
-    final List<String> warnings = output.lines().filter(line -> line.contains(warning)).toList();
+    final List<String> warnings = output
+      .lines()
+      .filter(line -> line.contains(warning))
+      .toList();
     final int count = warnings.size();
     assertEquals(1, count);
 
