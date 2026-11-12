@@ -52,6 +52,8 @@ final class Mcv2ImageTest {
   private static final int IMAGE_WIDTH = 3;
   private static final int IMAGE_HEIGHT = 2;
 
+  private static final long HALF_A_SECOND_TICKS = 10L;
+
   private Plugin plugin;
 
   private Mcv2Output output;
@@ -99,7 +101,7 @@ final class Mcv2ImageTest {
     verify(this.output).start();
 
     final ArgumentCaptor<Runnable> feeds = ArgumentCaptor.forClass(Runnable.class);
-    verify(TestServer.getScheduler()).runTaskTimerAsynchronously(eq(this.plugin), feeds.capture(), eq(0L), eq(Mcv2Image.PERIOD_TICKS));
+    verify(TestServer.getScheduler()).runTaskTimerAsynchronously(eq(this.plugin), feeds.capture(), eq(0L), eq(HALF_A_SECOND_TICKS));
 
     feeds.getValue().run();
     feeds.getValue().run();
@@ -132,10 +134,10 @@ final class Mcv2ImageTest {
     image.displayImage(ImageBuffer.buffer(PIXELS.clone(), IMAGE_WIDTH, IMAGE_HEIGHT));
 
     final ArgumentCaptor<Runnable> feeds = ArgumentCaptor.forClass(Runnable.class);
-    verify(TestServer.getScheduler()).runTaskTimerAsynchronously(eq(this.plugin), feeds.capture(), eq(0L), eq(Mcv2Image.PERIOD_TICKS));
+    verify(TestServer.getScheduler()).runTaskTimerAsynchronously(eq(this.plugin), feeds.capture(), eq(0L), eq(HALF_A_SECOND_TICKS));
 
     // a client that missed its first keyframe shows nothing until the next, so the image requests one after four seconds
-    final int fourSeconds = (int) ((4 * 20) / Mcv2Image.PERIOD_TICKS);
+    final int fourSeconds = (int) ((4 * 20) / HALF_A_SECOND_TICKS);
     for (int feed = 1; feed < fourSeconds; feed++) {
       feeds.getValue().run();
     }
