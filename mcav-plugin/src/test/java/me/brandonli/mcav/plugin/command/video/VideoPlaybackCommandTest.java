@@ -18,6 +18,7 @@
 package me.brandonli.mcav.plugin.command.video;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
@@ -188,5 +189,18 @@ final class VideoPlaybackCommandTest {
       Message.LOOP_OFF.build(),
       Message.LOOP_ON.build()
     );
+  }
+
+  @Test
+  void shouldRefuseNullArguments() {
+    final NullPointerException nullPlugin = assertThrows(NullPointerException.class, () -> new VideoPlaybackCommand(null));
+    final String message = nullPlugin.getMessage();
+    assertEquals("Plugin must not be null!", message);
+
+    assertThrows(NullPointerException.class, () -> this.command.seekVideo(null, SEEK_OFFSET));
+    assertThrows(NullPointerException.class, () -> this.command.seekVideo(this.sender, null));
+    assertThrows(NullPointerException.class, () -> this.command.setVolume(null, 0));
+    assertThrows(NullPointerException.class, () -> this.command.setSpeed(null, 0.0));
+    assertThrows(NullPointerException.class, () -> this.command.setLoop(null, true));
   }
 }
