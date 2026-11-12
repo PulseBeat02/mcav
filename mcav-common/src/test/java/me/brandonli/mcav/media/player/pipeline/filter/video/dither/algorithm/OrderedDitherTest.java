@@ -181,6 +181,21 @@ final class OrderedDitherTest {
   }
 
   @Test
+  void shouldDitherSixteenRowsAsOneBandInParallel() {
+    final int height = 16;
+    final int[] pixels = DitherTestImages.gradient(GRADIENT_WIDTH, height);
+    final ColorMapReadCountingPalette palette = new ColorMapReadCountingPalette(DitherTestImages.BLACK_WHITE);
+    final PixelMapper mapper = PixelMapper.ofPixelMapper(BayerDither.NORMAL_4X4, PixelMapper.NORMAL_STRENGTH);
+    final OrderedDither dither = new OrderedDither(palette, mapper);
+    try (final ForkJoinPool pool = new ForkJoinPool(4); final ImageBuffer image = ImageBuffer.buffer(pixels, GRADIENT_WIDTH, height)) {
+      final byte[] _ = dither.ditherIntoBytes(image, pool);
+    }
+
+    final int bands = palette.getColorMapReads();
+    assertEquals(1, bands, "every band reads the color map once, and 16 rows are one band");
+  }
+
+  @Test
   void shouldMatchTheIndicesWhenDitheringInPlace() {
     final int[] pixels = DitherTestImages.gradient(32, 8);
     final OrderedDither dither = blackWhite4x4();
