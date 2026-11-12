@@ -503,4 +503,16 @@ final class TemporalDitherTest {
       assertArrayEquals(original, after, "dithering into bytes leaves the frame as it was");
     }
   }
+
+  @Test
+  void shouldRejectAReleasedFrame() {
+    final TemporalDitherAlgorithm dither = new TemporalFloydSteinbergDither(PRIMARIES);
+    final ImageBuffer image = ImageBuffer.buffer(new int[1], 1, 1);
+    image.release();
+
+    try (final ForkJoinPool pool = new ForkJoinPool(1)) {
+      assertThrows(IllegalStateException.class, () -> dither.ditherIntoBytes(image));
+      assertThrows(IllegalStateException.class, () -> dither.ditherIntoBytes(image, pool));
+    }
+  }
 }

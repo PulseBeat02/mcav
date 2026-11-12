@@ -385,4 +385,13 @@ final class ErrorDiffusionDitherTest {
       assertArrayEquals(first, second, "a basic kernel keeps no errors between calls");
     }
   }
+
+  @Test
+  void shouldRejectAReleasedImage() {
+    final ErrorDiffusionDither dither = new FloydDither(DitherTestImages.BLACK_WHITE);
+    final ImageBuffer image = ImageBuffer.buffer(new int[1], 1, 1);
+    image.release();
+
+    assertThrows(IllegalStateException.class, () -> dither.ditherIntoBytes(image));
+  }
 }
