@@ -42,8 +42,10 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -167,6 +169,7 @@ final class Mcv2PlayCommandTest {
   private static final String STREAM_I_FILE_NAME = "i.mcs";
   private static final String STREAM_J_FILE_NAME = "j.mcs";
   private static final String STREAM_K_FILE_NAME = "k.mcs";
+  private static final String OVERSIZED_STREAM_FILE_NAME = "oversized.mcs";
 
   private static final String NOT_A_STREAM_FILE_REASON = "File missing.mcs is not a stream file!";
   private static final String ENCODE_FAILURE_PREFIX = "The MCV2 encode failed: ";
@@ -1333,6 +1336,20 @@ final class Mcv2PlayCommandTest {
   void shouldRefuseANullPlugin() {
     final String message = assertThrows(NullPointerException.class, () -> new Mcv2PlayCommand(null)).getMessage();
     assertEquals("Plugin must not be null!", message);
+  }
+
+  @Test
+  void shouldRefuseAStreamFileLargerThanAGibibyte() throws IOException {
+    final Path file = this.folder.resolve(OVERSIZED_STREAM_FILE_NAME);
+    try (
+      final FileChannel channel = FileChannel.open(file, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE, StandardOpenOption.SPARSE)
+    ) {
+      final ByteBuffer last = ByteBuffer.wrap(new byte[] { 1 });
+      channel.write(last, 1L << 30);
+    }
+
+    final String message = assertThrows(IOException.class, () -> this.command.read(file)).getMessage();
+    assertEquals("The stream file is larger than 1073741824 bytes!", message);
   }
 
   // frames after the first wait for a latch, like a slow decoder
