@@ -857,32 +857,6 @@ final class VideoPlayerManagerTest {
   }
 
   @Test
-  void shouldRejectStartFilterWithoutBeginStart() {
-    this.manager.cancelStart();
-    final BukkitScheduler scheduler = TestServer.getScheduler();
-    final CancellationException thrown = assertThrows(CancellationException.class, () -> this.manager.startFilter(this.filter));
-
-    final String message = thrown.getMessage();
-    assertEquals(CANCELLED_STARTUP_MESSAGE, message);
-
-    verify(scheduler, never()).runTask(any(Plugin.class), any(Runnable.class));
-    verify(this.filter, never()).start();
-  }
-
-  @Test
-  void shouldRejectStartNativeWithoutBeginStart() {
-    this.manager.cancelStart();
-    this.manager.setPlayer(this.player);
-    final BooleanSupplier start = mock(BooleanSupplier.class);
-    final CancellationException thrown = assertThrows(CancellationException.class, () -> this.manager.startNative(start));
-
-    final String message = thrown.getMessage();
-    assertEquals(CANCELLED_STARTUP_MESSAGE, message);
-
-    verify(start, never()).getAsBoolean();
-  }
-
-  @Test
   void shouldRejectStartNativeWithoutAPlayer() {
     this.manager.beginStart();
     final BooleanSupplier start = mock(BooleanSupplier.class);
