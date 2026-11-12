@@ -118,6 +118,7 @@ public final class ImageBlockCommand extends AbstractImageCommand {
    * @param configurationProvider the provider that builds the block configuration
    * @return the block display
    * @throws NullPointerException if an argument is null
+   * @throws ClassCastException   if the provider builds no {@link BlockConfiguration}
    * @since 1.0.0
    */
   @Override

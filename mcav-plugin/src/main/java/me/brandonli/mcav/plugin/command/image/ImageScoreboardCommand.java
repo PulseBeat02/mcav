@@ -83,8 +83,8 @@ public final class ImageScoreboardCommand extends AbstractImageCommand {
    *                        those online when the image appears see it
    * @param imageResolution the size as {@code <width>x<height>}, in characters per line and lines, such as
    *                        {@code 24x15}; the height is at most {@value ScoreboardConfiguration#MAXIMUM_LINES}
-   * @param character       the character every pixel is drawn with, in quotes if it is not a single word; a full
-   *                        block {@code █} gives the most solid picture
+   * @param character       the character every pixel is drawn with, typed in double quotes; a full block
+   *                        {@code "█"} gives the most solid picture
    * @param mrl             the image to show: a path to a file on the server or an {@code http} or {@code https}
    *                        URL; the rest of the command line, so it may contain spaces
    * @param filters         the {@code --filters} option: filters applied to the image in order, such as
@@ -129,6 +129,7 @@ public final class ImageScoreboardCommand extends AbstractImageCommand {
    * @param configurationProvider the provider that builds the scoreboard configuration
    * @return the scoreboard display
    * @throws NullPointerException if an argument is null
+   * @throws ClassCastException   if the provider builds no {@link ScoreboardConfiguration}
    * @since 1.0.0
    */
   @Override

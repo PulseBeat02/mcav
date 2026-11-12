@@ -209,7 +209,11 @@ final class ImageManagerTest {
   }
 
   @Test
-  void shouldRefuseANullPlugin() {
+  void shouldRefuseANullPluginOrWorker() {
+    final MCAVSandbox plugin = mock(MCAVSandbox.class);
+    final ExecutorService worker = mock(ExecutorService.class);
     assertThrows(NullPointerException.class, () -> new ImageManager(null));
+    assertThrows(NullPointerException.class, () -> new ImageManager(null, worker));
+    assertThrows(NullPointerException.class, () -> new ImageManager(plugin, null));
   }
 }

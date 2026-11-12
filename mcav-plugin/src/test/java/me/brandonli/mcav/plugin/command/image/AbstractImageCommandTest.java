@@ -40,6 +40,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -93,8 +94,12 @@ final class AbstractImageCommandTest {
 
   private static final int RED_PIXEL = 0xFFFF0000;
 
+  private static final int PNG_WIDTH_OFFSET = 16;
+  private static final int PNG_HEIGHT_OFFSET = 20;
+
   private static final char QUOTE = '"';
   private static final String EMPTY_QUOTED_SOURCE = "\"\"";
+  private static final String BLANK_QUOTED_SOURCE = "\"   \"";
 
   private static final String CONFIGURATION = "configuration";
 
@@ -112,6 +117,7 @@ final class AbstractImageCommandTest {
   private static final String LITERAL_QUOTES_FILE_NAME = "literal-quotes.png";
   private static final String ANIMATION_FILE_NAME = "animation.gif";
   private static final String BROKEN_FILE_NAME = "broken.png";
+  private static final String OVERSIZED_FILE_NAME = "oversized.png";
   private static final String LATE_FILE_NAME = "late.png";
   private static final String REJECTED_FILE_NAME = "rejected.png";
   private static final String SCHEDULE_FAILURE_FILE_NAME = "schedule-failure.png";
@@ -401,7 +407,7 @@ final class AbstractImageCommandTest {
   }
 
   @ParameterizedTest
-  @ValueSource(strings = { "", EMPTY_QUOTED_SOURCE })
+  @ValueSource(strings = { "", EMPTY_QUOTED_SOURCE, BLANK_QUOTED_SOURCE })
   void shouldRejectEmptySources(final String mrl) {
     this.command.displayImage(_ -> CONFIGURATION, this.sender, LARGE_SCREEN_SIZE, mrl, null);
     this.assertNothingShown();
@@ -498,7 +504,7 @@ final class AbstractImageCommandTest {
   }
 
   @Test
-  void shouldNameTheImageThatFailedToLoadInTheLog() throws IOException {
+  void shouldLogAnImageThatFailedToLoadAsAnErrorWithItsTrace() throws IOException {
     final Path file = this.writeImage(FILTER_FAILURE_FILE_NAME, PNG_FORMAT);
     final String mrl = file.toString();
     final IllegalStateException failure = new IllegalStateException("resize failed after decoding!");
@@ -515,7 +521,11 @@ final class AbstractImageCommandTest {
     }
 
     final boolean named = output.contains("Image %s could not be loaded.".formatted(mrl));
+    final boolean error = output.contains(ERROR_LEVEL);
+    final boolean traced = output.contains(STACK_FRAME);
     assertTrue(named, "the log of a failed image names the media it could not load");
+    assertTrue(error, output);
+    assertTrue(traced, output);
   }
 
   @Test
@@ -550,6 +560,23 @@ final class AbstractImageCommandTest {
   private void assertNoErrorLogged(final String output) {
     final boolean logged = output.contains(ERROR_LEVEL) || output.contains(STACK_FRAME);
     assertFalse(logged, output);
+  }
+
+  @Test
+  void shouldTellTheSenderWhenAnImageDeclaresMorePixelsThanTheLimit() throws IOException {
+    final byte[] bytes = this.encode(PNG_FORMAT);
+    final ByteBuffer header = ByteBuffer.wrap(bytes);
+    header.putInt(PNG_WIDTH_OFFSET, 8193);
+    header.putInt(PNG_HEIGHT_OFFSET, 8192);
+    final Path file = this.folder.resolve(OVERSIZED_FILE_NAME);
+    Files.write(file, bytes);
+    final String mrl = file.toString();
+    final String output = this.displayCapturingErrors(mrl);
+
+    final String reason =
+      "Image size 8193x8192 exceeds the limit of 67108864 pixels that the system property mcav.image.maximum_pixels sets!";
+    this.assertUnavailableAfterLoading(reason);
+    this.assertNoErrorLogged(output);
   }
 
   @Test
@@ -640,6 +667,27 @@ final class AbstractImageCommandTest {
 
       final int creations = this.command.resolutions.size();
       assertEquals(1, creations);
+    }
+  }
+
+  @Test
+  void shouldReplaceTheImageThatAnotherImageCommandShows() throws IOException {
+    final Path file = this.writeImage(PICTURE_FILE_NAME, PNG_FORMAT);
+    final String mrl = file.toString();
+    final DisplayableImage replacement = mock(DisplayableImage.class);
+    final RecordingCommand other = new RecordingCommand(this.command.plugin, replacement);
+    try (final MockedConstruction<MatImageBuffer> buffers = Mockito.mockConstruction(MatImageBuffer.class)) {
+      this.command.displayImage(_ -> CONFIGURATION, this.sender, SCREEN_SIZE, mrl, null);
+      other.displayImage(_ -> CONFIGURATION, this.sender, SCREEN_SIZE, mrl, null);
+      final List<MatImageBuffer> constructed = buffers.constructed();
+      final MatImageBuffer first = constructed.getFirst();
+      final MatImageBuffer second = constructed.getLast();
+      verify(this.display, times(1)).release();
+      verify(first, times(1)).close();
+      verify(replacement, times(1)).displayImage(second);
+
+      verify(replacement, never()).release();
+      verify(second, never()).close();
     }
   }
 
@@ -826,8 +874,11 @@ final class AbstractImageCommandTest {
 
   @Test
   void shouldRefuseNullArguments() {
+    final NullPointerException exception = assertThrows(NullPointerException.class, () -> new RecordingCommand(null, this.display));
+    final String message = exception.getMessage();
+    assertEquals("Plugin must not be null!", message);
+
     final AbstractImageCommand.ImageConfigurationProvider configuration = _ -> CONFIGURATION;
-    assertThrows(NullPointerException.class, () -> new RecordingCommand(null, this.display));
     assertThrows(NullPointerException.class, () -> this.command.displayImage(null, this.sender, SCREEN_SIZE, PICTURE_FILE_NAME, null));
     assertThrows(NullPointerException.class, () -> this.command.displayImage(configuration, null, SCREEN_SIZE, PICTURE_FILE_NAME, null));
     assertThrows(NullPointerException.class, () -> this.command.displayImage(configuration, this.sender, null, PICTURE_FILE_NAME, null));

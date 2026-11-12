@@ -148,4 +148,20 @@ final class ImageEntityCommandTest {
     assertThrows(NullPointerException.class, () -> this.command.createImage(null, provider));
     assertThrows(NullPointerException.class, () -> this.command.createImage(resolution, null));
   }
+
+  @Test
+  void shouldPassTheFiltersOnToTheImage() {
+    final String filters = "invert";
+    doNothing().when(this.command).displayImage(any(), any(), any(), any(), eq(filters));
+    this.command.showImage(this.sender, this.selector, RESOLUTION, CHARACTER, this.location, MRL, filters);
+
+    verify(this.command).displayImage(any(), eq(this.sender), eq(RESOLUTION), eq(MRL), eq(filters));
+  }
+
+  @Test
+  void shouldRefuseAProviderThatBuildsAnotherConfiguration() {
+    final Pair<Integer, Integer> resolution = Pair.pair(RESOLUTION_WIDTH, RESOLUTION_HEIGHT);
+    final AbstractImageCommand.ImageConfigurationProvider provider = _ -> new Object();
+    assertThrows(ClassCastException.class, () -> this.command.createImage(resolution, provider));
+  }
 }
