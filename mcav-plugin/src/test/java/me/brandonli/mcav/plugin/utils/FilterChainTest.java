@@ -72,6 +72,7 @@ final class FilterChainTest {
   private static final int RED = 0xff0000;
   private static final int BLUE = 0x0000ff;
   private static final int WHITE = 0xffffff;
+  private static final int BLACK = 0x000000;
 
   private static final int TOP_LEFT_COLOR = 0x123456;
   private static final int BOTTOM_RIGHT_COLOR = 0xABCDEF;
@@ -647,5 +648,63 @@ final class FilterChainTest {
       final int size = constructed.size();
       assertEquals(1, size);
     }
+  }
+
+  @Test
+  void shouldMirrorThePictureInTheDirectionTyped() {
+    final int[] horizontal = this.filterCorners("flip=h");
+    final int[] expectedHorizontal = { BLUE, RED, BLACK, WHITE };
+    assertArrayEquals(expectedHorizontal, horizontal);
+
+    final int[] vertical = this.filterCorners("flip=v");
+    final int[] expectedVertical = { WHITE, BLACK, RED, BLUE };
+    assertArrayEquals(expectedVertical, vertical);
+
+    final int[] both = this.filterCorners("flip=hv");
+    final int[] expectedBoth = { BLACK, WHITE, BLUE, RED };
+    assertArrayEquals(expectedBoth, both);
+  }
+
+  private int[] filterCorners(final String filter) {
+    final int[] corners = { OPAQUE | RED, OPAQUE | BLUE, OPAQUE | WHITE, OPAQUE | BLACK };
+    final ImageBuffer picture = ImageBuffer.buffer(corners, 2, 2);
+    final FilterChain chain = this.parse(filter);
+    chain.apply(picture);
+
+    return this.rgbOf(picture);
+  }
+
+  private int[] rgbOf(final ImageBuffer picture) {
+    final int[] pixels = picture.getPixels();
+    return Arrays.stream(pixels)
+      .map(pixel -> pixel & RGB_MASK)
+      .toArray();
+  }
+
+  @Test
+  void shouldTurnThePictureClockwiseByTheDegreesTyped() {
+    final int[] quarter = this.filterCorners("rotate=90");
+    final int[] expectedQuarter = { WHITE, RED, BLACK, BLUE };
+    assertArrayEquals(expectedQuarter, quarter);
+
+    final int[] half = this.filterCorners("rotate=180");
+    final int[] expectedHalf = { BLACK, WHITE, BLUE, RED };
+    assertArrayEquals(expectedHalf, half);
+
+    final int[] threeQuarters = this.filterCorners("rotate=270");
+    final int[] expectedThreeQuarters = { BLUE, BLACK, RED, WHITE };
+    assertArrayEquals(expectedThreeQuarters, threeQuarters);
+  }
+
+  @Test
+  void shouldTurnPixelsBelowTheThresholdBlackAndAboveItWhite() {
+    final int[] grays = { OPAQUE | 0x7f7f7f, OPAQUE | 0x818181 };
+    final ImageBuffer picture = ImageBuffer.buffer(grays, 2, 1);
+    final FilterChain chain = this.parse("threshold=128");
+    chain.apply(picture);
+
+    final int[] pixels = this.rgbOf(picture);
+    final int[] expected = { BLACK, WHITE };
+    assertArrayEquals(expected, pixels);
   }
 }
