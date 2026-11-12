@@ -21,6 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
@@ -40,5 +41,13 @@ final class DitherPaletteColorsTest {
     final List<Integer> withNull = Arrays.asList(0x000000, null);
     assertThrows(NullPointerException.class, () -> DitherPalette.colors(withNull));
     assertThrows(NullPointerException.class, () -> DitherPalette.colors((List<Integer>) null));
+  }
+
+  @Test
+  void shouldRejectColorListsOfNoColorsOrMoreThan256Colors() {
+    final List<Integer> none = List.of();
+    final List<Integer> tooMany = Collections.nCopies(257, 0x000000);
+    assertThrows(IllegalArgumentException.class, () -> DitherPalette.colors(none));
+    assertThrows(IllegalArgumentException.class, () -> DitherPalette.colors(tooMany));
   }
 }
