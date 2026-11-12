@@ -242,7 +242,10 @@ final class HelpCommandTest {
 
   @Test
   void shouldRefuseNullArguments() {
-    assertThrows(NullPointerException.class, () -> new HelpCommand(null));
+    final NullPointerException nullManager = assertThrows(NullPointerException.class, () -> new HelpCommand(null));
+    final String message = nullManager.getMessage();
+    assertEquals("Command manager must not be null!", message);
+
     assertThrows(NullPointerException.class, () -> this.help.commandHelp(null, DUMP_QUERY));
   }
 }
