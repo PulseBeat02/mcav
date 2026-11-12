@@ -104,6 +104,7 @@ final class FilterChainTest {
   private static final String FOLDER_OVERLAY_FILE_NAME = "folder.png";
   private static final String OUTSIDE_FILE_PREFIX = "outside";
   private static final String LINK_OVERLAY_FILE_NAME = "link.png";
+  private static final String REPLACED_OVERLAY_FILE_NAME = "replaced.png";
 
   @TempDir
   Path overlays;
@@ -734,5 +735,19 @@ final class FilterChainTest {
     final int[] pixels = this.rgbOf(picture);
     final int[] expected = { BLACK, WHITE };
     assertArrayEquals(expected, pixels);
+  }
+
+  @Test
+  void shouldRefuseToMakeTheFiltersWhenAnOverlayIsNoLongerAPicture() throws IOException {
+    this.writeOverlay("replaced", 2, 2);
+    final FilterChain chain = this.parse("overlay=replaced");
+    final Path file = this.overlays.resolve(REPLACED_OVERLAY_FILE_NAME);
+    Files.writeString(file, "not a picture");
+    final VideoPipelineStep output = VideoPipelineStep.of(VideoFilter.NO_OPERATION);
+    final ImageBuffer picture = this.picture(2, 2, BLUE);
+
+    assertThrows(IllegalArgumentException.class, chain::createFilters);
+    assertThrows(IllegalArgumentException.class, () -> chain.prepend(output));
+    assertThrows(IllegalArgumentException.class, () -> chain.apply(picture));
   }
 }
