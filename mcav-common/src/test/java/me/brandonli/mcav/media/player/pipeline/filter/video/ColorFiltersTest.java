@@ -28,6 +28,11 @@ import static org.mockito.Mockito.when;
 
 import java.lang.reflect.Field;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicReference;
 import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.testing.Images;
@@ -71,6 +76,9 @@ final class ColorFiltersTest {
 
   private static final double TOO_LOW_WEIGHT = -0.1;
   private static final double TOO_HIGH_WEIGHT = 1.1;
+
+  private static final int THREADS = 4;
+  private static final int ROUNDS = 1_000;
 
   private static final String CHANGE_REPORTED_MESSAGE = "the filter reports the change, which decides whether the result is written back";
 
@@ -240,6 +248,49 @@ final class ColorFiltersTest {
       final int largeGray = pixelAt(large, 4, 3);
       assertEquals(SAMPLE_GRAY, small);
       assertEquals(SAMPLE_GRAY, largeGray);
+    }
+  }
+
+  @Test
+  void shouldTintAndGrayFramesOfTwoSizesOnSeveralThreadsAtOnce() throws Exception {
+    final TintFilter tint = new TintFilter(BLUE, TINT_STRENGTH);
+    final GrayscaleFilter grayscale = new GrayscaleFilter();
+    final List<Future<Integer>> results = new ArrayList<>();
+    try (final ExecutorService executor = Executors.newFixedThreadPool(THREADS)) {
+      for (int thread = 0; thread < THREADS; thread++) {
+        final int side = SOLID_SIDE + (thread % 2);
+        final Future<Integer> result = executor.submit(() -> this.countWrongFrames(tint, grayscale, side));
+        results.add(result);
+      }
+
+      for (final Future<Integer> result : results) {
+        final int wrongFrames = result.get();
+        assertEquals(0, wrongFrames, "every call works on a matrix of its own");
+      }
+    }
+  }
+
+  private int countWrongFrames(final TintFilter tint, final GrayscaleFilter grayscale, final int side) {
+    int wrongFrames = 0;
+    for (int round = 0; round < ROUNDS; round++) {
+      final boolean right = this.filterAndCheckTwoFrames(tint, grayscale, side);
+      if (!right) {
+        wrongFrames++;
+      }
+    }
+
+    return wrongFrames;
+  }
+
+  private boolean filterAndCheckTwoFrames(final TintFilter tint, final GrayscaleFilter grayscale, final int side) {
+    try (final ImageBuffer black = Images.solid(side, side, BLACK); final ImageBuffer colored = Images.solid(side, side, SAMPLE_COLOR)) {
+      tint.applyFilter(black);
+      grayscale.applyFilter(colored);
+      final int corner = side - 1;
+      final int tinted = pixelAt(black, corner, corner);
+      final int gray = pixelAt(colored, corner, corner);
+      final int blue = tinted & CHANNEL_MASK;
+      return isHalf(blue) && gray == SAMPLE_GRAY;
     }
   }
 
