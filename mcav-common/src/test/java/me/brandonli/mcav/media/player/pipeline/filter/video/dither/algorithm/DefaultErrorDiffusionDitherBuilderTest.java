@@ -18,6 +18,7 @@
 package me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm;
 
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.builder.ErrorDiffusionDitherBuilder;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.error.DiffusionKernel;
@@ -35,5 +36,11 @@ final class DefaultErrorDiffusionDitherBuilderTest {
     final DitherPalette palette = built.getPalette();
     assertSame(DiffusionKernel.FILTER_LITE, kernel);
     assertSame(DitherPalette.DEFAULT_MAP_PALETTE, palette);
+  }
+
+  @Test
+  void shouldRejectAnErrorStrengthThatIsNotANumber() {
+    final ErrorDiffusionDitherBuilder builder = DitherAlgorithm.errorDiffusion();
+    assertThrows(IllegalArgumentException.class, () -> builder.errorStrength(Float.NaN));
   }
 }
