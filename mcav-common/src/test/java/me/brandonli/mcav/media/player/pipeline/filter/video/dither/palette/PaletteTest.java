@@ -206,15 +206,13 @@ final class PaletteTest {
       final boolean opaque = unsigned >= MapPalette.TRANSPARENT_INDICES;
       assertTrue(opaque, "transparent entries must never be chosen");
     }
-
-    final int eightBitSize = DitherPalette.EIGHT_BIT_PALETTE.getSize();
-    assertEquals(8, eightBitSize);
   }
 
   @Test
   void shouldHoldEightColorsInTheEightBitPalette() {
     final DitherPalette palette = DitherPalette.EIGHT_BIT_PALETTE;
     final int[] colors = palette.getPalette();
+    final int size = palette.getSize();
     final int[] redGreenBlueWhiteBlackYellowCyanPurple = {
       0xFFFF0000,
       0xFF00D93A,
@@ -226,6 +224,7 @@ final class PaletteTest {
       0xFFB24CD8,
     };
     assertArrayEquals(redGreenBlueWhiteBlackYellowCyanPurple, colors);
+    assertEquals(8, size);
   }
 
   @Test
