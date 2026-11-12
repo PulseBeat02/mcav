@@ -57,12 +57,13 @@ final class ArgumentUtilsTest {
     assertEquals(1, height);
   }
 
-  @Test
-  void shouldRejectTextWithoutSeparator() {
-    final IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> ArgumentUtils.parseDimensions("128"));
+  @ParameterizedTest
+  @ValueSource(strings = { "128", "", "16X9" })
+  void shouldRejectTextWithoutALowercaseSeparator(final String text) {
+    final IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> ArgumentUtils.parseDimensions(text));
 
     final String message = exception.getMessage();
-    assertEquals("Dimensions 128 have an invalid format!", message);
+    assertEquals("Dimensions %s have an invalid format!".formatted(text), message);
   }
 
   @ParameterizedTest
@@ -75,9 +76,9 @@ final class ArgumentUtilsTest {
   }
 
   @ParameterizedTest
-  @ValueSource(strings = { "ax5", "5xb", "4x4x4", "x5", "5x", "", "16X9" })
-  void shouldRejectSidesThatAreNotNumbers(final String text) {
-    assertThrows(IllegalArgumentException.class, () -> ArgumentUtils.parseDimensions(text));
+  @ValueSource(strings = { "ax5", "5xb", "4x4x4", "x5", "5x", "5 x 5", "5x5px" })
+  void shouldReportSidesThatAreNotWholeNumbersAsNumberFormatErrors(final String text) {
+    assertThrows(NumberFormatException.class, () -> ArgumentUtils.parseDimensions(text));
   }
 
   @Test
