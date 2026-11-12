@@ -311,6 +311,8 @@ final class FilterChainTest {
     assertThrows(NullPointerException.class, () -> FilterChain.parse(null, this.overlays, MediaKind.VIDEO));
     assertThrows(NullPointerException.class, () -> FilterChain.parse("", null, MediaKind.VIDEO));
     assertThrows(NullPointerException.class, () -> FilterChain.parse("", this.overlays, null));
+    assertThrows(NullPointerException.class, () -> FilterChain.NONE.prepend(null));
+    assertThrows(NullPointerException.class, () -> FilterChain.NONE.apply(null));
   }
 
   @ParameterizedTest
