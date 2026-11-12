@@ -623,7 +623,7 @@ device and an FFmpeg input get `Invalid MRL!`.
 | Description                               | Displays an image in blocks.                                            |
 | Arguments                                 |                                                                         |
 | &nbsp;&nbsp;&nbsp;&nbsp;`playerSelector`  | A selector for the players that can see the image                       |
-| &nbsp;&nbsp;&nbsp;&nbsp;`imageResolution` | A resolution in `<width>x<height>` format (example, 640x640)            |
+| &nbsp;&nbsp;&nbsp;&nbsp;`imageResolution` | A resolution in `<width>x<height>` format (example, 32x18)              |
 | &nbsp;&nbsp;&nbsp;&nbsp;`location`        | The location in the world to display the image                          |
 | &nbsp;&nbsp;&nbsp;&nbsp;`mrl`             | The Media Resource Locator pointing to the image                        |
 | &nbsp;&nbsp;&nbsp;&nbsp;`--filters`       | Optional: filters applied to the image in order, in quotes, such as `"grayscale,blur=3"`; see [filters](#filters) |
@@ -651,7 +651,7 @@ device and an FFmpeg input get `Invalid MRL!`.
 | Description                               | Displays an image as a `TextDisplay` entity.                                         |
 | Arguments                                 |                                                                                      |
 | &nbsp;&nbsp;&nbsp;&nbsp;`playerSelector`  | A selector for the players that can see the image                                    |
-| &nbsp;&nbsp;&nbsp;&nbsp;`imageResolution` | A resolution in `<width>x<height>` format (example, 640x640)                         |
+| &nbsp;&nbsp;&nbsp;&nbsp;`imageResolution` | A resolution in `<width>x<height>` format (example, 64x36)                           |
 | &nbsp;&nbsp;&nbsp;&nbsp;`character`       | The character to use for rendering the image; type it in double quotes, such as `"█"` |
 | &nbsp;&nbsp;&nbsp;&nbsp;`location`        | The location where to display the image entity                                       |
 | &nbsp;&nbsp;&nbsp;&nbsp;`mrl`             | The Media Resource Locator pointing to the image                                     |
