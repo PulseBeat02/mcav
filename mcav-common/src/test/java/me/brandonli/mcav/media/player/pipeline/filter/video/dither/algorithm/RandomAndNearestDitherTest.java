@@ -408,10 +408,14 @@ final class RandomAndNearestDitherTest {
     nearest.dither(pixels, 2);
     final NearestDither defaults = DitherAlgorithm.nearestColor();
     final DitherPalette defaultPalette = defaults.getPalette();
+    final NearestDitherBuilder defaultBuilder = DitherAlgorithm.nearest();
+    final NearestDither builtDefaults = defaultBuilder.build();
+    final DitherPalette builtDefaultPalette = builtDefaults.getPalette();
     final int[] expected = new int[] { BLACK, WHITE };
     assertSame(builder, configured, CHAINING_MESSAGE);
     assertArrayEquals(expected, pixels);
     assertSame(DitherPalette.DEFAULT_MAP_PALETTE, defaultPalette);
+    assertSame(DitherPalette.DEFAULT_MAP_PALETTE, builtDefaultPalette, "the builder defaults to the map palette as well");
     assertThrows(NullPointerException.class, () -> builder.palette(null));
   }
 
