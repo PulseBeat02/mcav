@@ -47,6 +47,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -96,6 +97,7 @@ final class PaperServerEndToEndTest {
   private static final Duration VNC_POLL_PAUSE = Duration.ofMillis(50);
   private static final Duration PAST_CLIP_END = Duration.ofSeconds(4);
   private static final Duration RELEASE_POLL_PAUSE = Duration.ofMillis(200);
+  private static final Duration QEMU_PROBE_TIMEOUT = Duration.ofSeconds(30);
 
   private static final String TONE_IMAGE = "beep.img";
   private static final String CLIP = "clip.mp4";
@@ -154,6 +156,9 @@ final class PaperServerEndToEndTest {
   private static final String UNIX_JAVA_SUFFIX = "/java";
   private static final String WINDOWS_JAVA_SUFFIX = "\\java.exe";
 
+  private static final String QEMU_PROGRAM = "qemu-system-x86_64";
+  private static final String VERSION_OPTION = "--version";
+
   @Test
   void shouldEnableThePluginWithItsAudioOutputsOnAHeadlessServer(@TempDir final Path serverDirectory) throws Exception {
     final boolean eulaAccepted = Boolean.getBoolean("mcav.e2e.accept_eula");
@@ -185,7 +190,6 @@ final class PaperServerEndToEndTest {
       this.assertCurrentModuleJars(serverDirectory, pluginJar);
 
       System.out.println("Local repository files served: %s; cached module hashes verified against this plugin".formatted(servedFileCount));
-      this.runCommand(server, "plugins", "MCAV");
       this.runCommand(server, "mcav help", "mcav dump");
       final String mediaInformation = this.fetchMediaInformation(server, httpPort);
       try (final SoundListener sound = SoundListener.connect(httpPort); final TonePage page = TonePage.start()) {
@@ -206,6 +210,7 @@ final class PaperServerEndToEndTest {
     }
   }
 
+  // where QEMU runs, the server must find it, so a broken discovery fails here instead of skipping the machine
   private void runAMachineWhenQemuIsAvailable(final ServerProcess server, final SoundListener sound) throws InterruptedException {
     final boolean qemuAvailable = server
       .getLines()
@@ -213,9 +218,36 @@ final class PaperServerEndToEndTest {
       .noneMatch(line -> line.contains("QEMU is not installed"));
     if (qemuAvailable) {
       this.runAMachine(server, sound);
-    } else {
-      System.out.println("QEMU is not installed on this machine, so no virtual machine runs");
+      return;
     }
+
+    final boolean qemuRunsHere = this.canRunQemu();
+    assertFalse(qemuRunsHere, "the server reports QEMU missing although %s runs on this machine".formatted(QEMU_PROGRAM));
+
+    System.out.println("QEMU is not installed on this machine, so no virtual machine runs");
+  }
+
+  private boolean canRunQemu() throws InterruptedException {
+    final ProcessBuilder builder = new ProcessBuilder(QEMU_PROGRAM, VERSION_OPTION);
+    builder.redirectErrorStream(true);
+    builder.redirectOutput(ProcessBuilder.Redirect.DISCARD);
+    final Process probe;
+    try {
+      probe = builder.start();
+    } catch (final IOException exception) {
+      // not on the PATH
+      return false;
+    }
+
+    final long milliseconds = QEMU_PROBE_TIMEOUT.toMillis();
+    final boolean exited = probe.waitFor(milliseconds, TimeUnit.MILLISECONDS);
+    if (!exited) {
+      probe.destroyForcibly();
+      return false;
+    }
+
+    final int exitCode = probe.exitValue();
+    return exitCode == 0;
   }
 
   // a warm cache skips HTTP when Gremlin's hashes match, so the module bytes are checked here
