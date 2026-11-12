@@ -80,6 +80,25 @@ final class PipelineStepTest {
   }
 
   @Test
+  void shouldApplyOnlyTheFilterOfItsOwnStepWhenProcessing() {
+    final List<String> calls = new ArrayList<>();
+    final VideoFilter videoFilter = (_, _) -> calls.add("video filter");
+    final VideoFilter nextVideo = (_, _) -> calls.add("next video filter");
+    final AudioFilter audioFilter = (_, _) -> calls.add("audio filter");
+    final AudioFilter nextAudio = (_, _) -> calls.add("next audio filter");
+    final VideoPipelineStep lastVideo = VideoPipelineStep.of(nextVideo);
+    final VideoPipelineStep video = VideoPipelineStep.of(lastVideo, videoFilter);
+    final AudioPipelineStep lastAudio = AudioPipelineStep.of(nextAudio);
+    final AudioPipelineStep audio = AudioPipelineStep.of(lastAudio, audioFilter);
+    final ImageBuffer image = mock(ImageBuffer.class);
+    final ByteBuffer samples = ByteBuffer.allocate(SAMPLE_BUFFER_BYTES);
+    video.process(image, OriginalVideoMetadata.EMPTY);
+    audio.process(samples, AUDIO_METADATA);
+    final List<String> expected = List.of("video filter", "audio filter");
+    assertEquals(expected, calls);
+  }
+
+  @Test
   void shouldRewindTheSamplesBeforeEveryFilterInAudioSteps() {
     final List<Integer> positions = new ArrayList<>();
     final AudioFilter consuming = (samples, _) -> this.recordPositionAndConsume(positions, samples);
