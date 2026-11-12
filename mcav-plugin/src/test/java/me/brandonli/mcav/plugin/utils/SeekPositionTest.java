@@ -84,6 +84,14 @@ final class SeekPositionTest {
   }
 
   @Test
+  void shouldAcceptMinutesBeyondAnHourWhenNoHoursAreTyped() {
+    final SeekPosition position = SeekPosition.of(ABSOLUTE, 4_500_000L);
+    final Optional<SeekPosition> parsed = SeekPosition.parse("75:00");
+    final Optional<SeekPosition> expected = Optional.of(position);
+    assertEquals(expected, parsed);
+  }
+
+  @Test
   void shouldReadTimesFromTheCurrentPosition() {
     final SeekPosition expected = SeekPosition.of(RELATIVE, RELATIVE_POSITION_MILLISECONDS);
     final Optional<SeekPosition> parsed = SeekPosition.parse("+10");
@@ -122,6 +130,8 @@ final class SeekPositionTest {
       "1e3",
       "٣",
       "360000",
+      "+360000",
+      "-360000",
       "1:2:3:4",
     }
   )
