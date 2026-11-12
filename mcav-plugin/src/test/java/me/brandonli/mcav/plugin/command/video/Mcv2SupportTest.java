@@ -245,6 +245,32 @@ final class Mcv2SupportTest {
   }
 
   @Test
+  void shouldTakeTheBacklogLimitOfAMeasurement() {
+    System.setProperty(Mcv2Support.BACKLOG_PROPERTY, "65536");
+    try {
+      final long limitedBacklogLimit = this.support.readBacklogLimit();
+      assertEquals(65536, limitedBacklogLimit);
+
+      final int unsentLimit = this.support.readUnsentLimit();
+      assertEquals(Mcv2Configuration.DEFAULT_UNSENT_LIMIT, unsentLimit);
+
+      System.setProperty(Mcv2Support.BACKLOG_PROPERTY, "none");
+
+      final long secondBacklogLimit = this.support.readBacklogLimit();
+      assertEquals(Long.MAX_VALUE, secondBacklogLimit);
+      // no backpressure at all: no cap on a viewer's unsent bytes either
+
+      final int unlimitedUnsentLimit = this.support.readUnsentLimit();
+      assertEquals(0, unlimitedUnsentLimit);
+    } finally {
+      System.clearProperty(Mcv2Support.BACKLOG_PROPERTY);
+    }
+
+    final long backlogLimit = this.support.readBacklogLimit();
+    assertEquals(Mcv2Configuration.DEFAULT_BACKLOG_LIMIT, backlogLimit);
+  }
+
+  @Test
   void shouldTellTheSenderWhenTheScreenIsLargerThanMcv2Plays() {
     // the plugin's walls go up to 64 maps a side and its videos up to 8192 pixels, MCV2's to 63 and 4096
     final Optional<Mcv2Configuration> configured = this.configure(64, ROWS, VIDEO_WIDTH, VIDEO_HEIGHT);
