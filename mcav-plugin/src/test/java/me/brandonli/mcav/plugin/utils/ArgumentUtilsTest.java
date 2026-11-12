@@ -24,6 +24,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Set;
@@ -57,12 +58,13 @@ final class ArgumentUtilsTest {
     assertEquals(1, height);
   }
 
-  @Test
-  void shouldRejectTextWithoutSeparator() {
-    final IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> ArgumentUtils.parseDimensions("128"));
+  @ParameterizedTest
+  @ValueSource(strings = { "128", "", "16X9" })
+  void shouldRejectTextWithoutALowercaseSeparator(final String text) {
+    final IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> ArgumentUtils.parseDimensions(text));
 
     final String message = exception.getMessage();
-    assertEquals("Dimensions 128 have an invalid format!", message);
+    assertEquals("Dimensions %s have an invalid format!".formatted(text), message);
   }
 
   @ParameterizedTest
@@ -75,9 +77,9 @@ final class ArgumentUtilsTest {
   }
 
   @ParameterizedTest
-  @ValueSource(strings = { "ax5", "5xb", "4x4x4", "x5", "5x", "", "16X9" })
-  void shouldRejectSidesThatAreNotNumbers(final String text) {
-    assertThrows(IllegalArgumentException.class, () -> ArgumentUtils.parseDimensions(text));
+  @ValueSource(strings = { "ax5", "5xb", "4x4x4", "x5", "5x", "5 x 5", "5x5px" })
+  void shouldReportSidesThatAreNotWholeNumbersAsNumberFormatErrors(final String text) {
+    assertThrows(NumberFormatException.class, () -> ArgumentUtils.parseDimensions(text));
   }
 
   @Test
@@ -103,10 +105,8 @@ final class ArgumentUtilsTest {
     final Pair<Integer, Integer> dimensions = ArgumentUtils.parseScreenDimensions("64x64");
     final int width = dimensions.getFirst();
     final int height = dimensions.getSecond();
-    final int maps = width * height;
     assertEquals(64, width);
     assertEquals(64, height);
-    assertEquals(4096, maps, "the largest wall fits into one bundle of map packets");
   }
 
   @ParameterizedTest
@@ -140,6 +140,22 @@ final class ArgumentUtilsTest {
     final Collection<UUID> ids = ArgumentUtils.resolvePlayerIds(selector);
     final List<UUID> expected = List.of(firstId, secondId);
     assertEquals(expected, ids);
+  }
+
+  @Test
+  void shouldReturnAnUnmodifiableSnapshotOfTheSelectedPlayers() {
+    final UUID id = UUID.randomUUID();
+    final Player player = mock(Player.class);
+    when(player.getUniqueId()).thenReturn(id);
+    final List<Player> players = new ArrayList<>(List.of(player));
+    final MultiplePlayerSelector selector = mock(MultiplePlayerSelector.class);
+    when(selector.values()).thenReturn(players);
+    final Collection<UUID> ids = ArgumentUtils.resolvePlayerIds(selector);
+    players.clear();
+
+    final List<UUID> expected = List.of(id);
+    assertEquals(expected, ids);
+    assertThrows(UnsupportedOperationException.class, ids::clear);
   }
 
   @Test

@@ -37,7 +37,6 @@ final class ArgumentUtilsPropertyTest {
   private static final String SEED = "20260925";
   // the protocol's limit of packets in one bundle, which the largest wall is chosen to fit
   private static final int BUNDLE_LIMIT = 4096;
-  private static final long MAP_PACKET_BYTES = 128 * 128 + 16;
 
   private static final String DIMENSION_SEPARATOR = "x";
 
@@ -143,9 +142,7 @@ final class ArgumentUtilsPropertyTest {
     final int width = size.getFirst();
     final int height = size.getSecond();
     final long maps = (long) width * height;
-    final long clearBytes = maps * MAP_PACKET_BYTES;
 
     assertTrue(maps <= BUNDLE_LIMIT, () -> "%sx%s maps do not fit one bundle".formatted(width, height));
-    assertTrue(clearBytes <= BUNDLE_LIMIT * MAP_PACKET_BYTES, () -> "clearing %sx%s sends %s bytes".formatted(width, height, clearBytes));
   }
 }

@@ -31,6 +31,7 @@ import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -60,6 +61,7 @@ import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.MockedConstruction;
 import org.mockito.Mockito;
@@ -71,6 +73,7 @@ final class FilterChainTest {
   private static final int RED = 0xff0000;
   private static final int BLUE = 0x0000ff;
   private static final int WHITE = 0xffffff;
+  private static final int BLACK = 0x000000;
 
   private static final int TOP_LEFT_COLOR = 0x123456;
   private static final int BOTTOM_RIGHT_COLOR = 0xABCDEF;
@@ -101,6 +104,7 @@ final class FilterChainTest {
   private static final String FOLDER_OVERLAY_FILE_NAME = "folder.png";
   private static final String OUTSIDE_FILE_PREFIX = "outside";
   private static final String LINK_OVERLAY_FILE_NAME = "link.png";
+  private static final String REPLACED_OVERLAY_FILE_NAME = "replaced.png";
 
   @TempDir
   Path overlays;
@@ -269,6 +273,33 @@ final class FilterChainTest {
     assertTrue(matches, text);
   }
 
+  @ParameterizedTest
+  @CsvSource(
+    delimiter = '|',
+    quoteCharacter = '"',
+    value = {
+      "sharpen | Filter sharpen does not exist, use one of grayscale, invert, blur, bilateral, threshold, luminance, colormap, tint, flip, rotate, crop, rectangle, dilate, erode, text, overlay, fps instead!",
+      "grayscale=1 | Filter grayscale takes 0 arguments!",
+      "blur=16 | Filter blur takes a whole number from 1 to 15, and 16 is not one!",
+      "crop=50:0:51:10 | Filter crop takes a whole number from 1 to 50, and 51 is not one!",
+      "luminance=3.1:0 | Filter luminance takes a number from 0 to 3.0, and 3.1 is not one!",
+      "colormap=plaid | Color map plaid does not exist, use one of autumn, bone, cividis, cool, hot, hsv, inferno, jet, magma, ocean, parula, pink, plasma, rainbow, spring, summer, turbo, twilight, viridis, winter instead!",
+      "tint | Filter tint takes a color such as ff8000, and a strength from 0 to 100!",
+      "tint=gg8000 | Filter tint takes a color such as ff8000, and gg8000 is not one!",
+      "flip=x | Flip direction x must be h, v or hv!",
+      "rotate=45 | Rotation 45 must be 90, 180 or 270!",
+      "text=é | Filter text takes up to 32 letters, digits, spaces and .!?'()+- characters!",
+      "overlay=../x | Filter overlay takes the name of a PNG file of the overlays folder, without .png!",
+      "overlay=missing | Overlay missing does not exist in the overlays folder!",
+    }
+  )
+  void shouldGiveTheReasonOfEachRefusal(final String text, final String reason) {
+    final IllegalArgumentException refused = assertThrows(IllegalArgumentException.class, () -> this.parse(text));
+
+    final String message = refused.getMessage();
+    assertEquals(reason, message);
+  }
+
   @Test
   void shouldNameAFilterByWhatComesBeforeItsFirstEqualsSign() {
     final IllegalArgumentException unnamed = assertThrows(IllegalArgumentException.class, () -> this.parse("=invert"));
@@ -290,18 +321,29 @@ final class FilterChainTest {
 
     this.parse(TEXT_FILTER_PREFIX + FILLER_TEXT.repeat(FilterChain.MAXIMUM_TEXT_LENGTH));
     assertThrows(IllegalArgumentException.class, () -> this.parse("invert,%s".formatted("x".repeat(FilterChain.MAXIMUM_LENGTH))));
-    assertThrows(
-      IllegalArgumentException.class,
-      () -> FilterChain.parse("fps", this.overlays, MediaKind.IMAGE),
-      "an image has no frame rate"
-    );
-    assertThrows(NullPointerException.class, () -> FilterChain.parse(null, this.overlays, MediaKind.VIDEO));
-    assertThrows(NullPointerException.class, () -> FilterChain.parse("", null, MediaKind.VIDEO));
-    assertThrows(NullPointerException.class, () -> FilterChain.parse("", this.overlays, null));
   }
 
   private void parseTooLongChain() {
     this.parse(String.join(FILTER_SEPARATOR, Collections.nCopies(FilterChain.MAXIMUM_FILTERS + 1, INVERT_FILTER)));
+  }
+
+  @Test
+  void shouldRefuseTheFramesPerSecondFilterForAnImage() {
+    final IllegalArgumentException refused = assertThrows(IllegalArgumentException.class, () ->
+      FilterChain.parse("fps", this.overlays, MediaKind.IMAGE)
+    );
+
+    final String message = refused.getMessage();
+    assertEquals("Filter fps counts the frames of a video, and an image has one!", message);
+  }
+
+  @Test
+  void shouldRefuseNullArguments() {
+    assertThrows(NullPointerException.class, () -> FilterChain.parse(null, this.overlays, MediaKind.VIDEO));
+    assertThrows(NullPointerException.class, () -> FilterChain.parse("", null, MediaKind.VIDEO));
+    assertThrows(NullPointerException.class, () -> FilterChain.parse("", this.overlays, null));
+    assertThrows(NullPointerException.class, () -> FilterChain.NONE.prepend(null));
+    assertThrows(NullPointerException.class, () -> FilterChain.NONE.apply(null));
   }
 
   @ParameterizedTest
@@ -339,12 +381,6 @@ final class FilterChainTest {
 
     final boolean matches = !this.parse("overlay=largest").isEmpty();
     assertTrue(matches);
-
-    final boolean empty = FilterChain.NONE.isEmpty();
-    assertTrue(empty);
-
-    final boolean secondMatches = !this.parse(GRAYSCALE_FILTER).isEmpty();
-    assertTrue(secondMatches);
   }
 
   @Test
@@ -543,7 +579,7 @@ final class FilterChainTest {
   }
 
   @Test
-  void shouldScaleALargeOverlayDownAndRemakesARegionForEverySize() throws IOException {
+  void shouldDrawALargeOverlayScaledDownToTheLargestSide() throws IOException {
     this.writeOverlay("wide", 2_048, OVERLAY_HEIGHT);
     final VideoFilter overlay = this.parse("overlay=wide").createFilters().getFirst();
     final ImageBuffer large = this.picture(1_100, OVERLAY_HEIGHT, BLUE);
@@ -557,7 +593,27 @@ final class FilterChainTest {
 
     final int thirdMatches = large.getPixels()[1_023 + 1_100 * 7] & RGB_MASK;
     assertEquals(RED, thirdMatches, "eight rows high");
+  }
 
+  @Test
+  void shouldKeepTheShapeOfEveryLargeOverlayItScalesDown() throws IOException {
+    final int side = FilterChain.MAXIMUM_OVERLAY_SIDE;
+    this.writeOverlay("wide", 2 * side, OVERLAY_HEIGHT);
+    this.writeOverlay("tall", OVERLAY_HEIGHT, 2 * side);
+    this.writeOverlay("thin", 4 * side, 1);
+    final FilterChain chain = this.parse("overlay=wide,overlay=tall,overlay=thin");
+    final List<List<?>> sizes = new ArrayList<>();
+    final MockedConstruction.MockInitializer<ResizeFilter> recordSize = (_, context) -> sizes.add(context.arguments());
+    try (final MockedConstruction<ResizeFilter> _ = Mockito.mockConstruction(ResizeFilter.class, recordSize)) {
+      final List<VideoFilter> _ = chain.createFilters();
+    }
+
+    final List<List<Integer>> expected = List.of(List.of(side, OVERLAY_HEIGHT / 2), List.of(OVERLAY_HEIGHT / 2, side), List.of(side, 1));
+    assertEquals(expected, sizes);
+  }
+
+  @Test
+  void shouldRemakeTheRegionOfARectangleForEveryPictureSize() {
     final VideoFilter rectangle = this.parse("rectangle=50:0:50:50:ffffff").createFilters().getFirst();
     final ImageBuffer small = this.picture(10, 10, 0);
     rectangle.applyFilter(small);
@@ -621,5 +677,77 @@ final class FilterChainTest {
       final int size = constructed.size();
       assertEquals(1, size);
     }
+  }
+
+  @Test
+  void shouldMirrorThePictureInTheDirectionTyped() {
+    final int[] horizontal = this.filterCorners("flip=h");
+    final int[] expectedHorizontal = { BLUE, RED, BLACK, WHITE };
+    assertArrayEquals(expectedHorizontal, horizontal);
+
+    final int[] vertical = this.filterCorners("flip=v");
+    final int[] expectedVertical = { WHITE, BLACK, RED, BLUE };
+    assertArrayEquals(expectedVertical, vertical);
+
+    final int[] both = this.filterCorners("flip=hv");
+    final int[] expectedBoth = { BLACK, WHITE, BLUE, RED };
+    assertArrayEquals(expectedBoth, both);
+  }
+
+  private int[] filterCorners(final String filter) {
+    final int[] corners = { OPAQUE | RED, OPAQUE | BLUE, OPAQUE | WHITE, OPAQUE | BLACK };
+    final ImageBuffer picture = ImageBuffer.buffer(corners, 2, 2);
+    final FilterChain chain = this.parse(filter);
+    chain.apply(picture);
+
+    return this.rgbOf(picture);
+  }
+
+  private int[] rgbOf(final ImageBuffer picture) {
+    final int[] pixels = picture.getPixels();
+    return Arrays.stream(pixels)
+      .map(pixel -> pixel & RGB_MASK)
+      .toArray();
+  }
+
+  @Test
+  void shouldTurnThePictureClockwiseByTheDegreesTyped() {
+    final int[] quarter = this.filterCorners("rotate=90");
+    final int[] expectedQuarter = { WHITE, RED, BLACK, BLUE };
+    assertArrayEquals(expectedQuarter, quarter);
+
+    final int[] half = this.filterCorners("rotate=180");
+    final int[] expectedHalf = { BLACK, WHITE, BLUE, RED };
+    assertArrayEquals(expectedHalf, half);
+
+    final int[] threeQuarters = this.filterCorners("rotate=270");
+    final int[] expectedThreeQuarters = { BLUE, BLACK, RED, WHITE };
+    assertArrayEquals(expectedThreeQuarters, threeQuarters);
+  }
+
+  @Test
+  void shouldTurnPixelsBelowTheThresholdBlackAndAboveItWhite() {
+    final int[] grays = { OPAQUE | 0x7f7f7f, OPAQUE | 0x818181 };
+    final ImageBuffer picture = ImageBuffer.buffer(grays, 2, 1);
+    final FilterChain chain = this.parse("threshold=128");
+    chain.apply(picture);
+
+    final int[] pixels = this.rgbOf(picture);
+    final int[] expected = { BLACK, WHITE };
+    assertArrayEquals(expected, pixels);
+  }
+
+  @Test
+  void shouldRefuseToMakeTheFiltersWhenAnOverlayIsNoLongerAPicture() throws IOException {
+    this.writeOverlay("replaced", 2, 2);
+    final FilterChain chain = this.parse("overlay=replaced");
+    final Path file = this.overlays.resolve(REPLACED_OVERLAY_FILE_NAME);
+    Files.writeString(file, "not a picture");
+    final VideoPipelineStep output = VideoPipelineStep.of(VideoFilter.NO_OPERATION);
+    final ImageBuffer picture = this.picture(2, 2, BLUE);
+
+    assertThrows(IllegalArgumentException.class, chain::createFilters);
+    assertThrows(IllegalArgumentException.class, () -> chain.prepend(output));
+    assertThrows(IllegalArgumentException.class, () -> chain.apply(picture));
   }
 }

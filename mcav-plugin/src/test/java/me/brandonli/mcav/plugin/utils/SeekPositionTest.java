@@ -84,6 +84,14 @@ final class SeekPositionTest {
   }
 
   @Test
+  void shouldAcceptMinutesBeyondAnHourWhenNoHoursAreTyped() {
+    final SeekPosition position = SeekPosition.of(ABSOLUTE, 4_500_000L);
+    final Optional<SeekPosition> parsed = SeekPosition.parse("75:00");
+    final Optional<SeekPosition> expected = Optional.of(position);
+    assertEquals(expected, parsed);
+  }
+
+  @Test
   void shouldReadTimesFromTheCurrentPosition() {
     final SeekPosition expected = SeekPosition.of(RELATIVE, RELATIVE_POSITION_MILLISECONDS);
     final Optional<SeekPosition> parsed = SeekPosition.parse("+10");
@@ -122,12 +130,19 @@ final class SeekPositionTest {
       "1e3",
       "٣",
       "360000",
+      "+360000",
+      "-360000",
       "1:2:3:4",
     }
   )
   void shouldRefuseWhatIsNotATime(final String text) {
     final Optional<SeekPosition> parsed = SeekPosition.parse(text);
     assertEquals(Optional.empty(), parsed, text);
+  }
+
+  @Test
+  void shouldRefuseANullText() {
+    assertThrows(NullPointerException.class, () -> SeekPosition.parse(null));
   }
 
   @Test
@@ -140,7 +155,6 @@ final class SeekPositionTest {
 
     final long thirdResolved = SeekPosition.of(RELATIVE, -10_000L).resolve(5_000L);
     assertEquals(0L, thirdResolved);
-    assertThrows(NullPointerException.class, () -> SeekPosition.parse(null));
   }
 
   @Test
@@ -156,7 +170,14 @@ final class SeekPositionTest {
 
     final String thirdFormatted = SeekPosition.format(HOURS_POSITION_MILLISECONDS);
     assertEquals(HOURS_POSITION_TEXT, thirdFormatted);
-    assertThrows(IllegalArgumentException.class, () -> SeekPosition.format(-1L));
+  }
+
+  @Test
+  void shouldRefuseANegativeTimeToFormat() {
+    final IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> SeekPosition.format(-1L));
+
+    final String message = exception.getMessage();
+    assertEquals("Time -1 must not be negative!", message);
   }
 
   @Test
