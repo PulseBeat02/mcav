@@ -304,7 +304,7 @@ final class VideoPlayerManagerTest {
   }
 
   @Test
-  void shouldLeaveTheWorldAloneWhenThePluginIsAlreadyDisabled() throws InterruptedException, ExecutionException, TimeoutException {
+  void shouldLeaveTheWorldToTheShutdownWhenThePluginIsAlreadyDisabled() throws InterruptedException, ExecutionException, TimeoutException {
     this.fill();
     final BukkitScheduler scheduler = TestServer.getScheduler();
     when(scheduler.callSyncMethod(any(Plugin.class), any())).thenThrow(new IllegalPluginAccessException(PLUGIN_DISABLED_MESSAGE));
@@ -320,6 +320,11 @@ final class VideoPlayerManagerTest {
 
     final Optional<Hologram> currentHologram = this.manager.getHologram();
     assertEquals(Optional.empty(), currentHologram);
+
+    this.manager.shutdown();
+    verify(this.filter).release();
+    verify(this.hologram).kill();
+    this.assertWorldReleasedOnTheMainThreadAndPlayerOnTheWorker();
   }
 
   @Test
