@@ -18,6 +18,7 @@
 package me.brandonli.mcav.plugin.command.video;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -58,7 +59,16 @@ final class FrameRecorderTest {
 
     final boolean exists = Files.exists(file);
     assertFalse(exists);
-    assertThrows(NullPointerException.class, () -> new FrameRecorder(null));
-    assertThrows(IllegalArgumentException.class, () -> new FrameRecorder(this.folder.getRoot()));
+  }
+
+  @Test
+  void shouldRefuseANullFileAndTheRootOfTheFileSystem() {
+    final String nullMessage = assertThrows(NullPointerException.class, () -> new FrameRecorder(null)).getMessage();
+    assertEquals("File must not be null!", nullMessage);
+
+    final Path root = this.folder.getRoot();
+    final String rootMessage = assertThrows(IllegalArgumentException.class, () -> new FrameRecorder(root)).getMessage();
+    final String expected = "Stream file %s must not be the root of the file system!".formatted(root);
+    assertEquals(expected, rootMessage);
   }
 }

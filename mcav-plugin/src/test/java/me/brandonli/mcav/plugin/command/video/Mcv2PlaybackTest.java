@@ -137,7 +137,7 @@ final class Mcv2PlaybackTest {
   }
 
   @Test
-  void shouldRefuseAnEmptyStream() {
+  void shouldRefuseAnEmptyStreamOrAMissingChannel() {
     assertThrows(IllegalArgumentException.class, () -> new Mcv2Playback(this.channel, List.of(), 0));
     assertThrows(NullPointerException.class, () -> new Mcv2Playback(null, stream(), 0));
   }

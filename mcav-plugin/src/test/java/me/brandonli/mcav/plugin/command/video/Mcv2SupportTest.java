@@ -442,7 +442,12 @@ final class Mcv2SupportTest {
     this.support.shutdown();
     verify(this.packs).start();
     verify(this.packs).shutdown();
-    assertThrows(NullPointerException.class, () -> new Mcv2Support(null));
+  }
+
+  @Test
+  void shouldRefuseANullPackServer() {
+    final String message = assertThrows(NullPointerException.class, () -> new Mcv2Support(null)).getMessage();
+    assertEquals("Pack server must not be null!", message);
   }
 
   @Test

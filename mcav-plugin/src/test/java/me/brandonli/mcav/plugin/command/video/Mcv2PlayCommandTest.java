@@ -1291,7 +1291,6 @@ final class Mcv2PlayCommandTest {
       final String eleventhMessage = assertThrows(IOException.class, () -> this.command.read(file)).getMessage();
       assertEquals("Truncated frame!", eleventhMessage);
     }
-    assertThrows(NullPointerException.class, () -> new Mcv2PlayCommand(null));
   }
 
   private byte[] record(final int length) {
@@ -1305,6 +1304,12 @@ final class Mcv2PlayCommandTest {
     final byte[] both = Arrays.copyOf(first, first.length + second.length);
     System.arraycopy(second, 0, both, first.length, second.length);
     return both;
+  }
+
+  @Test
+  void shouldRefuseANullPlugin() {
+    final String message = assertThrows(NullPointerException.class, () -> new Mcv2PlayCommand(null)).getMessage();
+    assertEquals("Plugin must not be null!", message);
   }
 
   // frames after the first wait for a latch, like a slow decoder
