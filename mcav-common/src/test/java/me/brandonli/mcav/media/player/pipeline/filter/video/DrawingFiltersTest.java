@@ -196,6 +196,23 @@ final class DrawingFiltersTest {
   }
 
   @Test
+  void shouldCutOffARectangleThatReachesPastTheLastColumnAndRow() {
+    try (final ImageBuffer image = Images.solid(6, 6, BLACK_ARGB)) {
+      final RectangleFilter filter = new RectangleFilter(2, 2, Integer.MAX_VALUE, Integer.MAX_VALUE, WHITE);
+      final boolean modified = filter.applyFilter(image);
+      final int topEdgeAtTheRight = pixelAt(image, 5, 2);
+      final int leftEdgeAtTheBottom = pixelAt(image, 2, 5);
+      final int leftOfRectangle = pixelAt(image, 1, 2);
+      final int aboveRectangle = pixelAt(image, 2, 1);
+      assertTrue(modified);
+      assertEquals(WHITE_ARGB, topEdgeAtTheRight, "the top edge runs to the right edge of the frame");
+      assertEquals(WHITE_ARGB, leftEdgeAtTheBottom, "the left edge runs to the bottom of the frame");
+      assertEquals(BLACK_ARGB, leftOfRectangle, "nothing is drawn left of the rectangle");
+      assertEquals(BLACK_ARGB, aboveRectangle, "nothing is drawn above the rectangle");
+    }
+  }
+
+  @Test
   void shouldDrawText() {
     final TextFilter filter = new TextFilter("MCAV", 2, 20, TextFilter.DEFAULT_FONT, 0.8, WHITE);
     try (
