@@ -18,6 +18,7 @@
 package me.brandonli.mcav.plugin.command.video;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -103,5 +104,14 @@ final class VideoDevicesCommandTest {
 
     final boolean matches = output.contains("Failed to list the capture devices") && output.contains("no sysfs");
     assertTrue(matches, output);
+  }
+
+  @Test
+  void shouldRefuseNullArguments() {
+    final NullPointerException nullPlugin = assertThrows(NullPointerException.class, () -> new VideoDevicesCommand(null));
+    final String message = nullPlugin.getMessage();
+    assertEquals("Plugin must not be null!", message);
+
+    assertThrows(NullPointerException.class, () -> this.command.listDevices(null));
   }
 }
