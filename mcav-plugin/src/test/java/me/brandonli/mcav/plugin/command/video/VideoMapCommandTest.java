@@ -422,6 +422,11 @@ final class VideoMapCommandTest {
     this.playWithCodec("wide", MapCodec.MCV2);
     verify(this.support, never()).configure(any(), any(), any(), eq(MAP_ID), any(), any());
     verify(this.command, never()).playVideo(any(), any(), any(), any(), any(), anyString(), anyString(), anyString(), isNull());
+
+    final List<Component> messages = Components.received(this.sender);
+    final Component unsupported = Message.UNSUPPORTED_DIMENSION.build();
+    final List<Component> expected = List.of(unsupported);
+    assertEquals(expected, messages);
   }
 
   @Test
