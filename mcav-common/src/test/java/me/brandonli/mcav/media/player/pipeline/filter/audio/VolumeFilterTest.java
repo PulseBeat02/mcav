@@ -148,7 +148,10 @@ final class VolumeFilterTest {
     filter.setVolume(VolumeFilter.MAXIMUM_VOLUME);
     final ByteBuffer buffer = ByteBuffer.allocate(6);
     final ByteBuffer littleEndian = buffer.duplicate().order(ByteOrder.LITTLE_ENDIAN);
-    littleEndian.putShort(0, (short) 128).putShort(2, (short) 300).putShort(4, (short) 7);
+    littleEndian
+      .putShort(0, (short) 128)
+      .putShort(2, (short) 300)
+      .putShort(4, (short) 7);
     buffer.limit(4);
     filter.applyFilter(buffer, METADATA);
     final short[] values = read(buffer);
