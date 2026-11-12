@@ -54,6 +54,16 @@ final class OriginalVideoMetadataTest {
     assertEquals(OriginalVideoMetadata.UNKNOWN, bitrate);
     assertEquals(25.0f, frameRate);
     assertEquals(OriginalVideoMetadata.UNKNOWN, unknownFrameRate);
+
+    final OriginalVideoMetadata expectedWithFrameRate = OriginalVideoMetadata.of(640, 480, OriginalVideoMetadata.UNKNOWN, 25.0f);
+    final OriginalVideoMetadata expectedSizeOnly = OriginalVideoMetadata.of(
+      640,
+      480,
+      OriginalVideoMetadata.UNKNOWN,
+      OriginalVideoMetadata.UNKNOWN
+    );
+    assertEquals(expectedWithFrameRate, withFrameRate);
+    assertEquals(expectedSizeOnly, sizeOnly);
   }
 
   @Test
@@ -61,8 +71,12 @@ final class OriginalVideoMetadataTest {
     final OriginalVideoMetadata empty = OriginalVideoMetadata.EMPTY;
     final int width = empty.getVideoWidth();
     final int height = empty.getVideoHeight();
+    final int bitrate = empty.getVideoBitrate();
+    final float frameRate = empty.getVideoFrameRate();
     assertEquals(OriginalVideoMetadata.UNKNOWN, width);
     assertEquals(OriginalVideoMetadata.UNKNOWN, height);
+    assertEquals(OriginalVideoMetadata.UNKNOWN, bitrate);
+    assertEquals(OriginalVideoMetadata.UNKNOWN, frameRate);
   }
 
   @Test

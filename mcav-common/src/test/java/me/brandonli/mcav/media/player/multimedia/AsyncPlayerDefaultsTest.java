@@ -31,7 +31,9 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
+import me.brandonli.mcav.media.player.ReleasablePlayer;
 import me.brandonli.mcav.media.player.image.ImagePlayer;
 import me.brandonli.mcav.media.source.Source;
 import me.brandonli.mcav.media.source.frame.FrameSource;
@@ -196,5 +198,105 @@ final class AsyncPlayerDefaultsTest {
     }
 
     verify(player, times(ASYNC_CALL_COUNT)).start(source);
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = { true, false })
+  void shouldForwardEitherResultForPauseAndResume(final boolean expected) throws Exception {
+    final ControllablePlayer player = mock(ControllablePlayer.class, CALLS_REAL_METHODS);
+    doReturn(expected).when(player).pause();
+    doReturn(expected).when(player).resume();
+    try (final ExecutorService executor = Executors.newSingleThreadExecutor()) {
+      final CompletableFuture<Boolean> explicitPause = player.pauseAsync(executor);
+      assertResult(expected, explicitPause);
+
+      final CompletableFuture<Boolean> commonPause = player.pauseAsync();
+      assertResult(expected, commonPause);
+
+      final CompletableFuture<Boolean> explicitResume = player.resumeAsync(executor);
+      assertResult(expected, explicitResume);
+
+      final CompletableFuture<Boolean> commonResume = player.resumeAsync();
+      assertResult(expected, commonResume);
+    }
+
+    verify(player, times(ASYNC_CALL_COUNT)).pause();
+    verify(player, times(ASYNC_CALL_COUNT)).resume();
+  }
+
+  @Test
+  void shouldPreserveTheOriginalFailureForPauseAndResume() {
+    final ControllablePlayer player = mock(ControllablePlayer.class, CALLS_REAL_METHODS);
+    final RuntimeException expected = new IllegalStateException(SYNCHRONOUS_FAILURE_MESSAGE);
+    doThrow(expected).when(player).pause();
+    doThrow(expected).when(player).resume();
+    try (final ExecutorService executor = Executors.newSingleThreadExecutor()) {
+      final CompletableFuture<Boolean> explicitPause = player.pauseAsync(executor);
+      assertFailure(expected, explicitPause);
+
+      final CompletableFuture<Boolean> commonPause = player.pauseAsync();
+      assertFailure(expected, commonPause);
+
+      final CompletableFuture<Boolean> explicitResume = player.resumeAsync(executor);
+      assertFailure(expected, explicitResume);
+
+      final CompletableFuture<Boolean> commonResume = player.resumeAsync();
+      assertFailure(expected, commonResume);
+    }
+
+    verify(player, times(ASYNC_CALL_COUNT)).pause();
+    verify(player, times(ASYNC_CALL_COUNT)).resume();
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = { true, false })
+  void shouldForwardEitherResultForRelease(final boolean expected) throws Exception {
+    final ReleasablePlayer player = mock(ReleasablePlayer.class, CALLS_REAL_METHODS);
+    doReturn(expected).when(player).release();
+    try (final ExecutorService executor = Executors.newSingleThreadExecutor()) {
+      final CompletableFuture<Boolean> explicit = player.releaseAsync(executor);
+      assertResult(expected, explicit);
+
+      final CompletableFuture<Boolean> common = player.releaseAsync();
+      assertResult(expected, common);
+    }
+
+    verify(player, times(ASYNC_CALL_COUNT)).release();
+  }
+
+  @Test
+  void shouldPreserveTheOriginalFailureForRelease() {
+    final ReleasablePlayer player = mock(ReleasablePlayer.class, CALLS_REAL_METHODS);
+    final RuntimeException expected = new IllegalStateException(SYNCHRONOUS_FAILURE_MESSAGE);
+    doThrow(expected).when(player).release();
+    try (final ExecutorService executor = Executors.newSingleThreadExecutor()) {
+      final CompletableFuture<Boolean> explicit = player.releaseAsync(executor);
+      assertFailure(expected, explicit);
+
+      final CompletableFuture<Boolean> common = player.releaseAsync();
+      assertFailure(expected, common);
+    }
+
+    verify(player, times(ASYNC_CALL_COUNT)).release();
+  }
+
+  @Test
+  void shouldThrowWhenTheExecutorRejectsTheCall() {
+    final VideoPlayerMultiplexer player = mock(VideoPlayerMultiplexer.class, CALLS_REAL_METHODS);
+    final ImagePlayer imagePlayer = mock(ImagePlayer.class, CALLS_REAL_METHODS);
+    final Source video = mock(Source.class);
+    final Source audio = mock(Source.class);
+    final FrameSource frames = mock(FrameSource.class);
+    try (final ExecutorService executor = Executors.newSingleThreadExecutor()) {
+      executor.shutdown();
+
+      assertThrows(RejectedExecutionException.class, () -> player.startAsync(video, executor));
+      assertThrows(RejectedExecutionException.class, () -> player.startAsync(video, audio, executor));
+      assertThrows(RejectedExecutionException.class, () -> player.pauseAsync(executor));
+      assertThrows(RejectedExecutionException.class, () -> player.resumeAsync(executor));
+      assertThrows(RejectedExecutionException.class, () -> player.seekAsync(executor, SEEK_POSITION));
+      assertThrows(RejectedExecutionException.class, () -> player.releaseAsync(executor));
+      assertThrows(RejectedExecutionException.class, () -> imagePlayer.startAsync(frames, executor));
+    }
   }
 }

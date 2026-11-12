@@ -198,7 +198,7 @@ final class ImagePlayerTest {
   }
 
   @Test
-  void shouldDeliverFramesAtTheFrameRateOfTheSource() throws InterruptedException {
+  void shouldKeepTheFrameRateOfTheSourceThroughAFrameOfTheWrongSizeAndAFailingFilter() throws InterruptedException {
     final AtomicInteger consumed = new AtomicInteger();
     final List<String> failures = Collections.synchronizedList(new ArrayList<>());
     final FrameSource source = framesWithOneOfTheWrongSize();
@@ -206,20 +206,13 @@ final class ImagePlayerTest {
     final ImagePlayer player = checkingPlayer(failures, times, consumed);
 
     final boolean started = player.start(source);
-    final boolean startedTwice = player.start(source);
     awaitCount(consumed, 30);
-    final boolean released = player.release();
-    final boolean releasedTwice = player.release();
-    final boolean startedAfterRelease = player.start(source);
+    player.release();
 
     final int total = consumed.get();
     final double rate = rate(times);
     final List<String> expectedFailures = List.of("Failed to render a frame.");
     assertTrue(started);
-    assertFalse(startedTwice);
-    assertTrue(released);
-    assertFalse(releasedTwice);
-    assertFalse(startedAfterRelease);
 
     final boolean consumedEnough = total >= 30;
     assertTrue(consumedEnough, "consumed %s".formatted(total));
@@ -227,6 +220,23 @@ final class ImagePlayerTest {
     final boolean rateNearFifty = rate > 35.0 && rate < 65.0;
     assertTrue(rateNearFifty, "frames are delivered at about 50 per second, got %s".formatted(rate));
     assertEquals(expectedFailures, failures);
+  }
+
+  @Test
+  void shouldStartAndReleaseOnlyOnce() {
+    final ImagePlayer player = ImagePlayer.player();
+    final FrameSource source = solidFrames(SMALL_FRAME_SIZE, SMALL_FRAME_SIZE, FRAME_RATE);
+
+    final boolean started = player.start(source);
+    final boolean startedTwice = player.start(source);
+    final boolean released = player.release();
+    final boolean releasedTwice = player.release();
+    final boolean startedAfterRelease = player.start(source);
+    assertTrue(started);
+    assertFalse(startedTwice, "a playing player refuses a second source");
+    assertTrue(released);
+    assertFalse(releasedTwice);
+    assertFalse(startedAfterRelease, "a released player cannot be started again");
   }
 
   @Test
@@ -610,5 +620,109 @@ final class ImagePlayerTest {
     requestedTwice.countDown();
 
     return new int[1];
+  }
+
+  @Test
+  void shouldReturnFromStartBeforeTheFirstFrameIsSupplied() throws InterruptedException {
+    final CountDownLatch requested = new CountDownLatch(1);
+    final CountDownLatch permitted = new CountDownLatch(1);
+    final FrameSource source = FrameSource.supplier(
+      () -> this.recordTheRequestAndAwaitPermission(requested, permitted),
+      SMALL_FRAME_SIZE,
+      SMALL_FRAME_SIZE,
+      FRAME_RATE
+    );
+    final ImagePlayer player = ImagePlayer.player();
+    try {
+      final boolean started = assertTimeoutPreemptively(
+        LOCK_TIMEOUT,
+        () -> player.start(source),
+        "start does not wait for the first frame"
+      );
+      final boolean asked = requested.await(TIMEOUT_SECONDS, TimeUnit.SECONDS);
+      assertTrue(started);
+      assertTrue(asked, "the worker asks the source for the first frame on its own");
+    } finally {
+      permitted.countDown();
+      player.release();
+    }
+  }
+
+  private int[] recordTheRequestAndAwaitPermission(final CountDownLatch requested, final CountDownLatch permitted) {
+    requested.countDown();
+    try {
+      permitted.await();
+    } catch (final InterruptedException exception) {
+      final Thread current = Thread.currentThread();
+      current.interrupt();
+    }
+
+    return solidPixels(SMALL_FRAME_SIZE, SMALL_FRAME_SIZE);
+  }
+
+  @Test
+  void shouldDeliverTheNextFramesToAPipelineAttachedWhilePlaying() throws InterruptedException {
+    final AtomicInteger replacedFrames = new AtomicInteger();
+    final AtomicInteger attachedFrames = new AtomicInteger();
+    final FrameSource source = solidFrames(SMALL_FRAME_SIZE, SMALL_FRAME_SIZE, QUICK_FRAME_RATE);
+    final ImagePlayer player = ImagePlayer.player();
+    attach(player, (_, _) -> this.countFrame(replacedFrames));
+    try {
+      final boolean started = player.start(source);
+      awaitCount(replacedFrames, 1);
+      assertTrue(started);
+
+      attach(player, (_, _) -> this.countFrame(attachedFrames));
+      awaitCount(attachedFrames, 1);
+      final int replacedTotal = replacedFrames.get();
+      awaitCount(attachedFrames, 3);
+
+      final int replacedTotalLater = replacedFrames.get();
+      assertEquals(replacedTotal, replacedTotalLater, "the replaced pipeline receives no further frame");
+    } finally {
+      player.release();
+    }
+  }
+
+  private boolean countFrame(final AtomicInteger frames) {
+    frames.incrementAndGet();
+
+    return true;
+  }
+
+  @Test
+  void shouldReportAFailingFrameOfTheSourceAndKeepPlaying() throws InterruptedException {
+    final IllegalStateException lostFrame = new IllegalStateException("the capture lost a frame!");
+    final AtomicInteger produced = new AtomicInteger();
+    final FrameSource source = FrameSource.supplier(
+      () -> this.failOnTheSecondFrame(produced, lostFrame),
+      SMALL_FRAME_SIZE,
+      SMALL_FRAME_SIZE,
+      QUICK_FRAME_RATE
+    );
+    final List<Throwable> reported = Collections.synchronizedList(new ArrayList<>());
+    final AtomicInteger delivered = new AtomicInteger();
+    final ImagePlayer player = ImagePlayer.player();
+    player.setExceptionHandler((_, failure) -> reported.add(failure));
+    attach(player, (_, _) -> this.countFrame(delivered));
+    try {
+      final boolean started = player.start(source);
+      awaitCount(delivered, 3);
+
+      final List<Throwable> expected = List.of(lostFrame);
+      assertTrue(started);
+      assertEquals(expected, reported, "a failing frame of the source is reported once and playback goes on");
+    } finally {
+      player.release();
+    }
+  }
+
+  private int[] failOnTheSecondFrame(final AtomicInteger produced, final IllegalStateException lostFrame) {
+    final int count = produced.incrementAndGet();
+    if (count == 2) {
+      throw lostFrame;
+    }
+
+    return solidPixels(SMALL_FRAME_SIZE, SMALL_FRAME_SIZE);
   }
 }

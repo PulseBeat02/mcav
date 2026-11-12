@@ -55,7 +55,7 @@ final class VideoPlayerFactoriesTest {
     final CapabilityGuard guard = CapabilityGuard.shared();
     guard.markPrepared(Capability.VLC, Availability.UNAVAILABLE);
     try {
-      final IllegalStateException exception = assertThrows(IllegalStateException.class, () -> new VlcPlayer("--x"));
+      final IllegalStateException exception = assertThrows(IllegalStateException.class, () -> VideoPlayer.vlc("--x"));
       final String message = exception.getMessage();
       assertEquals("VLC is not available on this system!", message);
     } finally {
@@ -81,5 +81,6 @@ final class VideoPlayerFactoriesTest {
   @Test
   void shouldRejectNullVlcOptions() {
     assertThrows(NullPointerException.class, () -> VideoPlayer.vlc((String[]) null));
+    assertThrows(NullPointerException.class, () -> VideoPlayer.vlc("--no-video-title-show", null));
   }
 }

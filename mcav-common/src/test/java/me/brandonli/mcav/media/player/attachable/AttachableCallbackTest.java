@@ -99,6 +99,18 @@ final class AttachableCallbackTest {
   }
 
   @Test
+  void shouldReplaceTheValueAttachedBefore() {
+    final VideoAttachableCallback callback = VideoAttachableCallback.create();
+    final VideoPipelineStep first = VideoPipelineStep.of(VideoFilter.NO_OPERATION);
+    final VideoPipelineStep second = VideoPipelineStep.of(VideoFilter.NO_OPERATION);
+    callback.attach(first);
+    callback.attach(second);
+
+    final VideoPipelineStep attached = callback.retrieve();
+    assertSame(second, attached);
+  }
+
+  @Test
   void shouldRejectNullValues() {
     final VideoAttachableCallback callback = VideoAttachableCallback.create();
     assertThrows(NullPointerException.class, () -> callback.attach(null));
