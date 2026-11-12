@@ -647,7 +647,9 @@ final class AnnotationParserHandlerTest {
 
   @Test
   void shouldRefuseANullPlugin() {
-    assertThrows(NullPointerException.class, () -> new AnnotationParserHandler(null));
+    final NullPointerException exception = assertThrows(NullPointerException.class, () -> new AnnotationParserHandler(null));
+    final String message = exception.getMessage();
+    assertEquals("Plugin must not be null!", message);
   }
 
   @Test
