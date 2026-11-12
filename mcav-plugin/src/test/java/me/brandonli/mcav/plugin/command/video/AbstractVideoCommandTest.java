@@ -493,16 +493,11 @@ final class AbstractVideoCommandTest {
   void shouldTakeNoFiltersFromAnEmptyOption() {
     final MCAVSandbox plugin = mock(MCAVSandbox.class);
 
-    final FilterChain filters = AbstractVideoCommand.parseFilters(this.sender, plugin, "", MediaKind.VIDEO).orElseThrow();
-    assertSame(FilterChain.NONE, filters);
+    final FilterChain emptyOptionChain = AbstractVideoCommand.parseFilters(this.sender, plugin, "", MediaKind.VIDEO).orElseThrow();
+    assertSame(FilterChain.NONE, emptyOptionChain);
 
-    final FilterChain abstractVideoCommandFilters = AbstractVideoCommand.parseFilters(
-      this.sender,
-      plugin,
-      null,
-      MediaKind.IMAGE
-    ).orElseThrow();
-    assertSame(FilterChain.NONE, abstractVideoCommandFilters);
+    final FilterChain absentOptionChain = AbstractVideoCommand.parseFilters(this.sender, plugin, null, MediaKind.IMAGE).orElseThrow();
+    assertSame(FilterChain.NONE, absentOptionChain);
 
     verify(this.sender, never()).sendMessage(any(Component.class));
   }
@@ -838,8 +833,8 @@ final class AbstractVideoCommandTest {
     this.assertSenderReceived(unavailable);
     verify(this.manager, never()).clearCurrentVideo();
 
-    final boolean created = this.command.resolutions.isEmpty();
-    assertTrue(created);
+    final boolean noDisplay = this.command.resolutions.isEmpty();
+    assertTrue(noDisplay);
     this.assertNotStarting();
   }
 
