@@ -92,7 +92,7 @@ final class NativeKernelsTest {
   void shouldForgetTheArraysItWasPassed() {
     final NativeKernels kernels = this.failing();
     final byte[] picture = new byte[16 * 16 * 3];
-    final int[] block = new int[8 * 8 * 3];
+    final int[] block = this.allocateBlockOutsideTheCacheSlotOf(picture);
     this.failed(() -> kernels.predict(picture, 16, 16, 0, 0, 8, 0, 0, block));
     final boolean keepsPicture = kernels.keeps(picture);
     assertTrue(keepsPicture, "a coder passes the same picture block after block");
@@ -103,6 +103,21 @@ final class NativeKernelsTest {
 
     final boolean keepsBlock = kernels.keeps(block);
     assertFalse(keepsBlock);
+  }
+
+  private int[] allocateBlockOutsideTheCacheSlotOf(final byte[] picture) {
+    final int pictureSlot = this.findCacheSlot(picture);
+    int[] block = new int[8 * 8 * 3];
+    while (this.findCacheSlot(block) == pictureSlot) {
+      block = new int[8 * 8 * 3];
+    }
+
+    return block;
+  }
+
+  private int findCacheSlot(final Object array) {
+    final Class<?> type = Mcv2Internals.nested("NativeKernels");
+    return (int) Mcv2Internals.callForResult(type, null, "slot", new Class<?>[] { Object.class }, array);
   }
 
   @Test
