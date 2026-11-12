@@ -74,6 +74,28 @@ final class PipelineBuilderTest {
   }
 
   @Test
+  void shouldKeepABuiltChainWhenMoreFiltersAreAdded() {
+    final List<Integer> calls = new ArrayList<>();
+    final VideoFilter first = (_, _) -> calls.add(1);
+    final VideoFilter second = (_, _) -> calls.add(2);
+    final VideoPipelineStepBuilder builder = PipelineBuilder.video();
+    builder.then(first);
+    final VideoPipelineStep earlier = builder.build();
+    builder.then(second);
+    final VideoPipelineStep later = builder.build();
+    final ImageBuffer image = mock(ImageBuffer.class);
+    earlier.processAll(image, OriginalVideoMetadata.EMPTY);
+    final VideoFilter earlierFilter = earlier.getFilter();
+    final List<Integer> expectedEarlier = List.of(1);
+    assertSame(first, earlierFilter);
+    assertEquals(expectedEarlier, calls);
+
+    later.processAll(image, OriginalVideoMetadata.EMPTY);
+    final List<Integer> expectedLater = List.of(1, 1, 2);
+    assertEquals(expectedLater, calls);
+  }
+
+  @Test
   void shouldBuildTheEmptyPipelinesFromEmptyBuilders() {
     final VideoPipelineStepBuilder video = PipelineBuilder.video();
     final AudioPipelineStepBuilder audio = PipelineBuilder.audio();
