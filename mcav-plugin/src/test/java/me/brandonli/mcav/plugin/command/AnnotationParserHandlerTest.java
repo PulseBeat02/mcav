@@ -471,13 +471,24 @@ final class AnnotationParserHandlerTest {
   void shouldDescribeTheCommandsInTheLanguageOfThePlugin() {
     final AnnotationParserHandler handler = new AnnotationParserHandler(this.plugin);
     handler.registerCommands();
-    final Command<CommandSender> dump = this.commands.getCommand("mcav dump");
-    final CommandDescription commandDescription = dump.commandDescription();
+    final String dump = this.describeInPlainText("mcav dump");
+    assertEquals("Creates a dump of the current server information", dump);
+
+    final Set<String> syntaxes = this.commands.getSyntaxes();
+    for (final String syntax : syntaxes) {
+      final String text = this.describeInPlainText(syntax);
+      final boolean described = !text.isBlank() && !text.startsWith("mcav.");
+      assertTrue(described, "%s: %s".formatted(syntax, text));
+    }
+  }
+
+  private String describeInPlainText(final String syntax) {
+    final Command<CommandSender> command = this.commands.getCommand(syntax);
+    final CommandDescription commandDescription = command.commandDescription();
     final Description description = commandDescription.description();
-    final RichDescription rich = (RichDescription) description;
+    final RichDescription rich = assertInstanceOf(RichDescription.class, description, syntax);
     final Component contents = rich.contents();
-    final String text = Components.plain(contents);
-    assertEquals("Creates a dump of the current server information", text);
+    return Components.plain(contents);
   }
 
   @Test
