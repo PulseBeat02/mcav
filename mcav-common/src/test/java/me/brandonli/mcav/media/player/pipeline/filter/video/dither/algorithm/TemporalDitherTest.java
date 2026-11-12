@@ -438,6 +438,7 @@ final class TemporalDitherTest {
     assertThrows(IllegalArgumentException.class, () -> new TemporalFloydSteinbergDither(PRIMARIES, 0, -1, 1.0f));
     assertThrows(IllegalArgumentException.class, () -> new TemporalFloydSteinbergDither(PRIMARIES, 0, 0, -0.1f));
     assertThrows(IllegalArgumentException.class, () -> new TemporalFloydSteinbergDither(PRIMARIES, 0, 0, 1.1f));
+    assertThrows(IllegalArgumentException.class, () -> new TemporalFloydSteinbergDither(PRIMARIES, 0, 0, Float.NaN));
 
     final TemporalDitherAlgorithm dither = new TemporalFloydSteinbergDither(PRIMARIES);
     final NullPointerException missingImage = assertThrows(NullPointerException.class, () -> dither.ditherIntoBytes(null));
