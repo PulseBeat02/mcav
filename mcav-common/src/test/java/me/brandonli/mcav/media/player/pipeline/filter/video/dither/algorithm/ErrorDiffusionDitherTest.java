@@ -374,4 +374,15 @@ final class ErrorDiffusionDitherTest {
       assertArrayEquals(expected, indices);
     }
   }
+
+  @Test
+  void shouldStartEveryCallWithoutTheErrorsOfTheCallBefore() {
+    final ErrorDiffusionDither dither = new FloydDither(DitherTestImages.BLACK_WHITE);
+    final int[] pixels = DitherTestImages.gradient(WIDTH, HEIGHT);
+    try (final ImageBuffer image = ImageBuffer.buffer(pixels, WIDTH, HEIGHT)) {
+      final byte[] first = dither.ditherIntoBytes(image);
+      final byte[] second = dither.ditherIntoBytes(image);
+      assertArrayEquals(first, second, "a basic kernel keeps no errors between calls");
+    }
+  }
 }
