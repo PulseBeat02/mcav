@@ -34,6 +34,7 @@ import static org.mockito.Mockito.when;
 import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.RejectedExecutionException;
 import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.builder.NearestDitherBuilder;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.builder.RandomDitherBuilder;
@@ -362,6 +363,17 @@ final class RandomAndNearestDitherTest {
       assertThrows(IllegalStateException.class, () -> nearest.ditherIntoBytes(image));
       assertThrows(IllegalStateException.class, () -> nearest.ditherIntoBytes(image, pool));
       assertThrows(IllegalStateException.class, () -> random.ditherIntoBytes(image));
+    }
+  }
+
+  @Test
+  void shouldPassOnTheRejectionOfAShutDownPoolWhenNearestDitheringInParallel() {
+    final ColorMapNearestDither nearest = new ColorMapNearestDither(DitherTestImages.BLACK_WHITE);
+    final ForkJoinPool pool = new ForkJoinPool(1);
+    pool.shutdown();
+
+    try (final ImageBuffer image = ImageBuffer.buffer(new int[] { BLACK }, 1, 1)) {
+      assertThrows(RejectedExecutionException.class, () -> nearest.ditherIntoBytes(image, pool));
     }
   }
 
