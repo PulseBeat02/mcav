@@ -157,7 +157,8 @@ final class TemporalDitherTest {
   @Test
   void shouldSplitTheFrameIntoOneStripPerThread() {
     final int[] pixels = DitherTestImages.gradient(GRADIENT_WIDTH, GRADIENT_HEIGHT);
-    final TemporalDitherAlgorithm dither = new TemporalFloydSteinbergDither(DitherTestImages.BLACK_WHITE);
+    final ColorMapReadCountingPalette palette = new ColorMapReadCountingPalette(DitherTestImages.BLACK_WHITE);
+    final TemporalDitherAlgorithm dither = new TemporalFloydSteinbergDither(palette);
     try (
       final ForkJoinPool pool = new ForkJoinPool(PARALLELISM);
       final ImageBuffer image = ImageBuffer.buffer(pixels, GRADIENT_WIDTH, GRADIENT_HEIGHT)
@@ -169,6 +170,9 @@ final class TemporalDitherTest {
       final long value = checksum.getValue();
       assertEquals(FOUR_STRIP_GRADIENT_CHECKSUM, value, "four strips of 45 rows, each warmed up on the rows above it");
     }
+
+    final int strips = palette.getColorMapReads();
+    assertEquals(PARALLELISM, strips, "every strip reads the color map once");
   }
 
   @Test
