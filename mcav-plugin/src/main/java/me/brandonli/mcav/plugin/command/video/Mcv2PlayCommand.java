@@ -23,6 +23,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.file.Files;
+import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
@@ -379,7 +380,11 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
       return;
     }
 
-    final Path source = Path.of(file);
+    final @Nullable Path source = this.resolveVideoFile(sender, file);
+    if (source == null) {
+      return;
+    }
+
     final @Nullable Path target = this.resolveStreamFile(sender, output);
     if (target == null) {
       return;
@@ -406,10 +411,19 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
     return size;
   }
 
+  private @Nullable Path resolveVideoFile(final CommandSender sender, final String file) {
+    try {
+      return Path.of(file);
+    } catch (final InvalidPathException exception) {
+      this.reportFailure(sender, exception);
+      return null;
+    }
+  }
+
   private @Nullable Path resolveStreamFile(final CommandSender sender, final String output) {
     try {
       return this.prepareStreamFile(output);
-    } catch (final IOException exception) {
+    } catch (final IOException | InvalidPathException exception) {
       final @Nullable String detail = exception.getMessage();
       final String reason = String.valueOf(detail);
       final Component message = Message.MCV2_ENCODE_ERROR.build(reason);

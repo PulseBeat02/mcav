@@ -92,7 +92,7 @@ public final class Mcv2Support {
 
   private static final int NO_UNSENT_LIMIT = 0;
 
-  // for measurements; unset or 0 keeps MCAV's default
+  // for measurements; unset keeps MCAV's default
   static final String PAGE_SLOTS_PROPERTY = "mcav.sandbox.mcv2.page_slots";
   static final String BACKLOG_PROPERTY = "mcav.sandbox.mcv2.backlog_limit";
 

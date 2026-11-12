@@ -17,6 +17,7 @@
  */
 package me.brandonli.mcav.plugin.command.video;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -28,12 +29,16 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.stream.Stream;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2.Settings;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Configuration;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Pacer;
@@ -245,6 +250,32 @@ final class Mcv2SupportTest {
   }
 
   @Test
+  void shouldTakeTheBacklogLimitOfAMeasurement() {
+    System.setProperty(Mcv2Support.BACKLOG_PROPERTY, "65536");
+    try {
+      final long limitedBacklogLimit = this.support.readBacklogLimit();
+      assertEquals(65536, limitedBacklogLimit);
+
+      final int unsentLimit = this.support.readUnsentLimit();
+      assertEquals(Mcv2Configuration.DEFAULT_UNSENT_LIMIT, unsentLimit);
+
+      System.setProperty(Mcv2Support.BACKLOG_PROPERTY, "none");
+
+      final long secondBacklogLimit = this.support.readBacklogLimit();
+      assertEquals(Long.MAX_VALUE, secondBacklogLimit);
+      // no backpressure at all: no cap on a viewer's unsent bytes either
+
+      final int unlimitedUnsentLimit = this.support.readUnsentLimit();
+      assertEquals(0, unlimitedUnsentLimit);
+    } finally {
+      System.clearProperty(Mcv2Support.BACKLOG_PROPERTY);
+    }
+
+    final long backlogLimit = this.support.readBacklogLimit();
+    assertEquals(Mcv2Configuration.DEFAULT_BACKLOG_LIMIT, backlogLimit);
+  }
+
+  @Test
   void shouldTellTheSenderWhenTheScreenIsLargerThanMcv2Plays() {
     // the plugin's walls go up to 64 maps a side and its videos up to 8192 pixels, MCV2's to 63 and 4096
     final Optional<Mcv2Configuration> configured = this.configure(64, ROWS, VIDEO_WIDTH, VIDEO_HEIGHT);
@@ -381,7 +412,7 @@ final class Mcv2SupportTest {
   }
 
   @Test
-  void shouldRecordTheFramesOfAScreenForAMeasurement() {
+  void shouldRecordTheFramesOfAScreenForAMeasurement() throws IOException {
     final Mcv2Configuration configuration = this.configure(MAP_ID).orElseThrow();
     final Mcv2PackServer.Lease lease = mock(Mcv2PackServer.Lease.class);
     when(lease.getConfiguration()).thenReturn(configuration.withSlot(SLOT, Mcv2Configuration.DEFAULT_PAGE_MAP + PAGE_MAP_OFFSET, 0));
@@ -389,13 +420,37 @@ final class Mcv2SupportTest {
     System.setProperty(Mcv2Support.RECORD_PROPERTY, this.folder.toString());
     try (final MockedConstruction<Mcv2Result> results = Mockito.mockConstruction(Mcv2Result.class)) {
       this.support.output(this.sender, configuration, DitheringArgument.NEAREST_COLOR);
-      verify(results.constructed().getFirst()).setFrameListener(any(FrameRecorder.class));
+      final ArgumentCaptor<FrameRecorder> recorders = ArgumentCaptor.forClass(FrameRecorder.class);
+      verify(results.constructed().getFirst()).setFrameListener(recorders.capture());
+
+      final FrameRecorder recorder = recorders.getValue();
+      recorder.accept(new byte[] { 7 });
     } finally {
       System.clearProperty(Mcv2Support.RECORD_PROPERTY);
     }
     try (final MockedConstruction<Mcv2Result> results = Mockito.mockConstruction(Mcv2Result.class)) {
       this.support.output(this.sender, configuration, DitheringArgument.NEAREST_COLOR);
       verify(results.constructed().getFirst(), Mockito.never()).setFrameListener(any());
+    }
+
+    final List<Path> files = this.listFolder();
+    final int count = files.size();
+    assertEquals(1, count);
+
+    final Path file = files.getFirst();
+    final Path fileName = file.getFileName();
+    final String name = fileName.toString();
+    final boolean named = name.startsWith("screen-%s-".formatted(SLOT));
+    assertTrue(named, name);
+
+    final byte[] allBytes = Files.readAllBytes(file);
+    final byte[] expected = { 1, 0, 0, 0, 7 };
+    assertArrayEquals(expected, allBytes);
+  }
+
+  private List<Path> listFolder() throws IOException {
+    try (final Stream<Path> files = Files.list(this.folder)) {
+      return files.toList();
     }
   }
 
@@ -442,31 +497,45 @@ final class Mcv2SupportTest {
     this.support.shutdown();
     verify(this.packs).start();
     verify(this.packs).shutdown();
-    assertThrows(NullPointerException.class, () -> new Mcv2Support(null));
+  }
+
+  @Test
+  void shouldRefuseANullPackServer() {
+    final String message = assertThrows(NullPointerException.class, () -> new Mcv2Support(null)).getMessage();
+    assertEquals("Pack server must not be null!", message);
   }
 
   @Test
   void shouldWriteThePackIntoItsOwnFolderAndTellThePlayers() {
+    final Function<Path, PackHosting> hosting = PackHosting::injector;
+    final List<List<?>> arguments = new ArrayList<>();
     try (
       final MockedConstruction<Mcv2PackServer> servers = Mockito.mockConstruction(Mcv2PackServer.class, (_, context) ->
-        this.assertPackFolder(context)
+        this.recordArguments(context, arguments)
       )
     ) {
-      final Mcv2Support real = new Mcv2Support(this.folder, PackHosting::injector);
+      final Mcv2Support real = new Mcv2Support(this.folder, hosting);
       real.shutdown();
       verify(servers.constructed().getFirst()).shutdown();
     }
-    final Player player = mock(Player.class);
-    Mcv2Support.tellOffered(player);
-    Mcv2Support.tellRefused(player);
-    verify(player).sendMessage(Message.MCV2_PACK.build());
-    verify(player).sendMessage(Message.MCV2_REFUSED.build());
-  }
-
-  private void assertPackFolder(final MockedConstruction.Context context) {
+    final List<?> serverArguments = arguments.getFirst();
     final Path expected = this.folder.resolve(MCV2_FOLDER_NAME).resolve(PACK_FOLDER_NAME);
-    final Object packFolder = context.arguments().getFirst();
+    final Object packFolder = serverArguments.getFirst();
     assertEquals(expected, packFolder);
+
+    final Object packHosting = serverArguments.get(1);
+    assertSame(hosting, packHosting);
+
+    @SuppressWarnings("unchecked") // the pack server's constructor takes a Consumer<Player>
+    final Consumer<Player> onOffered = (Consumer<Player>) serverArguments.get(3);
+    @SuppressWarnings("unchecked") // the pack server's constructor takes a Consumer<Player>
+    final Consumer<Player> onRefused = (Consumer<Player>) serverArguments.get(4);
+    final Player offered = mock(Player.class);
+    final Player refused = mock(Player.class);
+    onOffered.accept(offered);
+    onRefused.accept(refused);
+    verify(offered).sendMessage(Message.MCV2_PACK.build());
+    verify(refused).sendMessage(Message.MCV2_REFUSED.build());
   }
 
   @Test

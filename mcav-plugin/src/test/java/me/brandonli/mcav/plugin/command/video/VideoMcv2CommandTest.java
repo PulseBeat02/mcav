@@ -20,6 +20,7 @@ package me.brandonli.mcav.plugin.command.video;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -37,7 +38,6 @@ import java.util.UUID;
 import me.brandonli.mcav.bukkit.media.config.MapConfiguration;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2.Settings;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Configuration;
-import me.brandonli.mcav.bukkit.media.mcv2.Mcv2PackServer;
 import me.brandonli.mcav.bukkit.media.result.CompressedMapResult;
 import me.brandonli.mcav.media.player.pipeline.filter.video.FunctionalVideoFilter;
 import me.brandonli.mcav.media.player.pipeline.filter.video.VideoFilter;
@@ -46,13 +46,17 @@ import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.plugin.MCAVSandbox;
 import me.brandonli.mcav.plugin.audio.AudioProvider;
 import me.brandonli.mcav.plugin.listener.OnlinePlayers;
+import me.brandonli.mcav.plugin.locale.Message;
+import me.brandonli.mcav.plugin.testing.Components;
 import me.brandonli.mcav.plugin.testing.TestServer;
 import me.brandonli.mcav.plugin.utils.AudioArgument;
 import me.brandonli.mcav.plugin.utils.DitheringArgument;
 import me.brandonli.mcav.plugin.utils.PlayerArgument;
 import me.brandonli.mcav.utils.immutable.Pair;
+import net.kyori.adventure.text.Component;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.incendo.cloud.bukkit.data.MultiplePlayerSelector;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -232,40 +236,106 @@ final class VideoMcv2CommandTest {
   }
 
   @Test
-  void shouldTakeTheBacklogLimitOfAMeasurement() {
-    final Mcv2Support support = new Mcv2Support(mock(Mcv2PackServer.class));
-    System.setProperty(Mcv2Support.BACKLOG_PROPERTY, "65536");
-    try {
-      final long videoMcv2CommandBacklogLimit = support.readBacklogLimit();
-      assertEquals(65536, videoMcv2CommandBacklogLimit);
-
-      final int unsentLimit = support.readUnsentLimit();
-      assertEquals(Mcv2Configuration.DEFAULT_UNSENT_LIMIT, unsentLimit);
-
-      System.setProperty(Mcv2Support.BACKLOG_PROPERTY, "none");
-
-      final long secondBacklogLimit = support.readBacklogLimit();
-      assertEquals(Long.MAX_VALUE, secondBacklogLimit);
-      // no backpressure at all: no cap on a viewer's unsent bytes either
-
-      final int videoMcv2CommandUnsentLimit = support.readUnsentLimit();
-      assertEquals(0, videoMcv2CommandUnsentLimit);
-    } finally {
-      System.clearProperty(Mcv2Support.BACKLOG_PROPERTY);
-    }
-
-    final long backlogLimit = support.readBacklogLimit();
-    assertEquals(Mcv2Configuration.DEFAULT_BACKLOG_LIMIT, backlogLimit);
-  }
-
-  @Test
   void shouldRefuseInvalidSizesAndMissingWalls() {
     this.play(RESOLUTION, "65x1", MAP_ID);
     this.play("nope", BLOCK_DIMENSIONS, MAP_ID);
     verify(this.support, never()).configure(any(), any(), any(), eq(MAP_ID), any(), any());
 
+    final Component error = Message.UNSUPPORTED_DIMENSION.build();
+    final List<Component> messages = Components.received(this.sender);
+    final List<Component> expected = List.of(error, error);
+    assertEquals(expected, messages);
+
     this.play(RESOLUTION, BLOCK_DIMENSIONS, 21);
     verify(this.support).configure(any(), any(), any(), eq(21), any(), any());
     verify(this.command, never()).playVideo(any(), any(), any(), any(), any(), anyString(), anyString(), anyString(), isNull());
+  }
+
+  @Test
+  void shouldRefuseNullArguments() {
+    final Mcv2Profile preset = Mcv2Profile.DEFAULT;
+    final DitheringArgument dithering = DitheringArgument.FILTER_LITE;
+    final Pair<Integer, Integer> resolution = Pair.pair(RESOLUTION_WIDTH, RESOLUTION_HEIGHT);
+    final AbstractVideoCommand.VideoConfigurationProvider provider = _ -> new Object();
+
+    assertThrows(NullPointerException.class, () -> this.playWith(null, preset, dithering));
+    assertThrows(NullPointerException.class, () -> this.playWith(this.selector, null, dithering));
+    assertThrows(NullPointerException.class, () -> this.playWith(this.selector, preset, null));
+    assertThrows(NullPointerException.class, () -> this.command.createVideoFilter(null, provider));
+    assertThrows(NullPointerException.class, () -> this.command.createVideoFilter(resolution, null));
+  }
+
+  private void playWith(
+    final @Nullable MultiplePlayerSelector selector,
+    final @Nullable Mcv2Profile preset,
+    final @Nullable DitheringArgument dithering
+  ) {
+    this.command.playMcv2Video(
+      this.sender,
+      selector,
+      PlayerArgument.FFMPEG,
+      AudioArgument.NONE,
+      RESOLUTION,
+      BLOCK_DIMENSIONS,
+      MAP_ID,
+      preset,
+      dithering,
+      "",
+      VIDEO_FILE_NAME,
+      null
+    );
+  }
+
+  @Test
+  void shouldPassTheFiltersOnToTheVideo() {
+    final String filters = "invert";
+    doNothing()
+      .when(this.command)
+      .playVideo(
+        any(AbstractVideoCommand.VideoConfigurationProvider.class),
+        any(CommandSender.class),
+        any(MultiplePlayerSelector.class),
+        any(PlayerArgument.class),
+        any(AudioArgument.class),
+        anyString(),
+        anyString(),
+        anyString(),
+        eq(filters)
+      );
+    final Mcv2Configuration configuration = mock(Mcv2Configuration.class);
+    when(this.support.configure(any(), any(), any(), eq(MAP_ID), any(), any())).thenReturn(Optional.of(configuration));
+    this.command.playMcv2Video(
+      this.sender,
+      this.selector,
+      PlayerArgument.FFMPEG,
+      AudioArgument.NONE,
+      RESOLUTION,
+      BLOCK_DIMENSIONS,
+      MAP_ID,
+      Mcv2Profile.DEFAULT,
+      DitheringArgument.FILTER_LITE,
+      "",
+      VIDEO_FILE_NAME,
+      filters
+    );
+
+    verify(this.command).playVideo(
+      any(AbstractVideoCommand.VideoConfigurationProvider.class),
+      eq(this.sender),
+      eq(this.selector),
+      eq(PlayerArgument.FFMPEG),
+      eq(AudioArgument.NONE),
+      eq(RESOLUTION),
+      eq(VIDEO_FILE_NAME),
+      eq(""),
+      eq(filters)
+    );
+  }
+
+  @Test
+  void shouldRefuseAProviderThatBuildsAnotherConfiguration() {
+    final Pair<Integer, Integer> resolution = Pair.pair(RESOLUTION_WIDTH, RESOLUTION_HEIGHT);
+    final AbstractVideoCommand.VideoConfigurationProvider provider = _ -> new Object();
+    assertThrows(ClassCastException.class, () -> this.command.createVideoFilter(resolution, provider));
   }
 }
