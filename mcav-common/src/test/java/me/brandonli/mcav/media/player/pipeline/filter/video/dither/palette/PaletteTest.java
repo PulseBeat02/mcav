@@ -25,6 +25,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.Color;
 import java.io.StringReader;
+import java.util.Arrays;
 import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.DitherUtils;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.ordered.BayerDither;
@@ -248,6 +249,15 @@ final class PaletteTest {
 
     final int[] colors = MapPaletteLoader.getColors();
     assertArrayEquals(colors, loaded);
+  }
+
+  @Test
+  void shouldFollowTheTransparentIndicesWithTheFourShadesOfTheGrassColor() {
+    final int[] colors = MapPaletteLoader.getColors();
+    final int[] expected = { 0xFF597D27, 0xFF6D9930, 0xFF7FB238, 0xFF435E1D };
+    final int end = MapPalette.TRANSPARENT_INDICES + expected.length;
+    final int[] grass = Arrays.copyOfRange(colors, MapPalette.TRANSPARENT_INDICES, end);
+    assertArrayEquals(expected, grass, "map color 1 is grass, in its four shades, as the game lists it");
   }
 
   @Test
