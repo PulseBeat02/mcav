@@ -133,6 +133,33 @@ final class PipelineStepTest {
   }
 
   @Test
+  void shouldStopTheChainAtAFailingFilter() {
+    final List<String> calls = new ArrayList<>();
+    final IllegalStateException videoFailure = new IllegalStateException("Video filter failed!");
+    final IllegalStateException audioFailure = new IllegalStateException("Audio filter failed!");
+    final VideoFilter failingVideo = (_, _) -> this.failFilter(videoFailure);
+    final VideoFilter nextVideo = (_, _) -> calls.add("next video filter");
+    final AudioFilter failingAudio = (_, _) -> this.failFilter(audioFailure);
+    final AudioFilter nextAudio = (_, _) -> calls.add("next audio filter");
+    final VideoPipelineStep lastVideo = VideoPipelineStep.of(nextVideo);
+    final VideoPipelineStep video = VideoPipelineStep.of(lastVideo, failingVideo);
+    final AudioPipelineStep lastAudio = AudioPipelineStep.of(nextAudio);
+    final AudioPipelineStep audio = AudioPipelineStep.of(lastAudio, failingAudio);
+    final ImageBuffer image = mock(ImageBuffer.class);
+    final OriginalVideoMetadata videoMetadata = OriginalVideoMetadata.EMPTY;
+    final ByteBuffer samples = ByteBuffer.allocate(SAMPLE_BUFFER_BYTES);
+    final IllegalStateException videoThrown = assertThrows(IllegalStateException.class, () -> video.processAll(image, videoMetadata));
+    final IllegalStateException audioThrown = assertThrows(IllegalStateException.class, () -> audio.processAll(samples, AUDIO_METADATA));
+    assertSame(videoFailure, videoThrown);
+    assertSame(audioFailure, audioThrown);
+    assertEquals(List.of(), calls);
+  }
+
+  private boolean failFilter(final IllegalStateException failure) {
+    throw failure;
+  }
+
+  @Test
   void shouldDoNothingInEmptyPipelines() {
     final ImageBuffer image = mock(ImageBuffer.class);
     final ByteBuffer samples = ByteBuffer.allocate(SAMPLE_BUFFER_BYTES);
