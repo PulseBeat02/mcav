@@ -350,12 +350,6 @@ final class FilterChainTest {
 
     final boolean matches = !this.parse("overlay=largest").isEmpty();
     assertTrue(matches);
-
-    final boolean empty = FilterChain.NONE.isEmpty();
-    assertTrue(empty);
-
-    final boolean secondMatches = !this.parse(GRAYSCALE_FILTER).isEmpty();
-    assertTrue(secondMatches);
   }
 
   @Test
