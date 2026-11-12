@@ -18,6 +18,7 @@
 package me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
@@ -206,6 +207,15 @@ final class RandomAndNearestDitherTest {
     assertThrows(IllegalArgumentException.class, () -> nearest.dither(new int[4], 0));
     assertThrows(NullPointerException.class, () -> nearest.dither(null, 2));
     assertThrows(NullPointerException.class, () -> random.dither(null, 2));
+  }
+
+  @Test
+  void shouldAcceptAnEmptyBufferWhenDitheringInPlace() {
+    final NearestDither nearest = new ColorMapNearestDither(DitherTestImages.BLACK_WHITE);
+    final UniformNoiseDither random = new UniformNoiseDither(DitherTestImages.BLACK_WHITE, 0);
+    final int[] empty = new int[0];
+    assertDoesNotThrow(() -> nearest.dither(empty, 1));
+    assertDoesNotThrow(() -> random.dither(empty, 1));
   }
 
   @Test
