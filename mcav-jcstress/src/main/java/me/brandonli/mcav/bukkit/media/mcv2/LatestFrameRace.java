@@ -27,13 +27,14 @@ import org.openjdk.jcstress.infra.results.III_Result;
 
 /**
  * The video of a screen hands two frames over while the screen's thread takes twice, as {@link Mcv2Result} hands
- * frames to its encoder through a {@link Mcv2LatestFrame}. A frame may be replaced before it is taken, but the newest
- * is never lost, no frame is taken twice, and an older frame never follows a newer one (pass-5 S59). The results are
- * the frames the two takes got and what is left once both are done, 0 for none.
+ * frames to its encoder through a {@link Mcv2LatestFrame}: the first take waits for a frame, as the screen's thread
+ * does, and the second does not wait. A frame may be replaced before it is taken, but the newest is never lost, no
+ * frame is taken twice, and an older frame never follows a newer one (pass-5 S59). The results are the frames the two
+ * takes got and what is left once both are done, 0 for none.
  */
 @JCStressTest
-@Outcome(id = { "0, 0, 2", "0, 1, 2", "1, 0, 2" }, expect = Expect.ACCEPTABLE, desc = "the newest frame waits for the next take")
-@Outcome(id = { "0, 2, 0", "1, 2, 0", "2, 0, 0" }, expect = Expect.ACCEPTABLE, desc = "the newest frame was taken")
+@Outcome(id = "1, 0, 2", expect = Expect.ACCEPTABLE, desc = "the newest frame waits for the next take")
+@Outcome(id = { "1, 2, 0", "2, 0, 0" }, expect = Expect.ACCEPTABLE, desc = "the newest frame was taken")
 @Outcome(expect = Expect.FORBIDDEN, desc = "the newest frame was lost, a frame was taken twice, or an older one after a newer")
 @State
 public class LatestFrameRace {
@@ -45,10 +46,11 @@ public class LatestFrameRace {
   private final Mcv2LatestFrame<Integer> slot;
 
   /**
-   * Creates an empty slot.
+   * Creates an open slot without a frame, as a started result has.
    */
   public LatestFrameRace() {
     this.slot = new Mcv2LatestFrame<>();
+    this.slot.open();
   }
 
   /**
@@ -61,16 +63,27 @@ public class LatestFrameRace {
   }
 
   /**
-   * Takes twice, as the screen's thread does.
+   * Waits for a frame and takes it, as the screen's thread does, then takes once more without waiting.
    *
    * @param outcome the frames taken
    */
   @Actor
   public void screen(final III_Result outcome) {
-    final Integer first = this.slot.poll();
-    outcome.r1 = this.number(first);
+    outcome.r1 = this.waitAndTakeFrame();
     final Integer second = this.slot.poll();
     outcome.r2 = this.number(second);
+  }
+
+  private int waitAndTakeFrame() {
+    try {
+      final Integer first = this.slot.take();
+      return this.number(first);
+    } catch (final InterruptedException exception) {
+      final Thread current = Thread.currentThread();
+      current.interrupt();
+
+      return NO_FRAME;
+    }
   }
 
   /**

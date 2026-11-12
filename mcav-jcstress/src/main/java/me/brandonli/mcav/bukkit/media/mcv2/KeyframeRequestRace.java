@@ -26,12 +26,12 @@ import org.openjdk.jcstress.annotations.State;
 import org.openjdk.jcstress.infra.results.ZZ_Result;
 
 /**
- * A keyframe request, such as the one the main thread makes when a viewer is shown the screen, while the encoder's
+ * A keyframe request, such as the one the main thread makes when a viewer is shown the screen, while the screen's
  * thread takes the requests for its next frame. A request is taken by that frame or waits for the next one; it is never
- * lost, which a take that read the request and cleared it in two steps allowed until the next periodic keyframe, seconds
- * later (pass-5 synthesis S40). This drives the requests {@link Mcv2Channel} keeps, as the channel itself cannot be
- * created without the Minecraft server. The results are whether the take saw the request, and whether it still waits
- * after.
+ * lost, which a take that read the request and cleared it in two steps allowed until the next periodic keyframe, once
+ * the last keyframe is four seconds old (pass-5 synthesis S40). This drives the requests {@link Mcv2Channel} keeps, as
+ * the channel itself cannot be created without the Minecraft server. The results are whether the take saw the request,
+ * and whether it still waits after.
  */
 @JCStressTest
 @Outcome(id = "true, false", expect = Expect.ACCEPTABLE, desc = "the frame took the request")
@@ -58,7 +58,7 @@ public class KeyframeRequestRace {
   }
 
   /**
-   * Takes the requests for the next frame, as the encoder does.
+   * Takes the requests for the next frame, as the screen's thread does before it encodes the frame.
    *
    * @param outcome whether the take saw the request
    */
