@@ -24,6 +24,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Set;
@@ -139,6 +140,22 @@ final class ArgumentUtilsTest {
     final Collection<UUID> ids = ArgumentUtils.resolvePlayerIds(selector);
     final List<UUID> expected = List.of(firstId, secondId);
     assertEquals(expected, ids);
+  }
+
+  @Test
+  void shouldReturnAnUnmodifiableSnapshotOfTheSelectedPlayers() {
+    final UUID id = UUID.randomUUID();
+    final Player player = mock(Player.class);
+    when(player.getUniqueId()).thenReturn(id);
+    final List<Player> players = new ArrayList<>(List.of(player));
+    final MultiplePlayerSelector selector = mock(MultiplePlayerSelector.class);
+    when(selector.values()).thenReturn(players);
+    final Collection<UUID> ids = ArgumentUtils.resolvePlayerIds(selector);
+    players.clear();
+
+    final List<UUID> expected = List.of(id);
+    assertEquals(expected, ids);
+    assertThrows(UnsupportedOperationException.class, ids::clear);
   }
 
   @Test
