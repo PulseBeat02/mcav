@@ -19,6 +19,7 @@ package me.brandonli.mcav.plugin.command;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -273,6 +274,33 @@ final class AnnotationParserHandlerTest {
     }
 
     return values;
+  }
+
+  @Test
+  void shouldOfferTheScoreboardCommandsOnlySizesTheyCanShow() {
+    final AnnotationParserHandler handler = new AnnotationParserHandler(this.plugin);
+    handler.registerCommands();
+
+    final List<String> image = this.suggestionsOf(
+      "mcav image scoreboard playerSelector imageResolution character mrl flags",
+      "imageResolution"
+    );
+    this.assertFitsAScoreboard(image);
+
+    final List<String> video = this.suggestionsOf(
+      "mcav video scoreboard playerSelector playerType audioType videoResolution character ytdlpOptions mrl flags",
+      "videoResolution"
+    );
+    this.assertFitsAScoreboard(video);
+  }
+
+  private void assertFitsAScoreboard(final List<String> sizes) {
+    final boolean offered = !sizes.isEmpty();
+    assertTrue(offered, String.valueOf(sizes));
+    for (final String size : sizes) {
+      final boolean tooTall = ScoreboardArguments.isTooTall(size);
+      assertFalse(tooTall, size);
+    }
   }
 
   @Test

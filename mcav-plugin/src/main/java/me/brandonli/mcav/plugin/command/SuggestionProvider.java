@@ -60,6 +60,13 @@ public final class SuggestionProvider implements AnnotationCommandFeature {
   public static final String CHAT_RESOLUTIONS = "chat-resolutions";
 
   /**
+   * The name of the scoreboard size suggestions.
+   *
+   * @since 1.0.0
+   */
+  public static final String SCOREBOARD_RESOLUTIONS = "scoreboard-resolutions";
+
+  /**
    * The name of the chat character suggestions.
    *
    * @since 1.0.0
@@ -87,6 +94,8 @@ public final class SuggestionProvider implements AnnotationCommandFeature {
   private static final List<String> RESOLUTION_SUGGESTIONS = List.of("512x512", "640x640", "1280x720", "1280x1280", "1920x1080");
 
   private static final List<String> CHAT_RESOLUTION_SUGGESTIONS = List.of("8x8", "16x16", "32x32");
+
+  private static final List<String> SCOREBOARD_RESOLUTION_SUGGESTIONS = List.of("8x8", "16x9", "15x15", "24x15");
 
   private static final String QUOTE = "\"";
 
@@ -140,7 +149,7 @@ public final class SuggestionProvider implements AnnotationCommandFeature {
 
   /**
    * Suggests sizes for arguments counted in blocks, maps, or characters, such as {@code <blockDimensions>} of the
-   * map commands or {@code <imageResolution>} of the block, entity, and scoreboard commands.
+   * map commands or {@code <imageResolution>} of the block and entity commands.
    *
    * @return the suggested sizes, written as {@code <width>x<height>}
    * @since 1.0.0
@@ -172,6 +181,19 @@ public final class SuggestionProvider implements AnnotationCommandFeature {
   @Suggestions(CHAT_RESOLUTIONS)
   public Stream<String> suggestChatResolutions() {
     return CHAT_RESOLUTION_SUGGESTIONS.stream();
+  }
+
+  /**
+   * Suggests sizes that fit into the scoreboard sidebar, in characters per line and lines, for the
+   * {@code <imageResolution>} and {@code <videoResolution>} arguments of the scoreboard commands. None is taller than
+   * {@link ScoreboardArguments#isTooTall(String)} allows.
+   *
+   * @return the suggested sizes, written as {@code <width>x<height>}
+   * @since 1.0.0
+   */
+  @Suggestions(SCOREBOARD_RESOLUTIONS)
+  public Stream<String> suggestScoreboardResolutions() {
+    return SCOREBOARD_RESOLUTION_SUGGESTIONS.stream();
   }
 
   /**

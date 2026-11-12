@@ -98,7 +98,7 @@ public final class ImageScoreboardCommand extends AbstractImageCommand {
   public void showImage(
     final CommandSender sender,
     final MultiplePlayerSelector playerSelector,
-    @Argument(suggestions = SuggestionProvider.DIMENSIONS) @Quoted final String imageResolution,
+    @Argument(suggestions = SuggestionProvider.SCOREBOARD_RESOLUTIONS) @Quoted final String imageResolution,
     @Argument(suggestions = SuggestionProvider.CHAT_CHARACTERS) @Quoted final String character,
     @Greedy @FlagYielding final String mrl,
     @Flag("filters") @Quoted final @Nullable String filters

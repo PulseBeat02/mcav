@@ -67,6 +67,13 @@ final class SuggestionProviderTest {
   }
 
   @Test
+  void shouldSuggestScoreboardResolutions() {
+    final Stream<String> suggestions = this.provider.suggestScoreboardResolutions();
+    final List<String> expected = List.of("8x8", "16x9", "15x15", "24x15");
+    this.assertSuggests(expected, suggestions);
+  }
+
+  @Test
   void shouldSuggestChatCharactersThatAQuotedArgumentReadsWhole() throws CommandSyntaxException {
     final Stream<String> suggestions = this.provider.suggestChatCharacters();
     final List<String> values = suggestions.toList();
