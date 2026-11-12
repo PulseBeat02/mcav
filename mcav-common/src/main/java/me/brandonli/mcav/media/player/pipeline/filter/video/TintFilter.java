@@ -26,11 +26,12 @@ import org.bytedeco.opencv.opencv_core.Scalar;
 /**
  * Tints frames by blending them with a solid color.
  *
- * <p>The matrix of the tint color is kept between frames and only rebuilt when a frame has another size, so tinting
- * reuses native image storage in the usual serial case with stable dimensions. Concurrent calls borrow
- * separate matrices as needed; see {@link ReusableMat}, and freed when the filter is garbage collected.
+ * <p>The matrix of the tint color is kept between frames and only rebuilt when a frame has another size or type, so
+ * tinting reuses native image storage in the usual serial case with stable dimensions, and it is freed when the filter
+ * is garbage collected. A call that finds the matrix lent to another frame fills one of its own, so one filter may be
+ * attached to several pipelines at once.
  *
- * <p>This class is not thread-safe, because it reuses one matrix for every frame; give each player its own instance.
+ * <p>This class is thread-safe.
  *
  * @since 1.0.0
  */

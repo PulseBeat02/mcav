@@ -28,6 +28,11 @@ import static org.mockito.Mockito.when;
 
 import java.lang.reflect.Field;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicReference;
 import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.testing.Images;
@@ -72,6 +77,9 @@ final class ColorFiltersTest {
   private static final double TOO_LOW_WEIGHT = -0.1;
   private static final double TOO_HIGH_WEIGHT = 1.1;
 
+  private static final int THREADS = 4;
+  private static final int ROUNDS = 1_000;
+
   private static final String CHANGE_REPORTED_MESSAGE = "the filter reports the change, which decides whether the result is written back";
 
   private static int pixelAt(final ImageBuffer image, final int column, final int row) {
@@ -113,6 +121,8 @@ final class ColorFiltersTest {
     assertThrows(IllegalArgumentException.class, () -> new LuminanceFilter(-1.0, 0.0));
     assertThrows(IllegalArgumentException.class, () -> new LuminanceFilter(1.0, 300.0));
     assertThrows(IllegalArgumentException.class, () -> new LuminanceFilter(1.0, -256.0));
+    assertThrows(IllegalArgumentException.class, () -> new LuminanceFilter(Double.NaN, 0.0));
+    assertThrows(IllegalArgumentException.class, () -> new LuminanceFilter(1.0, Double.NaN));
   }
 
   @Test
@@ -124,6 +134,8 @@ final class ColorFiltersTest {
     assertThrows(IllegalArgumentException.class, () -> new ThresholdFilter(256.0, THRESHOLD_MAXIMUM_VALUE, 0));
     assertThrows(IllegalArgumentException.class, () -> new ThresholdFilter(0.0, -1.0, 0));
     assertThrows(IllegalArgumentException.class, () -> new ThresholdFilter(0.0, 256.0, 0));
+    assertThrows(IllegalArgumentException.class, () -> new ThresholdFilter(Double.NaN, THRESHOLD_MAXIMUM_VALUE, 0));
+    assertThrows(IllegalArgumentException.class, () -> new ThresholdFilter(0.0, Double.NaN, 0));
   }
 
   @Test
@@ -137,6 +149,8 @@ final class ColorFiltersTest {
     assertTrue(isHalfBlue, hexadecimal);
     assertThrows(IllegalArgumentException.class, () -> new TintFilter(BLUE, TOO_LOW_WEIGHT));
     assertThrows(IllegalArgumentException.class, () -> new TintFilter(BLUE, TOO_HIGH_WEIGHT));
+    assertThrows(IllegalArgumentException.class, () -> new TintFilter(BLUE, Double.NaN));
+    assertThrows(NullPointerException.class, () -> new TintFilter(null, TINT_STRENGTH));
   }
 
   private static int tintedBlue(final TintFilter filter, final int width, final int height) {
@@ -238,6 +252,49 @@ final class ColorFiltersTest {
   }
 
   @Test
+  void shouldTintAndGrayFramesOfTwoSizesOnSeveralThreadsAtOnce() throws Exception {
+    final TintFilter tint = new TintFilter(BLUE, TINT_STRENGTH);
+    final GrayscaleFilter grayscale = new GrayscaleFilter();
+    final List<Future<Integer>> results = new ArrayList<>();
+    try (final ExecutorService executor = Executors.newFixedThreadPool(THREADS)) {
+      for (int thread = 0; thread < THREADS; thread++) {
+        final int side = SOLID_SIDE + (thread % 2);
+        final Future<Integer> result = executor.submit(() -> this.countWrongFrames(tint, grayscale, side));
+        results.add(result);
+      }
+
+      for (final Future<Integer> result : results) {
+        final int wrongFrames = result.get();
+        assertEquals(0, wrongFrames, "every call works on a matrix of its own");
+      }
+    }
+  }
+
+  private int countWrongFrames(final TintFilter tint, final GrayscaleFilter grayscale, final int side) {
+    int wrongFrames = 0;
+    for (int round = 0; round < ROUNDS; round++) {
+      final boolean right = this.filterAndCheckTwoFrames(tint, grayscale, side);
+      if (!right) {
+        wrongFrames++;
+      }
+    }
+
+    return wrongFrames;
+  }
+
+  private boolean filterAndCheckTwoFrames(final TintFilter tint, final GrayscaleFilter grayscale, final int side) {
+    try (final ImageBuffer black = Images.solid(side, side, BLACK); final ImageBuffer colored = Images.solid(side, side, SAMPLE_COLOR)) {
+      tint.applyFilter(black);
+      grayscale.applyFilter(colored);
+      final int corner = side - 1;
+      final int tinted = pixelAt(black, corner, corner);
+      final int gray = pixelAt(colored, corner, corner);
+      final int blue = tinted & CHANNEL_MASK;
+      return isHalf(blue) && gray == SAMPLE_GRAY;
+    }
+  }
+
+  @Test
   void shouldFilterBareMatricesInPlaceWithBilateral() {
     final BilateralFilter filter = new BilateralFilter(BILATERAL_DIAMETER, BILATERAL_SIGMA, BILATERAL_SIGMA);
     try (final Mat matrix = new Mat(3, 3, opencv_core.CV_8UC3, new Scalar(0x60, 0x50, 0x40, 0.0))) {
@@ -297,12 +354,14 @@ final class ColorFiltersTest {
   }
 
   @Test
-  void shouldBlendTwoFramesOfTheSameSize() {
-    try (final ImageBuffer white = Images.solid(SOLID_SIDE, SOLID_SIDE, WHITE)) {
-      final BlendFilter filter = new BlendFilter(white, 0.25);
-      final int blended = applyToSolid(filter, BLACK);
-      assertEquals(0xFFBFBFBF, blended);
-    }
+  void shouldBlendWithItsOwnCopyOfTheImageAndRejectAReleasedImage() {
+    final ImageBuffer white = Images.solid(SOLID_SIDE, SOLID_SIDE, WHITE);
+    final BlendFilter filter = new BlendFilter(white, 0.25);
+    white.close();
+
+    final int blended = applyToSolid(filter, BLACK);
+    assertEquals(0xFFBFBFBF, blended, "the filter blends with its own copy of the image");
+    assertThrows(IllegalStateException.class, () -> new BlendFilter(white, BLEND_ALPHA));
   }
 
   @Test
@@ -358,6 +417,7 @@ final class ColorFiltersTest {
     assertEquals(WHITE, blended);
     assertThrows(IllegalArgumentException.class, () -> new BlendFilter(other, TOO_LOW_WEIGHT));
     assertThrows(IllegalArgumentException.class, () -> new BlendFilter(other, TOO_HIGH_WEIGHT));
+    assertThrows(IllegalArgumentException.class, () -> new BlendFilter(other, Double.NaN));
     assertThrows(NullPointerException.class, () -> new BlendFilter(null, BLEND_ALPHA));
   }
 
@@ -368,6 +428,8 @@ final class ColorFiltersTest {
     assertThrows(IllegalArgumentException.class, () -> new BilateralFilter(0, 1.0, 1.0));
     assertThrows(IllegalArgumentException.class, () -> new BilateralFilter(1, 0.0, 1.0));
     assertThrows(IllegalArgumentException.class, () -> new BilateralFilter(1, 1.0, 0.0));
+    assertThrows(IllegalArgumentException.class, () -> new BilateralFilter(1, Double.NaN, 1.0));
+    assertThrows(IllegalArgumentException.class, () -> new BilateralFilter(1, 1.0, Double.NaN));
   }
 
   @Test
@@ -420,6 +482,8 @@ final class ColorFiltersTest {
     assertThrows(IllegalArgumentException.class, () -> new BlurFilter(BlurFilter.BlurType.STACK, 2));
     assertThrows(IllegalArgumentException.class, () -> new BlurFilter(BlurFilter.BlurType.GAUSSIAN, KERNEL_SIZE, -1.0, 0.0));
     assertThrows(IllegalArgumentException.class, () -> new BlurFilter(BlurFilter.BlurType.GAUSSIAN, KERNEL_SIZE, 0.0, -1.0));
+    assertThrows(IllegalArgumentException.class, () -> new BlurFilter(BlurFilter.BlurType.GAUSSIAN, KERNEL_SIZE, Double.NaN, 0.0));
+    assertThrows(IllegalArgumentException.class, () -> new BlurFilter(BlurFilter.BlurType.GAUSSIAN, KERNEL_SIZE, 0.0, Double.NaN));
     assertThrows(NullPointerException.class, () -> new BlurFilter(null, KERNEL_SIZE));
   }
 

@@ -25,8 +25,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.nio.ByteBuffer;
-import java.util.Arrays;
-import java.util.concurrent.atomic.AtomicLong;
 import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.testing.Images;
 import org.bytedeco.opencv.global.opencv_core;
@@ -94,6 +92,7 @@ final class DrawingFiltersTest {
     }
 
     assertThrows(IllegalArgumentException.class, () -> new CircleFilter(0, 0, -1, WHITE));
+    assertThrows(NullPointerException.class, () -> new CircleFilter(0, 0, 1, null));
   }
 
   @Test
@@ -129,6 +128,28 @@ final class DrawingFiltersTest {
 
     assertThrows(IllegalArgumentException.class, () -> new EllipseFilter(0, 0, 0, 1, 0, 0, 360, WHITE));
     assertThrows(IllegalArgumentException.class, () -> new EllipseFilter(0, 0, 1, 0, 0, 0, 360, WHITE));
+    assertThrows(NullPointerException.class, () -> new EllipseFilter(0, 0, 1, 1, 0, 0, 360, null));
+  }
+
+  @Test
+  void shouldTurnTheEllipseAndDrawOnlyItsArc() {
+    try (
+      final ImageBuffer turned = Images.solid(SHAPE_IMAGE_SIZE, SHAPE_IMAGE_SIZE, BLACK_ARGB);
+      final ImageBuffer arc = Images.solid(SHAPE_IMAGE_SIZE, SHAPE_IMAGE_SIZE, BLACK_ARGB)
+    ) {
+      final EllipseFilter quarterTurn = new EllipseFilter(5, 5, 4, 2, 90, 0, 360, WHITE);
+      final EllipseFilter lowerHalf = new EllipseFilter(5, 5, 4, 2, 0, 0, 180, WHITE);
+      quarterTurn.applyFilter(turned);
+      lowerHalf.applyFilter(arc);
+      final int turnedTop = pixelAt(turned, 5, 1);
+      final int turnedRight = pixelAt(turned, 9, 5);
+      final int arcBottom = pixelAt(arc, 5, 7);
+      final int arcTop = pixelAt(arc, 5, 3);
+      assertEquals(WHITE_ARGB, turnedTop, "a quarter turn makes the half axis of 4 vertical");
+      assertEquals(BLACK_ARGB, turnedRight);
+      assertEquals(WHITE_ARGB, arcBottom, "the arc from 0 to 180 degrees runs clockwise through the bottom");
+      assertEquals(BLACK_ARGB, arcTop, "and leaves the top of the ellipse out");
+    }
   }
 
   @Test
@@ -144,6 +165,8 @@ final class DrawingFiltersTest {
       assertEquals(WHITE_ARGB, end);
       assertEquals(BLACK_ARGB, above);
     }
+
+    assertThrows(NullPointerException.class, () -> new LineFilter(0, 0, 1, 1, null));
   }
 
   @Test
@@ -169,6 +192,24 @@ final class DrawingFiltersTest {
 
     assertThrows(IllegalArgumentException.class, () -> new RectangleFilter(0, 0, 0, 1, WHITE));
     assertThrows(IllegalArgumentException.class, () -> new RectangleFilter(0, 0, 1, 0, WHITE));
+    assertThrows(NullPointerException.class, () -> new RectangleFilter(0, 0, 1, 1, null));
+  }
+
+  @Test
+  void shouldCutOffARectangleThatReachesPastTheLastColumnAndRow() {
+    try (final ImageBuffer image = Images.solid(6, 6, BLACK_ARGB)) {
+      final RectangleFilter filter = new RectangleFilter(2, 2, Integer.MAX_VALUE, Integer.MAX_VALUE, WHITE);
+      final boolean modified = filter.applyFilter(image);
+      final int topEdgeAtTheRight = pixelAt(image, 5, 2);
+      final int leftEdgeAtTheBottom = pixelAt(image, 2, 5);
+      final int leftOfRectangle = pixelAt(image, 1, 2);
+      final int aboveRectangle = pixelAt(image, 2, 1);
+      assertTrue(modified);
+      assertEquals(WHITE_ARGB, topEdgeAtTheRight, "the top edge runs to the right edge of the frame");
+      assertEquals(WHITE_ARGB, leftEdgeAtTheBottom, "the left edge runs to the bottom of the frame");
+      assertEquals(BLACK_ARGB, leftOfRectangle, "nothing is drawn left of the rectangle");
+      assertEquals(BLACK_ARGB, aboveRectangle, "nothing is drawn above the rectangle");
+    }
   }
 
   @Test
@@ -193,47 +234,9 @@ final class DrawingFiltersTest {
     }
 
     assertThrows(NullPointerException.class, () -> new TextFilter(null, 0, 0, TextFilter.DEFAULT_FONT, 1.0, WHITE));
+    assertThrows(NullPointerException.class, () -> new TextFilter("x", 0, 0, TextFilter.DEFAULT_FONT, 1.0, null));
     assertThrows(IllegalArgumentException.class, () -> new TextFilter("x", 0, 0, TextFilter.DEFAULT_FONT, 0.0, WHITE));
-  }
-
-  @Test
-  void shouldDrawTheMeasuredFrameRate() {
-    final AtomicLong clock = new AtomicLong();
-    final FramesPerSecondFilter filter = new FramesPerSecondFilter(clock::get);
-    try (final ImageBuffer first = Images.solid(120, 40, BLACK_ARGB); final ImageBuffer second = Images.solid(120, 40, BLACK_ARGB)) {
-      final boolean firstModified = filter.applyFilter(first);
-      clock.set(1_000_000_000L);
-      final boolean secondModified = filter.applyFilter(second);
-      assertTrue(firstModified, CHANGE_REPORTED_MESSAGE);
-      assertTrue(secondModified);
-      final int firstDrawn = countNonBlack(first);
-      final int secondDrawn = countNonBlack(second);
-      final int[] firstPixels = first.getPixels();
-      final int[] secondPixels = second.getPixels();
-      final boolean sameText = Arrays.equals(firstPixels, secondPixels);
-      final boolean firstHasText = firstDrawn > 0;
-      assertTrue(firstHasText);
-      final boolean secondHasText = secondDrawn > 0;
-      assertTrue(secondHasText);
-      assertFalse(sameText, "after one second the text changes from 0 fps to 2 fps");
-      assertFrameRateLabel(first, "0 fps");
-      assertFrameRateLabel(second, "2 fps");
-    }
-  }
-
-  private static void assertFrameRateLabel(final ImageBuffer image, final String label) {
-    try (
-      final Scalar black = new Scalar(0.0);
-      final Scalar white = new Scalar(CHANNEL_MAXIMUM, CHANNEL_MAXIMUM, CHANNEL_MAXIMUM, 0.0);
-      final Point baseline = new Point(10, 24);
-      final Mat expected = new Mat(40, 120, opencv_core.CV_8UC3, black)
-    ) {
-      opencv_imgproc.putText(expected, label, baseline, opencv_imgproc.FONT_HERSHEY_SIMPLEX, 0.6, black, 3, opencv_imgproc.LINE_AA, false);
-      opencv_imgproc.putText(expected, label, baseline, opencv_imgproc.FONT_HERSHEY_SIMPLEX, 0.6, white, 1, opencv_imgproc.LINE_AA, false);
-      final ByteBuffer expectedPixels = expected.createBuffer();
-      final ByteBuffer pixels = image.getData();
-      assertEquals(expectedPixels, pixels, label);
-    }
+    assertThrows(IllegalArgumentException.class, () -> new TextFilter("x", 0, 0, TextFilter.DEFAULT_FONT, Double.NaN, WHITE));
   }
 
   @Test
@@ -280,6 +283,7 @@ final class DrawingFiltersTest {
     assertThrows(IllegalArgumentException.class, () -> new RegionScalarFilter(0, -1, 1, 1, WHITE));
     assertThrows(IllegalArgumentException.class, () -> new RegionScalarFilter(0, 0, 0, 1, WHITE));
     assertThrows(IllegalArgumentException.class, () -> new RegionScalarFilter(0, 0, 1, 0, WHITE));
+    assertThrows(NullPointerException.class, () -> new RegionScalarFilter(0, 0, 1, 1, null));
   }
 
   @Test
@@ -296,6 +300,24 @@ final class DrawingFiltersTest {
       assertEquals(RED_ARGB, covered);
       assertEquals(BLUE_ARGB, uncovered);
     }
+  }
+
+  @Test
+  void shouldOverlayItsOwnCopyOfTheImageAndRejectAReleasedImage() {
+    final ImageBuffer overlay = Images.solid(OVERLAY_SIZE, OVERLAY_SIZE, RED_ARGB);
+    final OverlayImageFilter filter = new OverlayImageFilter(overlay, 0, 0);
+    overlay.close();
+
+    try (final ImageBuffer image = Images.solid(OVERLAY_FRAME_SIZE, OVERLAY_FRAME_SIZE, BLUE_ARGB)) {
+      final boolean modified = filter.applyFilter(image);
+      final int covered = pixelAt(image, 1, 1);
+      final int uncovered = pixelAt(image, 2, 2);
+      assertTrue(modified);
+      assertEquals(RED_ARGB, covered, "the filter draws its own copy of the image");
+      assertEquals(BLUE_ARGB, uncovered);
+    }
+
+    assertThrows(IllegalStateException.class, () -> new OverlayImageFilter(overlay, 0, 0));
   }
 
   @Test

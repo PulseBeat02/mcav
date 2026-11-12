@@ -18,6 +18,7 @@
 package me.brandonli.mcav.media.player.pipeline.filter.video;
 
 import com.google.common.base.Preconditions;
+import com.google.common.primitives.Ints;
 import me.brandonli.mcav.utils.opencv.ImageUtils;
 import org.bytedeco.opencv.global.opencv_imgproc;
 import org.bytedeco.opencv.opencv_core.Mat;
@@ -54,7 +55,9 @@ public final class RectangleFilter extends MatVideoFilter {
 
     this.topLeft = new Point(left, top);
     // OpenCV draws both corners, so the opposite corner is the last pixel inside the rectangle
-    this.bottomRight = new Point(left + width - 1, top + height - 1);
+    final long right = (long) left + width - 1;
+    final long bottom = (long) top + height - 1;
+    this.bottomRight = new Point(Ints.saturatedCast(right), Ints.saturatedCast(bottom));
     this.color = ImageUtils.toScalar(color);
   }
 
