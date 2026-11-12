@@ -99,7 +99,7 @@ final class OriginalAudioMetadataTest {
   }
 
   @Test
-  void shouldRenderTheMainProperties() {
+  void shouldRenderEveryProperty() {
     final OriginalAudioMetadata metadata = OriginalAudioMetadata.of(CODEC, 96_000, SAMPLE_RATE, 1, 1);
     final String text = metadata.toString();
     assertEquals(
