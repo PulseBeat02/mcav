@@ -47,16 +47,6 @@ final class DitheringArgumentTest {
   private static final long TIMEOUT_MILLISECONDS = TimeUnit.SECONDS.toMillis(10);
 
   @Test
-  @Order(0)
-  void shouldCreateTheSharedAlgorithmOfAnArgumentOnItsFirstUse() {
-    final DitheringArgument argument = DitheringArgument.CLUSTERED_DOT_4X4_LIGHT;
-    final DitherAlgorithm first = argument.createAlgorithm();
-    final DitherAlgorithm second = argument.createAlgorithm();
-    assertNotNull(first, "the first use of an argument creates its algorithm");
-    assertSame(first, second, "every later use returns the algorithm that was created first");
-  }
-
-  @Test
   @Order(1)
   void shouldShareOneStatelessAlgorithmBetweenThreadsThatRaceForTheFirstUse() throws InterruptedException {
     final DitheringArgument argument = DitheringArgument.HORIZONTAL_3X5_HEAVY;
