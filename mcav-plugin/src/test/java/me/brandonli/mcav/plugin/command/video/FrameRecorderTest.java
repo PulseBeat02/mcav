@@ -21,10 +21,13 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
+import me.brandonli.mcav.plugin.testing.StandardErrorCapture;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -53,12 +56,25 @@ final class FrameRecorderTest {
     final Path file = this.folder.resolve(RECORD_FILE_NAME);
     Files.createDirectories(file);
     final FrameRecorder recorder = new FrameRecorder(file);
-    recorder.accept(new byte[] { 7 });
-    Files.delete(file);
-    recorder.accept(new byte[] { 8 });
+    final String output;
+    try (final StandardErrorCapture errors = StandardErrorCapture.start()) {
+      recorder.accept(new byte[] { 7 });
+      Files.delete(file);
+      recorder.accept(new byte[] { 8 });
+      output = errors.getOutput();
+    }
 
     final boolean exists = Files.exists(file);
     assertFalse(exists);
+
+    final String warning = "Cannot record the MCV2 frames into %s, the recording stops.".formatted(file.toAbsolutePath());
+    final List<String> warnings = output.lines().filter(line -> line.contains(warning)).toList();
+    final int count = warnings.size();
+    assertEquals(1, count);
+
+    final String warningLine = warnings.getFirst();
+    final boolean warned = warningLine.contains("WARN");
+    assertTrue(warned, warningLine);
   }
 
   @Test
