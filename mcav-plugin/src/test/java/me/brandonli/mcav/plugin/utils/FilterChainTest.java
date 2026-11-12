@@ -290,18 +290,27 @@ final class FilterChainTest {
 
     this.parse(TEXT_FILTER_PREFIX + FILLER_TEXT.repeat(FilterChain.MAXIMUM_TEXT_LENGTH));
     assertThrows(IllegalArgumentException.class, () -> this.parse("invert,%s".formatted("x".repeat(FilterChain.MAXIMUM_LENGTH))));
-    assertThrows(
-      IllegalArgumentException.class,
-      () -> FilterChain.parse("fps", this.overlays, MediaKind.IMAGE),
-      "an image has no frame rate"
-    );
-    assertThrows(NullPointerException.class, () -> FilterChain.parse(null, this.overlays, MediaKind.VIDEO));
-    assertThrows(NullPointerException.class, () -> FilterChain.parse("", null, MediaKind.VIDEO));
-    assertThrows(NullPointerException.class, () -> FilterChain.parse("", this.overlays, null));
   }
 
   private void parseTooLongChain() {
     this.parse(String.join(FILTER_SEPARATOR, Collections.nCopies(FilterChain.MAXIMUM_FILTERS + 1, INVERT_FILTER)));
+  }
+
+  @Test
+  void shouldRefuseTheFramesPerSecondFilterForAnImage() {
+    final IllegalArgumentException refused = assertThrows(IllegalArgumentException.class, () ->
+      FilterChain.parse("fps", this.overlays, MediaKind.IMAGE)
+    );
+
+    final String message = refused.getMessage();
+    assertEquals("Filter fps counts the frames of a video, and an image has one!", message);
+  }
+
+  @Test
+  void shouldRefuseNullArguments() {
+    assertThrows(NullPointerException.class, () -> FilterChain.parse(null, this.overlays, MediaKind.VIDEO));
+    assertThrows(NullPointerException.class, () -> FilterChain.parse("", null, MediaKind.VIDEO));
+    assertThrows(NullPointerException.class, () -> FilterChain.parse("", this.overlays, null));
   }
 
   @ParameterizedTest
