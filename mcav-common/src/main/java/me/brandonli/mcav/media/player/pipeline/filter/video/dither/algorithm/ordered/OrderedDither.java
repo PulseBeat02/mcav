@@ -18,9 +18,11 @@
 package me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.ordered;
 
 import com.google.common.base.Preconditions;
+import java.util.Arrays;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.ForkJoinTask;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.DitherUtils;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.AbstractDitherAlgorithm;
@@ -60,7 +62,8 @@ public final class OrderedDither extends AbstractDitherAlgorithm implements Baye
    *
    * @param palette the palette to reduce images to
    * @param mapper  the threshold pattern
-   * @throws NullPointerException if {@code palette}, {@code mapper} is null
+   * @throws NullPointerException     if {@code palette}, {@code mapper} is null
+   * @throws IllegalArgumentException if the matrix of {@code mapper} is empty or its rows differ in length
    * @since 1.0.0
    */
   public OrderedDither(final DitherPalette palette, final PixelMapper mapper) {
@@ -68,6 +71,9 @@ public final class OrderedDither extends AbstractDitherAlgorithm implements Baye
     Preconditions.checkNotNull(mapper, "Pixel mapper must not be null!");
 
     final float[][] matrix = mapper.getMatrix();
+    final boolean rectangular = isRectangularAndNotEmpty(matrix);
+    Preconditions.checkArgument(rectangular, "Pixel mapper matrix must be rectangular and not empty!");
+
     final int size = palette.getSize();
     final int reservedIndices = palette.getReservedIndices();
     final int levels = size - reservedIndices;
@@ -80,6 +86,16 @@ public final class OrderedDither extends AbstractDitherAlgorithm implements Baye
         this.offsets[row][column] = Math.clamp(Math.round(matrix[row][column] * spread), -MAXIMUM_OFFSET, MAXIMUM_OFFSET);
       }
     }
+  }
+
+  private static boolean isRectangularAndNotEmpty(final float[][] matrix) {
+    if (matrix.length == 0) {
+      return false;
+    }
+
+    final int columns = matrix[0].length;
+    final Stream<float[]> rows = Arrays.stream(matrix);
+    return columns > 0 && rows.allMatch(row -> row.length == columns);
   }
 
   private static float computeSpread(final int levels) {

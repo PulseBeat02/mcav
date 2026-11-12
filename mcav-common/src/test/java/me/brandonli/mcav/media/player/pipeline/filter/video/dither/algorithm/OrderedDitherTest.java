@@ -366,6 +366,24 @@ final class OrderedDitherTest {
   }
 
   @Test
+  void shouldRejectACustomPixelMapperWhoseMatrixHasNoRows() {
+    final PixelMapper mapper = new FixedMatrixPixelMapper(new float[0][]);
+    assertThrows(IllegalArgumentException.class, () -> new OrderedDither(DitherTestImages.BLACK_WHITE, mapper));
+  }
+
+  @Test
+  void shouldRejectACustomPixelMapperWhoseMatrixHasEmptyRows() {
+    final PixelMapper mapper = new FixedMatrixPixelMapper(new float[][] { {} });
+    assertThrows(IllegalArgumentException.class, () -> new OrderedDither(DitherTestImages.BLACK_WHITE, mapper));
+  }
+
+  @Test
+  void shouldRejectACustomPixelMapperWhoseMatrixRowsDifferInLength() {
+    final PixelMapper mapper = new FixedMatrixPixelMapper(new float[][] { { 0.0f, 0.5f }, { 0.25f } });
+    assertThrows(IllegalArgumentException.class, () -> new OrderedDither(DitherTestImages.BLACK_WHITE, mapper));
+  }
+
+  @Test
   void shouldDeriveTheLevelsFromTheMatrixWhateverTheMaximum() {
     final PixelMapper derived = PixelMapper.ofPixelMapper(BayerDither.NORMAL_4X4, UNIT_STRENGTH);
     final PixelMapper smallest = PixelMapper.ofPixelMapper(BayerDither.NORMAL_4X4, 1, UNIT_STRENGTH);
@@ -569,6 +587,25 @@ final class OrderedDitherTest {
       pool.shutdown();
 
       assertThrows(RejectedExecutionException.class, () -> dither.ditherIntoBytes(image, pool));
+    }
+  }
+
+  private static final class FixedMatrixPixelMapper implements PixelMapper {
+
+    private final float[][] matrix;
+
+    FixedMatrixPixelMapper(final float[][] matrix) {
+      this.matrix = matrix;
+    }
+
+    @Override
+    public float[][] getMatrix() {
+      return this.matrix;
+    }
+
+    @Override
+    public float getStrength() {
+      return UNIT_STRENGTH;
     }
   }
 }
