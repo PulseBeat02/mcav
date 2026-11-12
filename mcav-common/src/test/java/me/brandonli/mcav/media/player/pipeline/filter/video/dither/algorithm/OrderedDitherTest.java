@@ -21,12 +21,12 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.RejectedExecutionException;
 import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.builder.OrderedDitherBuilder;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.ordered.BayerDither;
@@ -178,6 +178,21 @@ final class OrderedDitherTest {
       final byte[] parallel = dither.ditherIntoBytes(image, pool);
       assertArrayEquals(serial, parallel);
     }
+  }
+
+  @Test
+  void shouldDitherSixteenRowsAsOneBandInParallel() {
+    final int height = 16;
+    final int[] pixels = DitherTestImages.gradient(GRADIENT_WIDTH, height);
+    final ColorMapReadCountingPalette palette = new ColorMapReadCountingPalette(DitherTestImages.BLACK_WHITE);
+    final PixelMapper mapper = PixelMapper.ofPixelMapper(BayerDither.NORMAL_4X4, PixelMapper.NORMAL_STRENGTH);
+    final OrderedDither dither = new OrderedDither(palette, mapper);
+    try (final ForkJoinPool pool = new ForkJoinPool(4); final ImageBuffer image = ImageBuffer.buffer(pixels, GRADIENT_WIDTH, height)) {
+      final byte[] _ = dither.ditherIntoBytes(image, pool);
+    }
+
+    final int bands = palette.getColorMapReads();
+    assertEquals(1, bands, "every band reads the color map once, and 16 rows are one band");
   }
 
   @Test
@@ -351,30 +366,41 @@ final class OrderedDitherTest {
   }
 
   @Test
-  void shouldGenerateBayerMatricesOfAnyPowerOfTwo() {
-    final int[][] one = BayerDither.createBayerMatrix(1);
-    final int[][] four = BayerDither.createBayerMatrix(4);
-    final int[][] eight = BayerDither.createBayerMatrix(8);
-    final boolean[] seen = new boolean[64];
-    for (final int[] row : eight) {
-      for (final int value : row) {
-        seen[value] = true;
-      }
-    }
+  void shouldRejectACustomPixelMapperWhoseMatrixHasNoRows() {
+    final PixelMapper mapper = new FixedMatrixPixelMapper(new float[0][]);
+    assertThrows(IllegalArgumentException.class, () -> new OrderedDither(DitherTestImages.BLACK_WHITE, mapper));
+  }
 
-    final int[][] expectedOne = new int[][] { { 0 } };
-    assertArrayEquals(expectedOne, one);
+  @Test
+  void shouldRejectACustomPixelMapperWhoseMatrixHasEmptyRows() {
+    final PixelMapper mapper = new FixedMatrixPixelMapper(new float[][] { {} });
+    assertThrows(IllegalArgumentException.class, () -> new OrderedDither(DitherTestImages.BLACK_WHITE, mapper));
+  }
 
-    final int[] firstRowOfFour = four[0];
-    final int[] expectedFirstRowOfFour = new int[] { 0, 8, 2, 10 };
-    assertArrayEquals(expectedFirstRowOfFour, firstRowOfFour);
+  @Test
+  void shouldRejectACustomPixelMapperWhoseMatrixRowsDifferInLength() {
+    final PixelMapper mapper = new FixedMatrixPixelMapper(new float[][] { { 0.0f, 0.5f }, { 0.25f } });
+    assertThrows(IllegalArgumentException.class, () -> new OrderedDither(DitherTestImages.BLACK_WHITE, mapper));
+  }
 
-    for (final boolean wasSeen : seen) {
-      assertTrue(wasSeen, "every threshold appears exactly once");
-    }
+  @Test
+  void shouldDeriveTheLevelsFromTheMatrixWhateverTheMaximum() {
+    final PixelMapper derived = PixelMapper.ofPixelMapper(BayerDither.NORMAL_4X4, UNIT_STRENGTH);
+    final PixelMapper smallest = PixelMapper.ofPixelMapper(BayerDither.NORMAL_4X4, 1, UNIT_STRENGTH);
+    final PixelMapper largest = PixelMapper.ofPixelMapper(BayerDither.NORMAL_4X4, Integer.MAX_VALUE, UNIT_STRENGTH);
+    final float[][] expected = derived.getMatrix();
+    final float[][] fromSmallest = smallest.getMatrix();
+    final float[][] fromLargest = largest.getMatrix();
+    assertArrayEquals(expected, fromSmallest, "a maximum of 1");
+    assertArrayEquals(expected, fromLargest, "a maximum of Integer.MAX_VALUE");
+  }
 
+  @Test
+  void shouldRejectBayerSizesThatAreNotAPositivePowerOfTwo() {
     assertThrows(IllegalArgumentException.class, () -> BayerDither.createBayerMatrix(0));
     assertThrows(IllegalArgumentException.class, () -> BayerDither.createBayerMatrix(3));
+    assertThrows(IllegalArgumentException.class, () -> BayerDither.createBayerMatrix(-2));
+    assertThrows(IllegalArgumentException.class, () -> BayerDither.createBayerMatrix(Integer.MIN_VALUE));
   }
 
   @Test
@@ -527,5 +553,59 @@ final class OrderedDitherTest {
       16,
       BayerDither.CLUSTERED_DOT_DIAGONAL_16X16_MAXIMUM
     );
+  }
+
+  @Test
+  void shouldLeaveTheImageUnchangedWhenDitheringIntoBytes() {
+    final int[] pixels = DitherTestImages.gradient(GRADIENT_WIDTH, TALL_GRADIENT_HEIGHT);
+    final int[] original = pixels.clone();
+    final OrderedDither dither = blackWhite4x4();
+    try (final ImageBuffer image = ImageBuffer.buffer(pixels, GRADIENT_WIDTH, TALL_GRADIENT_HEIGHT)) {
+      final byte[] _ = dither.ditherIntoBytes(image);
+
+      final int[] after = image.getPixels();
+      assertArrayEquals(original, after, "dithering into bytes leaves the image as it was");
+    }
+  }
+
+  @Test
+  void shouldRejectAReleasedImage() {
+    final OrderedDither dither = blackWhite4x4();
+    final ImageBuffer image = ImageBuffer.buffer(new int[1], 1, 1);
+    image.release();
+
+    try (final ForkJoinPool pool = new ForkJoinPool(1)) {
+      assertThrows(IllegalStateException.class, () -> dither.ditherIntoBytes(image));
+      assertThrows(IllegalStateException.class, () -> dither.ditherIntoBytes(image, pool));
+    }
+  }
+
+  @Test
+  void shouldPassOnTheRejectionOfAShutDownPool() {
+    final OrderedDither dither = blackWhite4x4();
+    try (final ForkJoinPool pool = new ForkJoinPool(1); final ImageBuffer image = ImageBuffer.buffer(new int[1], 1, 1)) {
+      pool.shutdown();
+
+      assertThrows(RejectedExecutionException.class, () -> dither.ditherIntoBytes(image, pool));
+    }
+  }
+
+  private static final class FixedMatrixPixelMapper implements PixelMapper {
+
+    private final float[][] matrix;
+
+    FixedMatrixPixelMapper(final float[][] matrix) {
+      this.matrix = matrix;
+    }
+
+    @Override
+    public float[][] getMatrix() {
+      return this.matrix;
+    }
+
+    @Override
+    public float getStrength() {
+      return UNIT_STRENGTH;
+    }
   }
 }

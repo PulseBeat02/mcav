@@ -64,6 +64,8 @@ public abstract class ErrorDiffusionDither extends AbstractDitherAlgorithm {
    *
    * @param image the image to dither
    * @return the palette index of every pixel, laid out row by row
+   * @throws NullPointerException  if {@code image} is null
+   * @throws IllegalStateException if the image has been released
    * @since 1.0.0
    */
   @Override
@@ -82,6 +84,8 @@ public abstract class ErrorDiffusionDither extends AbstractDitherAlgorithm {
    *
    * @param buffer the ARGB pixels laid out row by row, which are replaced with palette colors
    * @param width  the width of the image, which must divide the length of the buffer
+   * @throws NullPointerException     if {@code buffer} is null
+   * @throws IllegalArgumentException if width is not positive or does not divide the buffer length
    * @since 1.0.0
    */
   @Override

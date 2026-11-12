@@ -18,9 +18,11 @@
 package me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.ordered;
 
 import com.google.common.base.Preconditions;
+import java.util.Arrays;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.ForkJoinTask;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.DitherUtils;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.AbstractDitherAlgorithm;
@@ -60,7 +62,8 @@ public final class OrderedDither extends AbstractDitherAlgorithm implements Baye
    *
    * @param palette the palette to reduce images to
    * @param mapper  the threshold pattern
-   * @throws NullPointerException if {@code palette}, {@code mapper} is null
+   * @throws NullPointerException     if {@code palette}, {@code mapper} is null
+   * @throws IllegalArgumentException if the matrix of {@code mapper} is empty or its rows differ in length
    * @since 1.0.0
    */
   public OrderedDither(final DitherPalette palette, final PixelMapper mapper) {
@@ -68,6 +71,9 @@ public final class OrderedDither extends AbstractDitherAlgorithm implements Baye
     Preconditions.checkNotNull(mapper, "Pixel mapper must not be null!");
 
     final float[][] matrix = mapper.getMatrix();
+    final boolean rectangular = isRectangularAndNotEmpty(matrix);
+    Preconditions.checkArgument(rectangular, "Pixel mapper matrix must be rectangular and not empty!");
+
     final int size = palette.getSize();
     final int reservedIndices = palette.getReservedIndices();
     final int levels = size - reservedIndices;
@@ -82,6 +88,16 @@ public final class OrderedDither extends AbstractDitherAlgorithm implements Baye
     }
   }
 
+  private static boolean isRectangularAndNotEmpty(final float[][] matrix) {
+    if (matrix.length == 0) {
+      return false;
+    }
+
+    final int columns = matrix[0].length;
+    final Stream<float[]> rows = Arrays.stream(matrix);
+    return columns > 0 && rows.allMatch(row -> row.length == columns);
+  }
+
   private static float computeSpread(final int levels) {
     final int usableLevels = Math.max(1, levels);
     final double colorsPerAxis = Math.cbrt(usableLevels);
@@ -94,6 +110,8 @@ public final class OrderedDither extends AbstractDitherAlgorithm implements Baye
    *
    * @param image the image to dither
    * @return the palette index of every pixel, laid out row by row
+   * @throws NullPointerException  if {@code image} is null
+   * @throws IllegalStateException if the image has been released
    * @since 1.0.0
    */
   @Override
@@ -109,13 +127,15 @@ public final class OrderedDither extends AbstractDitherAlgorithm implements Baye
   }
 
   /**
-   * Dithers an image into palette indices, splitting it into bands of at least 16 rows that the threads of the pool
-   * dither. The result is identical to {@link #ditherIntoBytes(ImageBuffer)}.
+   * Dithers an image into palette indices, splitting it into bands that the threads of the pool dither. Every band
+   * but the bottom one holds at least 16 rows. The result is identical to {@link #ditherIntoBytes(ImageBuffer)}.
    *
    * @param image the image to dither, which must not be modified while the method runs
    * @param pool  the pool that runs the work
    * @return the palette index of every pixel, laid out row by row
-   * @throws NullPointerException if {@code pool} is null
+   * @throws NullPointerException                            if the image or pool is null
+   * @throws java.util.concurrent.RejectedExecutionException if the pool rejects submitted work
+   * @throws IllegalStateException                           if the image has been released
    * @since 1.0.0
    */
   @Override
@@ -180,6 +200,8 @@ public final class OrderedDither extends AbstractDitherAlgorithm implements Baye
    *
    * @param buffer the ARGB pixels laid out row by row, which are replaced with palette colors
    * @param width  the width of the image, which must divide the length of the buffer
+   * @throws NullPointerException     if {@code buffer} is null
+   * @throws IllegalArgumentException if width is not positive or does not divide the buffer length
    * @since 1.0.0
    */
   @Override

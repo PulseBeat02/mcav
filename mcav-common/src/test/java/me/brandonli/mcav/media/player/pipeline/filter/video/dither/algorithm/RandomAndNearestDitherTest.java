@@ -35,7 +35,6 @@ import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.RejectedExecutionException;
-import java.util.concurrent.atomic.AtomicInteger;
 import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.builder.NearestDitherBuilder;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.builder.RandomDitherBuilder;
@@ -403,7 +402,7 @@ final class RandomAndNearestDitherTest {
   @Test
   void shouldMapFewerThanTwiceTheMinimumPixelsAsOneRangeWhenNearestDitheringInParallel() {
     final int width = 8191;
-    final ColorMapCountingPalette palette = new ColorMapCountingPalette(DitherTestImages.BLACK_WHITE);
+    final ColorMapReadCountingPalette palette = new ColorMapReadCountingPalette(DitherTestImages.BLACK_WHITE);
     final ColorMapNearestDither nearest = new ColorMapNearestDither(palette);
     try (final ForkJoinPool pool = new ForkJoinPool(2); final ImageBuffer image = ImageBuffer.buffer(new int[width], width, 1)) {
       final byte[] _ = nearest.ditherIntoBytes(image, pool);
@@ -552,49 +551,6 @@ final class RandomAndNearestDitherTest {
       final double value = provider.nextDouble(0.0, 1.0);
       final long bits = (long) (value * 0x1.0p53);
       assertEquals(expectedBits, bits);
-    }
-  }
-
-  private static final class ColorMapCountingPalette implements DitherPalette {
-
-    private final DitherPalette palette;
-    private final AtomicInteger colorMapReads;
-
-    ColorMapCountingPalette(final DitherPalette palette) {
-      this.palette = palette;
-      this.colorMapReads = new AtomicInteger();
-    }
-
-    @Override
-    public int[] getPalette() {
-      return this.palette.getPalette();
-    }
-
-    @Override
-    public int getSize() {
-      return this.palette.getSize();
-    }
-
-    @Override
-    public int getReservedIndices() {
-      return this.palette.getReservedIndices();
-    }
-
-    // ColorMapNearestDither reads the color map once per range
-    @Override
-    public byte[] getColorMap() {
-      this.colorMapReads.incrementAndGet();
-
-      return this.palette.getColorMap();
-    }
-
-    @Override
-    public int[] getFullColorMap() {
-      return this.palette.getFullColorMap();
-    }
-
-    int getColorMapReads() {
-      return this.colorMapReads.get();
     }
   }
 }

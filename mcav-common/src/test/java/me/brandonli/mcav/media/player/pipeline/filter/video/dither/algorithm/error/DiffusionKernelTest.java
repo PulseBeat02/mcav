@@ -98,18 +98,33 @@ final class DiffusionKernelTest {
   }
 
   @Test
+  void shouldKeepItsOwnCopyOfTheTaps() {
+    final int[] tap = { 1, 0, 1 };
+    final int[][] taps = { tap };
+    final DiffusionKernel kernel = new DiffusionKernel(KERNEL_NAME, 1, taps);
+    tap[0] = 2;
+    taps[0] = new int[] { 0, 1, 1 };
+
+    final int offsetX = kernel.getOffsetX(0);
+    assertEquals(1, offsetX, "changes to the caller's arrays do not reach the kernel");
+  }
+
+  @Test
   void shouldRejectInvalidKernels() {
     final int[][] valid = { { 1, 0, 1 } };
     assertThrows(NullPointerException.class, () -> new DiffusionKernel(null, 1, valid));
     assertThrows(NullPointerException.class, () -> new DiffusionKernel(KERNEL_NAME, 1, null));
     assertThrows(IllegalArgumentException.class, () -> new DiffusionKernel(KERNEL_NAME, 0, valid));
+    assertThrows(IllegalArgumentException.class, () -> new DiffusionKernel(KERNEL_NAME, -1, valid));
     assertThrows(IllegalArgumentException.class, () -> new DiffusionKernel(KERNEL_NAME, 1, new int[0][]));
     assertThrows(IllegalArgumentException.class, () -> new DiffusionKernel(KERNEL_NAME, 1, new int[][] { { 1, 0 } }));
+    assertThrows(IllegalArgumentException.class, () -> new DiffusionKernel(KERNEL_NAME, 1, new int[][] { { 1, 0, 1, 1 } }));
     assertThrows(IllegalArgumentException.class, () -> new DiffusionKernel(KERNEL_NAME, 1, new int[][] { { 0, -1, 1 } }));
     assertThrows(IllegalArgumentException.class, () -> new DiffusionKernel(KERNEL_NAME, 1, new int[][] { { 1, -1, 1 } }));
     assertThrows(IllegalArgumentException.class, () -> new DiffusionKernel(KERNEL_NAME, 1, new int[][] { { 0, 0, 1 } }));
     assertThrows(IllegalArgumentException.class, () -> new DiffusionKernel(KERNEL_NAME, 1, new int[][] { { -1, 0, 1 } }));
     assertThrows(IllegalArgumentException.class, () -> new DiffusionKernel(KERNEL_NAME, 1, new int[][] { { 1, 0, 0 } }));
+    assertThrows(IllegalArgumentException.class, () -> new DiffusionKernel(KERNEL_NAME, 1, new int[][] { { 1, 0, -1 } }));
     assertThrows(NullPointerException.class, () -> new DiffusionKernel(KERNEL_NAME, 1, new int[][] { { 1, 0, 1 }, null }));
   }
 

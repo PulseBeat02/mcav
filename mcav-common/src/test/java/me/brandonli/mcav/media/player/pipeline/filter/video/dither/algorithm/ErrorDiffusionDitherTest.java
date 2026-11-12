@@ -38,6 +38,7 @@ import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.err
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.error.StevensonArceDither;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.error.StuckiDither;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.error.TemporalDitherAlgorithm;
+import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.error.TemporalFloydSteinbergDither;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.palette.DitherPalette;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -161,7 +162,7 @@ final class ErrorDiffusionDitherTest {
   }
 
   @Test
-  void shouldDiffuseErrorsOfSingleChannels() {
+  void shouldKeepNeighboringDarkSingleChannelColorsBlack() {
     final int[] pixels = { DARK_GREEN, DARK_BLUE, DARK_RED, BLACK };
     final ErrorDiffusionDither dither = build(ErrorDiffusionDitherBuilder.Algorithm.FLOYD_STEINBERG);
     try (final ImageBuffer image = ImageBuffer.buffer(pixels, 2, 2)) {
@@ -332,7 +333,20 @@ final class ErrorDiffusionDitherTest {
     assertThrows(NullPointerException.class, () -> dither.dither(null, 1));
     assertThrows(IllegalArgumentException.class, () -> dither.dither(new int[4], 0));
     assertThrows(IllegalArgumentException.class, () -> dither.dither(new int[5], 2));
+  }
+
+  @Test
+  void shouldRejectAMissingPaletteOrKernelInTheConstructors() {
+    assertThrows(NullPointerException.class, () -> new ErrorDiffusionDither(DitherTestImages.BLACK_WHITE, null) {});
+    assertThrows(NullPointerException.class, () -> new AtkinsonDither(null));
+    assertThrows(NullPointerException.class, () -> new BurkesDither(null));
+    assertThrows(NullPointerException.class, () -> new FilterLiteDither(null));
     assertThrows(NullPointerException.class, () -> new FloydDither(null));
+    assertThrows(NullPointerException.class, () -> new JarvisJudiceNinkeDither(null));
+    assertThrows(NullPointerException.class, () -> new StevensonArceDither(null));
+    assertThrows(NullPointerException.class, () -> new StuckiDither(null));
+    assertThrows(NullPointerException.class, () -> new TemporalFloydSteinbergDither(null));
+    assertThrows(NullPointerException.class, () -> new TemporalFloydSteinbergDither(null, 0, 0, 1.0f));
   }
 
   @Test
@@ -359,5 +373,25 @@ final class ErrorDiffusionDitherTest {
       final byte[] expected = new byte[] { 0, 0, 0, 0, 0, 1 };
       assertArrayEquals(expected, indices);
     }
+  }
+
+  @Test
+  void shouldStartEveryCallWithoutTheErrorsOfTheCallBefore() {
+    final ErrorDiffusionDither dither = new FloydDither(DitherTestImages.BLACK_WHITE);
+    final int[] pixels = DitherTestImages.gradient(WIDTH, HEIGHT);
+    try (final ImageBuffer image = ImageBuffer.buffer(pixels, WIDTH, HEIGHT)) {
+      final byte[] first = dither.ditherIntoBytes(image);
+      final byte[] second = dither.ditherIntoBytes(image);
+      assertArrayEquals(first, second, "a basic kernel keeps no errors between calls");
+    }
+  }
+
+  @Test
+  void shouldRejectAReleasedImage() {
+    final ErrorDiffusionDither dither = new FloydDither(DitherTestImages.BLACK_WHITE);
+    final ImageBuffer image = ImageBuffer.buffer(new int[1], 1, 1);
+    image.release();
+
+    assertThrows(IllegalStateException.class, () -> dither.ditherIntoBytes(image));
   }
 }
