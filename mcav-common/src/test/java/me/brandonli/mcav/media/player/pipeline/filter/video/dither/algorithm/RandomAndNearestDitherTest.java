@@ -18,8 +18,10 @@
 package me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -32,6 +34,8 @@ import static org.mockito.Mockito.when;
 import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.atomic.AtomicInteger;
 import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.builder.NearestDitherBuilder;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.builder.RandomDitherBuilder;
@@ -128,17 +132,23 @@ final class RandomAndNearestDitherTest {
   @Test
   void shouldCreateTheConfiguredAlgorithmFromTheRandomBuilder() {
     final RandomDitherBuilder builder = DitherAlgorithm.random();
-    final RandomDitherBuilder weighted = builder.weight(RandomDither.NORMAL_WEIGHT);
+    final RandomDitherBuilder weighted = builder.weight(RandomDither.HEAVY_WEIGHT);
     final RandomDitherBuilder configured = weighted.palette(DitherTestImages.BLACK_WHITE);
     final RandomDither built = configured.build();
     final RandomDitherBuilder defaultBuilder = DitherAlgorithm.random();
     final RandomDither defaults = defaultBuilder.build();
     final DitherPalette palette = built.getPalette();
     final DitherPalette defaultPalette = defaults.getPalette();
+    final UniformNoiseDither noise = assertInstanceOf(UniformNoiseDither.class, built);
+    final UniformNoiseDither defaultNoise = assertInstanceOf(UniformNoiseDither.class, defaults);
+    final int weight = noise.getWeight();
+    final int defaultWeight = defaultNoise.getWeight();
     assertSame(builder, weighted, CHAINING_MESSAGE);
     assertSame(builder, configured);
     assertSame(DitherTestImages.BLACK_WHITE, palette);
     assertSame(DitherPalette.DEFAULT_MAP_PALETTE, defaultPalette);
+    assertEquals(RandomDither.HEAVY_WEIGHT, weight, "the builder passes the configured weight on");
+    assertEquals(RandomDither.NORMAL_WEIGHT, defaultWeight, "and defaults to the normal weight");
   }
 
   @Test
@@ -150,6 +160,14 @@ final class RandomAndNearestDitherTest {
     assertThrows(IllegalArgumentException.class, () -> new UniformNoiseDither(DitherTestImages.BLACK_WHITE, -1));
     assertThrows(IllegalArgumentException.class, () -> new UniformNoiseDither(DitherTestImages.BLACK_WHITE, TOO_HEAVY_WEIGHT));
     assertThrows(NullPointerException.class, () -> new UniformNoiseDither(DitherTestImages.BLACK_WHITE, 1, null));
+  }
+
+  @Test
+  void shouldRejectAMissingPaletteInTheNearestAndRandomConstructors() {
+    final RandomNumberProvider provider = new XoroshiroRandomProvider(SEED);
+    assertThrows(NullPointerException.class, () -> new ColorMapNearestDither(null));
+    assertThrows(NullPointerException.class, () -> new UniformNoiseDither(null, RandomDither.NORMAL_WEIGHT));
+    assertThrows(NullPointerException.class, () -> new UniformNoiseDither(null, RandomDither.NORMAL_WEIGHT, provider));
   }
 
   @Test
@@ -191,6 +209,15 @@ final class RandomAndNearestDitherTest {
     assertThrows(IllegalArgumentException.class, () -> nearest.dither(new int[4], 0));
     assertThrows(NullPointerException.class, () -> nearest.dither(null, 2));
     assertThrows(NullPointerException.class, () -> random.dither(null, 2));
+  }
+
+  @Test
+  void shouldAcceptAnEmptyBufferWhenDitheringInPlace() {
+    final NearestDither nearest = new ColorMapNearestDither(DitherTestImages.BLACK_WHITE);
+    final UniformNoiseDither random = new UniformNoiseDither(DitherTestImages.BLACK_WHITE, 0);
+    final int[] empty = new int[0];
+    assertDoesNotThrow(() -> nearest.dither(empty, 1));
+    assertDoesNotThrow(() -> random.dither(empty, 1));
   }
 
   @Test
@@ -327,6 +354,66 @@ final class RandomAndNearestDitherTest {
   }
 
   @Test
+  void shouldRejectAReleasedImageWhenDitheringIntoBytes() {
+    final ColorMapNearestDither nearest = new ColorMapNearestDither(DitherTestImages.BLACK_WHITE);
+    final UniformNoiseDither random = new UniformNoiseDither(DitherTestImages.BLACK_WHITE, 0);
+    final ImageBuffer image = ImageBuffer.buffer(new int[] { BLACK }, 1, 1);
+    image.release();
+
+    try (final ForkJoinPool pool = new ForkJoinPool(1)) {
+      assertThrows(IllegalStateException.class, () -> nearest.ditherIntoBytes(image));
+      assertThrows(IllegalStateException.class, () -> nearest.ditherIntoBytes(image, pool));
+      assertThrows(IllegalStateException.class, () -> random.ditherIntoBytes(image));
+    }
+  }
+
+  @Test
+  void shouldPassOnTheRejectionOfAShutDownPoolWhenNearestDitheringInParallel() {
+    final ColorMapNearestDither nearest = new ColorMapNearestDither(DitherTestImages.BLACK_WHITE);
+    final ForkJoinPool pool = new ForkJoinPool(1);
+    pool.shutdown();
+
+    try (final ImageBuffer image = ImageBuffer.buffer(new int[] { BLACK }, 1, 1)) {
+      assertThrows(RejectedExecutionException.class, () -> nearest.ditherIntoBytes(image, pool));
+    }
+  }
+
+  @Test
+  void shouldLeaveTheImageAndThePoolOfTheCallerAloneWhenDitheringIntoBytes() {
+    final int[] pixels = DitherTestImages.gradient(SMALL_IMAGE_SIDE, SMALL_IMAGE_SIDE);
+    final ColorMapNearestDither nearest = new ColorMapNearestDither(DitherTestImages.BLACK_WHITE);
+    final UniformNoiseDither random = new UniformNoiseDither(DitherTestImages.BLACK_WHITE, RandomDither.HEAVY_WEIGHT);
+    try (
+      final ForkJoinPool pool = new ForkJoinPool(1);
+      final ImageBuffer image = ImageBuffer.buffer(pixels, SMALL_IMAGE_SIDE, SMALL_IMAGE_SIDE)
+    ) {
+      final int[] shared = image.getPixels();
+      final int[] before = shared.clone();
+      final byte[] _ = nearest.ditherIntoBytes(image);
+      final byte[] _ = nearest.ditherIntoBytes(image, pool);
+      final byte[] _ = random.ditherIntoBytes(image);
+      final int[] after = image.getPixels();
+      assertArrayEquals(before, after, "dithering into bytes never writes to the pixels of the image");
+
+      final boolean shutDown = pool.isShutdown();
+      assertFalse(shutDown, "the pool belongs to the caller and stays open");
+    }
+  }
+
+  @Test
+  void shouldMapFewerThanTwiceTheMinimumPixelsAsOneRangeWhenNearestDitheringInParallel() {
+    final int width = 8191;
+    final ColorMapCountingPalette palette = new ColorMapCountingPalette(DitherTestImages.BLACK_WHITE);
+    final ColorMapNearestDither nearest = new ColorMapNearestDither(palette);
+    try (final ForkJoinPool pool = new ForkJoinPool(2); final ImageBuffer image = ImageBuffer.buffer(new int[width], width, 1)) {
+      final byte[] _ = nearest.ditherIntoBytes(image, pool);
+    }
+
+    final int ranges = palette.getColorMapReads();
+    assertEquals(1, ranges, "there is at most one range for every 4096 pixels, so 8191 pixels are one range");
+  }
+
+  @Test
   void shouldNearestDitherInPlaceAndThroughBuilders() {
     final int[] pixels = { 0xFF101010, 0xFFF0F0F0 };
     final NearestDitherBuilder builder = DitherAlgorithm.nearest();
@@ -335,10 +422,14 @@ final class RandomAndNearestDitherTest {
     nearest.dither(pixels, 2);
     final NearestDither defaults = DitherAlgorithm.nearestColor();
     final DitherPalette defaultPalette = defaults.getPalette();
+    final NearestDitherBuilder defaultBuilder = DitherAlgorithm.nearest();
+    final NearestDither builtDefaults = defaultBuilder.build();
+    final DitherPalette builtDefaultPalette = builtDefaults.getPalette();
     final int[] expected = new int[] { BLACK, WHITE };
     assertSame(builder, configured, CHAINING_MESSAGE);
     assertArrayEquals(expected, pixels);
     assertSame(DitherPalette.DEFAULT_MAP_PALETTE, defaultPalette);
+    assertSame(DitherPalette.DEFAULT_MAP_PALETTE, builtDefaultPalette, "the builder defaults to the map palette as well");
     assertThrows(NullPointerException.class, () -> builder.palette(null));
   }
 
@@ -461,6 +552,49 @@ final class RandomAndNearestDitherTest {
       final double value = provider.nextDouble(0.0, 1.0);
       final long bits = (long) (value * 0x1.0p53);
       assertEquals(expectedBits, bits);
+    }
+  }
+
+  private static final class ColorMapCountingPalette implements DitherPalette {
+
+    private final DitherPalette palette;
+    private final AtomicInteger colorMapReads;
+
+    ColorMapCountingPalette(final DitherPalette palette) {
+      this.palette = palette;
+      this.colorMapReads = new AtomicInteger();
+    }
+
+    @Override
+    public int[] getPalette() {
+      return this.palette.getPalette();
+    }
+
+    @Override
+    public int getSize() {
+      return this.palette.getSize();
+    }
+
+    @Override
+    public int getReservedIndices() {
+      return this.palette.getReservedIndices();
+    }
+
+    // ColorMapNearestDither reads the color map once per range
+    @Override
+    public byte[] getColorMap() {
+      this.colorMapReads.incrementAndGet();
+
+      return this.palette.getColorMap();
+    }
+
+    @Override
+    public int[] getFullColorMap() {
+      return this.palette.getFullColorMap();
+    }
+
+    int getColorMapReads() {
+      return this.colorMapReads.get();
     }
   }
 }

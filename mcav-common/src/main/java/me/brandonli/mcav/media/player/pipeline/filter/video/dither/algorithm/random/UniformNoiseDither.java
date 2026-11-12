@@ -73,7 +73,7 @@ public final class UniformNoiseDither extends AbstractDitherAlgorithm implements
    * @param palette the palette to reduce images to
    * @param weight  the largest noise value added to or subtracted from a channel, see {@link #NORMAL_WEIGHT}
    * @param random  the random number generator every thread uses
-   * @throws NullPointerException     if {@code palette}, {@code random} is null
+   * @throws NullPointerException     if {@code palette} or {@code random} is null
    * @throws IllegalArgumentException if the weight is outside 0 through 255
    * @since 1.0.0
    */
@@ -102,6 +102,8 @@ public final class UniformNoiseDither extends AbstractDitherAlgorithm implements
    *
    * @param image the image to dither
    * @return the palette index of every pixel, laid out row by row
+   * @throws NullPointerException  if {@code image} is null
+   * @throws IllegalStateException if the image has been released
    * @since 1.0.0
    */
   @Override
@@ -127,6 +129,8 @@ public final class UniformNoiseDither extends AbstractDitherAlgorithm implements
    *
    * @param buffer the ARGB pixels laid out row by row, which are replaced with palette colors
    * @param width  the width of the image, which must divide the length of the buffer
+   * @throws NullPointerException     if {@code buffer} is null
+   * @throws IllegalArgumentException if width is not positive or does not divide the buffer length
    * @since 1.0.0
    */
   @Override

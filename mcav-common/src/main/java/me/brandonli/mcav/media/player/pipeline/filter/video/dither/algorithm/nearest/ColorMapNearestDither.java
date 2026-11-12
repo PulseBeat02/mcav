@@ -60,6 +60,8 @@ public final class ColorMapNearestDither extends AbstractDitherAlgorithm impleme
    *
    * @param image the image to map
    * @return the palette index of every pixel, laid out row by row
+   * @throws NullPointerException  if {@code image} is null
+   * @throws IllegalStateException if the image has been released
    * @since 1.0.0
    */
   @Override
@@ -73,14 +75,16 @@ public final class ColorMapNearestDither extends AbstractDitherAlgorithm impleme
   }
 
   /**
-   * Maps every pixel of an image to the palette index of its closest color, splitting the image into ranges of at
-   * least 4096 pixels that the threads of the pool map. The result is identical to
-   * {@link #ditherIntoBytes(ImageBuffer)}.
+   * Maps every pixel of an image to the palette index of its closest color, splitting the image into ranges that the
+   * threads of the pool map, at most one range for every 4096 pixels, so an image of fewer than 8192 pixels is one
+   * range. The result is identical to {@link #ditherIntoBytes(ImageBuffer)}.
    *
    * @param image the image to map, which must not be modified while the method runs
    * @param pool  the pool that runs the work
    * @return the palette index of every pixel, laid out row by row
-   * @throws NullPointerException if {@code pool} is null
+   * @throws NullPointerException                            if the image or pool is null
+   * @throws java.util.concurrent.RejectedExecutionException if the pool rejects submitted work
+   * @throws IllegalStateException                           if the image has been released
    * @since 1.0.0
    */
   @Override
@@ -134,6 +138,8 @@ public final class ColorMapNearestDither extends AbstractDitherAlgorithm impleme
    *
    * @param buffer the ARGB pixels laid out row by row, which are replaced with palette colors
    * @param width  the width of the image, which must divide the length of the buffer
+   * @throws NullPointerException     if {@code buffer} is null
+   * @throws IllegalArgumentException if width is not positive or does not divide the buffer length
    * @since 1.0.0
    */
   @Override

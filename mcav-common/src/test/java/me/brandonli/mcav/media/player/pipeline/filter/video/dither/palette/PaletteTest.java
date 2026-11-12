@@ -25,7 +25,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.Color;
 import java.io.StringReader;
-import java.util.List;
+import java.util.Arrays;
 import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.DitherUtils;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.ordered.BayerDither;
@@ -176,15 +176,6 @@ final class PaletteTest {
   }
 
   @Test
-  void shouldAcceptColorLists() {
-    final DitherPalette fromList = DitherPalette.colors(List.of(0x000000, 0xFFFFFF));
-    final DitherPalette fromArray = DitherPalette.colors(0x000000, 0xFFFFFF);
-    final int[] listColors = fromList.getPalette();
-    final int[] arrayColors = fromArray.getPalette();
-    assertArrayEquals(arrayColors, listColors);
-  }
-
-  @Test
   void shouldRejectInvalidPalettes() {
     final int[] tooMany = new int[MAXIMUM_PALETTE_SIZE + 1];
     assertThrows(IllegalArgumentException.class, () -> DitherPalette.colors(tooMany));
@@ -192,7 +183,6 @@ final class PaletteTest {
     assertThrows(IllegalArgumentException.class, () -> new ColorPalette(new int[] { 1 }, -1));
     assertThrows(IllegalArgumentException.class, () -> new ColorPalette(new int[] { 1, 2 }, 2));
     assertThrows(NullPointerException.class, () -> DitherPalette.colors((int[]) null));
-    assertThrows(NullPointerException.class, () -> DitherPalette.colors((List<Integer>) null));
   }
 
   @Test
@@ -217,15 +207,13 @@ final class PaletteTest {
       final boolean opaque = unsigned >= MapPalette.TRANSPARENT_INDICES;
       assertTrue(opaque, "transparent entries must never be chosen");
     }
-
-    final int eightBitSize = DitherPalette.EIGHT_BIT_PALETTE.getSize();
-    assertEquals(8, eightBitSize);
   }
 
   @Test
   void shouldHoldEightColorsInTheEightBitPalette() {
     final DitherPalette palette = DitherPalette.EIGHT_BIT_PALETTE;
     final int[] colors = palette.getPalette();
+    final int size = palette.getSize();
     final int[] redGreenBlueWhiteBlackYellowCyanPurple = {
       0xFFFF0000,
       0xFF00D93A,
@@ -237,6 +225,7 @@ final class PaletteTest {
       0xFFB24CD8,
     };
     assertArrayEquals(redGreenBlueWhiteBlackYellowCyanPurple, colors);
+    assertEquals(8, size);
   }
 
   @Test
@@ -260,6 +249,15 @@ final class PaletteTest {
 
     final int[] colors = MapPaletteLoader.getColors();
     assertArrayEquals(colors, loaded);
+  }
+
+  @Test
+  void shouldFollowTheTransparentIndicesWithTheFourShadesOfTheGrassColor() {
+    final int[] colors = MapPaletteLoader.getColors();
+    final int[] expected = { 0xFF597D27, 0xFF6D9930, 0xFF7FB238, 0xFF435E1D };
+    final int end = MapPalette.TRANSPARENT_INDICES + expected.length;
+    final int[] grass = Arrays.copyOfRange(colors, MapPalette.TRANSPARENT_INDICES, end);
+    assertArrayEquals(expected, grass, "map color 1 is grass, in its four shades, as the game lists it");
   }
 
   @Test

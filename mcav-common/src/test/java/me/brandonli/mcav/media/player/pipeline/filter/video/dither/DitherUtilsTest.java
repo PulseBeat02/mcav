@@ -77,6 +77,7 @@ final class DitherUtilsTest {
   void shouldRejectMissingPalettes() {
     assertThrows(NullPointerException.class, () -> DitherUtils.getBestColor(null, 0, 0, 0));
     assertThrows(NullPointerException.class, () -> DitherUtils.getBestFullColor(null, 0, 0, 0));
+    assertThrows(NullPointerException.class, () -> DitherUtils.getBestColorNormal(null, 0, 0, 0));
     assertThrows(NullPointerException.class, () -> DitherUtils.getColorFromMinecraftPalette(null, (byte) 0));
     assertThrows(NullPointerException.class, () -> DitherUtils.getBestColorIncludingTransparent(null, OPAQUE_WHITE));
   }
@@ -87,6 +88,19 @@ final class DitherUtilsTest {
     assertEquals(OPAQUE_WHITE, lastColor);
     assertThrows(IndexOutOfBoundsException.class, () -> DitherUtils.getColorFromMinecraftPalette(BLACK_WHITE, (byte) 2));
     assertThrows(IndexOutOfBoundsException.class, () -> DitherUtils.getColorFromMinecraftPalette(BLACK_WHITE, (byte) -1));
+  }
+
+  @Test
+  void shouldReadMapDataIndicesAsUnsignedAndGiveReservedIndicesNoColor() {
+    final DitherPalette mapPalette = DitherPalette.DEFAULT_MAP_PALETTE;
+    final int[] colors = mapPalette.getPalette();
+    final int highIndex = 200;
+    final int highColor = DitherUtils.getColorFromMinecraftPalette(mapPalette, (byte) highIndex);
+    final int expectedHighColor = colors[highIndex];
+    assertEquals(expectedHighColor, highColor, "the byte of index 200 is negative in Java and still names index 200");
+
+    final int reservedColor = DitherUtils.getColorFromMinecraftPalette(mapPalette, (byte) 0);
+    assertEquals(0, reservedColor, "a reserved transparent index has no color");
   }
 
   @Test
@@ -131,6 +145,14 @@ final class DitherUtilsTest {
     assertArrayEquals(expected, indices);
     assertThrows(NullPointerException.class, () -> DitherUtils.simplify(null, new int[0]));
     assertThrows(NullPointerException.class, () -> DitherUtils.simplify(BLACK_WHITE, null));
+  }
+
+  @Test
+  void shouldIgnoreEvenAnAlphaOfZeroWhenSimplifying() {
+    final int[] pixels = { TRANSPARENT_WHITE };
+    final byte[] indices = DitherUtils.simplify(BLACK_WHITE, pixels);
+    final byte[] expected = new byte[] { 1 };
+    assertArrayEquals(expected, indices, "unlike getBestColorIncludingTransparent, simplify maps transparent white to white");
   }
 
   @Test
