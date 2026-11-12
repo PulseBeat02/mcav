@@ -20,6 +20,7 @@ package me.brandonli.mcav.plugin.command.video;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -63,6 +64,7 @@ import org.mockito.invocation.InvocationOnMock;
 
 final class VideoEntityCommandTest {
 
+  private static final String RESOLUTION = "64x36";
   private static final int RESOLUTION_HEIGHT = 36;
   private static final int RESOLUTION_WIDTH = 64;
 
@@ -150,7 +152,7 @@ final class VideoEntityCommandTest {
       this.selector,
       PlayerArgument.FFMPEG,
       AudioArgument.DISCORD_BOT,
-      "64x36",
+      RESOLUTION,
       CHARACTER,
       this.location,
       "",
@@ -166,7 +168,7 @@ final class VideoEntityCommandTest {
       eq(this.selector),
       eq(PlayerArgument.FFMPEG),
       eq(AudioArgument.DISCORD_BOT),
-      eq("64x36"),
+      eq(RESOLUTION),
       eq(VIDEO_FILE_NAME),
       eq(""),
       isNull()
@@ -225,5 +227,43 @@ final class VideoEntityCommandTest {
     final int tasks = TestServer.runPendingTasks();
     assertEquals(1, tasks);
     verify(result).start();
+  }
+
+  @Test
+  void shouldRefuseNullArguments() {
+    final PlayerArgument ffmpeg = PlayerArgument.FFMPEG;
+    final AudioArgument none = AudioArgument.NONE;
+    final Pair<Integer, Integer> resolution = Pair.pair(RESOLUTION_WIDTH, RESOLUTION_HEIGHT);
+    final AbstractVideoCommand.VideoConfigurationProvider provider = _ -> new Object();
+
+    assertThrows(NullPointerException.class, () ->
+      this.command.playVideo(null, this.selector, ffmpeg, none, RESOLUTION, CHARACTER, this.location, "", VIDEO_FILE_NAME, null)
+    );
+    assertThrows(NullPointerException.class, () ->
+      this.command.playVideo(this.sender, null, ffmpeg, none, RESOLUTION, CHARACTER, this.location, "", VIDEO_FILE_NAME, null)
+    );
+    assertThrows(NullPointerException.class, () ->
+      this.command.playVideo(this.sender, this.selector, null, none, RESOLUTION, CHARACTER, this.location, "", VIDEO_FILE_NAME, null)
+    );
+    assertThrows(NullPointerException.class, () ->
+      this.command.playVideo(this.sender, this.selector, ffmpeg, null, RESOLUTION, CHARACTER, this.location, "", VIDEO_FILE_NAME, null)
+    );
+    assertThrows(NullPointerException.class, () ->
+      this.command.playVideo(this.sender, this.selector, ffmpeg, none, null, CHARACTER, this.location, "", VIDEO_FILE_NAME, null)
+    );
+    assertThrows(NullPointerException.class, () ->
+      this.command.playVideo(this.sender, this.selector, ffmpeg, none, RESOLUTION, null, this.location, "", VIDEO_FILE_NAME, null)
+    );
+    assertThrows(NullPointerException.class, () ->
+      this.command.playVideo(this.sender, this.selector, ffmpeg, none, RESOLUTION, CHARACTER, null, "", VIDEO_FILE_NAME, null)
+    );
+    assertThrows(NullPointerException.class, () ->
+      this.command.playVideo(this.sender, this.selector, ffmpeg, none, RESOLUTION, CHARACTER, this.location, null, VIDEO_FILE_NAME, null)
+    );
+    assertThrows(NullPointerException.class, () ->
+      this.command.playVideo(this.sender, this.selector, ffmpeg, none, RESOLUTION, CHARACTER, this.location, "", null, null)
+    );
+    assertThrows(NullPointerException.class, () -> this.command.createVideoFilter(null, provider));
+    assertThrows(NullPointerException.class, () -> this.command.createVideoFilter(resolution, null));
   }
 }

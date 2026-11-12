@@ -21,6 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -426,5 +427,49 @@ final class VideoMapCommandTest {
 
     final Object configuration = providers.getValue().buildConfiguration(Pair.pair(RESOLUTION_WIDTH, RESOLUTION_HEIGHT));
     assertInstanceOf(MapDisplaySettings.class, configuration);
+  }
+
+  @Test
+  void shouldRefuseNullArguments() {
+    final PlayerArgument ffmpeg = PlayerArgument.FFMPEG;
+    final AudioArgument none = AudioArgument.NONE;
+    final DitheringArgument dithering = DitheringArgument.NEAREST_COLOR;
+    final Pair<Integer, Integer> resolution = Pair.pair(RESOLUTION_WIDTH, RESOLUTION_HEIGHT);
+    final AbstractVideoCommand.VideoConfigurationProvider provider = _ -> new Object();
+
+    assertThrows(NullPointerException.class, () ->
+      this.command.playMapVideo(
+        this.sender,
+        null,
+        ffmpeg,
+        none,
+        RESOLUTION,
+        BLOCK_DIMENSIONS,
+        MAP_ID,
+        dithering,
+        "",
+        VIDEO_FILE_NAME,
+        null,
+        null
+      )
+    );
+    assertThrows(NullPointerException.class, () ->
+      this.command.playMapVideo(
+        this.sender,
+        this.selector,
+        ffmpeg,
+        none,
+        RESOLUTION,
+        BLOCK_DIMENSIONS,
+        MAP_ID,
+        null,
+        "",
+        VIDEO_FILE_NAME,
+        null,
+        null
+      )
+    );
+    assertThrows(NullPointerException.class, () -> this.command.createVideoFilter(null, provider));
+    assertThrows(NullPointerException.class, () -> this.command.createVideoFilter(resolution, null));
   }
 }
