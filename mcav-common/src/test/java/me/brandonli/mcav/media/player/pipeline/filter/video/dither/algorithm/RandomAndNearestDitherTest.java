@@ -20,6 +20,7 @@ package me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -128,17 +129,23 @@ final class RandomAndNearestDitherTest {
   @Test
   void shouldCreateTheConfiguredAlgorithmFromTheRandomBuilder() {
     final RandomDitherBuilder builder = DitherAlgorithm.random();
-    final RandomDitherBuilder weighted = builder.weight(RandomDither.NORMAL_WEIGHT);
+    final RandomDitherBuilder weighted = builder.weight(RandomDither.HEAVY_WEIGHT);
     final RandomDitherBuilder configured = weighted.palette(DitherTestImages.BLACK_WHITE);
     final RandomDither built = configured.build();
     final RandomDitherBuilder defaultBuilder = DitherAlgorithm.random();
     final RandomDither defaults = defaultBuilder.build();
     final DitherPalette palette = built.getPalette();
     final DitherPalette defaultPalette = defaults.getPalette();
+    final UniformNoiseDither noise = assertInstanceOf(UniformNoiseDither.class, built);
+    final UniformNoiseDither defaultNoise = assertInstanceOf(UniformNoiseDither.class, defaults);
+    final int weight = noise.getWeight();
+    final int defaultWeight = defaultNoise.getWeight();
     assertSame(builder, weighted, CHAINING_MESSAGE);
     assertSame(builder, configured);
     assertSame(DitherTestImages.BLACK_WHITE, palette);
     assertSame(DitherPalette.DEFAULT_MAP_PALETTE, defaultPalette);
+    assertEquals(RandomDither.HEAVY_WEIGHT, weight, "the builder passes the configured weight on");
+    assertEquals(RandomDither.NORMAL_WEIGHT, defaultWeight, "and defaults to the normal weight");
   }
 
   @Test
