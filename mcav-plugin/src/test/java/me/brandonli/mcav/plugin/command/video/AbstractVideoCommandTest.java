@@ -1202,6 +1202,23 @@ final class AbstractVideoCommandTest {
   }
 
   @Test
+  void shouldLogAVideoTheWorkerRefusesAsAnErrorWithItsTrace() {
+    final ExecutorService stopped = Executors.newSingleThreadExecutor();
+    stopped.shutdown();
+    when(this.manager.getService()).thenReturn(stopped);
+
+    final String output;
+    try (final StandardErrorCapture errors = StandardErrorCapture.start()) {
+      this.play(PlayerArgument.FFMPEG, AudioArgument.NONE, MRL, "");
+      output = errors.getOutput();
+    }
+
+    final boolean logged =
+      output.contains(ERROR_LEVEL) && output.contains(STACK_FRAME) && output.contains("The video worker refused to start a video.");
+    assertTrue(logged, output);
+  }
+
+  @Test
   void shouldUnlockWithoutReportingWhenThePluginWasDisabledMeanwhile() throws IOException {
     final BukkitScheduler scheduler = TestServer.getScheduler();
     when(scheduler.runTask(any(Plugin.class), any(Runnable.class))).thenThrow(new IllegalPluginAccessException("disabled!"));
