@@ -874,8 +874,11 @@ final class AbstractImageCommandTest {
 
   @Test
   void shouldRefuseNullArguments() {
+    final NullPointerException exception = assertThrows(NullPointerException.class, () -> new RecordingCommand(null, this.display));
+    final String message = exception.getMessage();
+    assertEquals("Plugin must not be null!", message);
+
     final AbstractImageCommand.ImageConfigurationProvider configuration = _ -> CONFIGURATION;
-    assertThrows(NullPointerException.class, () -> new RecordingCommand(null, this.display));
     assertThrows(NullPointerException.class, () -> this.command.displayImage(null, this.sender, SCREEN_SIZE, PICTURE_FILE_NAME, null));
     assertThrows(NullPointerException.class, () -> this.command.displayImage(configuration, null, SCREEN_SIZE, PICTURE_FILE_NAME, null));
     assertThrows(NullPointerException.class, () -> this.command.displayImage(configuration, this.sender, null, PICTURE_FILE_NAME, null));
