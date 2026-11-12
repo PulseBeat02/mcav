@@ -459,4 +459,11 @@ final class TemporalDitherTest {
       assertThrows(NullPointerException.class, () -> dither.ditherIntoBytes(image, null));
     }
   }
+
+  @Test
+  void shouldRoundTheErrorStrengthToTheNearest256th() {
+    final TemporalDitherAlgorithm dither = new TemporalFloydSteinbergDither(PRIMARIES, SMALL_THRESHOLD, SMALL_THRESHOLD, 0.3f);
+    final float strength = dither.getErrorStrength();
+    assertEquals(77 / 256.0f, strength, "0.3 times 256 rounds to 77");
+  }
 }
