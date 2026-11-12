@@ -81,5 +81,6 @@ final class VideoPlayerFactoriesTest {
   @Test
   void shouldRejectNullVlcOptions() {
     assertThrows(NullPointerException.class, () -> VideoPlayer.vlc((String[]) null));
+    assertThrows(NullPointerException.class, () -> VideoPlayer.vlc("--no-video-title-show", null));
   }
 }
