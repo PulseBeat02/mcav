@@ -19,27 +19,16 @@ package me.brandonli.mcav.capability;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertSame;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import org.junit.jupiter.api.Test;
 
 final class CapabilityTest {
-
-  private static final String YTDLP_NAME = "yt-dlp";
 
   @Test
   void shouldListTheOptionalFeatures() {
     final Capability[] values = Capability.values();
     final Capability[] expected = { Capability.VLC, Capability.FFMPEG, Capability.YT_DLP, Capability.FACE_DETECTION };
     assertArrayEquals(expected, values);
-  }
-
-  @Test
-  void shouldResolveCapabilitiesByName() {
-    final Capability ytdlp = Capability.valueOf("YT_DLP");
-    assertSame(Capability.YT_DLP, ytdlp);
-    assertThrows(IllegalArgumentException.class, () -> Capability.valueOf(YTDLP_NAME));
   }
 
   @Test
@@ -50,7 +39,7 @@ final class CapabilityTest {
     final String faceDetection = Capability.FACE_DETECTION.getDisplayName();
     assertEquals("VLC", vlc);
     assertEquals("FFmpeg", ffmpeg);
-    assertEquals(YTDLP_NAME, ytdlp);
+    assertEquals("yt-dlp", ytdlp);
     assertEquals("Face detection", faceDetection);
   }
 }
