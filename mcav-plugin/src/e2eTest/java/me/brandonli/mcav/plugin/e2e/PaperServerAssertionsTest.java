@@ -35,6 +35,8 @@ final class PaperServerAssertionsTest {
     "Simple Voice Chat audio is ready."
   );
 
+  private static final String CONSOLE_ERROR = "[06:13:33 ERROR]: [MCAV Sandbox] Media failed.";
+
   @Test
   void shouldAcceptTheCompleteIdleSnapshotInAnyFieldOrder() {
     PaperServerAssertions.assertRanCleanly(SUCCESS_EXIT_CODE, "{\"duration\":0,\"view_count\":0,\"like_count\":0}", STARTUP);
@@ -73,6 +75,8 @@ final class PaperServerAssertionsTest {
       "[render/WARN]: Failed to render a frame",
       "[render/WARN]: Playback of clip.mp4 could not be started.",
       "[render/WARN]: VLC playback of clip.mp4 could not be started.",
+      CONSOLE_ERROR,
+      "[06:13:33 WARN]: [MCAV Sandbox] Failed to decode media.",
     }
   )
   void shouldRefusePlaybackFailuresAndUncaughtExceptions(final String line) {
@@ -82,7 +86,11 @@ final class PaperServerAssertionsTest {
   @Test
   void shouldAcceptUnrelatedServerWarnings() {
     PaperServerAssertions.assertNoErrors(
-      List.of("[Server thread/WARN]: This server is running in offline mode", "[Server thread/WARN]: Can't keep up!")
+      List.of(
+        "[Server thread/WARN]: This server is running in offline mode",
+        "[Server thread/WARN]: Can't keep up!",
+        "[06:13:33 WARN]: **** SERVER IS RUNNING IN OFFLINE/INSECURE MODE!"
+      )
     );
   }
 }
