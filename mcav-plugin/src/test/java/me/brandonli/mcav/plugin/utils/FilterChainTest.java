@@ -548,7 +548,7 @@ final class FilterChainTest {
   }
 
   @Test
-  void shouldScaleALargeOverlayDownAndRemakesARegionForEverySize() throws IOException {
+  void shouldDrawALargeOverlayScaledDownToTheLargestSide() throws IOException {
     this.writeOverlay("wide", 2_048, OVERLAY_HEIGHT);
     final VideoFilter overlay = this.parse("overlay=wide").createFilters().getFirst();
     final ImageBuffer large = this.picture(1_100, OVERLAY_HEIGHT, BLUE);
@@ -562,7 +562,10 @@ final class FilterChainTest {
 
     final int thirdMatches = large.getPixels()[1_023 + 1_100 * 7] & RGB_MASK;
     assertEquals(RED, thirdMatches, "eight rows high");
+  }
 
+  @Test
+  void shouldRemakeTheRegionOfARectangleForEveryPictureSize() {
     final VideoFilter rectangle = this.parse("rectangle=50:0:50:50:ffffff").createFilters().getFirst();
     final ImageBuffer small = this.picture(10, 10, 0);
     rectangle.applyFilter(small);
