@@ -27,7 +27,8 @@ import org.openjdk.jcstress.annotations.State;
 
 /**
  * The screen's thread waits for a frame while the result is released, which closes the frame slot of
- * {@link Mcv2Result}: the close must wake the waiting thread, or a release would wait for it in vain (pass-5 S59).
+ * {@link Mcv2Result}: the close must wake the waiting thread, which then takes nothing (pass-5 S59). The release
+ * interrupts that thread as well; this checks that the slot wakes it without the interrupt.
  */
 @JCStressTest(Mode.Termination)
 @Outcome(id = "TERMINATED", expect = Expect.ACCEPTABLE, desc = "the close woke the waiting thread")
