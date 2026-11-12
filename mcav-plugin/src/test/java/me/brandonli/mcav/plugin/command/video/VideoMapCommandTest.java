@@ -401,6 +401,23 @@ final class VideoMapCommandTest {
   }
 
   @Test
+  void shouldLetTheFlagWinOverTheConfiguredCodec() {
+    when(this.configuration.getMcv2DefaultCodec()).thenReturn(MapCodec.MCV2);
+    this.playWithCodec(RESOLUTION, MapCodec.DITHER);
+
+    verify(this.support, never()).configure(any(), any(), any(), eq(MAP_ID), any(), any());
+    final ArgumentCaptor<AbstractVideoCommand.VideoConfigurationProvider> providers = ArgumentCaptor.forClass(
+      AbstractVideoCommand.VideoConfigurationProvider.class
+    );
+    verify(this.command).playVideo(providers.capture(), any(), any(), any(), any(), anyString(), anyString(), anyString(), isNull());
+
+    final AbstractVideoCommand.VideoConfigurationProvider configurationProvider = providers.getValue();
+    final Pair<Integer, Integer> resolution = Pair.pair(RESOLUTION_WIDTH, RESOLUTION_HEIGHT);
+    final Object built = configurationProvider.buildConfiguration(resolution);
+    assertInstanceOf(MapDisplaySettings.class, built);
+  }
+
+  @Test
   void shouldNotStartAnMcv2VideoWithAnInvalidResolution() {
     this.playWithCodec("wide", MapCodec.MCV2);
     verify(this.support, never()).configure(any(), any(), any(), eq(MAP_ID), any(), any());
