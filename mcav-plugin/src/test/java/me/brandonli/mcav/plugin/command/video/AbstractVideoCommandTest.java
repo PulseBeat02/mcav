@@ -844,6 +844,20 @@ final class AbstractVideoCommandTest {
   }
 
   @Test
+  void shouldRefuseAnEmptySourceWithoutStoppingTheCurrentVideo() {
+    this.play(PlayerArgument.FFMPEG, AudioArgument.NONE, "", "");
+
+    final String reason = "Video  is not a file on the server, a URL, a device index or an FFmpeg input!";
+    final Component unavailable = Message.VIDEO_UNAVAILABLE.build(reason);
+    this.assertSenderReceived(unavailable);
+    verify(this.manager, never()).clearCurrentVideo();
+
+    final boolean noDisplay = this.command.resolutions.isEmpty();
+    assertTrue(noDisplay);
+    this.assertNotStarting();
+  }
+
+  @Test
   void shouldStopAfterSourceResolutionWhenTheRequestWasCancelled() throws IOException {
     final AtomicBoolean cancelled = new AtomicBoolean();
     when(this.manager.isCurrent(ArgumentMatchers.anyLong())).thenAnswer(_ -> !cancelled.get());
