@@ -104,6 +104,22 @@ final class ImageControlCommandTest {
   }
 
   @Test
+  void shouldReportTheReleaseWhenNoImageIsShown() {
+    final MCAVSandbox plugin = mock(MCAVSandbox.class);
+    final ImageManager emptyManager = new ImageManager(plugin, this.direct);
+    when(plugin.getImageManager()).thenReturn(emptyManager);
+    final ImageControlCommand emptyCommand = new ImageControlCommand(plugin);
+    final CommandSender sender = mock(CommandSender.class);
+    emptyCommand.releaseImage(sender);
+
+    final Component start = Message.RELEASE_IMAGE_START.build();
+    final Component done = Message.RELEASE_IMAGE.build();
+    final List<Component> messages = Components.received(sender);
+    final List<Component> expected = List.of(start, done);
+    assertEquals(expected, messages);
+  }
+
+  @Test
   void shouldLogAFailedReleaseAndNotReportTheImageAsReleased() {
     final CommandSender sender = mock(CommandSender.class);
     final IllegalStateException failure = new IllegalStateException("the release failed!");
