@@ -20,6 +20,7 @@ package me.brandonli.mcav.plugin.command.video;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -64,6 +65,7 @@ import org.mockito.invocation.InvocationOnMock;
 
 final class VideoScoreboardCommandTest {
 
+  private static final String RESOLUTION = "24x15";
   private static final int RESOLUTION_WIDTH = 24;
   private static final int RESOLUTION_HEIGHT = 15;
 
@@ -148,7 +150,7 @@ final class VideoScoreboardCommandTest {
       this.selector,
       PlayerArgument.DEVICE,
       AudioArgument.SIMPLE_VOICE_CHAT,
-      "24x15",
+      RESOLUTION,
       CHARACTER,
       "",
       MRL,
@@ -163,7 +165,7 @@ final class VideoScoreboardCommandTest {
       eq(this.selector),
       eq(PlayerArgument.DEVICE),
       eq(AudioArgument.SIMPLE_VOICE_CHAT),
-      eq("24x15"),
+      eq(RESOLUTION),
       eq(MRL),
       eq(""),
       isNull()
@@ -243,5 +245,78 @@ final class VideoScoreboardCommandTest {
     );
     verify(this.manager, never()).getStarting();
     verify(this.manager, never()).getService();
+  }
+
+  @Test
+  void shouldRefuseNullArguments() {
+    final PlayerArgument ffmpeg = PlayerArgument.FFMPEG;
+    final AudioArgument none = AudioArgument.NONE;
+    final Pair<Integer, Integer> resolution = Pair.pair(RESOLUTION_WIDTH, RESOLUTION_HEIGHT);
+    final AbstractVideoCommand.VideoConfigurationProvider provider = _ -> new Object();
+
+    assertThrows(NullPointerException.class, () ->
+      this.command.playVideo(null, this.selector, ffmpeg, none, RESOLUTION, CHARACTER, "", MRL, null)
+    );
+    assertThrows(NullPointerException.class, () ->
+      this.command.playVideo(this.sender, null, ffmpeg, none, RESOLUTION, CHARACTER, "", MRL, null)
+    );
+    assertThrows(NullPointerException.class, () ->
+      this.command.playVideo(this.sender, this.selector, null, none, RESOLUTION, CHARACTER, "", MRL, null)
+    );
+    assertThrows(NullPointerException.class, () ->
+      this.command.playVideo(this.sender, this.selector, ffmpeg, null, RESOLUTION, CHARACTER, "", MRL, null)
+    );
+    assertThrows(NullPointerException.class, () ->
+      this.command.playVideo(this.sender, this.selector, ffmpeg, none, null, CHARACTER, "", MRL, null)
+    );
+    assertThrows(NullPointerException.class, () ->
+      this.command.playVideo(this.sender, this.selector, ffmpeg, none, RESOLUTION, null, "", MRL, null)
+    );
+    assertThrows(NullPointerException.class, () ->
+      this.command.playVideo(this.sender, this.selector, ffmpeg, none, RESOLUTION, CHARACTER, null, MRL, null)
+    );
+    assertThrows(NullPointerException.class, () ->
+      this.command.playVideo(this.sender, this.selector, ffmpeg, none, RESOLUTION, CHARACTER, "", null, null)
+    );
+    assertThrows(NullPointerException.class, () -> this.command.createVideoFilter(null, provider));
+    assertThrows(NullPointerException.class, () -> this.command.createVideoFilter(resolution, null));
+  }
+
+  @Test
+  void shouldPassTheFiltersOnToTheVideo() {
+    final String filters = "invert";
+    doNothing()
+      .when(this.command)
+      .playVideo(
+        any(AbstractVideoCommand.VideoConfigurationProvider.class),
+        any(CommandSender.class),
+        any(MultiplePlayerSelector.class),
+        any(PlayerArgument.class),
+        any(AudioArgument.class),
+        anyString(),
+        anyString(),
+        anyString(),
+        eq(filters)
+      );
+    this.command.playVideo(this.sender, this.selector, PlayerArgument.FFMPEG, AudioArgument.NONE, RESOLUTION, CHARACTER, "", MRL, filters);
+
+    verify(this.command).playVideo(
+      any(AbstractVideoCommand.VideoConfigurationProvider.class),
+      eq(this.sender),
+      eq(this.selector),
+      eq(PlayerArgument.FFMPEG),
+      eq(AudioArgument.NONE),
+      eq(RESOLUTION),
+      eq(MRL),
+      eq(""),
+      eq(filters)
+    );
+  }
+
+  @Test
+  void shouldRefuseAProviderThatBuildsAnotherConfiguration() {
+    final Pair<Integer, Integer> resolution = Pair.pair(RESOLUTION_WIDTH, RESOLUTION_HEIGHT);
+    final AbstractVideoCommand.VideoConfigurationProvider provider = _ -> new Object();
+    assertThrows(ClassCastException.class, () -> this.command.createVideoFilter(resolution, provider));
   }
 }

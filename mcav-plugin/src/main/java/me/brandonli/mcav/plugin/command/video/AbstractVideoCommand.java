@@ -685,7 +685,12 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     final VideoConfigurationProvider configurationProvider
   );
 
+  // a blank MRL would be detected as the working folder
   private @Nullable SourceSelection selectSources(final String mrl, final String[] ytdlpArguments) {
+    if (mrl.isBlank()) {
+      return null;
+    }
+
     final SourceDetectionHelper helper = new SourceDetectionHelper();
     final Optional<Source> detected = helper.detectSource(mrl);
     final @Nullable Source source = detected.orElse(null);

@@ -197,6 +197,7 @@ public final class VideoMapCommand extends AbstractVideoCommand {
    *                              which returns {@link MapDisplaySettings}, or {@code Mcv2Settings} for MCV2
    * @return the pipeline step that dithers the frames onto the maps, or that encodes them with MCV2
    * @throws NullPointerException                       if an argument is null
+   * @throws ClassCastException                         if the provider builds neither {@link MapDisplaySettings} nor {@code Mcv2Settings}
    * @throws java.util.concurrent.CancellationException if the video startup was cancelled or the manager is shut down
    * @since 1.0.0
    */

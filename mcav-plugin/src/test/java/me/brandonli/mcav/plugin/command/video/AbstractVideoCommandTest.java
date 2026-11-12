@@ -493,16 +493,11 @@ final class AbstractVideoCommandTest {
   void shouldTakeNoFiltersFromAnEmptyOption() {
     final MCAVSandbox plugin = mock(MCAVSandbox.class);
 
-    final FilterChain filters = AbstractVideoCommand.parseFilters(this.sender, plugin, "", MediaKind.VIDEO).orElseThrow();
-    assertSame(FilterChain.NONE, filters);
+    final FilterChain emptyOptionChain = AbstractVideoCommand.parseFilters(this.sender, plugin, "", MediaKind.VIDEO).orElseThrow();
+    assertSame(FilterChain.NONE, emptyOptionChain);
 
-    final FilterChain abstractVideoCommandFilters = AbstractVideoCommand.parseFilters(
-      this.sender,
-      plugin,
-      null,
-      MediaKind.IMAGE
-    ).orElseThrow();
-    assertSame(FilterChain.NONE, abstractVideoCommandFilters);
+    final FilterChain absentOptionChain = AbstractVideoCommand.parseFilters(this.sender, plugin, null, MediaKind.IMAGE).orElseThrow();
+    assertSame(FilterChain.NONE, absentOptionChain);
 
     verify(this.sender, never()).sendMessage(any(Component.class));
   }
@@ -838,8 +833,22 @@ final class AbstractVideoCommandTest {
     this.assertSenderReceived(unavailable);
     verify(this.manager, never()).clearCurrentVideo();
 
-    final boolean created = this.command.resolutions.isEmpty();
-    assertTrue(created);
+    final boolean noDisplay = this.command.resolutions.isEmpty();
+    assertTrue(noDisplay);
+    this.assertNotStarting();
+  }
+
+  @Test
+  void shouldRefuseAnEmptySourceWithoutStoppingTheCurrentVideo() {
+    this.play(PlayerArgument.FFMPEG, AudioArgument.NONE, "", "");
+
+    final String reason = "Video  is not a file on the server, a URL, a device index or an FFmpeg input!";
+    final Component unavailable = Message.VIDEO_UNAVAILABLE.build(reason);
+    this.assertSenderReceived(unavailable);
+    verify(this.manager, never()).clearCurrentVideo();
+
+    final boolean noDisplay = this.command.resolutions.isEmpty();
+    assertTrue(noDisplay);
     this.assertNotStarting();
   }
 
@@ -1202,6 +1211,23 @@ final class AbstractVideoCommandTest {
   }
 
   @Test
+  void shouldLogAVideoTheWorkerRefusesAsAnErrorWithItsTrace() {
+    final ExecutorService stopped = Executors.newSingleThreadExecutor();
+    stopped.shutdown();
+    when(this.manager.getService()).thenReturn(stopped);
+
+    final String output;
+    try (final StandardErrorCapture errors = StandardErrorCapture.start()) {
+      this.play(PlayerArgument.FFMPEG, AudioArgument.NONE, MRL, "");
+      output = errors.getOutput();
+    }
+
+    final boolean logged =
+      output.contains(ERROR_LEVEL) && output.contains(STACK_FRAME) && output.contains("The video worker refused to start a video.");
+    assertTrue(logged, output);
+  }
+
+  @Test
   void shouldUnlockWithoutReportingWhenThePluginWasDisabledMeanwhile() throws IOException {
     final BukkitScheduler scheduler = TestServer.getScheduler();
     when(scheduler.runTask(any(Plugin.class), any(Runnable.class))).thenThrow(new IllegalPluginAccessException("disabled!"));
@@ -1257,6 +1283,26 @@ final class AbstractVideoCommandTest {
     );
 
     verify(this.manager, never()).getService();
+  }
+
+  @Test
+  void shouldRefuseANullPlugin() {
+    final NullPointerException exception = assertThrows(NullPointerException.class, () -> new RecordingCommand(null));
+    final String message = exception.getMessage();
+    assertEquals("Plugin must not be null!", message);
+  }
+
+  @Test
+  void shouldRefuseNullArgumentsToTheParsers() {
+    final MCAVSandbox plugin = mock(MCAVSandbox.class);
+
+    assertThrows(NullPointerException.class, () -> AbstractVideoCommand.parseFilters(null, plugin, "", MediaKind.VIDEO));
+    assertThrows(NullPointerException.class, () -> AbstractVideoCommand.parseFilters(this.sender, null, "", MediaKind.VIDEO));
+    assertThrows(NullPointerException.class, () -> AbstractVideoCommand.parseFilters(this.sender, plugin, "", null));
+    assertThrows(NullPointerException.class, () -> AbstractVideoCommand.parseDimensions(null, VIDEO_RESOLUTION));
+    assertThrows(NullPointerException.class, () -> AbstractVideoCommand.parseDimensions(this.sender, null));
+    assertThrows(NullPointerException.class, () -> AbstractVideoCommand.parseScreenDimensions(null, "5x5"));
+    assertThrows(NullPointerException.class, () -> AbstractVideoCommand.parseScreenDimensions(this.sender, null));
   }
 
   @Test

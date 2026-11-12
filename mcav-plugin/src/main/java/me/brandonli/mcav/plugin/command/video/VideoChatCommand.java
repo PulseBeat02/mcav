@@ -84,8 +84,8 @@ public final class VideoChatCommand extends AbstractVideoCommand {
    * @param audioType       where the sound is played, see {@link AudioArgument}
    * @param videoResolution the size as {@code <width>x<height>}, in characters per line and lines, such as
    *                        {@code 40x20}
-   * @param character       the character every pixel is drawn with, in quotes; a full block {@code █} gives the
-   *                        most solid picture
+   * @param character       the character every pixel is drawn with, typed in double quotes; a full block
+   *                        {@code "█"} gives the most solid picture
    * @param ytdlpOptions    extra options, in quotes; {@code ""} for none, or yt-dlp options such as
    *                        {@code "--yt-dlp{format=best,no-playlist}"}
    * @param mrl             the media, in quotes if it contains spaces: a file path on the server, a direct media
@@ -127,6 +127,7 @@ public final class VideoChatCommand extends AbstractVideoCommand {
    *                              which returns a {@link ChatConfiguration}
    * @return the pipeline that shows the frames in the chat
    * @throws NullPointerException                       if an argument is null
+   * @throws ClassCastException                         if the provider builds no {@link ChatConfiguration}
    * @throws java.util.concurrent.CancellationException if the video startup was cancelled or the manager is shut down
    * @since 1.0.0
    */

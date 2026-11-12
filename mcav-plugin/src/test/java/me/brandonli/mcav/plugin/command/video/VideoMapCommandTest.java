@@ -21,6 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -400,10 +401,32 @@ final class VideoMapCommandTest {
   }
 
   @Test
+  void shouldLetTheFlagWinOverTheConfiguredCodec() {
+    when(this.configuration.getMcv2DefaultCodec()).thenReturn(MapCodec.MCV2);
+    this.playWithCodec(RESOLUTION, MapCodec.DITHER);
+
+    verify(this.support, never()).configure(any(), any(), any(), eq(MAP_ID), any(), any());
+    final ArgumentCaptor<AbstractVideoCommand.VideoConfigurationProvider> providers = ArgumentCaptor.forClass(
+      AbstractVideoCommand.VideoConfigurationProvider.class
+    );
+    verify(this.command).playVideo(providers.capture(), any(), any(), any(), any(), anyString(), anyString(), anyString(), isNull());
+
+    final AbstractVideoCommand.VideoConfigurationProvider configurationProvider = providers.getValue();
+    final Pair<Integer, Integer> resolution = Pair.pair(RESOLUTION_WIDTH, RESOLUTION_HEIGHT);
+    final Object built = configurationProvider.buildConfiguration(resolution);
+    assertInstanceOf(MapDisplaySettings.class, built);
+  }
+
+  @Test
   void shouldNotStartAnMcv2VideoWithAnInvalidResolution() {
     this.playWithCodec("wide", MapCodec.MCV2);
     verify(this.support, never()).configure(any(), any(), any(), eq(MAP_ID), any(), any());
     verify(this.command, never()).playVideo(any(), any(), any(), any(), any(), anyString(), anyString(), anyString(), isNull());
+
+    final List<Component> messages = Components.received(this.sender);
+    final Component unsupported = Message.UNSUPPORTED_DIMENSION.build();
+    final List<Component> expected = List.of(unsupported);
+    assertEquals(expected, messages);
   }
 
   @Test
@@ -426,5 +449,100 @@ final class VideoMapCommandTest {
 
     final Object configuration = providers.getValue().buildConfiguration(Pair.pair(RESOLUTION_WIDTH, RESOLUTION_HEIGHT));
     assertInstanceOf(MapDisplaySettings.class, configuration);
+  }
+
+  @Test
+  void shouldRefuseNullArguments() {
+    final PlayerArgument ffmpeg = PlayerArgument.FFMPEG;
+    final AudioArgument none = AudioArgument.NONE;
+    final DitheringArgument dithering = DitheringArgument.NEAREST_COLOR;
+    final Pair<Integer, Integer> resolution = Pair.pair(RESOLUTION_WIDTH, RESOLUTION_HEIGHT);
+    final AbstractVideoCommand.VideoConfigurationProvider provider = _ -> new Object();
+
+    assertThrows(NullPointerException.class, () ->
+      this.command.playMapVideo(
+        this.sender,
+        null,
+        ffmpeg,
+        none,
+        RESOLUTION,
+        BLOCK_DIMENSIONS,
+        MAP_ID,
+        dithering,
+        "",
+        VIDEO_FILE_NAME,
+        null,
+        null
+      )
+    );
+    assertThrows(NullPointerException.class, () ->
+      this.command.playMapVideo(
+        this.sender,
+        this.selector,
+        ffmpeg,
+        none,
+        RESOLUTION,
+        BLOCK_DIMENSIONS,
+        MAP_ID,
+        null,
+        "",
+        VIDEO_FILE_NAME,
+        null,
+        null
+      )
+    );
+    assertThrows(NullPointerException.class, () -> this.command.createVideoFilter(null, provider));
+    assertThrows(NullPointerException.class, () -> this.command.createVideoFilter(resolution, null));
+  }
+
+  @Test
+  void shouldPassTheFiltersOnToTheVideo() {
+    final String filters = "invert";
+    doNothing()
+      .when(this.command)
+      .playVideo(
+        any(AbstractVideoCommand.VideoConfigurationProvider.class),
+        any(CommandSender.class),
+        any(MultiplePlayerSelector.class),
+        any(PlayerArgument.class),
+        any(AudioArgument.class),
+        anyString(),
+        anyString(),
+        anyString(),
+        eq(filters)
+      );
+    this.command.playMapVideo(
+      this.sender,
+      this.selector,
+      PlayerArgument.FFMPEG,
+      AudioArgument.NONE,
+      RESOLUTION,
+      BLOCK_DIMENSIONS,
+      MAP_ID,
+      DitheringArgument.NEAREST_COLOR,
+      "",
+      VIDEO_FILE_NAME,
+      null,
+      filters
+    );
+
+    verify(this.command).playVideo(
+      any(AbstractVideoCommand.VideoConfigurationProvider.class),
+      eq(this.sender),
+      eq(this.selector),
+      eq(PlayerArgument.FFMPEG),
+      eq(AudioArgument.NONE),
+      eq(RESOLUTION),
+      eq(VIDEO_FILE_NAME),
+      eq(""),
+      eq(filters)
+    );
+  }
+
+  @Test
+  void shouldRefuseAProviderThatBuildsAnotherConfiguration() {
+    final Pair<Integer, Integer> resolution = Pair.pair(RESOLUTION_WIDTH, RESOLUTION_HEIGHT);
+    final AbstractVideoCommand.VideoConfigurationProvider provider = _ -> new Object();
+    assertThrows(ClassCastException.class, () -> this.command.createVideoFilter(resolution, provider));
   }
 }
