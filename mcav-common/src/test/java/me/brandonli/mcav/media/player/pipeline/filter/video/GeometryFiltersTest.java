@@ -20,6 +20,7 @@ package me.brandonli.mcav.media.player.pipeline.filter.video;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -29,7 +30,9 @@ import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.image.MatImageBuffer;
 import me.brandonli.mcav.testing.Images;
 import org.bytedeco.opencv.global.opencv_core;
+import org.bytedeco.opencv.global.opencv_imgproc;
 import org.bytedeco.opencv.opencv_core.Mat;
+import org.bytedeco.opencv.opencv_core.Size;
 import org.junit.jupiter.api.Test;
 
 final class GeometryFiltersTest {
@@ -46,6 +49,8 @@ final class GeometryFiltersTest {
   private static final int ENLARGED_HEIGHT = 6;
 
   private static final int BLACK = 0xFF000000;
+
+  private static final double SCALE_FROM_SIZE = 0.0;
 
   private static final String CHANGE_REPORTED_MESSAGE = "the filter reports the change, which decides whether the result is written back";
 
@@ -197,6 +202,31 @@ final class GeometryFiltersTest {
         assertTrue(modified);
         assertArrayEquals(expected, actual);
       }
+    }
+  }
+
+  @Test
+  void shouldAverageAreasWhenOneAxisShrinksAndTheOtherGrows() {
+    try (
+      final ImageBuffer image = Images.solid(3, 1, BLACK);
+      final Size target = new Size(1, 2);
+      final Mat area = new Mat();
+      final Mat bilinear = new Mat()
+    ) {
+      image.setPixel(1, 0, new double[] { 90.0, 90.0, 90.0 });
+      final MatImageBuffer buffer = (MatImageBuffer) image;
+      final Mat source = buffer.getMat();
+      opencv_imgproc.resize(source, area, target, SCALE_FROM_SIZE, SCALE_FROM_SIZE, opencv_imgproc.INTER_AREA);
+      opencv_imgproc.resize(source, bilinear, target, SCALE_FROM_SIZE, SCALE_FROM_SIZE, opencv_imgproc.INTER_LINEAR);
+      final ByteBuffer areaPixels = area.createBuffer();
+      final ByteBuffer bilinearPixels = bilinear.createBuffer();
+      assertNotEquals(bilinearPixels, areaPixels, "the frame tells the two interpolations apart");
+
+      final ResizeFilter filter = new ResizeFilter(1, 2);
+      final boolean modified = filter.applyFilter(image);
+      final ByteBuffer pixels = image.getData();
+      assertTrue(modified);
+      assertEquals(areaPixels, pixels, "the width shrinks, so the areas are averaged although the height grows");
     }
   }
 
