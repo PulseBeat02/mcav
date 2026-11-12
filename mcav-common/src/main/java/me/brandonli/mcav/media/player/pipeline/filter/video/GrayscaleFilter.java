@@ -23,11 +23,12 @@ import org.bytedeco.opencv.opencv_core.Mat;
 /**
  * Converts frames to grayscale. The frame keeps its three channels, so it stays compatible with every other filter.
  *
- * <p>The single-channel matrix the gray levels pass through is kept between frames, so converting reuses native image storage
- * in the usual serial case with stable dimensions. Concurrent calls borrow separate matrices as needed; see
- * {@link ReusableMat}, and freed when the filter is garbage collected.
+ * <p>The single-channel matrix the gray levels pass through is kept between frames, so converting reuses native image
+ * storage in the usual serial case with stable dimensions, and it is freed when the filter is garbage collected. A call
+ * that finds the matrix lent to another frame converts through one of its own, so one filter may be attached to
+ * several pipelines at once.
  *
- * <p>This class is not thread-safe, because it reuses one matrix for every frame; give each player its own instance.
+ * <p>This class is thread-safe.
  *
  * @since 1.0.0
  */
