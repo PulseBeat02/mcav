@@ -43,7 +43,7 @@ final class YtdlpArgumentAssertions {
     "no-match-filters"
   );
 
-  private static final Set<String> VALUE_OPTIONS = Set.of(
+  static final Set<String> VALUE_OPTIONS = Set.of(
     "format",
     "format-sort",
     "playlist-items",

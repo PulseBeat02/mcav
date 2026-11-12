@@ -19,6 +19,7 @@ package me.brandonli.mcav.plugin.command.video;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.inOrder;
@@ -225,5 +226,20 @@ final class VideoControlCommandTest {
 
     final Component disabled = Message.HOLOGRAM_DISABLED.build();
     this.assertReceived(disabled);
+  }
+
+  @Test
+  void shouldRefuseNullArguments() {
+    final NullPointerException nullPlugin = assertThrows(NullPointerException.class, () -> new VideoControlCommand(null));
+    final String message = nullPlugin.getMessage();
+    assertEquals("Plugin must not be null!", message);
+
+    final Location location = new Location(null, 0.0, 0.0, 0.0);
+    assertThrows(NullPointerException.class, () -> this.command.resumeVideo(null));
+    assertThrows(NullPointerException.class, () -> this.command.pauseVideo(null));
+    assertThrows(NullPointerException.class, () -> this.command.releaseVideo(null));
+    assertThrows(NullPointerException.class, () -> this.command.setHologramLocation(null, location));
+    assertThrows(NullPointerException.class, () -> this.command.setHologramLocation(this.sender, null));
+    assertThrows(NullPointerException.class, () -> this.command.disableHologram(null));
   }
 }

@@ -48,7 +48,7 @@ final class VideoFlagsParserTest {
 
   @ParameterizedTest
   @NullSource
-  @ValueSource(strings = { "", "   ", "--loop", "--yt-dlp", "--yt-dlp{format=best", "--yt-dlp{format=best\\}", "yt-dlp{format=best}" })
+  @ValueSource(strings = { "", "   ", "--loop", "--yt-dlp", "yt-dlp{format=best}" })
   void shouldReturnNoArgumentsWithoutYtdlpOptions(final String flags) {
     final String[] arguments = this.parser.parseYtdlpFlags(flags);
     assertArrayEquals(new String[0], arguments);
@@ -62,9 +62,10 @@ final class VideoFlagsParserTest {
     assertArrayEquals(new String[0], arguments);
   }
 
-  @Test
-  void shouldNeverEndOptionsThatEndInABackslash() {
-    final String[] arguments = this.parser.parseYtdlpFlags(ESCAPING_FORMAT_FLAG);
+  @ParameterizedTest
+  @ValueSource(strings = { "--yt-dlp{format=best", "--yt-dlp{format=best\\}", ESCAPING_FORMAT_FLAG })
+  void shouldReturnNoArgumentsForOptionsThatNeverEnd(final String flags) {
+    final String[] arguments = this.parser.parseYtdlpFlags(flags);
     assertArrayEquals(new String[0], arguments);
   }
 
@@ -241,23 +242,25 @@ final class VideoFlagsParserTest {
   }
 
   @Test
-  void shouldListTheSupportedOptionsInAlphabeticalOrder() {
+  void shouldListExactlyTheDocumentedOptionsInAlphabeticalOrder() {
+    final List<String> documented = new ArrayList<>(YtdlpArgumentAssertions.SWITCHES);
+    documented.addAll(YtdlpArgumentAssertions.VALUE_OPTIONS);
+    Collections.sort(documented);
+
     final List<String> supported = VideoFlagsParser.supportedOptions();
-    final List<String> sorted = new ArrayList<>(supported);
-    Collections.sort(sorted);
-    assertEquals(sorted, supported);
+    assertEquals(documented, supported);
 
-    final boolean contained = supported.contains("format");
-    assertTrue(contained, "format selection is the reason the flags exist");
+    final boolean runsAProgram = supported.contains("exec");
+    assertFalse(runsAProgram, "no option may run a program of the server");
 
-    final boolean supportedContained = supported.contains("no-playlist");
-    assertTrue(supportedContained);
+    final boolean writesAFile = supported.contains("output");
+    assertFalse(writesAFile, "no option may write a file of the server");
+  }
 
-    final boolean secondContained = supported.contains("exec");
-    assertFalse(secondContained, "no option may run a program of the server");
-
-    final boolean thirdContained = supported.contains("output");
-    assertFalse(thirdContained, "no option may write a file of the server");
+  @Test
+  void shouldReturnTheSupportedOptionsAsAnUnmodifiableList() {
+    final List<String> supported = VideoFlagsParser.supportedOptions();
+    assertThrows(UnsupportedOperationException.class, supported::clear);
   }
 
   @Test

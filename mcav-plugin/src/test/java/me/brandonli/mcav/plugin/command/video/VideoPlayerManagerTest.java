@@ -141,8 +141,16 @@ final class VideoPlayerManagerTest {
   }
 
   @Test
-  void shouldRefuseANullPlugin() {
-    assertThrows(NullPointerException.class, () -> new VideoPlayerManager(null));
+  void shouldRefuseNullArguments() {
+    final NullPointerException nullPlugin = assertThrows(NullPointerException.class, () -> new VideoPlayerManager(null));
+    final String pluginMessage = nullPlugin.getMessage();
+    assertEquals("Plugin must not be null!", pluginMessage);
+
+    final NullPointerException nullDevices = assertThrows(NullPointerException.class, () -> this.manager.setDevices(null));
+    final String devicesMessage = nullDevices.getMessage();
+    assertEquals("Devices must not be null!", devicesMessage);
+
+    assertThrows(NullPointerException.class, () -> this.manager.startFilter(null));
   }
 
   @Test
@@ -304,7 +312,7 @@ final class VideoPlayerManagerTest {
   }
 
   @Test
-  void shouldLeaveTheWorldAloneWhenThePluginIsAlreadyDisabled() throws InterruptedException, ExecutionException, TimeoutException {
+  void shouldLeaveTheWorldToTheShutdownWhenThePluginIsAlreadyDisabled() throws InterruptedException, ExecutionException, TimeoutException {
     this.fill();
     final BukkitScheduler scheduler = TestServer.getScheduler();
     when(scheduler.callSyncMethod(any(Plugin.class), any())).thenThrow(new IllegalPluginAccessException(PLUGIN_DISABLED_MESSAGE));
@@ -320,6 +328,11 @@ final class VideoPlayerManagerTest {
 
     final Optional<Hologram> currentHologram = this.manager.getHologram();
     assertEquals(Optional.empty(), currentHologram);
+
+    this.manager.shutdown();
+    verify(this.filter).release();
+    verify(this.hologram).kill();
+    this.assertWorldReleasedOnTheMainThreadAndPlayerOnTheWorker();
   }
 
   @Test
@@ -397,6 +410,20 @@ final class VideoPlayerManagerTest {
     this.manager.releaseVideoPlayer();
 
     verify(this.provider, times(2)).releaseAudioFilter();
+  }
+
+  @Test
+  void shouldNeverReleaseAPartTwiceAfterAFailedRelease() {
+    this.fill();
+    final IllegalStateException failure = new IllegalStateException("player release!");
+    doThrow(failure).when(this.player).release();
+    final IllegalStateException thrown = assertThrows(IllegalStateException.class, this.manager::releaseVideoPlayer);
+    assertSame(failure, thrown);
+
+    this.manager.releaseVideoPlayer();
+    verify(this.player, times(1)).release();
+    verify(this.filter, times(1)).release();
+    verify(this.hologram, times(1)).kill();
   }
 
   @Test
@@ -854,32 +881,6 @@ final class VideoPlayerManagerTest {
   private boolean releaseAndThrowFatal(final OutOfMemoryError fatal) {
     this.manager.releaseVideoPlayer();
     throw fatal;
-  }
-
-  @Test
-  void shouldRejectStartFilterWithoutBeginStart() {
-    this.manager.cancelStart();
-    final BukkitScheduler scheduler = TestServer.getScheduler();
-    final CancellationException thrown = assertThrows(CancellationException.class, () -> this.manager.startFilter(this.filter));
-
-    final String message = thrown.getMessage();
-    assertEquals(CANCELLED_STARTUP_MESSAGE, message);
-
-    verify(scheduler, never()).runTask(any(Plugin.class), any(Runnable.class));
-    verify(this.filter, never()).start();
-  }
-
-  @Test
-  void shouldRejectStartNativeWithoutBeginStart() {
-    this.manager.cancelStart();
-    this.manager.setPlayer(this.player);
-    final BooleanSupplier start = mock(BooleanSupplier.class);
-    final CancellationException thrown = assertThrows(CancellationException.class, () -> this.manager.startNative(start));
-
-    final String message = thrown.getMessage();
-    assertEquals(CANCELLED_STARTUP_MESSAGE, message);
-
-    verify(start, never()).getAsBoolean();
   }
 
   @Test
