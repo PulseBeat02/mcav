@@ -40,6 +40,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -93,6 +94,9 @@ final class AbstractImageCommandTest {
 
   private static final int RED_PIXEL = 0xFFFF0000;
 
+  private static final int PNG_WIDTH_OFFSET = 16;
+  private static final int PNG_HEIGHT_OFFSET = 20;
+
   private static final char QUOTE = '"';
   private static final String EMPTY_QUOTED_SOURCE = "\"\"";
 
@@ -112,6 +116,7 @@ final class AbstractImageCommandTest {
   private static final String LITERAL_QUOTES_FILE_NAME = "literal-quotes.png";
   private static final String ANIMATION_FILE_NAME = "animation.gif";
   private static final String BROKEN_FILE_NAME = "broken.png";
+  private static final String OVERSIZED_FILE_NAME = "oversized.png";
   private static final String LATE_FILE_NAME = "late.png";
   private static final String REJECTED_FILE_NAME = "rejected.png";
   private static final String SCHEDULE_FAILURE_FILE_NAME = "schedule-failure.png";
@@ -550,6 +555,23 @@ final class AbstractImageCommandTest {
   private void assertNoErrorLogged(final String output) {
     final boolean logged = output.contains(ERROR_LEVEL) || output.contains(STACK_FRAME);
     assertFalse(logged, output);
+  }
+
+  @Test
+  void shouldTellTheSenderWhenAnImageDeclaresMorePixelsThanTheLimit() throws IOException {
+    final byte[] bytes = this.encode(PNG_FORMAT);
+    final ByteBuffer header = ByteBuffer.wrap(bytes);
+    header.putInt(PNG_WIDTH_OFFSET, 8193);
+    header.putInt(PNG_HEIGHT_OFFSET, 8192);
+    final Path file = this.folder.resolve(OVERSIZED_FILE_NAME);
+    Files.write(file, bytes);
+    final String mrl = file.toString();
+    final String output = this.displayCapturingErrors(mrl);
+
+    final String reason =
+      "Image size 8193x8192 exceeds the limit of 67108864 pixels that the system property mcav.image.maximum_pixels sets!";
+    this.assertUnavailableAfterLoading(reason);
+    this.assertNoErrorLogged(output);
   }
 
   @Test
