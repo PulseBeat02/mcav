@@ -366,6 +366,18 @@ final class OrderedDitherTest {
   }
 
   @Test
+  void shouldDeriveTheLevelsFromTheMatrixWhateverTheMaximum() {
+    final PixelMapper derived = PixelMapper.ofPixelMapper(BayerDither.NORMAL_4X4, UNIT_STRENGTH);
+    final PixelMapper smallest = PixelMapper.ofPixelMapper(BayerDither.NORMAL_4X4, 1, UNIT_STRENGTH);
+    final PixelMapper largest = PixelMapper.ofPixelMapper(BayerDither.NORMAL_4X4, Integer.MAX_VALUE, UNIT_STRENGTH);
+    final float[][] expected = derived.getMatrix();
+    final float[][] fromSmallest = smallest.getMatrix();
+    final float[][] fromLargest = largest.getMatrix();
+    assertArrayEquals(expected, fromSmallest, "a maximum of 1");
+    assertArrayEquals(expected, fromLargest, "a maximum of Integer.MAX_VALUE");
+  }
+
+  @Test
   void shouldRejectBayerSizesThatAreNotAPositivePowerOfTwo() {
     assertThrows(IllegalArgumentException.class, () -> BayerDither.createBayerMatrix(0));
     assertThrows(IllegalArgumentException.class, () -> BayerDither.createBayerMatrix(3));
