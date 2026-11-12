@@ -20,7 +20,7 @@ package me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm;
 import java.util.concurrent.atomic.AtomicInteger;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.palette.DitherPalette;
 
-// Counts color map reads, which the ordered and temporal dithers make once per band or strip.
+// Counts color map reads, which the nearest, ordered and temporal dithers make once per range, band or strip.
 final class ColorMapReadCountingPalette implements DitherPalette {
 
   private final DitherPalette palette;
