@@ -79,7 +79,7 @@ final class PaperServerAssertionsTest {
       "[06:13:33 WARN]: [MCAV Sandbox] Failed to decode media.",
     }
   )
-  void shouldRefusePlaybackFailuresAndUncaughtExceptions(final String line) {
+  void shouldRefuseErrorsUncaughtExceptionsAndPlaybackFailures(final String line) {
     assertThrows(AssertionError.class, () -> PaperServerAssertions.assertNoErrors(List.of(line)));
   }
 
