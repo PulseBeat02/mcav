@@ -20,6 +20,7 @@ package me.brandonli.mcav.capability;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -41,6 +42,7 @@ final class CapabilityGuardTest {
   void shouldShareOneGuardPerJvm() {
     final CapabilityGuard first = CapabilityGuard.shared();
     final CapabilityGuard second = CapabilityGuard.shared();
+    assertNotNull(first);
     assertSame(first, second);
     assertNotSame(first, this.guard);
   }
