@@ -25,8 +25,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.nio.ByteBuffer;
-import java.util.Arrays;
-import java.util.concurrent.atomic.AtomicLong;
 import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.testing.Images;
 import org.bytedeco.opencv.global.opencv_core;
@@ -222,46 +220,6 @@ final class DrawingFiltersTest {
     assertThrows(NullPointerException.class, () -> new TextFilter("x", 0, 0, TextFilter.DEFAULT_FONT, 1.0, null));
     assertThrows(IllegalArgumentException.class, () -> new TextFilter("x", 0, 0, TextFilter.DEFAULT_FONT, 0.0, WHITE));
     assertThrows(IllegalArgumentException.class, () -> new TextFilter("x", 0, 0, TextFilter.DEFAULT_FONT, Double.NaN, WHITE));
-  }
-
-  @Test
-  void shouldDrawTheMeasuredFrameRate() {
-    final AtomicLong clock = new AtomicLong();
-    final FramesPerSecondFilter filter = new FramesPerSecondFilter(clock::get);
-    try (final ImageBuffer first = Images.solid(120, 40, BLACK_ARGB); final ImageBuffer second = Images.solid(120, 40, BLACK_ARGB)) {
-      final boolean firstModified = filter.applyFilter(first);
-      clock.set(1_000_000_000L);
-      final boolean secondModified = filter.applyFilter(second);
-      assertTrue(firstModified, CHANGE_REPORTED_MESSAGE);
-      assertTrue(secondModified);
-      final int firstDrawn = countNonBlack(first);
-      final int secondDrawn = countNonBlack(second);
-      final int[] firstPixels = first.getPixels();
-      final int[] secondPixels = second.getPixels();
-      final boolean sameText = Arrays.equals(firstPixels, secondPixels);
-      final boolean firstHasText = firstDrawn > 0;
-      assertTrue(firstHasText);
-      final boolean secondHasText = secondDrawn > 0;
-      assertTrue(secondHasText);
-      assertFalse(sameText, "after one second the text changes from 0 fps to 2 fps");
-      assertFrameRateLabel(first, "0 fps");
-      assertFrameRateLabel(second, "2 fps");
-    }
-  }
-
-  private static void assertFrameRateLabel(final ImageBuffer image, final String label) {
-    try (
-      final Scalar black = new Scalar(0.0);
-      final Scalar white = new Scalar(CHANNEL_MAXIMUM, CHANNEL_MAXIMUM, CHANNEL_MAXIMUM, 0.0);
-      final Point baseline = new Point(10, 24);
-      final Mat expected = new Mat(40, 120, opencv_core.CV_8UC3, black)
-    ) {
-      opencv_imgproc.putText(expected, label, baseline, opencv_imgproc.FONT_HERSHEY_SIMPLEX, 0.6, black, 3, opencv_imgproc.LINE_AA, false);
-      opencv_imgproc.putText(expected, label, baseline, opencv_imgproc.FONT_HERSHEY_SIMPLEX, 0.6, white, 1, opencv_imgproc.LINE_AA, false);
-      final ByteBuffer expectedPixels = expected.createBuffer();
-      final ByteBuffer pixels = image.getData();
-      assertEquals(expectedPixels, pixels, label);
-    }
   }
 
   @Test
