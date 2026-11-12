@@ -25,6 +25,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.nio.ReadOnlyBufferException;
 import me.brandonli.mcav.media.player.metadata.OriginalAudioMetadata;
 import org.junit.jupiter.api.Test;
 
@@ -102,6 +103,18 @@ final class VolumeFilterTest {
   }
 
   @Test
+  void shouldThrowOnlyWhenScalingWritesToAReadOnlyBuffer() {
+    final VolumeFilter filter = new VolumeFilter();
+    final ByteBuffer writable = samples((short) 100);
+    final ByteBuffer buffer = writable.asReadOnlyBuffer();
+    final boolean changed = filter.applyFilter(buffer, METADATA);
+    assertFalse(changed);
+
+    filter.setVolume(0.5);
+    assertThrows(ReadOnlyBufferException.class, () -> filter.applyFilter(buffer, METADATA));
+  }
+
+  @Test
   void shouldScaleOnlyFromThePositionToTheLimitAndLeaveAnOddByte() {
     final VolumeFilter filter = new VolumeFilter();
     filter.setVolume(2);
@@ -130,6 +143,31 @@ final class VolumeFilterTest {
   }
 
   @Test
+  void shouldReadLittleEndianSamplesUpToTheLimitWithoutChangingTheLimitOrTheByteOrder() {
+    final VolumeFilter filter = new VolumeFilter();
+    filter.setVolume(VolumeFilter.MAXIMUM_VOLUME);
+    final ByteBuffer buffer = ByteBuffer.allocate(6);
+    final ByteBuffer littleEndian = buffer.duplicate().order(ByteOrder.LITTLE_ENDIAN);
+    littleEndian
+      .putShort(0, (short) 128)
+      .putShort(2, (short) 300)
+      .putShort(4, (short) 7);
+    buffer.limit(4);
+    filter.applyFilter(buffer, METADATA);
+    final short[] values = read(buffer);
+    final short[] expected = new short[] { 256, 600 };
+    assertArrayEquals(expected, values);
+
+    final short afterLimit = littleEndian.getShort(4);
+    assertEquals(7, afterLimit);
+
+    final int limit = buffer.limit();
+    final ByteOrder order = buffer.order();
+    assertEquals(4, limit);
+    assertEquals(ByteOrder.BIG_ENDIAN, order);
+  }
+
+  @Test
   void shouldRefuseAVolumeOutsideItsRange() {
     final VolumeFilter filter = new VolumeFilter();
     assertThrows(IllegalArgumentException.class, () -> filter.setVolume(-0.01));
@@ -139,6 +177,11 @@ final class VolumeFilterTest {
     filter.setVolume(VolumeFilter.MAXIMUM_VOLUME);
     final double volume = filter.getVolume();
     assertEquals(VolumeFilter.MAXIMUM_VOLUME, volume);
+  }
+
+  @Test
+  void shouldRejectMissingSamples() {
+    final VolumeFilter filter = new VolumeFilter();
     assertThrows(NullPointerException.class, () -> filter.applyFilter(null, METADATA));
   }
 }

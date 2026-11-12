@@ -72,6 +72,19 @@ final class DirectAudioOutputTest {
   }
 
   @Test
+  void shouldWriteNothingAfterItIsReleased() {
+    final SourceDataLine line = mock(SourceDataLine.class);
+    final DirectAudioOutput output = new DirectAudioOutput((_, _) -> line);
+    output.start();
+    output.release();
+    final ByteBuffer samples = ByteBuffer.allocate(4);
+    final boolean changed = output.applyFilter(samples, METADATA);
+    assertFalse(changed, READ_ONLY_MESSAGE);
+
+    verify(line, never()).write(ArgumentMatchers.any(byte[].class), ArgumentMatchers.anyInt(), ArgumentMatchers.anyInt());
+  }
+
+  @Test
   void shouldOpenTheLineOnceAndWriteTheRemainingSamples() {
     final SourceDataLine line = mock(SourceDataLine.class);
     final AtomicInteger opened = new AtomicInteger();
@@ -97,12 +110,16 @@ final class DirectAudioOutputTest {
     final SourceDataLine line
   ) {
     final float sampleRate = format.getSampleRate();
+    final int sampleSizeInBits = format.getSampleSizeInBits();
     final int channels = format.getChannels();
     final AudioFormat.Encoding encoding = format.getEncoding();
+    final boolean bigEndian = format.isBigEndian();
     final int expected = (48_000 * 4) / 5;
     assertEquals(48_000.0f, sampleRate);
+    assertEquals(16, sampleSizeInBits);
     assertEquals(2, channels);
     assertEquals(AudioFormat.Encoding.PCM_SIGNED, encoding);
+    assertFalse(bigEndian);
     assertEquals(expected, bufferSize);
 
     opened.incrementAndGet();
@@ -121,6 +138,27 @@ final class DirectAudioOutputTest {
     order.verify(line).stop();
     order.verify(line).flush();
     order.verify(line).close();
+    order.verifyNoMoreInteractions();
+  }
+
+  @Test
+  void shouldOpenANewLineWhenStartedAgainAfterRelease() {
+    final SourceDataLine released = mock(SourceDataLine.class);
+    final SourceDataLine reopened = mock(SourceDataLine.class);
+    final List<SourceDataLine> lines = List.of(released, reopened);
+    final AtomicInteger opened = new AtomicInteger();
+    final DirectAudioOutput output = new DirectAudioOutput((_, _) -> lines.get(opened.getAndIncrement()));
+    output.start();
+    output.release();
+    output.start();
+    final ByteBuffer samples = ByteBuffer.wrap(new byte[] { 1, 2, 3, 4 });
+    output.applyFilter(samples, METADATA);
+    verify(reopened).start();
+    verify(reopened).write(new byte[] { 1, 2, 3, 4 }, 0, 4);
+
+    output.release();
+    verify(reopened).close();
+    verify(released).close();
   }
 
   @Test
@@ -300,6 +338,18 @@ final class DirectAudioOutputTest {
     final DirectAudioOutput output = new DirectAudioOutput((_, _) -> mock(SourceDataLine.class));
     assertThrows(NullPointerException.class, () -> output.applyFilter(null, METADATA));
     assertThrows(NullPointerException.class, () -> new DirectAudioOutput(null));
+  }
+
+  @Test
+  void shouldPassOnTheRejectionOfAChunkThatIsNotAWholeFrame() {
+    final SourceDataLine line = mock(SourceDataLine.class);
+    final IllegalArgumentException rejection = new IllegalArgumentException("Not a whole frame!");
+    doThrow(rejection).when(line).write(ArgumentMatchers.any(byte[].class), eq(0), eq(3));
+    final DirectAudioOutput output = new DirectAudioOutput((_, _) -> line);
+    output.start();
+    final ByteBuffer samples = ByteBuffer.allocate(3);
+    final IllegalArgumentException thrown = assertThrows(IllegalArgumentException.class, () -> output.applyFilter(samples, METADATA));
+    assertSame(rejection, thrown);
   }
 
   @Test
