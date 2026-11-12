@@ -156,6 +156,11 @@ public final class AnnotationParserHandler {
   /**
    * Sets up every feature and registers its commands.
    *
+   * <p>If a feature cannot be set up or its commands cannot be parsed, every feature is shut down as by
+   * {@link #shutdownCommands()} and the failure is rethrown, with a failure of that shutdown suppressed into it. A
+   * {@link VirtualMachineError} is rethrown at once instead, with no further setup or shutdown.
+   *
+   * @throws RuntimeException if a feature cannot be set up or its commands cannot be parsed
    * @since 1.0.0
    */
   public void registerCommands() {
@@ -184,8 +189,12 @@ public final class AnnotationParserHandler {
   }
 
   /**
-   * Shuts every feature down.
+   * Shuts every feature down, also the ones after a feature that fails to shut down.
    *
+   * <p>Only the first call does anything, and a failed {@link #registerCommands()} has made it already. A
+   * {@link VirtualMachineError} is rethrown at once, without shutting the remaining features down.
+   *
+   * @throws RuntimeException if a feature fails to shut down: the first such failure, with the later ones suppressed
    * @since 1.0.0
    */
   public void shutdownCommands() {
