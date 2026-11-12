@@ -31,6 +31,7 @@ import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -562,6 +563,23 @@ final class FilterChainTest {
 
     final int thirdMatches = large.getPixels()[1_023 + 1_100 * 7] & RGB_MASK;
     assertEquals(RED, thirdMatches, "eight rows high");
+  }
+
+  @Test
+  void shouldKeepTheShapeOfEveryLargeOverlayItScalesDown() throws IOException {
+    final int side = FilterChain.MAXIMUM_OVERLAY_SIDE;
+    this.writeOverlay("wide", 2 * side, OVERLAY_HEIGHT);
+    this.writeOverlay("tall", OVERLAY_HEIGHT, 2 * side);
+    this.writeOverlay("thin", 4 * side, 1);
+    final FilterChain chain = this.parse("overlay=wide,overlay=tall,overlay=thin");
+    final List<List<?>> sizes = new ArrayList<>();
+    final MockedConstruction.MockInitializer<ResizeFilter> recordSize = (_, context) -> sizes.add(context.arguments());
+    try (final MockedConstruction<ResizeFilter> _ = Mockito.mockConstruction(ResizeFilter.class, recordSize)) {
+      final List<VideoFilter> _ = chain.createFilters();
+    }
+
+    final List<List<Integer>> expected = List.of(List.of(side, OVERLAY_HEIGHT / 2), List.of(OVERLAY_HEIGHT / 2, side), List.of(side, 1));
+    assertEquals(expected, sizes);
   }
 
   @Test
