@@ -1267,6 +1267,19 @@ final class AbstractVideoCommandTest {
   }
 
   @Test
+  void shouldRefuseNullArgumentsToTheParsers() {
+    final MCAVSandbox plugin = mock(MCAVSandbox.class);
+
+    assertThrows(NullPointerException.class, () -> AbstractVideoCommand.parseFilters(null, plugin, "", MediaKind.VIDEO));
+    assertThrows(NullPointerException.class, () -> AbstractVideoCommand.parseFilters(this.sender, null, "", MediaKind.VIDEO));
+    assertThrows(NullPointerException.class, () -> AbstractVideoCommand.parseFilters(this.sender, plugin, "", null));
+    assertThrows(NullPointerException.class, () -> AbstractVideoCommand.parseDimensions(null, VIDEO_RESOLUTION));
+    assertThrows(NullPointerException.class, () -> AbstractVideoCommand.parseDimensions(this.sender, null));
+    assertThrows(NullPointerException.class, () -> AbstractVideoCommand.parseScreenDimensions(null, "5x5"));
+    assertThrows(NullPointerException.class, () -> AbstractVideoCommand.parseScreenDimensions(this.sender, null));
+  }
+
+  @Test
   void shouldReleaseTheStartupClaimWhenViewerSelectionFails() {
     final IllegalStateException failure = new IllegalStateException("selector failed!");
     when(this.selector.values()).thenThrow(failure);
