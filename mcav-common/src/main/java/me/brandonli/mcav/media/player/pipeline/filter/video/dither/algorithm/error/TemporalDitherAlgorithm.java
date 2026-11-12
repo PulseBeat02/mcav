@@ -149,6 +149,8 @@ public abstract class TemporalDitherAlgorithm extends ErrorDiffusionDither imple
    *
    * @param buffer the ARGB pixels, replaced with palette colors
    * @param width  the positive image width, which must divide the buffer length
+   * @throws NullPointerException     if {@code buffer} is null
+   * @throws IllegalArgumentException if width is not positive or does not divide the buffer length
    * @since 1.0.0
    */
   @Override
@@ -177,6 +179,8 @@ public abstract class TemporalDitherAlgorithm extends ErrorDiffusionDither imple
    *
    * @param image the frame to dither
    * @return the palette index of every pixel, laid out row by row
+   * @throws NullPointerException  if {@code image} is null
+   * @throws IllegalStateException if the image has been released
    * @since 1.0.0
    */
   @Override
@@ -200,7 +204,9 @@ public abstract class TemporalDitherAlgorithm extends ErrorDiffusionDither imple
    * @param image the frame to dither, which must not be modified while the method runs
    * @param pool  the pool that runs the work
    * @return the palette index of every pixel, laid out row by row
-   * @throws NullPointerException if {@code pool} is null
+   * @throws NullPointerException                            if the image or pool is null
+   * @throws java.util.concurrent.RejectedExecutionException if the pool rejects submitted work
+   * @throws IllegalStateException                           if the image has been released
    * @since 1.0.0
    */
   @Override
