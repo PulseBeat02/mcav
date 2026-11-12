@@ -85,8 +85,8 @@ public final class VideoEntityCommand extends AbstractVideoCommand {
    * @param audioType       where the sound is played, see {@link AudioArgument}
    * @param videoResolution the size as {@code <width>x<height>}, in characters per line and lines, such as
    *                        {@code 64x36}
-   * @param character       the character every pixel is drawn with, in quotes; a full block {@code █} gives the
-   *                        most solid picture
+   * @param character       the character every pixel is drawn with, typed in double quotes; a full block
+   *                        {@code "█"} gives the most solid picture
    * @param location        where the entity is spawned, such as {@code ~ ~2 ~}
    * @param ytdlpOptions    extra options, in quotes; {@code ""} for none, or yt-dlp options such as
    *                        {@code "--yt-dlp{format=best,no-playlist}"}
