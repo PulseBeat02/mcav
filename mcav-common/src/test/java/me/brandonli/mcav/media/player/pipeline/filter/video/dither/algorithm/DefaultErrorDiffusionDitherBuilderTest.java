@@ -17,6 +17,7 @@
  */
 package me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm;
 
+import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -25,6 +26,8 @@ import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.err
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.error.ErrorDiffusionDither;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.palette.DitherPalette;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 
 final class DefaultErrorDiffusionDitherBuilderTest {
 
@@ -42,5 +45,15 @@ final class DefaultErrorDiffusionDitherBuilderTest {
   void shouldRejectAnErrorStrengthThatIsNotANumber() {
     final ErrorDiffusionDitherBuilder builder = DitherAlgorithm.errorDiffusion();
     assertThrows(IllegalArgumentException.class, () -> builder.errorStrength(Float.NaN));
+  }
+
+  @ParameterizedTest
+  @EnumSource(ErrorDiffusionDitherBuilder.Algorithm.class)
+  void shouldCreateANewAlgorithmOnEveryBuild(final ErrorDiffusionDitherBuilder.Algorithm algorithm) {
+    final ErrorDiffusionDitherBuilder builder = DitherAlgorithm.errorDiffusion();
+    final ErrorDiffusionDitherBuilder selected = builder.algorithm(algorithm);
+    final ErrorDiffusionDither first = selected.build();
+    final ErrorDiffusionDither second = selected.build();
+    assertNotSame(first, second, "a temporal algorithm holds the state of one video, so no build hands out an earlier one");
   }
 }
