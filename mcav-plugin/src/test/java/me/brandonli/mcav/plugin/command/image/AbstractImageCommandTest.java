@@ -99,6 +99,7 @@ final class AbstractImageCommandTest {
 
   private static final char QUOTE = '"';
   private static final String EMPTY_QUOTED_SOURCE = "\"\"";
+  private static final String BLANK_QUOTED_SOURCE = "\"   \"";
 
   private static final String CONFIGURATION = "configuration";
 
@@ -406,7 +407,7 @@ final class AbstractImageCommandTest {
   }
 
   @ParameterizedTest
-  @ValueSource(strings = { "", EMPTY_QUOTED_SOURCE })
+  @ValueSource(strings = { "", EMPTY_QUOTED_SOURCE, BLANK_QUOTED_SOURCE })
   void shouldRejectEmptySources(final String mrl) {
     this.command.displayImage(_ -> CONFIGURATION, this.sender, LARGE_SCREEN_SIZE, mrl, null);
     this.assertNothingShown();
