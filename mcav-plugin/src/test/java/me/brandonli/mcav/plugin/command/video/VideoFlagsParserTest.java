@@ -48,7 +48,7 @@ final class VideoFlagsParserTest {
 
   @ParameterizedTest
   @NullSource
-  @ValueSource(strings = { "", "   ", "--loop", "--yt-dlp", "--yt-dlp{format=best", "--yt-dlp{format=best\\}", "yt-dlp{format=best}" })
+  @ValueSource(strings = { "", "   ", "--loop", "--yt-dlp", "yt-dlp{format=best}" })
   void shouldReturnNoArgumentsWithoutYtdlpOptions(final String flags) {
     final String[] arguments = this.parser.parseYtdlpFlags(flags);
     assertArrayEquals(new String[0], arguments);
@@ -62,9 +62,10 @@ final class VideoFlagsParserTest {
     assertArrayEquals(new String[0], arguments);
   }
 
-  @Test
-  void shouldNeverEndOptionsThatEndInABackslash() {
-    final String[] arguments = this.parser.parseYtdlpFlags(ESCAPING_FORMAT_FLAG);
+  @ParameterizedTest
+  @ValueSource(strings = { "--yt-dlp{format=best", "--yt-dlp{format=best\\}", ESCAPING_FORMAT_FLAG })
+  void shouldReturnNoArgumentsForOptionsThatNeverEnd(final String flags) {
+    final String[] arguments = this.parser.parseYtdlpFlags(flags);
     assertArrayEquals(new String[0], arguments);
   }
 
