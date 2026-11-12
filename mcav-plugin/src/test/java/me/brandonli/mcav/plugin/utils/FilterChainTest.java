@@ -61,6 +61,7 @@ import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.MockedConstruction;
 import org.mockito.Mockito;
@@ -269,6 +270,33 @@ final class FilterChainTest {
 
     final boolean matches = !Objects.requireNonNull(refused.getMessage()).isBlank();
     assertTrue(matches, text);
+  }
+
+  @ParameterizedTest
+  @CsvSource(
+    delimiter = '|',
+    quoteCharacter = '"',
+    value = {
+      "sharpen | Filter sharpen does not exist, use one of grayscale, invert, blur, bilateral, threshold, luminance, colormap, tint, flip, rotate, crop, rectangle, dilate, erode, text, overlay, fps instead!",
+      "grayscale=1 | Filter grayscale takes 0 arguments!",
+      "blur=16 | Filter blur takes a whole number from 1 to 15, and 16 is not one!",
+      "crop=50:0:51:10 | Filter crop takes a whole number from 1 to 50, and 51 is not one!",
+      "luminance=3.1:0 | Filter luminance takes a number from 0 to 3.0, and 3.1 is not one!",
+      "colormap=plaid | Color map plaid does not exist, use one of autumn, bone, cividis, cool, hot, hsv, inferno, jet, magma, ocean, parula, pink, plasma, rainbow, spring, summer, turbo, twilight, viridis, winter instead!",
+      "tint | Filter tint takes a color such as ff8000, and a strength from 0 to 100!",
+      "tint=gg8000 | Filter tint takes a color such as ff8000, and gg8000 is not one!",
+      "flip=x | Flip direction x must be h, v or hv!",
+      "rotate=45 | Rotation 45 must be 90, 180 or 270!",
+      "text=é | Filter text takes up to 32 letters, digits, spaces and .!?'()+- characters!",
+      "overlay=../x | Filter overlay takes the name of a PNG file of the overlays folder, without .png!",
+      "overlay=missing | Overlay missing does not exist in the overlays folder!",
+    }
+  )
+  void shouldGiveTheReasonOfEachRefusal(final String text, final String reason) {
+    final IllegalArgumentException refused = assertThrows(IllegalArgumentException.class, () -> this.parse(text));
+
+    final String message = refused.getMessage();
+    assertEquals(reason, message);
   }
 
   @Test
