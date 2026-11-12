@@ -178,6 +178,33 @@ final class BackgroundInstallationTest {
   }
 
   @Test
+  void shouldKeepPreparingWhenACallerCompletesOrCancelsItsFuture() throws Exception {
+    final CountDownLatch vlcStarted = new CountDownLatch(1);
+    final CountDownLatch finishVlc = new CountDownLatch(1);
+    this.blockVlc(vlcStarted, finishVlc);
+    this.stubCapability(Capability.VLC, Availability.AVAILABLE);
+    final BackgroundInstallation installation = this.createInstallation();
+    installation.start();
+    final boolean started = vlcStarted.await(WAIT_SECONDS, TimeUnit.SECONDS);
+    assertTrue(started);
+
+    final CompletableFuture<Boolean> cancelled = installation.whenReady(Capability.VLC);
+    final CompletableFuture<Boolean> completed = installation.whenReady(Capability.VLC);
+    final boolean cancelledByCaller = cancelled.cancel(true);
+    final boolean completedByCaller = completed.complete(false);
+    final boolean preparing = this.guard.isPreparing(Capability.VLC);
+    assertTrue(cancelledByCaller);
+    assertTrue(completedByCaller);
+    assertTrue(preparing);
+
+    finishVlc.countDown();
+    final Boolean hasVlc = await(installation, Capability.VLC);
+    final boolean vlcAvailable = installation.isAvailable(Capability.VLC);
+    assertTrue(hasVlc);
+    assertTrue(vlcAvailable);
+  }
+
+  @Test
   void shouldWaitForCooperativeCleanupWithinItsBudgetOnCancellation() throws Exception {
     final CountDownLatch started = new CountDownLatch(1);
     final CountDownLatch interrupted = new CountDownLatch(1);
