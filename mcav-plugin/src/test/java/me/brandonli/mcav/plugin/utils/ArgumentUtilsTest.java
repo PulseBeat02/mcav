@@ -104,10 +104,8 @@ final class ArgumentUtilsTest {
     final Pair<Integer, Integer> dimensions = ArgumentUtils.parseScreenDimensions("64x64");
     final int width = dimensions.getFirst();
     final int height = dimensions.getSecond();
-    final int maps = width * height;
     assertEquals(64, width);
     assertEquals(64, height);
-    assertEquals(4096, maps, "the largest wall fits into one bundle of map packets");
   }
 
   @ParameterizedTest
