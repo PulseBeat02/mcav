@@ -157,4 +157,11 @@ final class ImageEntityCommandTest {
 
     verify(this.command).displayImage(any(), eq(this.sender), eq(RESOLUTION), eq(MRL), eq(filters));
   }
+
+  @Test
+  void shouldRefuseAProviderThatBuildsAnotherConfiguration() {
+    final Pair<Integer, Integer> resolution = Pair.pair(RESOLUTION_WIDTH, RESOLUTION_HEIGHT);
+    final AbstractImageCommand.ImageConfigurationProvider provider = _ -> new Object();
+    assertThrows(ClassCastException.class, () -> this.command.createImage(resolution, provider));
+  }
 }
