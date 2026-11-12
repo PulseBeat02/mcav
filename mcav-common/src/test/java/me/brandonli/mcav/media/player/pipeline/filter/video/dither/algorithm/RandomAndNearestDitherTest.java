@@ -378,6 +378,28 @@ final class RandomAndNearestDitherTest {
   }
 
   @Test
+  void shouldLeaveTheImageAndThePoolOfTheCallerAloneWhenDitheringIntoBytes() {
+    final int[] pixels = DitherTestImages.gradient(SMALL_IMAGE_SIDE, SMALL_IMAGE_SIDE);
+    final ColorMapNearestDither nearest = new ColorMapNearestDither(DitherTestImages.BLACK_WHITE);
+    final UniformNoiseDither random = new UniformNoiseDither(DitherTestImages.BLACK_WHITE, RandomDither.HEAVY_WEIGHT);
+    try (
+      final ForkJoinPool pool = new ForkJoinPool(1);
+      final ImageBuffer image = ImageBuffer.buffer(pixels, SMALL_IMAGE_SIDE, SMALL_IMAGE_SIDE)
+    ) {
+      final int[] shared = image.getPixels();
+      final int[] before = shared.clone();
+      final byte[] _ = nearest.ditherIntoBytes(image);
+      final byte[] _ = nearest.ditherIntoBytes(image, pool);
+      final byte[] _ = random.ditherIntoBytes(image);
+      final int[] after = image.getPixels();
+      assertArrayEquals(before, after, "dithering into bytes never writes to the pixels of the image");
+
+      final boolean shutDown = pool.isShutdown();
+      assertFalse(shutDown, "the pool belongs to the caller and stays open");
+    }
+  }
+
+  @Test
   void shouldNearestDitherInPlaceAndThroughBuilders() {
     final int[] pixels = { 0xFF101010, 0xFFF0F0F0 };
     final NearestDitherBuilder builder = DitherAlgorithm.nearest();
