@@ -79,6 +79,7 @@ import org.incendo.cloud.parser.flag.CommandFlagParser;
 import org.incendo.cloud.parser.standard.EnumParser;
 import org.incendo.cloud.parser.standard.IntegerParser;
 import org.incendo.cloud.parser.standard.StringParser;
+import org.incendo.cloud.permission.Permission;
 import org.incendo.cloud.suggestion.Suggestion;
 import org.incendo.cloud.type.range.IntRange;
 import org.junit.jupiter.api.AfterEach;
@@ -210,6 +211,21 @@ final class AnnotationParserHandlerTest {
     verify(pluginManager).registerEvents(any(BrowserCommand.class), eq(this.plugin));
     verify(pluginManager).registerEvents(any(VirtualizeCommand.class), eq(this.plugin));
     verify(pluginManager).registerEvents(any(VncCommand.class), eq(this.plugin));
+  }
+
+  @Test
+  void shouldCheckAPermissionOfThePluginForEveryCommand() {
+    final AnnotationParserHandler handler = new AnnotationParserHandler(this.plugin);
+    handler.registerCommands();
+    final Set<String> syntaxes = this.commands.getSyntaxes();
+
+    for (final String syntax : syntaxes) {
+      final Command<CommandSender> command = this.commands.getCommand(syntax);
+      final Permission permission = command.commandPermission();
+      final String name = permission.permissionString();
+      final boolean pluginPermission = name.startsWith("mcav.command.");
+      assertTrue(pluginPermission, syntax);
+    }
   }
 
   @Test
