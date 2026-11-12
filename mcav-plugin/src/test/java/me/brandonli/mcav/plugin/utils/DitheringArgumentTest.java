@@ -23,11 +23,19 @@ import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.DitherAlgorithm;
+import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.error.AtkinsonDither;
+import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.error.BurkesDither;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.error.ErrorDiffusionDither;
+import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.error.FilterLiteDither;
+import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.error.FloydDither;
+import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.error.JarvisJudiceNinkeDither;
+import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.error.StevensonArceDither;
+import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.error.StuckiDither;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.error.TemporalDitherAlgorithm;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.nearest.NearestDither;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.ordered.BayerDither;
@@ -45,6 +53,16 @@ final class DitheringArgumentTest {
 
   private static final long TIMEOUT_NANOSECONDS = TimeUnit.SECONDS.toNanos(10);
   private static final long TIMEOUT_MILLISECONDS = TimeUnit.SECONDS.toMillis(10);
+
+  private static final Map<DitheringArgument, Class<? extends DitherAlgorithm>> ERROR_DIFFUSION_ALGORITHMS = Map.of(
+    DitheringArgument.FILTER_LITE, FilterLiteDither.class,
+    DitheringArgument.FLOYD_STEINBERG, FloydDither.class,
+    DitheringArgument.JARVIS_JUDICE_NINKE, JarvisJudiceNinkeDither.class,
+    DitheringArgument.STUCKI, StuckiDither.class,
+    DitheringArgument.ATKINSON, AtkinsonDither.class,
+    DitheringArgument.STEVENSON_ARCE, StevensonArceDither.class,
+    DitheringArgument.BURKES, BurkesDither.class
+  );
 
   @Test
   @Order(1)
@@ -153,5 +171,16 @@ final class DitheringArgumentTest {
     assertInstanceOf(TemporalDitherAlgorithm.class, first);
     assertInstanceOf(TemporalDitherAlgorithm.class, second);
     assertNotSame(first, second);
+  }
+
+  @Test
+  void shouldCreateTheErrorDiffusionAlgorithmThatEachArgumentNames() {
+    for (final Map.Entry<DitheringArgument, Class<? extends DitherAlgorithm>> entry : ERROR_DIFFUSION_ALGORITHMS.entrySet()) {
+      final DitheringArgument argument = entry.getKey();
+      final Class<? extends DitherAlgorithm> expected = entry.getValue();
+      final DitherAlgorithm algorithm = argument.createAlgorithm();
+      final String name = argument.name();
+      assertInstanceOf(expected, algorithm, name);
+    }
   }
 }
