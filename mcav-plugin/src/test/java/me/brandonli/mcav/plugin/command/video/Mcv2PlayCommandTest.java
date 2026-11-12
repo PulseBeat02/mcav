@@ -44,6 +44,7 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.FileChannel;
 import java.nio.file.Files;
+import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
@@ -181,6 +182,8 @@ final class Mcv2PlayCommandTest {
   private static final String ABSOLUTE_STREAM_PATH = "/etc/passwd";
   private static final String PARENT_PLAY_PATH = "../stream.mcs";
   private static final String ESCAPING_ENCODE_PATH = "../../escape.mcs";
+  private static final String NUL_VIDEO_FILE_NAME = "clip\u0000.mp4";
+  private static final String NUL_STREAM_FILE_NAME = "clip\u0000.mcs";
 
   private static final String PROGRESS_PATTERN = "MCV2 encode: (\\d+) frames, (\\d+) ms per frame";
   private static final String DURATION_PATTERN = " in (\\d+) s, ";
@@ -1246,6 +1249,34 @@ final class Mcv2PlayCommandTest {
 
     final boolean filesExists = Files.exists(this.folder.getParent().resolve(ESCAPE_STREAM_FILE_NAME));
     assertFalse(filesExists);
+  }
+
+  @Test
+  void shouldTellTheSenderWhenTheVideoFileNameIsNoPath() throws InterruptedException {
+    this.command.encode(this.sender, NUL_VIDEO_FILE_NAME, STREAM_FILE_NAME, ENCODE_DIMENSIONS, Mcv2Profile.DEFAULT);
+
+    this.assertRefusedAsNoPath(NUL_VIDEO_FILE_NAME);
+  }
+
+  @Test
+  void shouldTellTheSenderWhenTheStreamFileNameIsNoPath() throws InterruptedException {
+    this.command.encode(this.sender, VIDEO_FILE_NAME, NUL_STREAM_FILE_NAME, ENCODE_DIMENSIONS, Mcv2Profile.DEFAULT);
+
+    this.assertRefusedAsNoPath(NUL_STREAM_FILE_NAME);
+  }
+
+  private void assertRefusedAsNoPath(final String name) throws InterruptedException {
+    final Thread encoding = this.command.getEncodingThread();
+    assertNull(encoding);
+
+    final String reason = assertThrows(InvalidPathException.class, () -> Path.of(name)).getMessage();
+    final String refusal = this.text(Message.MCV2_ENCODE_ERROR.build(reason));
+    final List<String> told = this.finish();
+    final List<String> expected = List.of(refusal);
+    assertEquals(expected, told);
+
+    final boolean streamFolderCreated = Files.exists(this.streams);
+    assertFalse(streamFolderCreated);
   }
 
   @Test
