@@ -134,6 +134,27 @@ final class DrawingFiltersTest {
   }
 
   @Test
+  void shouldTurnTheEllipseAndDrawOnlyItsArc() {
+    try (
+      final ImageBuffer turned = Images.solid(SHAPE_IMAGE_SIZE, SHAPE_IMAGE_SIZE, BLACK_ARGB);
+      final ImageBuffer arc = Images.solid(SHAPE_IMAGE_SIZE, SHAPE_IMAGE_SIZE, BLACK_ARGB)
+    ) {
+      final EllipseFilter quarterTurn = new EllipseFilter(5, 5, 4, 2, 90, 0, 360, WHITE);
+      final EllipseFilter lowerHalf = new EllipseFilter(5, 5, 4, 2, 0, 0, 180, WHITE);
+      quarterTurn.applyFilter(turned);
+      lowerHalf.applyFilter(arc);
+      final int turnedTop = pixelAt(turned, 5, 1);
+      final int turnedRight = pixelAt(turned, 9, 5);
+      final int arcBottom = pixelAt(arc, 5, 7);
+      final int arcTop = pixelAt(arc, 5, 3);
+      assertEquals(WHITE_ARGB, turnedTop, "a quarter turn makes the half axis of 4 vertical");
+      assertEquals(BLACK_ARGB, turnedRight);
+      assertEquals(WHITE_ARGB, arcBottom, "the arc from 0 to 180 degrees runs clockwise through the bottom");
+      assertEquals(BLACK_ARGB, arcTop, "and leaves the top of the ellipse out");
+    }
+  }
+
+  @Test
   void shouldDrawLines() {
     try (final ImageBuffer image = Images.solid(5, 3, BLACK_ARGB)) {
       final LineFilter filter = new LineFilter(0, 1, 4, 1, WHITE);
