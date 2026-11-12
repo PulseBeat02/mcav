@@ -265,7 +265,7 @@ and the command tells you that the console has the details.
 | &nbsp;&nbsp;&nbsp;&nbsp;`playerSelector`  | A selector for the players that can see the video                                                        |
 | &nbsp;&nbsp;&nbsp;&nbsp;`playerType`      | The type of video player to use                                                                          |
 | &nbsp;&nbsp;&nbsp;&nbsp;`audioType`       | The type of audio output to use                                                                          |
-| &nbsp;&nbsp;&nbsp;&nbsp;`videoResolution` | A resolution in width×height format (example, 640x360)                                                   |
+| &nbsp;&nbsp;&nbsp;&nbsp;`videoResolution` | The size in characters per line and lines, in width×height format (example, 40x20)                       |
 | &nbsp;&nbsp;&nbsp;&nbsp;`character`       | The character to use for rendering the video in chat; type it in double quotes, such as `"█"`            |
 | &nbsp;&nbsp;&nbsp;&nbsp;`ytdlpOptions`           | Additional options if yt-dlp parses the media, in the format `--yt-dlp{name=value,switch}`; see [which options are accepted](#yt-dlp-options)            |
 | &nbsp;&nbsp;&nbsp;&nbsp;`mrl`             | The Media Resource Locator pointing to the video                                                         |
@@ -637,7 +637,7 @@ device and an FFmpeg input get `Invalid MRL!`.
 | Description                               | Displays an image in chat.                                              |
 | Arguments                                 |                                                                         |
 | &nbsp;&nbsp;&nbsp;&nbsp;`playerSelector`  | A selector for the players that can see the image                       |
-| &nbsp;&nbsp;&nbsp;&nbsp;`imageResolution` | A resolution in width×height format (example, 640x640)                  |
+| &nbsp;&nbsp;&nbsp;&nbsp;`imageResolution` | The size in characters per line and lines, in width×height format (example, 40x20) |
 | &nbsp;&nbsp;&nbsp;&nbsp;`character`       | The character to use for rendering the image in chat; type it in double quotes, such as `"█"` |
 | &nbsp;&nbsp;&nbsp;&nbsp;`mrl`             | The Media Resource Locator pointing to the image                        |
 | &nbsp;&nbsp;&nbsp;&nbsp;`--filters`       | Optional: filters applied to the image in order, in quotes, such as `"grayscale,blur=3"`; see [filters](#filters) |

@@ -34,6 +34,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.MissingResourceException;
@@ -63,6 +64,8 @@ import org.incendo.cloud.Command;
 import org.incendo.cloud.CommandManager;
 import org.incendo.cloud.bukkit.CloudBukkitCapabilities;
 import org.incendo.cloud.component.CommandComponent;
+import org.incendo.cloud.context.CommandContext;
+import org.incendo.cloud.context.CommandInput;
 import org.incendo.cloud.description.CommandDescription;
 import org.incendo.cloud.description.Description;
 import org.incendo.cloud.execution.CommandExecutor;
@@ -75,6 +78,7 @@ import org.incendo.cloud.parser.flag.CommandFlagParser;
 import org.incendo.cloud.parser.standard.EnumParser;
 import org.incendo.cloud.parser.standard.IntegerParser;
 import org.incendo.cloud.parser.standard.StringParser;
+import org.incendo.cloud.suggestion.Suggestion;
 import org.incendo.cloud.type.range.IntRange;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -220,16 +224,55 @@ final class AnnotationParserHandlerTest {
   }
 
   private ArgumentParser<CommandSender, ?> parserOf(final String syntax, final String argument) {
+    final CommandComponent<CommandSender> component = this.componentOf(syntax, argument);
+    return component.parser();
+  }
+
+  private CommandComponent<CommandSender> componentOf(final String syntax, final String argument) {
     final Command<CommandSender> command = this.commands.getCommand(syntax);
     final List<CommandComponent<CommandSender>> components = command.components();
     for (final CommandComponent<CommandSender> component : components) {
       final String name = component.name();
       if (name.equals(argument)) {
-        return component.parser();
+        return component;
       }
     }
     final String message = "Argument %s is missing in syntax %s of the command!".formatted(argument, syntax);
     throw new AssertionError(message);
+  }
+
+  @Test
+  void shouldOfferTheChatCommandsTheSizesOfTheChatWindow() {
+    final AnnotationParserHandler handler = new AnnotationParserHandler(this.plugin);
+    handler.registerCommands();
+    final SuggestionProvider provider = new SuggestionProvider();
+    final List<String> expected = provider.suggestChatResolutions().toList();
+
+    final List<String> image = this.suggestionsOf("mcav image chat playerSelector imageResolution character mrl flags", "imageResolution");
+    assertEquals(expected, image);
+
+    final List<String> video = this.suggestionsOf(
+      "mcav video chat playerSelector playerType audioType videoResolution character ytdlpOptions mrl flags",
+      "videoResolution"
+    );
+    assertEquals(expected, video);
+  }
+
+  private List<String> suggestionsOf(final String syntax, final String argument) {
+    final CommandComponent<CommandSender> component = this.componentOf(syntax, argument);
+    final org.incendo.cloud.suggestion.SuggestionProvider<CommandSender> provider = component.suggestionProvider(); // fqn: clashes with the SuggestionProvider of this package
+    final CommandSender sender = mock(CommandSender.class);
+    final CommandContext<CommandSender> context = new CommandContext<>(sender, this.commands);
+    final CommandInput input = CommandInput.empty();
+    final CompletableFuture<? extends Iterable<? extends Suggestion>> future = provider.suggestionsFuture(context, input);
+    final Iterable<? extends Suggestion> suggestions = future.join();
+    final List<String> values = new ArrayList<>();
+    for (final Suggestion suggestion : suggestions) {
+      final String value = suggestion.suggestion();
+      values.add(value);
+    }
+
+    return values;
   }
 
   @Test

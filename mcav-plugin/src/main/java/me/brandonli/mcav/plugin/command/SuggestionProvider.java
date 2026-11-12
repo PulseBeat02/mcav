@@ -53,6 +53,13 @@ public final class SuggestionProvider implements AnnotationCommandFeature {
   public static final String RESOLUTIONS = "resolutions";
 
   /**
+   * The name of the chat window size suggestions.
+   *
+   * @since 1.0.0
+   */
+  public static final String CHAT_RESOLUTIONS = "chat-resolutions";
+
+  /**
    * The name of the chat character suggestions.
    *
    * @since 1.0.0
@@ -133,7 +140,7 @@ public final class SuggestionProvider implements AnnotationCommandFeature {
 
   /**
    * Suggests sizes for arguments counted in blocks, maps, or characters, such as {@code <blockDimensions>} of the
-   * map commands or {@code <imageResolution>} of the block, chat, entity, and scoreboard commands.
+   * map commands or {@code <imageResolution>} of the block, entity, and scoreboard commands.
    *
    * @return the suggested sizes, written as {@code <width>x<height>}
    * @since 1.0.0
@@ -156,12 +163,13 @@ public final class SuggestionProvider implements AnnotationCommandFeature {
   }
 
   /**
-   * Suggests small sizes that fit into the chat window, in characters per line and lines.
+   * Suggests small sizes that fit into the chat window, in characters per line and lines, for the
+   * {@code <imageResolution>} and {@code <videoResolution>} arguments of the chat commands.
    *
    * @return the suggested sizes, written as {@code <width>x<height>}
    * @since 1.0.0
    */
-  @Suggestions("chat-resolutions")
+  @Suggestions(CHAT_RESOLUTIONS)
   public Stream<String> suggestChatResolutions() {
     return CHAT_RESOLUTION_SUGGESTIONS.stream();
   }
