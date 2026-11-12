@@ -148,6 +148,14 @@ final class DitherUtilsTest {
   }
 
   @Test
+  void shouldIgnoreEvenAnAlphaOfZeroWhenSimplifying() {
+    final int[] pixels = { TRANSPARENT_WHITE };
+    final byte[] indices = DitherUtils.simplify(BLACK_WHITE, pixels);
+    final byte[] expected = new byte[] { 1 };
+    assertArrayEquals(expected, indices, "unlike getBestColorIncludingTransparent, simplify maps transparent white to white");
+  }
+
+  @Test
   void shouldClampToTheChannelRange() {
     final int below = DitherUtils.clamp(-5);
     final int inside = DitherUtils.clamp(128);
