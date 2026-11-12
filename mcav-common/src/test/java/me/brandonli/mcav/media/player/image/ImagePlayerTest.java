@@ -611,4 +611,42 @@ final class ImagePlayerTest {
 
     return new int[1];
   }
+
+  @Test
+  void shouldReturnFromStartBeforeTheFirstFrameIsSupplied() throws InterruptedException {
+    final CountDownLatch requested = new CountDownLatch(1);
+    final CountDownLatch permitted = new CountDownLatch(1);
+    final FrameSource source = FrameSource.supplier(
+      () -> this.recordTheRequestAndAwaitPermission(requested, permitted),
+      SMALL_FRAME_SIZE,
+      SMALL_FRAME_SIZE,
+      FRAME_RATE
+    );
+    final ImagePlayer player = ImagePlayer.player();
+    try {
+      final boolean started = assertTimeoutPreemptively(
+        LOCK_TIMEOUT,
+        () -> player.start(source),
+        "start does not wait for the first frame"
+      );
+      final boolean asked = requested.await(TIMEOUT_SECONDS, TimeUnit.SECONDS);
+      assertTrue(started);
+      assertTrue(asked, "the worker asks the source for the first frame on its own");
+    } finally {
+      permitted.countDown();
+      player.release();
+    }
+  }
+
+  private int[] recordTheRequestAndAwaitPermission(final CountDownLatch requested, final CountDownLatch permitted) {
+    requested.countDown();
+    try {
+      permitted.await();
+    } catch (final InterruptedException exception) {
+      final Thread current = Thread.currentThread();
+      current.interrupt();
+    }
+
+    return solidPixels(SMALL_FRAME_SIZE, SMALL_FRAME_SIZE);
+  }
 }
