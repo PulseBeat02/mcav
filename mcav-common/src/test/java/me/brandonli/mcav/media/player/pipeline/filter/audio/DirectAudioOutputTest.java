@@ -124,6 +124,26 @@ final class DirectAudioOutputTest {
   }
 
   @Test
+  void shouldOpenANewLineWhenStartedAgainAfterRelease() {
+    final SourceDataLine released = mock(SourceDataLine.class);
+    final SourceDataLine reopened = mock(SourceDataLine.class);
+    final List<SourceDataLine> lines = List.of(released, reopened);
+    final AtomicInteger opened = new AtomicInteger();
+    final DirectAudioOutput output = new DirectAudioOutput((_, _) -> lines.get(opened.getAndIncrement()));
+    output.start();
+    output.release();
+    output.start();
+    final ByteBuffer samples = ByteBuffer.wrap(new byte[] { 1, 2, 3, 4 });
+    output.applyFilter(samples, METADATA);
+    verify(reopened).start();
+    verify(reopened).write(new byte[] { 1, 2, 3, 4 }, 0, 4);
+
+    output.release();
+    verify(reopened).close();
+    verify(released).close();
+  }
+
+  @Test
   void shouldCloseAnAcquiredLineWhenStartingItFails() {
     final SourceDataLine line = mock(SourceDataLine.class);
     final IllegalStateException failure = new IllegalStateException(START_FAILURE_MESSAGE);
