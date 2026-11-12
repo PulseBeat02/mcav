@@ -1260,6 +1260,13 @@ final class AbstractVideoCommandTest {
   }
 
   @Test
+  void shouldRefuseANullPlugin() {
+    final NullPointerException exception = assertThrows(NullPointerException.class, () -> new RecordingCommand(null));
+    final String message = exception.getMessage();
+    assertEquals("Plugin must not be null!", message);
+  }
+
+  @Test
   void shouldReleaseTheStartupClaimWhenViewerSelectionFails() {
     final IllegalStateException failure = new IllegalStateException("selector failed!");
     when(this.selector.values()).thenThrow(failure);
