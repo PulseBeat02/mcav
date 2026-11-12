@@ -128,6 +128,7 @@ public final class VideoBlockCommand extends AbstractVideoCommand {
    *                              which returns a {@link BlockConfiguration}
    * @return the pipeline that shows the frames on the wall
    * @throws NullPointerException                       if an argument is null
+   * @throws ClassCastException                         if the provider builds no {@link BlockConfiguration}
    * @throws java.util.concurrent.CancellationException if the video startup was cancelled or the manager is shut down
    * @since 1.0.0
    */

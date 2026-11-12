@@ -133,6 +133,7 @@ public final class VideoEntityCommand extends AbstractVideoCommand {
    *                              which returns an {@link EntityConfiguration}
    * @return the pipeline that shows the frames in the entity
    * @throws NullPointerException                       if an argument is null
+   * @throws ClassCastException                         if the provider builds no {@link EntityConfiguration}
    * @throws java.util.concurrent.CancellationException if the video startup was cancelled or the manager is shut down
    * @since 1.0.0
    */

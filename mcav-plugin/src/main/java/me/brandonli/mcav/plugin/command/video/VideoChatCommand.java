@@ -127,6 +127,7 @@ public final class VideoChatCommand extends AbstractVideoCommand {
    *                              which returns a {@link ChatConfiguration}
    * @return the pipeline that shows the frames in the chat
    * @throws NullPointerException                       if an argument is null
+   * @throws ClassCastException                         if the provider builds no {@link ChatConfiguration}
    * @throws java.util.concurrent.CancellationException if the video startup was cancelled or the manager is shut down
    * @since 1.0.0
    */

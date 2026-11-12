@@ -140,6 +140,7 @@ public final class VideoScoreboardCommand extends AbstractVideoCommand {
    *                              which returns a {@link ScoreboardConfiguration}
    * @return the pipeline that shows the frames on the sidebar
    * @throws NullPointerException                       if an argument is null
+   * @throws ClassCastException                         if the provider builds no {@link ScoreboardConfiguration}
    * @throws java.util.concurrent.CancellationException if the video startup was cancelled or the manager is shut down
    * @since 1.0.0
    */
