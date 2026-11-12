@@ -528,4 +528,17 @@ final class OrderedDitherTest {
       BayerDither.CLUSTERED_DOT_DIAGONAL_16X16_MAXIMUM
     );
   }
+
+  @Test
+  void shouldLeaveTheImageUnchangedWhenDitheringIntoBytes() {
+    final int[] pixels = DitherTestImages.gradient(GRADIENT_WIDTH, TALL_GRADIENT_HEIGHT);
+    final int[] original = pixels.clone();
+    final OrderedDither dither = blackWhite4x4();
+    try (final ImageBuffer image = ImageBuffer.buffer(pixels, GRADIENT_WIDTH, TALL_GRADIENT_HEIGHT)) {
+      final byte[] _ = dither.ditherIntoBytes(image);
+
+      final int[] after = image.getPixels();
+      assertArrayEquals(original, after, "dithering into bytes leaves the image as it was");
+    }
+  }
 }

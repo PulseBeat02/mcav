@@ -490,4 +490,17 @@ final class TemporalDitherTest {
       assertEquals(TemporalDitherAlgorithm.DEFAULT_ERROR_STRENGTH, errorStrength);
     }
   }
+
+  @Test
+  void shouldLeaveTheFrameUnchangedWhenDitheringIntoBytes() {
+    final int[] pixels = DitherTestImages.gradient(GRADIENT_WIDTH, GRADIENT_HEIGHT);
+    final int[] original = pixels.clone();
+    final TemporalDitherAlgorithm dither = new TemporalFloydSteinbergDither(DitherTestImages.BLACK_WHITE);
+    try (final ImageBuffer image = ImageBuffer.buffer(pixels, GRADIENT_WIDTH, GRADIENT_HEIGHT)) {
+      final byte[] _ = dither.ditherIntoBytes(image);
+
+      final int[] after = image.getPixels();
+      assertArrayEquals(original, after, "dithering into bytes leaves the frame as it was");
+    }
+  }
 }
