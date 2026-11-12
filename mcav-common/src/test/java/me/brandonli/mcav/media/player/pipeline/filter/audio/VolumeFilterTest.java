@@ -25,6 +25,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.nio.ReadOnlyBufferException;
 import me.brandonli.mcav.media.player.metadata.OriginalAudioMetadata;
 import org.junit.jupiter.api.Test;
 
@@ -99,6 +100,18 @@ final class VolumeFilterTest {
     final short[] values = read(buffer);
     final short[] expected = new short[] { Short.MAX_VALUE, Short.MIN_VALUE, Short.MAX_VALUE, Short.MIN_VALUE };
     assertArrayEquals(expected, values);
+  }
+
+  @Test
+  void shouldThrowOnlyWhenScalingWritesToAReadOnlyBuffer() {
+    final VolumeFilter filter = new VolumeFilter();
+    final ByteBuffer writable = samples((short) 100);
+    final ByteBuffer buffer = writable.asReadOnlyBuffer();
+    final boolean changed = filter.applyFilter(buffer, METADATA);
+    assertFalse(changed);
+
+    filter.setVolume(0.5);
+    assertThrows(ReadOnlyBufferException.class, () -> filter.applyFilter(buffer, METADATA));
   }
 
   @Test
