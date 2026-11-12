@@ -27,6 +27,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.RejectedExecutionException;
 import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.builder.OrderedDitherBuilder;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.ordered.BayerDither;
@@ -551,6 +552,16 @@ final class OrderedDitherTest {
     try (final ForkJoinPool pool = new ForkJoinPool(1)) {
       assertThrows(IllegalStateException.class, () -> dither.ditherIntoBytes(image));
       assertThrows(IllegalStateException.class, () -> dither.ditherIntoBytes(image, pool));
+    }
+  }
+
+  @Test
+  void shouldPassOnTheRejectionOfAShutDownPool() {
+    final OrderedDither dither = blackWhite4x4();
+    try (final ForkJoinPool pool = new ForkJoinPool(1); final ImageBuffer image = ImageBuffer.buffer(new int[1], 1, 1)) {
+      pool.shutdown();
+
+      assertThrows(RejectedExecutionException.class, () -> dither.ditherIntoBytes(image, pool));
     }
   }
 }

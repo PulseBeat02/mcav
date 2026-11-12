@@ -25,6 +25,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Arrays;
 import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.zip.CRC32;
 import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.error.DiffusionKernel;
@@ -513,6 +514,16 @@ final class TemporalDitherTest {
     try (final ForkJoinPool pool = new ForkJoinPool(1)) {
       assertThrows(IllegalStateException.class, () -> dither.ditherIntoBytes(image));
       assertThrows(IllegalStateException.class, () -> dither.ditherIntoBytes(image, pool));
+    }
+  }
+
+  @Test
+  void shouldPassOnTheRejectionOfAShutDownPool() {
+    final TemporalDitherAlgorithm dither = new TemporalFloydSteinbergDither(PRIMARIES);
+    try (final ForkJoinPool pool = new ForkJoinPool(1); final ImageBuffer image = ImageBuffer.buffer(new int[1], 1, 1)) {
+      pool.shutdown();
+
+      assertThrows(RejectedExecutionException.class, () -> dither.ditherIntoBytes(image, pool));
     }
   }
 }
