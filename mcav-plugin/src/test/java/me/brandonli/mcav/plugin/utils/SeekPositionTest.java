@@ -131,6 +131,11 @@ final class SeekPositionTest {
   }
 
   @Test
+  void shouldRefuseANullText() {
+    assertThrows(NullPointerException.class, () -> SeekPosition.parse(null));
+  }
+
+  @Test
   void shouldResolveAgainstTheCurrentPositionAndNeverBeforeTheStart() {
     final long resolved = SeekPosition.of(ABSOLUTE, MINUTES_POSITION_MILLISECONDS).resolve(5_000L);
     assertEquals(MINUTES_POSITION_MILLISECONDS, resolved);
@@ -140,7 +145,6 @@ final class SeekPositionTest {
 
     final long thirdResolved = SeekPosition.of(RELATIVE, -10_000L).resolve(5_000L);
     assertEquals(0L, thirdResolved);
-    assertThrows(NullPointerException.class, () -> SeekPosition.parse(null));
   }
 
   @Test
@@ -156,7 +160,14 @@ final class SeekPositionTest {
 
     final String thirdFormatted = SeekPosition.format(HOURS_POSITION_MILLISECONDS);
     assertEquals(HOURS_POSITION_TEXT, thirdFormatted);
-    assertThrows(IllegalArgumentException.class, () -> SeekPosition.format(-1L));
+  }
+
+  @Test
+  void shouldRefuseANegativeTimeToFormat() {
+    final IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> SeekPosition.format(-1L));
+
+    final String message = exception.getMessage();
+    assertEquals("Time -1 must not be negative!", message);
   }
 
   @Test
