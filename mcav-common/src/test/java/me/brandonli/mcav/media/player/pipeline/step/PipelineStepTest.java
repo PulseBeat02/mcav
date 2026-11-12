@@ -17,12 +17,14 @@
  */
 package me.brandonli.mcav.media.player.pipeline.step;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -181,7 +183,8 @@ final class PipelineStepTest {
   @Test
   void shouldDoNothingInEmptyPipelines() {
     final ImageBuffer image = mock(ImageBuffer.class);
-    final ByteBuffer samples = ByteBuffer.allocate(SAMPLE_BUFFER_BYTES);
+    final byte[] original = { 1, 2, 3, 4 };
+    final ByteBuffer samples = ByteBuffer.wrap(original.clone());
     final OriginalVideoMetadata videoMetadata = OriginalVideoMetadata.EMPTY;
     VideoPipelineStep.NO_OPERATION.processAll(image, videoMetadata);
     AudioPipelineStep.NO_OPERATION.processAll(samples, AUDIO_METADATA);
@@ -191,10 +194,13 @@ final class PipelineStepTest {
     final AudioFilter audioFilter = AudioPipelineStep.NO_OPERATION.getFilter();
     final boolean videoNextMissing = videoNext.isEmpty();
     final boolean audioNextMissing = audioNext.isEmpty();
+    final byte[] sampleBytes = samples.array();
     assertTrue(videoNextMissing);
     assertTrue(audioNextMissing);
     assertSame(VideoFilter.NO_OPERATION, videoFilter);
     assertSame(AudioFilter.NO_OPERATION, audioFilter);
+    assertArrayEquals(original, sampleBytes);
+    verifyNoInteractions(image);
   }
 
   @Test
