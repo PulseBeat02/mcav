@@ -142,6 +142,7 @@ final class ColorFiltersTest {
     assertThrows(IllegalArgumentException.class, () -> new TintFilter(BLUE, TOO_LOW_WEIGHT));
     assertThrows(IllegalArgumentException.class, () -> new TintFilter(BLUE, TOO_HIGH_WEIGHT));
     assertThrows(IllegalArgumentException.class, () -> new TintFilter(BLUE, Double.NaN));
+    assertThrows(NullPointerException.class, () -> new TintFilter(null, TINT_STRENGTH));
   }
 
   private static int tintedBlue(final TintFilter filter, final int width, final int height) {

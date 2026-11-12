@@ -94,6 +94,7 @@ final class DrawingFiltersTest {
     }
 
     assertThrows(IllegalArgumentException.class, () -> new CircleFilter(0, 0, -1, WHITE));
+    assertThrows(NullPointerException.class, () -> new CircleFilter(0, 0, 1, null));
   }
 
   @Test
@@ -129,6 +130,7 @@ final class DrawingFiltersTest {
 
     assertThrows(IllegalArgumentException.class, () -> new EllipseFilter(0, 0, 0, 1, 0, 0, 360, WHITE));
     assertThrows(IllegalArgumentException.class, () -> new EllipseFilter(0, 0, 1, 0, 0, 0, 360, WHITE));
+    assertThrows(NullPointerException.class, () -> new EllipseFilter(0, 0, 1, 1, 0, 0, 360, null));
   }
 
   @Test
@@ -144,6 +146,8 @@ final class DrawingFiltersTest {
       assertEquals(WHITE_ARGB, end);
       assertEquals(BLACK_ARGB, above);
     }
+
+    assertThrows(NullPointerException.class, () -> new LineFilter(0, 0, 1, 1, null));
   }
 
   @Test
@@ -169,6 +173,7 @@ final class DrawingFiltersTest {
 
     assertThrows(IllegalArgumentException.class, () -> new RectangleFilter(0, 0, 0, 1, WHITE));
     assertThrows(IllegalArgumentException.class, () -> new RectangleFilter(0, 0, 1, 0, WHITE));
+    assertThrows(NullPointerException.class, () -> new RectangleFilter(0, 0, 1, 1, null));
   }
 
   @Test
@@ -193,6 +198,7 @@ final class DrawingFiltersTest {
     }
 
     assertThrows(NullPointerException.class, () -> new TextFilter(null, 0, 0, TextFilter.DEFAULT_FONT, 1.0, WHITE));
+    assertThrows(NullPointerException.class, () -> new TextFilter("x", 0, 0, TextFilter.DEFAULT_FONT, 1.0, null));
     assertThrows(IllegalArgumentException.class, () -> new TextFilter("x", 0, 0, TextFilter.DEFAULT_FONT, 0.0, WHITE));
     assertThrows(IllegalArgumentException.class, () -> new TextFilter("x", 0, 0, TextFilter.DEFAULT_FONT, Double.NaN, WHITE));
   }
@@ -281,6 +287,7 @@ final class DrawingFiltersTest {
     assertThrows(IllegalArgumentException.class, () -> new RegionScalarFilter(0, -1, 1, 1, WHITE));
     assertThrows(IllegalArgumentException.class, () -> new RegionScalarFilter(0, 0, 0, 1, WHITE));
     assertThrows(IllegalArgumentException.class, () -> new RegionScalarFilter(0, 0, 1, 0, WHITE));
+    assertThrows(NullPointerException.class, () -> new RegionScalarFilter(0, 0, 1, 1, null));
   }
 
   @Test
