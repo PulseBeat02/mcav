@@ -400,6 +400,20 @@ final class VideoPlayerManagerTest {
   }
 
   @Test
+  void shouldNeverReleaseAPartTwiceAfterAFailedRelease() {
+    this.fill();
+    final IllegalStateException failure = new IllegalStateException("player release!");
+    doThrow(failure).when(this.player).release();
+    final IllegalStateException thrown = assertThrows(IllegalStateException.class, this.manager::releaseVideoPlayer);
+    assertSame(failure, thrown);
+
+    this.manager.releaseVideoPlayer();
+    verify(this.player, times(1)).release();
+    verify(this.filter, times(1)).release();
+    verify(this.hologram, times(1)).kill();
+  }
+
+  @Test
   void shouldRunTasksOnItsWorkerThread() throws ExecutionException, InterruptedException, TimeoutException {
     final ExecutorService service = this.manager.getService();
     final Thread caller = Thread.currentThread();
