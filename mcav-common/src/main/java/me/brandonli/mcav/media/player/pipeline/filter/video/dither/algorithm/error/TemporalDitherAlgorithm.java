@@ -194,8 +194,8 @@ public abstract class TemporalDitherAlgorithm extends ErrorDiffusionDither imple
   }
 
   /**
-   * Dithers a frame like {@link #ditherIntoBytes(ImageBuffer)}, split into one horizontal strip per thread of the
-   * pool. Every strip warms up on the rows above it, so the result is nearly identical to the serial one.
+   * Dithers a frame like {@link #ditherIntoBytes(ImageBuffer)}, split into at most one horizontal strip per thread of
+   * the pool. Every strip warms up on the rows above it, so the result is nearly identical to the serial one.
    *
    * @param image the frame to dither, which must not be modified while the method runs
    * @param pool  the pool that runs the work

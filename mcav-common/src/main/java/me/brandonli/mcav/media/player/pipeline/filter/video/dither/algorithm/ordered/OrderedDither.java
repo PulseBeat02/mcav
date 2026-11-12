@@ -125,8 +125,8 @@ public final class OrderedDither extends AbstractDitherAlgorithm implements Baye
   }
 
   /**
-   * Dithers an image into palette indices, splitting it into bands of at least 16 rows that the threads of the pool
-   * dither. The result is identical to {@link #ditherIntoBytes(ImageBuffer)}.
+   * Dithers an image into palette indices, splitting it into bands that the threads of the pool dither. Every band
+   * but the bottom one holds at least 16 rows. The result is identical to {@link #ditherIntoBytes(ImageBuffer)}.
    *
    * @param image the image to dither, which must not be modified while the method runs
    * @param pool  the pool that runs the work
