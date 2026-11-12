@@ -139,6 +139,11 @@ final class VolumeFilterTest {
     filter.setVolume(VolumeFilter.MAXIMUM_VOLUME);
     final double volume = filter.getVolume();
     assertEquals(VolumeFilter.MAXIMUM_VOLUME, volume);
+  }
+
+  @Test
+  void shouldRejectMissingSamples() {
+    final VolumeFilter filter = new VolumeFilter();
     assertThrows(NullPointerException.class, () -> filter.applyFilter(null, METADATA));
   }
 }
