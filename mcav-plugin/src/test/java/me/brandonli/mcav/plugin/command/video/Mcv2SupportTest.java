@@ -17,6 +17,7 @@
  */
 package me.brandonli.mcav.plugin.command.video;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -28,6 +29,8 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -35,6 +38,7 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.stream.Stream;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2.Settings;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Configuration;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Pacer;
@@ -408,7 +412,7 @@ final class Mcv2SupportTest {
   }
 
   @Test
-  void shouldRecordTheFramesOfAScreenForAMeasurement() {
+  void shouldRecordTheFramesOfAScreenForAMeasurement() throws IOException {
     final Mcv2Configuration configuration = this.configure(MAP_ID).orElseThrow();
     final Mcv2PackServer.Lease lease = mock(Mcv2PackServer.Lease.class);
     when(lease.getConfiguration()).thenReturn(configuration.withSlot(SLOT, Mcv2Configuration.DEFAULT_PAGE_MAP + PAGE_MAP_OFFSET, 0));
@@ -416,13 +420,37 @@ final class Mcv2SupportTest {
     System.setProperty(Mcv2Support.RECORD_PROPERTY, this.folder.toString());
     try (final MockedConstruction<Mcv2Result> results = Mockito.mockConstruction(Mcv2Result.class)) {
       this.support.output(this.sender, configuration, DitheringArgument.NEAREST_COLOR);
-      verify(results.constructed().getFirst()).setFrameListener(any(FrameRecorder.class));
+      final ArgumentCaptor<FrameRecorder> recorders = ArgumentCaptor.forClass(FrameRecorder.class);
+      verify(results.constructed().getFirst()).setFrameListener(recorders.capture());
+
+      final FrameRecorder recorder = recorders.getValue();
+      recorder.accept(new byte[] { 7 });
     } finally {
       System.clearProperty(Mcv2Support.RECORD_PROPERTY);
     }
     try (final MockedConstruction<Mcv2Result> results = Mockito.mockConstruction(Mcv2Result.class)) {
       this.support.output(this.sender, configuration, DitheringArgument.NEAREST_COLOR);
       verify(results.constructed().getFirst(), Mockito.never()).setFrameListener(any());
+    }
+
+    final List<Path> files = this.listFolder();
+    final int count = files.size();
+    assertEquals(1, count);
+
+    final Path file = files.getFirst();
+    final Path fileName = file.getFileName();
+    final String name = fileName.toString();
+    final boolean named = name.startsWith("screen-%s-".formatted(SLOT));
+    assertTrue(named, name);
+
+    final byte[] allBytes = Files.readAllBytes(file);
+    final byte[] expected = { 1, 0, 0, 0, 7 };
+    assertArrayEquals(expected, allBytes);
+  }
+
+  private List<Path> listFolder() throws IOException {
+    try (final Stream<Path> files = Files.list(this.folder)) {
+      return files.toList();
     }
   }
 
