@@ -61,6 +61,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.MockedConstruction;
 import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
@@ -475,9 +476,10 @@ final class MapUtilsTest {
     assertTrue(last);
   }
 
-  @Test
-  void shouldBuildNothingForPlayersFacingUpOrDown() {
-    final Player player = this.playerFacing(BlockFace.UP);
+  @ParameterizedTest
+  @EnumSource(value = BlockFace.class, names = { "UP", "DOWN" })
+  void shouldBuildNothingForAPlayerFacingThatIsNotCardinal(final BlockFace facing) {
+    final Player player = this.playerFacing(facing);
     final Location location = this.fakeWorld.createLocation(0.5, SCREEN_Y, 0.5);
     MapUtils.buildMapScreen(player, location, Material.STONE, 2, 2, 0);
     final List<ItemFrame> frames = this.fakeWorld.getSpawnedFrames();
