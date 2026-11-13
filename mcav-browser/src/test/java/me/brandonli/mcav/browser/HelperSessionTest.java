@@ -420,6 +420,52 @@ class HelperSessionTest {
   }
 
   @Test
+  void shouldHandASlowListenerTheLatestPictureInsteadOfThePicturesItMissed() throws InterruptedException {
+    final PictureHoldingListener holder = new PictureHoldingListener();
+    final HelperLauncher launcher = launcher(ScriptedEngine.class.getName(), START_TIMEOUT_MILLISECONDS);
+    final URI page = URI.create(PAGE_URL_TEMPLATE.formatted(PAGE));
+    final BrowserSource source = BrowserSource.uri(page, 4, 3, 1);
+    final HelperSession session = HelperSession.open(launcher, NATIVES, source, BrowserOptions.DEFAULT, holder);
+    this.sessions.add(session);
+    final boolean pictureHeld = holder.awaitHolding();
+    assertTrue(pictureHeld, "a picture is handed over");
+
+    final FrameCanvas canvas = session.getCanvas();
+    try {
+      this.typeAndAwaitThePicture(session, canvas, 2);
+      this.typeAndAwaitThePicture(session, canvas, 4);
+      this.typeAndAwaitThePicture(session, canvas, 6);
+    } finally {
+      holder.release();
+    }
+
+    Await.until("the latest picture", () -> holder.blues.contains(6));
+    final List<Integer> missedPictures = holder.blues.stream()
+      .filter(deliveredBlue -> deliveredBlue == 2 || deliveredBlue == 4)
+      .toList();
+    assertEquals(List.of(), missedPictures);
+  }
+
+  private void typeAndAwaitThePicture(final HelperSession session, final FrameCanvas canvas, final int expectedBlue) {
+    final boolean keyAccepted = session.sendKey(HelperProtocol.KEY_TYPE, INPUT_KEY);
+    assertTrue(keyAccepted);
+
+    Await.until("the picture of the typed key", () -> this.showsBlue(canvas, expectedBlue));
+  }
+
+  private boolean showsBlue(final FrameCanvas canvas, final int expectedBlue) {
+    final @Nullable ImageBuffer picture = canvas.snapshot();
+    if (picture == null) {
+      return false;
+    }
+
+    final int shownBlue = blue(picture);
+    picture.close();
+
+    return shownBlue == expectedBlue;
+  }
+
+  @Test
   void shouldWaitOnCloseForTheDeliveryOfAPictureThatIsStillRunning() throws Exception {
     final CountDownLatch entered = new CountDownLatch(1);
     final CountDownLatch release = new CountDownLatch(1);
@@ -1609,6 +1655,57 @@ class HelperSessionTest {
         current.interrupt();
       }
     }
+
+    @Override
+    public void onEnded(final String reason, final Throwable failure) {}
+  }
+
+  // holds the first picture like a slow server
+  private static final class PictureHoldingListener implements BrowserSession.Listener {
+
+    private final CountDownLatch holding;
+    private final CountDownLatch released;
+    private final List<Integer> blues;
+
+    PictureHoldingListener() {
+      this.holding = new CountDownLatch(1);
+      this.released = new CountDownLatch(1);
+      this.blues = new CopyOnWriteArrayList<>();
+    }
+
+    boolean awaitHolding() throws InterruptedException {
+      return this.holding.await(START_TIMEOUT_MILLISECONDS, TimeUnit.MILLISECONDS);
+    }
+
+    void release() {
+      this.released.countDown();
+    }
+
+    @Override
+    public void onFrame(final ImageBuffer frame) {
+      final int frameBlue = blue(frame);
+      frame.close();
+      this.blues.add(frameBlue);
+
+      if (this.holding.getCount() == 0) {
+        return;
+      }
+
+      this.holding.countDown();
+      this.hold();
+    }
+
+    private void hold() {
+      try {
+        this.released.await();
+      } catch (final InterruptedException exception) {
+        final Thread current = Thread.currentThread();
+        current.interrupt();
+      }
+    }
+
+    @Override
+    public void onAudio(final byte[] samples) {}
 
     @Override
     public void onEnded(final String reason, final Throwable failure) {}
