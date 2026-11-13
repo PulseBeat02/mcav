@@ -805,13 +805,30 @@ class CefBrowserPlayerTest {
 
   @Test
   void shouldIgnoreInputWhileThePlayerIsNotPlaying() {
+    this.sendEveryKindOfInput();
+    this.player.start(SOURCE);
+    this.listener.onEnded(END_REASON, new IllegalStateException(CRASH_REASON));
+    this.sendEveryKindOfInput();
+    final FakeSession session = this.sessions.getFirst();
+    assertEquals(List.of(), session.sent);
+  }
+
+  private void sendEveryKindOfInput() {
     this.player.moveMouse(1, 1);
     this.player.sendMouseEvent(MouseClick.LEFT, 1, 1);
     this.player.scroll(1, 1, 0, 10);
     this.player.sendKeyEvent(INPUT_KEY);
-    this.player.start(SOURCE);
-    this.listener.onEnded(END_REASON, new IllegalStateException(CRASH_REASON));
-    this.player.sendKeyEvent(INPUT_KEY);
+  }
+
+  @Test
+  void shouldIgnoreInputAfterTheRelease() {
+    final boolean started = this.player.start(SOURCE);
+    assertTrue(started);
+
+    final boolean released = this.player.release();
+    assertTrue(released);
+
+    this.sendEveryKindOfInput();
     final FakeSession session = this.sessions.getFirst();
     assertEquals(List.of(), session.sent);
   }
