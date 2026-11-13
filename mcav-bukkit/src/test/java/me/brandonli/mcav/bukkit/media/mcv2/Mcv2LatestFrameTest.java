@@ -32,6 +32,8 @@ final class Mcv2LatestFrameTest {
 
   private static final long TIMEOUT_SECONDS = 10L;
 
+  private static final long POLL_MILLISECONDS = 5L;
+
   private final Mcv2LatestFrame<String> slot = new Mcv2LatestFrame<>();
 
   @Test
@@ -56,7 +58,7 @@ final class Mcv2LatestFrameTest {
   @Test
   void shouldWaitForTheNextFrameWhenTheSlotIsOpen() throws Exception {
     this.slot.open();
-    final CompletableFuture<String> taken = CompletableFuture.supplyAsync(this::takeQuietly);
+    final CompletableFuture<String> taken = this.startWaitingTaker();
     this.slot.offer("next");
 
     final String next = taken.get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
@@ -66,7 +68,7 @@ final class Mcv2LatestFrameTest {
   @Test
   void shouldWakeAnEncoderThatWaitsWithNothingWhenClosing() throws Exception {
     this.slot.open();
-    final CompletableFuture<String> taken = CompletableFuture.supplyAsync(this::takeQuietly);
+    final CompletableFuture<String> taken = this.startWaitingTaker();
     this.slot.close();
 
     final @Nullable String woken = taken.get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
@@ -96,6 +98,16 @@ final class Mcv2LatestFrameTest {
     assertFalse(interrupted, "the interrupt was thrown");
   }
 
+  private CompletableFuture<String> startWaitingTaker() throws InterruptedException {
+    final CompletableFuture<String> taken = new CompletableFuture<>();
+    final Thread taker = Thread.ofPlatform()
+      .daemon()
+      .start(() -> taken.complete(this.takeQuietly()));
+    this.awaitWaiting(taker);
+
+    return taken;
+  }
+
   private String takeQuietly() {
     try {
       return this.slot.take();
@@ -104,5 +116,16 @@ final class Mcv2LatestFrameTest {
       current.interrupt();
       return null;
     }
+  }
+
+  private void awaitWaiting(final Thread thread) throws InterruptedException {
+    final long timeout = TimeUnit.SECONDS.toNanos(TIMEOUT_SECONDS);
+    final long deadline = System.nanoTime() + timeout;
+    while (thread.getState() != Thread.State.WAITING && System.nanoTime() < deadline) {
+      Thread.sleep(POLL_MILLISECONDS);
+    }
+
+    final Thread.State state = thread.getState();
+    assertEquals(Thread.State.WAITING, state, "the taker waits for a frame");
   }
 }
