@@ -888,7 +888,7 @@ public final class Mcv2Result implements FunctionalVideoFilter {
       final Thread current = Thread.currentThread();
       current.interrupt();
     } catch (final RuntimeException exception) {
-      LOGGER.error("The MCV2 screen stops: verifying or sending a frame failed.", exception);
+      LOGGER.error("The MCV2 screen stops: sending a frame failed.", exception);
     } finally {
       this.stopPipeline(running);
       // Interrupt even after release clears the pipeline, or the screen thread can wait forever.
