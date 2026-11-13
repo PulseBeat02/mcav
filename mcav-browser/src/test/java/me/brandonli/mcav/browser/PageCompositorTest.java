@@ -305,6 +305,34 @@ class PageCompositorTest {
   }
 
   @Test
+  void shouldDrawOnlyThePartOfAPopupThatLiesOnThePage() throws InterruptedException {
+    final PageCompositor compositor = this.compositor(1);
+    compositor.onPaint(false, new Rectangle[] { new Rectangle(0, 0, WIDTH, HEIGHT) }, this.buffer(WIDTH, HEIGHT, 1), WIDTH, HEIGHT);
+    this.take(compositor);
+    compositor.onPopupSize(new Rectangle(-1, -1, 3, 3));
+    compositor.onPaint(true, new Rectangle[] { new Rectangle(0, 0, 3, 3) }, this.buffer(3, 3, POPUP_BLUE), 3, 3);
+    final FrameRegion region = this.take(compositor);
+    final Rectangle bounds = new Rectangle(region.getX(), region.getY(), region.getWidth(), region.getHeight());
+    final Rectangle expectedBounds = new Rectangle(0, 0, 2, 2);
+    assertEquals(expectedBounds, bounds);
+
+    final int popupValue = this.pixel(region, 0, 0, 0);
+    assertEquals(POPUP_BLUE, popupValue);
+
+    final int firstPopupColumn = this.pixel(region, 0, 0, 1);
+    assertEquals(1, firstPopupColumn);
+
+    final int firstPopupRow = this.pixel(region, 0, 0, 2);
+    assertEquals(1, firstPopupRow);
+
+    final int lastPopupColumn = this.pixel(region, 1, 1, 1);
+    assertEquals(2, lastPopupColumn);
+
+    final int lastPopupRow = this.pixel(region, 1, 1, 2);
+    assertEquals(2, lastPopupRow);
+  }
+
+  @Test
   void shouldShowThePageAloneForDamageBesideAnOpenPopup() throws InterruptedException {
     final PageCompositor compositor = this.compositor(1);
     compositor.onPopupSize(new Rectangle(2, 2, 3, 2));
