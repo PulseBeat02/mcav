@@ -215,6 +215,14 @@ public interface Message extends LocaleTools {
   NullComponent RELEASE_IMAGE_START = LocaleTools.direct("mcav.command.image.release.start");
 
   /**
+   * Key {@code mcav.command.image.release.error}: {@code /mcav image release} could not remove the image; the console
+   * has the error.
+   *
+   * @since 1.0.0
+   */
+  NullComponent RELEASE_IMAGE_ERROR = LocaleTools.direct("mcav.command.image.release.error");
+
+  /**
    * Key {@code mcav.command.image.load}: an {@code /mcav image} command has finished loading and now shows the image.
    *
    * @since 1.0.0

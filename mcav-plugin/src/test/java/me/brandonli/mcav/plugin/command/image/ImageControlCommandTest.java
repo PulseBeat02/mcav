@@ -122,7 +122,7 @@ final class ImageControlCommandTest {
   }
 
   @Test
-  void shouldLogAFailedReleaseAndNotReportTheImageAsReleased() {
+  void shouldLogAFailedReleaseAndTellTheSenderThatItFailed() {
     final CommandSender sender = mock(CommandSender.class);
     final IllegalStateException failure = new IllegalStateException("the release failed!");
     doThrow(failure).when(this.manager).releaseImage(ReleaseThread.MAIN_THREAD);
@@ -134,8 +134,9 @@ final class ImageControlCommandTest {
     }
 
     final Component start = Message.RELEASE_IMAGE_START.build();
+    final Component failed = Message.RELEASE_IMAGE_ERROR.build();
     final List<Component> messages = Components.received(sender);
-    final List<Component> expected = List.of(start);
+    final List<Component> expected = List.of(start, failed);
     assertEquals(expected, messages);
 
     final boolean logged = output.contains("Failed to release the image");
