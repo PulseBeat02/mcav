@@ -43,6 +43,7 @@ const listeners = new Map();
 const contexts = [];
 const processors = [];
 const gains = [];
+const sources = [];
 const received = [];
 
 class EventTarget {
@@ -179,6 +180,7 @@ class MediaElementAudioSourceNode extends AudioNode {
   constructor(context, options) {
     super(context);
     this.element = options.mediaElement;
+    sources.push(this);
   }
 }
 
@@ -322,3 +324,19 @@ pageNode.connect(replacement.destination);
 assert.ok(pageNode.connections.includes(bus), "What the page connects to the destination reaches the tap!");
 pageNode.disconnect(replacement.destination);
 assert.deepEqual(pageNode.connections, [], "What the page takes from the destination leaves the tap!");
+
+const element = new page.HTMLMediaElement();
+element.play();
+const captured = sources.at(-1);
+assert.equal(captured.element, element, "A playing element gets a source!");
+assert.ok(captured.connections.includes(bus), "A playing element plays into the tap!");
+const pageSource = replacement.createMediaElementSource(element);
+assert.equal(pageSource, captured, "The page gets the source of the element!");
+assert.deepEqual(pageSource.connections, [], "The source the page asks for is cut from the tap!");
+const constructedSource = new page.MediaElementAudioSourceNode(replacement, { mediaElement: element });
+assert.equal(constructedSource, captured, "A constructed source of the element is that source too!");
+const autoplayed = new page.HTMLMediaElement();
+listeners.get("play")[0]({ target: autoplayed });
+const autoplayedSource = sources.at(-1);
+assert.equal(autoplayedSource.element, autoplayed, "An element that plays by itself gets a source!");
+assert.ok(autoplayedSource.connections.includes(bus), "An element that plays by itself plays into the tap!");
