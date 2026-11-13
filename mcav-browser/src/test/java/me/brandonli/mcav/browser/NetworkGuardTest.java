@@ -91,6 +91,7 @@ class NetworkGuardTest {
 
   private static final int COMMON_POOL_TIMEOUT_SECONDS = 30;
   private static final int HANDSHAKE_TIMEOUT_MILLISECONDS = 200;
+  private static final int LONG_HANDSHAKE_TIMEOUT_MILLISECONDS = 60_000;
 
   private static final int EPHEMERAL_PORT = 0;
 
@@ -567,6 +568,18 @@ class NetworkGuardTest {
     final boolean closed = guard.getServer().isClosed();
     assertTrue(closed, "the guard stopped listening");
     assertEquals(List.of(), this.notices);
+  }
+
+  @Test
+  void shouldEndAClientStillInItsHandshakeWhenTheGuardCloses() throws IOException {
+    final NetworkGuard guard = this.guard(InetAddress::isLoopbackAddress, NetworkGuard::connect, LONG_HANDSHAKE_TIMEOUT_MILLISECONDS);
+    final Socket client = this.client(guard);
+    final byte[] greetingAnswer = this.exchange(client, GREETING, 2);
+    final byte[] expectedGreetingAnswer = new byte[] { 5, 0 };
+    assertArrayEquals(expectedGreetingAnswer, greetingAnswer);
+
+    guard.close();
+    this.assertEnded(client);
   }
 
   @Test
