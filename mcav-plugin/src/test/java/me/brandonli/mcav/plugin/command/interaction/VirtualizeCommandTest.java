@@ -109,6 +109,9 @@ final class VirtualizeCommandTest {
   private static final String MEMORY_SIZE = "2048M";
   private static final String FILE_PROPERTY_PREFIX = "file=";
 
+  private static final String VALUE_SEPARATOR = ",";
+  private static final String ESCAPED_VALUE_SEPARATOR = ",,";
+
   private static final String ABSOLUTE_DRIVE_PATH = "/tmp";
   private static final String NETWORK_DRIVE_PATH = "\\\\server";
 
@@ -118,6 +121,7 @@ final class VirtualizeCommandTest {
   private static final String DISK_FILE_NAME = "disk.img";
   private static final String DISK_A_FILE_NAME = "a.img";
   private static final String DISK_B_FILE_NAME = "b.img";
+  private static final String COMMA_FOLDER_NAME = "mc,server";
 
   private static final int GIBIBYTE_SHIFT = 30;
 
@@ -888,6 +892,16 @@ final class VirtualizeCommandTest {
       DRIVE_OPTION,
       "%s%s,format=raw,if=virtio,media=disk,cache=none,readonly=on,id=boot".formatted(FILE_PROPERTY_PREFIX, image)
     );
+  }
+
+  @Test
+  void shouldWriteEachCommaOfADriveImagePathTwiceAsQemuReadsIt() throws IOException {
+    final Path folder = this.dataFolder.resolve(COMMA_FOLDER_NAME);
+    this.imageFolder = DiskImages.folderOf(folder);
+    final String image = this.image(DISK_FILE_NAME);
+    final String escapedImage = image.replace(VALUE_SEPARATOR, ESCAPED_VALUE_SEPARATOR);
+
+    this.assertArguments("-drive file=disk.img,media=disk", DRIVE_OPTION, "%s%s,media=disk".formatted(FILE_PROPERTY_PREFIX, escapedImage));
   }
 
   @ParameterizedTest

@@ -105,6 +105,7 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
   private static final int MACHINE_MEMORY_DIVISOR = 2;
 
   private static final String VALUE_SEPARATOR = ",";
+  private static final String ESCAPED_VALUE_SEPARATOR = ",,";
 
   private static final Splitter DRIVE_SPLITTER = Splitter.on(VALUE_SEPARATOR);
 
@@ -608,8 +609,8 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
       if (namesFile) {
         fileCount++;
         final String image = part.substring(FILE_KEY.length());
-        final Path resolved = DiskImages.require(imageFolder, image);
-        checked.add(FILE_KEY + resolved);
+        final String file = driveFile(image, imageFolder);
+        checked.add(file);
       } else {
         requireNoPath(QemuHardwareValues.DRIVE_OPTION, part);
         QemuHardwareValues.checkDriveProperty(part, value);
@@ -623,6 +624,14 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
     }
 
     return String.join(VALUE_SEPARATOR, checked);
+  }
+
+  // QEMU splits the value of a drive at commas, so a comma of the image's path is written twice
+  private static String driveFile(final String image, final Path imageFolder) {
+    final Path resolved = DiskImages.require(imageFolder, image);
+    final String path = resolved.toString();
+    final String escapedPath = path.replace(VALUE_SEPARATOR, ESCAPED_VALUE_SEPARATOR);
+    return FILE_KEY + escapedPath;
   }
 
   // only a disk image of the image folder may name a file
