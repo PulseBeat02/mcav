@@ -229,4 +229,13 @@ final class TaskUtilsTest {
     assertThrows(NullPointerException.class, () -> TaskUtils.whenComplete(null, callback));
     assertThrows(NullPointerException.class, () -> TaskUtils.whenComplete(future, null));
   }
+
+  @Test
+  void shouldRefuseANullFutureWithItsOwnMessage() {
+    final BiConsumer<String, Throwable> callback = (_, _) -> {};
+    final NullPointerException exception = assertThrows(NullPointerException.class, () -> TaskUtils.whenComplete(null, callback));
+
+    final String message = exception.getMessage();
+    assertEquals("Future must not be null!", message);
+  }
 }
