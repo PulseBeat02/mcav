@@ -651,10 +651,11 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
   /**
    * Turns breaking a block in front of the screen into a left click on the running player. Called by Bukkit.
    *
-   * <p>A left click on a map screen usually reaches the block behind the item frames. When a player is running and
-   * the block the player looks at, up to 100 blocks away, has a screen frame on it, the break is
-   * cancelled so the wall stays intact, and a left click is sent at the pixel the player looks at if the breaker has
-   * {@link #getInteractionPermission()}. Other block breaks are left alone.
+   * <p>A left click on a map screen usually reaches the block behind the item frames. When a player is running, the
+   * block the player looks at, up to 100 blocks away, has a screen frame on it, and the pixel the player looks at on
+   * the wall can be found, the break is cancelled so the wall stays intact, and a left click is sent at that pixel if
+   * the breaker has {@link #getInteractionPermission()}. Other block breaks are left alone, also behind a wall with a
+   * missing frame, where no pixel can be found.
    *
    * @param event the block break
    * @throws NullPointerException if {@code event} is null
