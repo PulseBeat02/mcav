@@ -74,6 +74,8 @@ public final class RawHelperMain {
   static final String FRAME_FIRST_PATH = "/frame-first";
   static final String WRONG_PAGE_PATH = "/wrong-page";
   static final String OVERSIZED_PATH = "/oversized";
+  static final String UNLOADED_PATH = "/unloaded";
+  static final String UNPAINTED_PATH = "/unpainted";
 
   static final String CHATTY_END = "the chatty helper is done";
 
@@ -155,10 +157,7 @@ public final class RawHelperMain {
         HelperProtocol.writeFrame(output, new FrameRegion(width, height, 0, 0, width, height, pixels));
         HelperProtocol.writeLoading(output, false);
       }
-      case FRAME_FIRST_PATH -> HelperProtocol.writeFrame(
-        output,
-        new FrameRegion(configuration.getWidth(), configuration.getHeight(), 0, 0, 1, 1, new byte[HelperProtocol.PIXEL_BYTES])
-      );
+      case FRAME_FIRST_PATH -> writeFirstPixel(output, configuration);
       case WRONG_PAGE_PATH -> {
         HelperProtocol.writeHello(output, token);
         HelperProtocol.writeFrame(
@@ -175,6 +174,16 @@ public final class RawHelperMain {
           new FrameRegion(width, height, 0, 0, width, height, new byte[width * height * HelperProtocol.PIXEL_BYTES])
         );
       }
+      case UNLOADED_PATH -> {
+        HelperProtocol.writeHello(output, token);
+        HelperProtocol.writeText(output, HelperProtocol.READY, READY_TEXT);
+        writeFirstPixel(output, configuration);
+      }
+      case UNPAINTED_PATH -> {
+        HelperProtocol.writeHello(output, token);
+        HelperProtocol.writeText(output, HelperProtocol.READY, READY_TEXT);
+        HelperProtocol.writeLoading(output, false);
+      }
       default -> {
         final String message = "Scenario %s is unknown!".formatted(path);
         throw new IllegalArgumentException(message);
@@ -190,11 +199,16 @@ public final class RawHelperMain {
     throws IOException {
     HelperProtocol.writeHello(output, token);
     HelperProtocol.writeText(output, HelperProtocol.READY, READY_TEXT);
-    HelperProtocol.writeFrame(
-      output,
-      new FrameRegion(configuration.getWidth(), configuration.getHeight(), 0, 0, 1, 1, new byte[HelperProtocol.PIXEL_BYTES])
-    );
+    writeFirstPixel(output, configuration);
     HelperProtocol.writeLoading(output, false);
+  }
+
+  private static void writeFirstPixel(final DataOutputStream output, final HelperConfiguration configuration) throws IOException {
+    final int width = configuration.getWidth();
+    final int height = configuration.getHeight();
+    final byte[] pixels = new byte[HelperProtocol.PIXEL_BYTES];
+    final FrameRegion pixel = new FrameRegion(width, height, 0, 0, 1, 1, pixels);
+    HelperProtocol.writeFrame(output, pixel);
   }
 
   private static void misbehaveAfterStarting(final String path, final SocketChannel channel, final BufferedReader input)

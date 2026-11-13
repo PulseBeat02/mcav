@@ -83,6 +83,8 @@ import org.junit.jupiter.api.condition.OS;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.api.parallel.ResourceLock;
 import org.junit.jupiter.api.parallel.Resources;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 class HelperSessionTest {
 
@@ -145,6 +147,9 @@ class HelperSessionTest {
   private static final String PAGE = "/page";
 
   private static final long START_TIMEOUT_MILLISECONDS = 60_000L;
+
+  // the helper must connect before this deadline, and a loaded host takes seconds to start it
+  private static final long SHOW_TIMEOUT_MILLISECONDS = 15_000L;
 
   private static final long SOUND_HOLD_MILLISECONDS = 3_000L;
 
@@ -412,6 +417,53 @@ class HelperSessionTest {
     Await.until("the repeats of the changed page", () -> this.listener.frames.size() >= 2 * expected);
     session.close();
     assertEquals(List.of(), this.listener.ended);
+  }
+
+  @Test
+  void shouldHandASlowListenerTheLatestPictureInsteadOfThePicturesItMissed() throws InterruptedException {
+    final PictureHoldingListener holder = new PictureHoldingListener();
+    final HelperLauncher launcher = launcher(ScriptedEngine.class.getName(), START_TIMEOUT_MILLISECONDS);
+    final URI page = URI.create(PAGE_URL_TEMPLATE.formatted(PAGE));
+    final BrowserSource source = BrowserSource.uri(page, 4, 3, 1);
+    final HelperSession session = HelperSession.open(launcher, NATIVES, source, BrowserOptions.DEFAULT, holder);
+    this.sessions.add(session);
+    final boolean pictureHeld = holder.awaitHolding();
+    assertTrue(pictureHeld, "a picture is handed over");
+
+    final FrameCanvas canvas = session.getCanvas();
+    try {
+      this.typeAndAwaitThePicture(session, canvas, 2);
+      this.typeAndAwaitThePicture(session, canvas, 4);
+      this.typeAndAwaitThePicture(session, canvas, 6);
+    } finally {
+      holder.release();
+    }
+
+    Await.until("the latest picture", () -> holder.blues.contains(6));
+    final List<Integer> missedPictures = holder.blues
+      .stream()
+      .filter(deliveredBlue -> deliveredBlue == 2 || deliveredBlue == 4)
+      .toList();
+    assertEquals(List.of(), missedPictures);
+  }
+
+  private void typeAndAwaitThePicture(final HelperSession session, final FrameCanvas canvas, final int expectedBlue) {
+    final boolean keyAccepted = session.sendKey(HelperProtocol.KEY_TYPE, INPUT_KEY);
+    assertTrue(keyAccepted);
+
+    Await.until("the picture of the typed key", () -> this.showsBlue(canvas, expectedBlue));
+  }
+
+  private boolean showsBlue(final FrameCanvas canvas, final int expectedBlue) {
+    final @Nullable ImageBuffer picture = canvas.snapshot();
+    if (picture == null) {
+      return false;
+    }
+
+    final int shownBlue = blue(picture);
+    picture.close();
+
+    return shownBlue == expectedBlue;
   }
 
   @Test
@@ -786,10 +838,20 @@ class HelperSessionTest {
 
   @Test
   void shouldTimeOutWhenTheHelperNeverShowsThePage() {
-    // the helper must connect before this deadline, and a loaded host takes seconds to start it
-    final BrowserException failure = this.openFails(ScriptedEngine.class.getName(), ScriptedEngine.NEVER_PATH, 15_000L);
+    final BrowserException failure = this.openFails(ScriptedEngine.class.getName(), ScriptedEngine.NEVER_PATH, SHOW_TIMEOUT_MILLISECONDS);
     final boolean reportsTheTimeout = failure.getMessage().contains("did not show https://example.com/never in time");
     assertTrue(reportsTheTimeout, failure.getMessage());
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = { RawHelperMain.UNLOADED_PATH, RawHelperMain.UNPAINTED_PATH })
+  void shouldTimeOutWhenThePageNeverLoadsOrNeverShowsAFrame(final String path) {
+    final BrowserException failure = this.openFails(RawHelperMain.class.getName(), path, SHOW_TIMEOUT_MILLISECONDS);
+    final String message = failure.getMessage();
+    final String address = PAGE_URL_TEMPLATE.formatted(path);
+    final String expected = "did not show %s in time".formatted(address);
+    final boolean reportsTheTimeout = message.contains(expected);
+    assertTrue(reportsTheTimeout, message);
   }
 
   @Test
@@ -1195,12 +1257,14 @@ class HelperSessionTest {
   }
 
   @Test
-  void shouldFailAnInterruptedStartAndLeaveNothingBehind() throws InterruptedException {
+  void shouldFailAnInterruptedStartAndLeaveNothingBehind() throws InterruptedException, IOException {
+    final Set<ProcessHandle> before = this.liveDescendants();
     final BrowserSource source = BrowserSource.uri(URI.create(PAGE_URL_TEMPLATE.formatted(ScriptedEngine.NEVER_PATH)), 4, 3, 1);
     final HelperLauncher launcher = launcher(ScriptedEngine.class.getName(), START_TIMEOUT_MILLISECONDS);
+    final Path parent = this.shortDirectory();
     final AtomicReference<Throwable> thrown = new AtomicReference<>();
     final AtomicBoolean stillInterrupted = new AtomicBoolean();
-    final Thread starter = new Thread(() -> this.openAndRecordTheFailure(launcher, source, thrown, stillInterrupted));
+    final Thread starter = new Thread(() -> this.openAndRecordTheFailure(launcher, source, parent, thrown, stillInterrupted));
     starter.start();
     Await.until(HELPER_RUNNING_MESSAGE, () -> HelperProcesses.count() == 1);
     starter.interrupt();
@@ -1213,16 +1277,24 @@ class HelperSessionTest {
 
     final int helperCount = HelperProcesses.count();
     assertEquals(0, helperCount);
+
+    try (final Stream<Path> left = Files.list(parent)) {
+      final List<Path> remainingFiles = left.toList();
+      assertEquals(List.of(), remainingFiles);
+    }
+
+    Await.until(HELPER_ENDED_MESSAGE, () -> this.newSince(before).isEmpty());
   }
 
   private void openAndRecordTheFailure(
     final HelperLauncher launcher,
     final BrowserSource source,
+    final Path parent,
     final AtomicReference<Throwable> thrown,
     final AtomicBoolean stillInterrupted
   ) {
     try {
-      HelperSession.open(launcher, NATIVES, source, BrowserOptions.DEFAULT, this.listener);
+      this.openSessionIn(launcher, source, parent);
     } catch (final BrowserException exception) {
       thrown.set(exception);
       stillInterrupted.set(Thread.currentThread().isInterrupted());
@@ -1239,6 +1311,14 @@ class HelperSessionTest {
     Await.until("the input was tried", () -> session.getCompletedInputCount() == 1);
     final List<String> expectedEndReasons = List.of("The browser helper closed the connection!");
     assertEquals(expectedEndReasons, this.listener.ended);
+  }
+
+  @Test
+  void shouldWaitForAHelperThatHungUpToExitInsteadOfSpinning() {
+    final HelperSession session = this.open(RawHelperMain.class.getName(), RawHelperMain.HANG_UP_PATH);
+    final List<Thread> threads = session.getThreads();
+    final Thread reader = threads.getFirst();
+    Await.until("the reader waits for the helper to exit", () -> reader.getState() == Thread.State.TIMED_WAITING);
   }
 
   @Test
@@ -1594,6 +1674,57 @@ class HelperSessionTest {
         current.interrupt();
       }
     }
+
+    @Override
+    public void onEnded(final String reason, final Throwable failure) {}
+  }
+
+  // holds the first picture like a slow server
+  private static final class PictureHoldingListener implements BrowserSession.Listener {
+
+    private final CountDownLatch holding;
+    private final CountDownLatch released;
+    private final List<Integer> blues;
+
+    PictureHoldingListener() {
+      this.holding = new CountDownLatch(1);
+      this.released = new CountDownLatch(1);
+      this.blues = new CopyOnWriteArrayList<>();
+    }
+
+    boolean awaitHolding() throws InterruptedException {
+      return this.holding.await(START_TIMEOUT_MILLISECONDS, TimeUnit.MILLISECONDS);
+    }
+
+    void release() {
+      this.released.countDown();
+    }
+
+    @Override
+    public void onFrame(final ImageBuffer frame) {
+      final int frameBlue = blue(frame);
+      frame.close();
+      this.blues.add(frameBlue);
+
+      if (this.holding.getCount() == 0) {
+        return;
+      }
+
+      this.holding.countDown();
+      this.hold();
+    }
+
+    private void hold() {
+      try {
+        this.released.await();
+      } catch (final InterruptedException exception) {
+        final Thread current = Thread.currentThread();
+        current.interrupt();
+      }
+    }
+
+    @Override
+    public void onAudio(final byte[] samples) {}
 
     @Override
     public void onEnded(final String reason, final Throwable failure) {}
