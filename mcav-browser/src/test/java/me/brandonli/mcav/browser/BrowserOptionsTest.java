@@ -23,6 +23,8 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import me.brandonli.mcav.browser.testing.EqualityAssertions;
 import org.junit.jupiter.api.Test;
@@ -94,6 +96,42 @@ class BrowserOptionsTest {
   }
 
   @Test
+  void shouldKeepEveryFlagApart() {
+    final BrowserOptions javaScriptJitOnly = BrowserOptions.builder().javaScriptJit(true).build();
+    final List<Boolean> javaScriptJitFlags = this.flagsOf(javaScriptJitOnly);
+    final List<Boolean> expectedJavaScriptJitFlags = List.of(true, false, false, true);
+    assertEquals(expectedJavaScriptJitFlags, javaScriptJitFlags);
+
+    final BrowserOptions privateNetworksOnly = BrowserOptions.builder().privateNetworks(true).build();
+    final List<Boolean> privateNetworksFlags = this.flagsOf(privateNetworksOnly);
+    final List<Boolean> expectedPrivateNetworksFlags = List.of(false, true, false, true);
+    assertEquals(expectedPrivateNetworksFlags, privateNetworksFlags);
+  }
+
+  @Test
+  void shouldCopyTheRefusedHostsWhenTheyAreSet() {
+    final List<String> hosts = new ArrayList<>(List.of(REFUSED_HOST));
+    final BrowserOptionsBuilder builder = BrowserOptions.builder().refusedHosts(hosts);
+    hosts.add("other.example.com");
+
+    final BrowserOptions options = builder.build();
+    final List<String> refusedHosts = options.getRefusedHosts();
+    final List<String> expectedRefusedHosts = List.of(REFUSED_HOST);
+    assertEquals(expectedRefusedHosts, refusedHosts);
+  }
+
+  @Test
+  void shouldRefuseANullListOrANullHostWhenTheHostsAreSet() {
+    final BrowserOptionsBuilder builder = BrowserOptions.builder();
+    final NullPointerException refused = assertThrows(NullPointerException.class, () -> builder.refusedHosts(null));
+    final String message = refused.getMessage();
+    assertEquals("Refused hosts must not be null!", message);
+
+    final List<String> hostsWithANull = Arrays.asList(REFUSED_HOST, null);
+    assertThrows(NullPointerException.class, () -> builder.refusedHosts(hostsWithANull));
+  }
+
+  @Test
   void shouldKeepTheFrameRateBetweenOneAndSixty() {
     final BrowserOptionsBuilder tooSlowBuilder = BrowserOptions.builder().frameRate(0);
     assertThrows(IllegalArgumentException.class, tooSlowBuilder::build);
@@ -133,5 +171,13 @@ class BrowserOptionsTest {
       "BrowserOptions{frameRate=60, javaScriptJit=false, privateNetworks=false, autoplay=false, confined=true, refusedHosts=[]}",
       description
     );
+  }
+
+  private List<Boolean> flagsOf(final BrowserOptions options) {
+    final boolean javaScriptJit = options.isJavaScriptJit();
+    final boolean privateNetworks = options.isPrivateNetworks();
+    final boolean autoplay = options.isAutoplay();
+    final boolean confined = options.isConfined();
+    return List.of(javaScriptJit, privateNetworks, autoplay, confined);
   }
 }

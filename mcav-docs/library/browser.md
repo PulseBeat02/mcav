@@ -42,9 +42,9 @@ fixed at the next start.
 systems, `start` fails with a `BrowserUnavailableException` that names the platform, and nothing is downloaded; so does
 a start whose download or check fails, with the reason in its message.
 
-### Linux on a stock server
+### Linux on a headless server
 
-The browser runs on a stock headless Linux server, such as a Minecraft server in a Docker image, with nothing installed
+The browser runs on a headless Linux server, such as a Minecraft server in a Docker image, with nothing installed
 but a full Java runtime (see below) and no JVM options. Chromium draws on its headless platform, which needs no display
 server. CEF's Java binding still asks for an X display once at the start, for a window of one pixel it never shows; the
 helper answers it itself with a null display: a minimal X11 endpoint inside the helper, on the loopback interface, that
@@ -83,6 +83,7 @@ and started again, and no process of the browser is left.
 
 Describe the page with a `BrowserSource`: an absolute `http` or `https` address of at most 65 536 characters, the size
 of the page and its frames (at most 4096 pixels per side), and how many painted frames make one streamed frame.
+`BrowserSource.uri` refuses an address whose host name `java.net.URI` cannot read, such as one with an underscore.
 `BrowserPlayer.create()` uses the default options; `BrowserPlayer.create(BrowserOptions)` takes others.
 
 The example opens a page, clicks into it, and types a search. The `display` filter is yours and shows the frames;
