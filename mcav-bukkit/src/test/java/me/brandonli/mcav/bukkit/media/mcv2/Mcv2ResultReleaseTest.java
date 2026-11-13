@@ -64,7 +64,7 @@ final class Mcv2ResultReleaseTest {
   }
 
   @Test
-  void shouldClearEveryMapOfAWallOfSeveralMapsForTheViewersWithThePack() {
+  void shouldClearEveryMapOfAWallOfSeveralMapsForEveryViewer() {
     final Mcv2Viewers viewers = mock(Mcv2Viewers.class);
     when(viewers.isLoaded(WITH_PACK)).thenReturn(true);
     final Mcv2Screen screen = mock(Mcv2Screen.class);
@@ -100,6 +100,9 @@ final class Mcv2ResultReleaseTest {
     final Set<UUID> recipients = result.getChannel().getRecipients();
     assertEquals(expectedRecipients, recipients);
 
+    final List<Packet<?>> ditheredBeforeRelease = this.server.getSentPackets(WITHOUT);
+    final int ditheredCountBeforeRelease = ditheredBeforeRelease.size();
+
     result.release();
 
     final List<Packet<?>> sent = this.server.getSentPackets(WITH_PACK);
@@ -110,6 +113,18 @@ final class Mcv2ResultReleaseTest {
       .map(packet -> packet.mapId().id())
       .toList();
     assertEquals(expectedMapIds, clearedMapIds, "every map of the wall is cleared, not the first only");
+
+    final List<Packet<?>> dithered = this.server.getSentPackets(WITHOUT);
+    final int expectedDitheredCount = ditheredCountBeforeRelease + 1;
+    final int ditheredCount = dithered.size();
+    assertEquals(expectedDitheredCount, ditheredCount, "one bundle clears the wall of the viewer without the pack");
+
+    final List<ClientboundMapItemDataPacket> ditheredCleared = MapPackets.unbundle(dithered.getLast());
+    final List<Integer> ditheredClearedMapIds = ditheredCleared
+      .stream()
+      .map(packet -> packet.mapId().id())
+      .toList();
+    assertEquals(expectedMapIds, ditheredClearedMapIds, "the fallback clears every map of the wall too");
   }
 
   private byte[] createEmptyPixels(final InvocationOnMock invocation) {
