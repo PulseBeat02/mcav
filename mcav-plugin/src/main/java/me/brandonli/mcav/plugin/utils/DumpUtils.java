@@ -20,6 +20,7 @@ package me.brandonli.mcav.plugin.utils;
 import static java.util.Objects.requireNonNull;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.net.InetAddresses;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
@@ -79,6 +80,9 @@ public final class DumpUtils {
   private static final Pattern WORD = Pattern.compile("\\S+");
   private static final Pattern IPV4_ADDRESS = Pattern.compile("\\b\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\b(?::\\d{1,5})?");
   private static final Pattern IPV6_ADDRESS = Pattern.compile("/\\[[0-9A-Fa-f:.]+(?:%[^\\]\\s]+)?](?::\\d{1,5})?");
+  private static final Pattern IPV6_LITERAL = Pattern.compile(
+    "(?<![\\w:])((?:[0-9A-Fa-f]{1,4}::?){1,7}[0-9A-Fa-f]{1,4})(?!\\w)(?:%[\\w.-]+)?"
+  );
   private static final Pattern ISSUED_COMMAND = Pattern.compile("(issued server command: /)([^\\s]+)(\\s.*)?$");
   private static final Pattern WEB_ADDRESS = Pattern.compile("\\b([A-Za-z][A-Za-z0-9+.-]*://)([^\\s/?#]*@)?([^\\s?#]*)([?#]\\S*)?");
 
@@ -111,6 +115,8 @@ public final class DumpUtils {
   private static final String USER_SEPARATOR = "@";
 
   private static final String REDACTED_IPV6_ADDRESS = "/<redacted-address>";
+
+  private static final int IPV6_LITERAL_ADDRESS_GROUP = 1;
 
   private static final int COMMAND_NAME_GROUP = 2;
   private static final int COMMAND_ARGUMENTS_GROUP = 3;
@@ -365,7 +371,26 @@ public final class DumpUtils {
     final Matcher ipv6Addresses = IPV6_ADDRESS.matcher(line);
     final String withoutIpv6Addresses = ipv6Addresses.replaceAll(REDACTED_IPV6_ADDRESS);
     final Matcher ipv4Addresses = IPV4_ADDRESS.matcher(withoutIpv6Addresses);
-    return ipv4Addresses.replaceAll(REDACTED_ADDRESS);
+    final String withoutIpv4Addresses = ipv4Addresses.replaceAll(REDACTED_ADDRESS);
+    return redactIpv6Literals(withoutIpv4Addresses);
+  }
+
+  // a timestamp such as 12:34:56 matches the pattern too, so only a valid address is replaced
+  private static String redactIpv6Literals(final String line) {
+    final Matcher literals = IPV6_LITERAL.matcher(line);
+    final StringBuilder redacted = new StringBuilder(line.length());
+    while (literals.find()) {
+      final String text = literals.group(IPV6_LITERAL_ADDRESS_GROUP);
+      final String address = requireNonNull(text);
+      final boolean valid = InetAddresses.isInetAddress(address);
+      final String literal = literals.group();
+      final String replacement = valid ? REDACTED_ADDRESS : literal;
+      final String quotedReplacement = Matcher.quoteReplacement(replacement);
+      literals.appendReplacement(redacted, quotedReplacement);
+    }
+
+    literals.appendTail(redacted);
+    return redacted.toString();
   }
 
   private static String redactOtherCommandArguments(final String line) {
