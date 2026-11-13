@@ -162,6 +162,16 @@ class BrowserHelperTest {
     final int soundBytesAfterAMove = sent.size();
     assertEquals(0, soundBytesAfterAMove, "a move presses nothing");
 
+    helper.executeCommand(HelperMessage.mouse(new MouseInput(HelperProtocol.MOUSE_WHEEL, 1, 1, HelperProtocol.BUTTON_LEFT, 0, 0, 120)));
+    reporter.onAudio(chunk);
+    final int soundBytesAfterAScroll = sent.size();
+    assertEquals(0, soundBytesAfterAScroll, "a scroll presses nothing");
+
+    helper.executeCommand(HelperMessage.mouse(new MouseInput(HelperProtocol.MOUSE_RELEASE, 1, 1, HelperProtocol.BUTTON_LEFT, 1, 0, 0)));
+    reporter.onAudio(chunk);
+    final int soundBytesAfterARelease = sent.size();
+    assertEquals(0, soundBytesAfterARelease, "a release presses nothing");
+
     helper.executeCommand(HelperMessage.key(HelperProtocol.KEY_TYPE, "a"));
     reporter.onAudio(chunk);
     final int soundBytesAfterAKey = sent.size();
