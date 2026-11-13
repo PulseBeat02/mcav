@@ -128,6 +128,8 @@ class CefBrowserIntegrationTest {
     assertEquals(0, processCount);
 
     Await.until("every browser process of this test has ended", () -> countBrowserProcesses() == 0);
+
+    assertEquals(List.of(), this.failures);
   }
 
   static long countBrowserProcesses() {
@@ -166,7 +168,6 @@ class CefBrowserIntegrationTest {
 
     final boolean browserRunning = countBrowserProcesses() > 0;
     assertTrue(browserRunning);
-    assertEquals(List.of(), this.failures);
   }
 
   @Test
@@ -221,7 +222,6 @@ class CefBrowserIntegrationTest {
     final TestPages.PageEvent wheel = this.pages.getEvents("wheel").getFirst();
     final String wheelKey = wheel.getKey();
     assertEquals("1", wheelKey);
-    assertEquals(List.of(), this.failures);
   }
 
   private boolean hasEventAtX(final String type, final int pageX) {
@@ -429,7 +429,6 @@ class CefBrowserIntegrationTest {
     assertTrue(started);
 
     Await.until("a frame of the page", () -> frames.count() > 0);
-    assertEquals(List.of(), this.failures);
   }
 
   @Test
@@ -467,6 +466,7 @@ class CefBrowserIntegrationTest {
       );
       assertEquals(expectedFailures, this.failures);
 
+      this.failures.clear();
       Await.until("the browser processes ended", () -> countBrowserProcesses() == 0);
     } finally {
       module.start();
