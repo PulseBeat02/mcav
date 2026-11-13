@@ -1060,7 +1060,12 @@ class CefBrowserPlayerTest {
     Files.createDirectories(installation);
     Files.createFile(installation.resolve(JcefNatives.INSTALL_MARKER));
 
-    final JcefNatives installed = new JcefNatives(folder, (_, _, _, _) -> this.failDownload(), UNREACHABLE_REPOSITORY, new ArchiveExtractor());
+    final JcefNatives installed = new JcefNatives(
+      folder,
+      (_, _, _, _) -> this.failDownload(),
+      UNREACHABLE_REPOSITORY,
+      new ArchiveExtractor()
+    );
     final LinuxLibraries libraries = new LinuxLibraries(folder, (_, _, _, _) -> this.failDownload(), List.of(), List.of());
     final HelperLauncher launcher = HelperSessionTest.launcher(ScriptedEngine.class.getName(), HELPER_START_TIMEOUT_MILLISECONDS);
     final CefBrowserPlayer.HelperSessionFactory factory = new CefBrowserPlayer.HelperSessionFactory(installed, libraries, launcher);
@@ -1089,7 +1094,9 @@ class CefBrowserPlayerTest {
     final ExecutorService executor = Executors.newSingleThreadExecutor();
     try {
       final CompletableFuture<Boolean> started = this.player.startAsync(SOURCE, executor);
-      final ExecutionException failure = assertThrows(ExecutionException.class, () -> started.get(ASYNCHRONOUS_START_SECONDS, TimeUnit.SECONDS));
+      final ExecutionException failure = assertThrows(ExecutionException.class, () ->
+        started.get(ASYNCHRONOUS_START_SECONDS, TimeUnit.SECONDS)
+      );
       final Throwable cause = failure.getCause();
       assertSame(this.startFailure, cause);
     } finally {
