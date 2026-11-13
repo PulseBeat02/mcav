@@ -265,7 +265,12 @@ final class JukeboxListenerTest {
   @Test
   void shouldIgnoreADiscWhoseNameIsNoValidFileName() throws IOException {
     this.createImage(IMAGE_FILE_NAME);
-    final PlayerInteractEvent event = this.interaction(Action.RIGHT_CLICK_BLOCK, Material.JUKEBOX, Material.MUSIC_DISC_CAT, "[alpine\u0000.iso]");
+    final PlayerInteractEvent event = this.interaction(
+      Action.RIGHT_CLICK_BLOCK,
+      Material.JUKEBOX,
+      Material.MUSIC_DISC_CAT,
+      "[alpine\u0000.iso]"
+    );
     this.assertIgnored(event);
   }
 
