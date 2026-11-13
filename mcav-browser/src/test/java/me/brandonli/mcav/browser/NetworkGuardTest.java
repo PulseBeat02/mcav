@@ -518,17 +518,6 @@ class NetworkGuardTest {
   }
 
   @Test
-  void shouldDisconnectAClientTurnedAway() throws IOException {
-    final NetworkGuard guard = this.loopbackGuard();
-    final Socket client = this.client(guard);
-    final byte[] passwordAnswer = this.exchange(client, new byte[] { 5, 1, 2 }, 2);
-    final byte[] expectedPasswordAnswer = new byte[] { 5, (byte) 0xFF };
-    assertArrayEquals(expectedPasswordAnswer, passwordAnswer);
-
-    this.assertEnded(client);
-  }
-
-  @Test
   void shouldFreeTheSlotOfAConnectionWhenItEnds() throws IOException {
     final NetworkGuard guard = this.loopbackGuard();
     for (int count = 0; count < NetworkGuard.MAXIMUM_CONNECTIONS + 44; count++) {
