@@ -19,8 +19,11 @@ package me.brandonli.mcav.plugin.utils;
 
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 
 import java.nio.file.Path;
+import java.util.function.Function;
 import me.brandonli.mcav.bukkit.resourcepack.provider.PackHosting;
 import me.brandonli.mcav.bukkit.resourcepack.provider.WebsiteHosting;
 import me.brandonli.mcav.bukkit.resourcepack.provider.http.HttpHosting;
@@ -35,6 +38,8 @@ final class Mcv2HostingTest {
   private static final Path ZIP = Path.of("mcv2", "pack", "mcav-mcv2-1.zip");
 
   private static final int PACK_HTTP_PORT = 25580;
+
+  private static final String PUBLIC_ADDRESS = "203.0.113.9";
 
   @Test
   void shouldHostAPackWithTheStrategyOfTheSetting() {
@@ -64,11 +69,29 @@ final class Mcv2HostingTest {
       final MockedStatic<PackHosting> hostings = Mockito.mockStatic(PackHosting.class);
       final MockedStatic<ServerAddress> addresses = Mockito.mockStatic(ServerAddress.class)
     ) {
-      addresses.when(ServerAddress::getPublicAddress).thenReturn("203.0.113.9");
-      hostings.when(() -> PackHosting.http(ZIP, "203.0.113.9", PACK_HTTP_PORT)).thenReturn(http);
+      addresses.when(ServerAddress::getPublicAddress).thenReturn(PUBLIC_ADDRESS);
+      hostings.when(() -> PackHosting.http(ZIP, PUBLIC_ADDRESS, PACK_HTTP_PORT)).thenReturn(http);
 
       final PackHosting result = Mcv2Hosting.HTTP.hosting("", PACK_HTTP_PORT).apply(ZIP);
       assertSame(http, result);
+    }
+  }
+  @Test
+  void shouldLookUpTheAddressOnlyWhenAPackIsHosted() {
+    final HttpHosting http = mock(HttpHosting.class);
+    try (
+      final MockedStatic<PackHosting> hostings = Mockito.mockStatic(PackHosting.class);
+      final MockedStatic<ServerAddress> addresses = Mockito.mockStatic(ServerAddress.class)
+    ) {
+      addresses.when(ServerAddress::getPublicAddress).thenReturn(PUBLIC_ADDRESS);
+      hostings.when(() -> PackHosting.http(ZIP, PUBLIC_ADDRESS, PACK_HTTP_PORT)).thenReturn(http);
+
+      final Function<Path, PackHosting> hosting = Mcv2Hosting.HTTP.hosting("", PACK_HTTP_PORT);
+      addresses.verify(ServerAddress::getPublicAddress, never());
+
+      final PackHosting result = hosting.apply(ZIP);
+      assertSame(http, result);
+      addresses.verify(ServerAddress::getPublicAddress, times(1));
     }
   }
 }
