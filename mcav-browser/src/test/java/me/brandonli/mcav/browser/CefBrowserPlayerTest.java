@@ -502,13 +502,16 @@ class CefBrowserPlayerTest {
   }
 
   @Test
-  void shouldDropAFrameOfTheCurrentSessionAfterItFailed() {
+  void shouldDropAndCloseAFrameOfTheCurrentSessionAfterItFailed() {
     this.player.start(SOURCE);
     this.listener.onEnded(END_REASON, new IllegalStateException(CRASH_REASON));
-    final ImageBuffer late = this.frame();
-    this.listener.onFrame(late);
+    final ClosingProbe probe = new ClosingProbe();
+    this.listener.onFrame(probe.wrap(this.frame()));
     final int processedCount = this.processed.size();
     assertEquals(0, processedCount, "a failed player shows nothing more");
+
+    final boolean closed = probe.isClosed();
+    assertTrue(closed, "a dropped frame is closed all the same");
   }
 
   @Test
@@ -907,20 +910,31 @@ class CefBrowserPlayerTest {
 
   @Test
   void shouldCloseAPictureOnceThePipelineHasIt() {
+    final ClosingProbe probe = new ClosingProbe();
+    final VideoPipelineStepBuilder builder = PipelineBuilder.video();
+    builder.then((samples, _) -> this.recordOpenFrame(samples, probe));
+    this.player.getVideoAttachableCallback().attach(builder.build());
     final boolean started = this.player.start(SOURCE);
     assertTrue(started);
 
-    final ClosingProbe probe = new ClosingProbe();
     final ImageBuffer frame = probe.wrap(this.frame());
     this.listener.onFrame(frame);
     final int processedCount = this.processed.size();
-    assertEquals(1, processedCount);
+    assertEquals(1, processedCount, "the pipeline gets the picture before it is closed");
 
     final ImageBuffer processedFrame = this.processed.getFirst();
     assertSame(frame, processedFrame);
 
     final boolean closed = probe.isClosed();
     assertTrue(closed);
+  }
+
+  private boolean recordOpenFrame(final ImageBuffer samples, final ClosingProbe probe) {
+    if (!probe.isClosed()) {
+      this.processed.add(samples);
+    }
+
+    return false;
   }
 
   @Test
