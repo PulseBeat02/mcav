@@ -12,7 +12,9 @@ these displays are not dithered, so the filter is used directly.
 | Chat       | `ChatConfiguration`       | `ChatResult`       |
 
 Every result is a `FunctionalVideoFilter`: call `start()` on the main thread before the video starts, and `release()`
-when it is over, which removes the blocks, entities, or scoreboard it created.
+when it is over. On release, `BlockResult` shows the original blocks again, `EntityResult` removes its text display,
+`ScoreboardResult` restores each viewer's previous scoreboard, and `ChatResult` clears the chat. During shutdown, call
+`release()` on the main thread, because a disabled plugin cannot schedule the restore anymore.
 
 The method below attaches a chat display to a player before it starts; call it on the main thread, and call `release()`
 on the returned filter when the video is over.

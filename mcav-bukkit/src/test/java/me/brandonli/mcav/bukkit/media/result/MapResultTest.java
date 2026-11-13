@@ -226,12 +226,14 @@ final class MapResultTest {
     final Packet<?> bundle = packets.getFirst();
     final List<ClientboundMapItemDataPacket> mapPackets = MapPackets.unbundle(bundle);
     final int mapPacketCount = mapPackets.size();
-    final ClientboundMapItemDataPacket last = mapPackets.get(3);
     final byte[] transparent = new byte[MAP_SIZE * MAP_SIZE];
 
     assertEquals(4, mapPacketCount, "every map of the 2x2 grid is cleared");
 
-    MapPackets.assertMapPacket(last, 8, 0, 0, MAP_SIZE, MAP_SIZE, transparent);
+    MapPackets.assertMapPacket(mapPackets.get(0), 5, 0, 0, MAP_SIZE, MAP_SIZE, transparent);
+    MapPackets.assertMapPacket(mapPackets.get(1), 6, 0, 0, MAP_SIZE, MAP_SIZE, transparent);
+    MapPackets.assertMapPacket(mapPackets.get(2), 7, 0, 0, MAP_SIZE, MAP_SIZE, transparent);
+    MapPackets.assertMapPacket(mapPackets.get(3), 8, 0, 0, MAP_SIZE, MAP_SIZE, transparent);
   }
 
   @ParameterizedTest

@@ -93,7 +93,8 @@ public final class MapResult implements DitherResultStep {
    *
    * @param samples   the frame, which is resized in place if resizing is configured
    * @param algorithm the dithering algorithm that converts the frame into map colors
-   * @throws NullPointerException if {@code samples} or {@code algorithm} is null
+   * @throws NullPointerException     if {@code samples} or {@code algorithm} is null
+   * @throws IllegalArgumentException if {@code algorithm} returns more or fewer colors than the frame has pixels
    * @since 1.0.0
    */
   @Override
