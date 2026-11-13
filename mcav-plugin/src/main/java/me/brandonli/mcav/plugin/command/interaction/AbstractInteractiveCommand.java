@@ -154,6 +154,8 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
 
   private volatile @Nullable Screen screen;
   private boolean closed;
+  // the stop that releaseInTheBackground handed to the thread last, which releaseResource waits for
+  private volatile CompletableFuture<@Nullable Void> lastStop;
 
   /**
    * The output the player's frames go to, while one is running: the dithered maps, or the MCV2 screen. Changed only
@@ -194,6 +196,7 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
     final Set<Player> players = Collections.newSetFromMap(backing);
     this.activePlayers = Collections.synchronizedSet(players);
     this.lock = new Object();
+    this.lastStop = CompletableFuture.completedFuture(null);
   }
 
   /**
@@ -275,8 +278,10 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
       closing = this.closed;
     }
     if (!closing) {
+      final CompletableFuture<@Nullable Void> stop = new CompletableFuture<>();
       try {
-        this.service.execute(() -> this.releaseLogged(release));
+        this.service.execute(() -> this.releaseLogged(release, stop));
+        this.lastStop = stop;
         return;
       } catch (final RejectedExecutionException exception) {
         // the thread takes no more work, so the player stops here
@@ -285,13 +290,17 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
     release.run();
   }
 
-  private void releaseLogged(final Runnable release) {
+  private void releaseLogged(final Runnable release, final CompletableFuture<@Nullable Void> stop) {
     try {
       release.run();
     } catch (final RuntimeException | Error exception) {
+      stop.completeExceptionally(exception);
       ThrowableUtils.throwIfFatal(exception);
       LOGGER.error("A player failed to stop.", exception);
+      return;
     }
+
+    stop.complete(null);
   }
 
   final void attachSound(final Object owner, final AudioAttachableCallback audio, final ScreenSound sound, final String title) {
@@ -943,19 +952,48 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
   }
 
   /**
-   * Releases the running player and tells the sender.
+   * Releases the running player and tells the sender once it has stopped.
    *
-   * @param sender  who ran the command
-   * @param message the message to send
+   * <p>A player that stops in the background is waited for. The sender gets {@code message} once the player has
+   * stopped, also when none was running, or {@code failureMessage} when it fails to stop, which is logged with its
+   * stack trace. A reply after a background stop is sent on the main thread.
+   *
+   * @param sender         who ran the command
+   * @param message        the message to send
+   * @param failureMessage the message to send when the player fails to stop
    * @throws NullPointerException if an argument is null
    * @since 1.0.0
    */
-  protected void releaseResource(final CommandSender sender, final Component message) {
+  protected void releaseResource(final CommandSender sender, final Component message, final Component failureMessage) {
     Preconditions.checkNotNull(sender, SENDER_NULL_MESSAGE);
     Preconditions.checkNotNull(message, "Message must not be null!");
+    Preconditions.checkNotNull(failureMessage, "Failure message must not be null!");
 
+    final CompletableFuture<@Nullable Void> stop;
+    try {
+      stop = this.releaseCurrentAndFindStop();
+    } catch (final RuntimeException | Error exception) {
+      ThrowableUtils.throwIfFatal(exception);
+      LOGGER.error("A player failed to stop.", exception);
+      sender.sendMessage(failureMessage);
+      return;
+    }
+
+    final Runnable done = TaskUtils.createMainThreadHandover(this.plugin, () -> sender.sendMessage(message));
+    final Runnable failed = TaskUtils.createMainThreadHandover(this.plugin, () -> sender.sendMessage(failureMessage));
+    TaskUtils.whenComplete(stop, (_, failure) -> this.reportRelease(done, failed, failure));
+  }
+
+  private CompletableFuture<@Nullable Void> releaseCurrentAndFindStop() {
+    this.lastStop = CompletableFuture.completedFuture(null);
     this.releaseCurrent();
-    sender.sendMessage(message);
+
+    return this.lastStop;
+  }
+
+  private void reportRelease(final Runnable done, final Runnable failed, final @Nullable Throwable failure) {
+    final Runnable report = failure == null ? done : failed;
+    report.run();
   }
 
   private boolean canInteract(final Player player) {

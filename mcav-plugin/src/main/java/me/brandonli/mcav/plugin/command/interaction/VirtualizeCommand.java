@@ -229,7 +229,8 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
    * asked to shut down first, so unsaved work inside it is lost.
    *
    * <p>Requires the permission {@code mcav.command.vm.release}; players and the console can run it. The sender is told
-   * "Virtual machine released!", also when no virtual machine was running.
+   * "Virtual machine released!" once the virtual machine has stopped, also when no virtual machine was running. When
+   * it fails to stop, the sender is told that it could not be released, and the console logs why.
    *
    * @param sender who ran the command
    * @throws NullPointerException if {@code sender} is null
@@ -242,7 +243,8 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
     Preconditions.checkNotNull(sender, SENDER_NULL_MESSAGE);
 
     final Component released = Message.VM_RELEASE.build();
-    this.releaseResource(sender, released);
+    final Component failed = Message.VM_RELEASE_ERROR.build();
+    this.releaseResource(sender, released, failed);
   }
 
   /**

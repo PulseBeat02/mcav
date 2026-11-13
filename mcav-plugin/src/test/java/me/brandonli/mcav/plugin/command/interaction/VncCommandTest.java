@@ -313,7 +313,26 @@ final class VncCommandTest {
     verify(this.callback).detach();
     verify(this.desktop, timeout(RELEASE_MILLISECONDS)).release();
     assertNull(this.command.player);
-    this.assertReceived(Message.VNC_RELEASE.build());
+    final Component released = Message.VNC_RELEASE.build();
+    verify(this.sender, timeout(RELEASE_MILLISECONDS)).sendMessage(released);
+    this.assertReceived(released);
+  }
+
+  @Test
+  void shouldTellTheSenderWhenTheDesktopFailsToStopAndReportTheNextRelease() {
+    this.command.player = this.desktop;
+    Mockito.doThrow(new IllegalStateException("disconnect broke!")).when(this.desktop).release();
+
+    this.command.releaseVnc(this.sender);
+
+    final Component failed = Message.VNC_RELEASE_ERROR.build();
+    verify(this.sender, timeout(RELEASE_MILLISECONDS)).sendMessage(failed);
+    this.assertReceived(failed);
+
+    this.command.releaseVnc(this.sender);
+
+    final Component released = Message.VNC_RELEASE.build();
+    this.assertReceived(failed, released);
   }
 
   @Test

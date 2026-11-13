@@ -165,6 +165,8 @@ final class AbstractInteractiveCommandTest {
 
   private static final String STARTED_TEXT = "started";
   private static final String REFUSED_TEXT = "failed: refused";
+  private static final String RELEASED_TEXT = "released";
+  private static final String NOT_RELEASED_TEXT = "not released";
   private static final String ENABLED_TEXT = "on";
   private static final String DISABLED_TEXT = "off";
   private static final String CHAT_TEXT = "hello world";
@@ -1220,13 +1222,38 @@ final class AbstractInteractiveCommandTest {
     this.createMockedScreen();
     this.command.player = BROWSER;
     final CommandSender sender = mock(CommandSender.class);
-    final Component message = Component.text("released");
+    final Component message = Component.text(RELEASED_TEXT);
+    final Component failureMessage = Component.text(NOT_RELEASED_TEXT);
 
-    this.command.releaseResource(sender, message);
+    this.command.releaseResource(sender, message, failureMessage);
 
     verify(sender).sendMessage(message);
+    verify(sender, never()).sendMessage(failureMessage);
     this.assertReleased(BROWSER);
     assertNull(this.command.player);
+  }
+
+  @Test
+  void shouldLogAndTellTheSenderWhenThePlayerFailsToStop() {
+    this.createMockedScreen();
+    this.command.player = BROWSER;
+    this.command.releaseFailure = new IllegalStateException("the stop failed!");
+    final CommandSender sender = mock(CommandSender.class);
+    final Component message = Component.text(RELEASED_TEXT);
+    final Component failureMessage = Component.text(NOT_RELEASED_TEXT);
+    final String output;
+    try (final StandardErrorCapture capture = StandardErrorCapture.start()) {
+      this.command.releaseResource(sender, message, failureMessage);
+      output = capture.getOutput();
+    }
+
+    verify(sender).sendMessage(failureMessage);
+    verify(sender, never()).sendMessage(message);
+    this.assertReleased(BROWSER);
+    assertNull(this.command.player);
+
+    final boolean logged = output.contains("A player failed to stop.") && output.contains("the stop failed!");
+    assertTrue(logged, output);
   }
 
   @Test

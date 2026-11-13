@@ -301,6 +301,14 @@ public interface Message extends LocaleTools {
   NullComponent VM_RELEASE = LocaleTools.direct("mcav.command.vm.release");
 
   /**
+   * Key {@code mcav.command.vm.release.error}: {@code /mcav vm release} could not stop the virtual machine;
+   * the console has the error.
+   *
+   * @since 1.0.0
+   */
+  NullComponent VM_RELEASE_ERROR = LocaleTools.direct("mcav.command.vm.release.error");
+
+  /**
    * Key {@code mcav.command.vnc.loading}: {@code /mcav vnc create} accepted its arguments and connects to the VNC
    * server in the background.
    *
@@ -321,6 +329,14 @@ public interface Message extends LocaleTools {
    * @since 1.0.0
    */
   NullComponent VNC_RELEASE = LocaleTools.direct("mcav.command.vnc.release");
+
+  /**
+   * Key {@code mcav.command.vnc.release.error}: {@code /mcav vnc release} could not disconnect from the
+   * desktop; the console has the error.
+   *
+   * @since 1.0.0
+   */
+  NullComponent VNC_RELEASE_ERROR = LocaleTools.direct("mcav.command.vnc.release.error");
 
   /**
    * Key {@code mcav.command.vnc.error}: {@code /mcav vnc create} could not connect to the VNC server, or it refused
@@ -566,6 +582,14 @@ public interface Message extends LocaleTools {
    * @since 1.0.0
    */
   NullComponent RELEASE_BROWSER = LocaleTools.direct("mcav.command.browser.release");
+
+  /**
+   * Key {@code mcav.command.browser.release.error}: {@code /mcav browser release} could not close the
+   * browser; the console has the error.
+   *
+   * @since 1.0.0
+   */
+  NullComponent RELEASE_BROWSER_ERROR = LocaleTools.direct("mcav.command.browser.release.error");
 
   /**
    * Key {@code mcav.command.browser.start}: the browser of {@code /mcav browser create} started and now shows on the

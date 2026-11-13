@@ -255,7 +255,7 @@ final class BrowserCommandTest {
   }
 
   @Test
-  void shouldLetGoOfTheSoundWhenTheReleaseFailsAndWhileThePluginDisables() {
+  void shouldLetGoOfTheSoundAndTellTheSenderWhenTheReleaseFailsAndWhileThePluginDisables() {
     this.makeVoiceChatReady();
     when(this.provider.constructFilter(eq(AudioArgument.SIMPLE_VOICE_CHAT), any(), any(), eq(this.browser))).thenReturn(
       mock(AudioFilter.class)
@@ -269,6 +269,12 @@ final class BrowserCommandTest {
     verify(this.provider).releaseAudioFilter(this.browser);
     verify(this.callback).detach();
     verify(this.browser, timeout(RELEASE_MILLISECONDS)).release();
+
+    final Component failed = Message.RELEASE_BROWSER_ERROR.build();
+    verify(this.sender, timeout(RELEASE_MILLISECONDS)).sendMessage(failed);
+
+    final Component released = Message.RELEASE_BROWSER.build();
+    verify(this.sender, never()).sendMessage(released);
   }
 
   @Test
@@ -657,6 +663,7 @@ final class BrowserCommandTest {
     assertNull(this.command.player);
 
     final Component released = Message.RELEASE_BROWSER.build();
+    verify(this.sender, timeout(RELEASE_MILLISECONDS)).sendMessage(released);
     this.assertReceived(released);
 
     this.command.releaseBrowser(this.sender);
