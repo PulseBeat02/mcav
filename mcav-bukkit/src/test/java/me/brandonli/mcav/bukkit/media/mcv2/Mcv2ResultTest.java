@@ -3101,6 +3101,13 @@ final class Mcv2ResultTest {
         .stream()
         .anyMatch(event -> Level.ERROR.equals(event.getLevel()));
       assertTrue(errorLogged, FAILURE_LOGGED_MESSAGE);
+      final boolean sendFailureLogged = logs
+        .getEvents()
+        .stream()
+        .filter(event -> Level.ERROR.equals(event.getLevel()))
+        .map(LogCapture.RecordedEvent::getMessage)
+        .anyMatch("The MCV2 screen stops: sending a frame failed."::equals);
+      assertTrue(sendFailureLogged, "the failure is logged as a failed send");
     } finally {
       firstFrameMayFail.countDown();
       secondFrameMayGoOn.countDown();
