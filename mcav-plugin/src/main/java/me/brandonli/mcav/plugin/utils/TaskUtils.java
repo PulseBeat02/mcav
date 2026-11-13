@@ -103,7 +103,7 @@ public final class TaskUtils {
    * @param callback     receives the result, which is null if the future failed, and the failure, which is null if the
    *                     future succeeded
    * @param <ResultType> the type of the result
-   * @throws NullPointerException if {@code future} is null
+   * @throws NullPointerException if an argument is null
    * @since 1.0.0
    */
   public static <ResultType> void whenComplete(
