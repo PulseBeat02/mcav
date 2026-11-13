@@ -111,6 +111,22 @@ final class TaskUtilsTest {
     final int count = runs.get();
     assertEquals(0, count);
   }
+  @Test
+  void shouldWarnWhenItDropsATaskBecauseThePluginIsDisabled() {
+    final MCAVSandbox plugin = mock(MCAVSandbox.class);
+    final BukkitScheduler scheduler = TestServer.getScheduler();
+    when(scheduler.runTask(any(Plugin.class), any(Runnable.class))).thenThrow(new IllegalPluginAccessException("disabled!"));
+    final String output;
+    try (final StandardErrorCapture errors = StandardErrorCapture.start()) {
+      TaskUtils.runOnMainThread(plugin, () -> {});
+      output = errors.getOutput();
+    }
+
+    final boolean warned = output.contains("Dropped a task for the main thread because the plugin is disabled.");
+    final boolean withCause = output.contains("disabled!");
+    assertTrue(warned, output);
+    assertTrue(withCause, output);
+  }
 
   @Test
   void shouldPassTheResultOfTheFutureToTheCallback() {
