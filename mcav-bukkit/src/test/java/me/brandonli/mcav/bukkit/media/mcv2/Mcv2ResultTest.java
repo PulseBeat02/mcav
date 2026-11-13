@@ -1290,7 +1290,11 @@ final class Mcv2ResultTest {
     result.sync();
     result.release();
     result.sync();
-    assertThrows(NullPointerException.class, () -> result.setSmallerSizes(null, configuration -> null));
+    final NullPointerException exception = assertThrows(NullPointerException.class, () ->
+      result.setSmallerSizes(null, configuration -> null)
+    );
+    final String message = exception.getMessage();
+    assertEquals("Sizes must not be null!", message);
     assertThrows(NullPointerException.class, () -> result.setSmallerSizes(List.of(), null));
   }
 
