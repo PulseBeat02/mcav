@@ -84,11 +84,6 @@ final class QemuHardwareValuesPropertyTest {
   }
 
   @Provide
-  Arbitrary<String> optionsWithProperties() {
-    return Arbitraries.of(OPTIONS);
-  }
-
-  @Provide
   Arbitrary<String> fileProperties() {
     return Arbitraries.of("dumpdtb", "dtb", "kernel", "initrd", "firmware", "append", "splash", "memory-backend", "pcspk-audiodev");
   }
@@ -106,7 +101,7 @@ final class QemuHardwareValuesPropertyTest {
 
   @Property(seed = SEED, tries = 1000)
   void shouldRefuseAPropertyThatNamesAFile(
-    @ForAll("optionsWithProperties") final String option,
+    @ForAll("options") final String option,
     @ForAll("fileProperties") final String property,
     @ForAll final String prefix
   ) {
