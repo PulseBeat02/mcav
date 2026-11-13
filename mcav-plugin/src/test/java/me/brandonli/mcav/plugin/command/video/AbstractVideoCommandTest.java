@@ -842,10 +842,12 @@ final class AbstractVideoCommandTest {
   void shouldRefuseAnEmptySourceWithoutStoppingTheCurrentVideo() {
     this.play(PlayerArgument.FFMPEG, AudioArgument.NONE, "", "");
 
-    final String reason = "Video  is not a file on the server, a URL, a device index or an FFmpeg input!";
-    final Component unavailable = Message.VIDEO_UNAVAILABLE.build(reason);
-    this.assertSenderReceived(unavailable);
+    final Component refused = Message.UNSUPPORTED_MRL.build();
+    this.assertSenderReceived(refused);
     verify(this.manager, never()).clearCurrentVideo();
+
+    final Component loading = Message.LOAD_VIDEO.build();
+    verify(this.viewer, never()).sendMessage(loading);
 
     final boolean noDisplay = this.command.resolutions.isEmpty();
     assertTrue(noDisplay);

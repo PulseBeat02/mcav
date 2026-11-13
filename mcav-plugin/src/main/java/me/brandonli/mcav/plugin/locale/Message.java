@@ -600,8 +600,8 @@ public interface Message extends LocaleTools {
   NullComponent START_BROWSER = LocaleTools.direct("mcav.command.browser.start");
 
   /**
-   * Key {@code mcav.command.mrl.error}: an image command got an empty source, an animated GIF, a capture device or an
-   * FFmpeg input, or could not load the image for a reason that the console logs.
+   * Key {@code mcav.command.mrl.error}: a video or image command got an empty source, or an image command got an animated
+   * GIF, a capture device or an FFmpeg input, or could not load the image for a reason that the console logs.
    *
    * @since 1.0.0
    */

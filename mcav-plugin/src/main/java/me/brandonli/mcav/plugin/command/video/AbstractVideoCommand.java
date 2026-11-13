@@ -146,9 +146,9 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
   /**
    * Plays a video, replacing the video played before.
    *
-   * <p>The resolution, the player backend, and the audio output are checked first; any problem is reported to the
-   * sender and nothing starts. Only one video can start at a time. The viewers are then told that the video is
-   * loading, and the media is resolved and started on the worker thread of the video player manager.
+   * <p>The resolution, an empty source, the player backend, and the audio output are checked first; any problem is
+   * reported to the sender and nothing starts. Only one video can start at a time. The viewers are then told that the
+   * video is loading, and the media is resolved and started on the worker thread of the video player manager.
    *
    * <p>A video that is not a file on the server, a URL, a device index or an FFmpeg input, that the player cannot open,
    * or whose web page yt-dlp cannot resolve is refused, and the sender is told why, with no stack trace in the console.
@@ -201,6 +201,13 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     final Optional<FilterChain> parsedChain = parseFilters(sender, this.plugin, filters, MediaKind.VIDEO);
     final @Nullable FilterChain chain = parsedChain.orElse(null);
     if (chain == null) {
+      return;
+    }
+
+    // a blank MRL would be detected as the working folder
+    if (mrl.isBlank()) {
+      final Component message = Message.UNSUPPORTED_MRL.build();
+      sender.sendMessage(message);
       return;
     }
 
@@ -685,12 +692,7 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     final VideoConfigurationProvider configurationProvider
   );
 
-  // a blank MRL would be detected as the working folder
   private @Nullable SourceSelection selectSources(final String mrl, final String[] ytdlpArguments) {
-    if (mrl.isBlank()) {
-      return null;
-    }
-
     final SourceDetectionHelper helper = new SourceDetectionHelper();
     final Optional<Source> detected = helper.detectSource(mrl);
     final @Nullable Source source = detected.orElse(null);

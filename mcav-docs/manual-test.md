@@ -99,8 +99,8 @@ mcav video map @a VLC HTTP_SERVER "1920x1080" "15x9" 0 FLOYD_STEINBERG "" "/abso
 ```{note}
 You can quote image paths or leave them unquoted. Image commands consume the rest of the line and strip one enclosing
 pair of double quotes. Both forms support paths containing spaces. Use quotes for video MRLs containing spaces. An
-empty image source reports `Invalid MRL!`, and the reply to any other source that is neither a file nor a URL, such
-as a malformed quoted one, names the source.
+empty image or video source reports `Invalid MRL!`, and the reply to any other source that is neither a file nor a URL,
+such as a malformed quoted one, names the source.
 ```
 
 `HTTP_SERVER` audio needs the audio web page, which is off by default: set `enabled: true` under `http-server` in

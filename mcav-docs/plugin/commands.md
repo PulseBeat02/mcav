@@ -141,8 +141,9 @@ every device there is.
 
 When a video cannot be played, the command tells you why without a stack trace in the console: the source is not a
 file on the server, a URL, a device index or an FFmpeg input, the player cannot open it, or yt-dlp cannot resolve the
-web page. Any other failure while starting, such as a yt-dlp that cannot be installed, is logged with its stack trace,
-and the command tells you that the console has the details.
+web page. An empty source gets `Invalid MRL!`, as for the image commands. Any other failure while starting, such as a
+yt-dlp that cannot be installed, is logged with its stack trace, and the command tells you that the console has the
+details.
 
 | Command         | `/mcav video release`                                     |
 |-----------------|-----------------------------------------------------------|
