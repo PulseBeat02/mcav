@@ -354,7 +354,7 @@ class CefBrowserIntegrationTest {
   }
 
   @Test
-  void shouldDismissJavaScriptDialogsAndLetThePageGoOn() {
+  void shouldConfirmAlertsAnswerQuestionsWithCancelAndLetThePageGoOn() {
     final BrowserPlayer player = this.player(BrowserOptions.builder().privateNetworks(true).javaScriptJit(true).frameRate(30).build());
     final Frames frames = this.start(player, TestPages.DIALOG_PATH);
     Await.until("the page past its dialogs", () -> frames.lastShows(TestPages.SECOND_COLOR));

@@ -425,7 +425,10 @@ public final class TestPages implements AutoCloseable {
     serveScript(
       exchange,
       """
-      alert("hi"); confirm("sure?"); document.body.style.background = "#00ff00";\
+      alert("hi");
+      const confirmed = confirm("sure?");
+      const answer = prompt("name?");
+      document.body.style.background = confirmed || answer !== null ? "#0000ff" : "#00ff00";\
       """
     );
   }
