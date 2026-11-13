@@ -186,6 +186,12 @@ class NetworkGuardTest {
     return guard;
   }
 
+  private Socket recordAndConnect(final List<InetSocketAddress> attempts, final InetSocketAddress address) throws IOException {
+    attempts.add(address);
+
+    return NetworkGuard.connect(address);
+  }
+
   private NetworkGuard loopbackGuard() throws IOException {
     return this.guard(InetAddress::isLoopbackAddress, NetworkGuard::connect, CONNECT_TIMEOUT_MILLISECONDS);
   }
@@ -290,11 +296,17 @@ class NetworkGuardTest {
 
   @Test
   void shouldOnlyTryAllowedAddressesOfAHost() throws IOException {
-    final NetworkGuard guard = this.loopbackGuard();
+    final List<InetSocketAddress> attempts = new CopyOnWriteArrayList<>();
+    final NetworkGuard guard = this.guard(
+      InetAddress::isLoopbackAddress,
+      address -> this.recordAndConnect(attempts, address),
+      CONNECT_TIMEOUT_MILLISECONDS
+    );
     final Socket client = this.connectThrough(guard, MIXED_HOST, this.echo.getLocalPort());
     final byte[] ping = { 42 };
     final byte[] echoed = this.exchange(client, ping, 1);
     assertArrayEquals(ping, echoed);
+    assertEquals(List.of(new InetSocketAddress(LOOPBACK, this.echo.getLocalPort())), attempts);
   }
 
   @Test
