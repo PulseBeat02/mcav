@@ -86,8 +86,6 @@ class CefBrowserPlayerTest {
 
   private static final int DROPPED_INPUT_COUNT = 500;
 
-  private static final String MISSING_NATIVES_PREFIX = "mcav-no-natives-";
-
   private static final String HELPER_FACTORY_TEXT = "the helper factory";
   private static final String INPUT_KEY = "x";
 
@@ -97,8 +95,6 @@ class CefBrowserPlayerTest {
   private static final String NAME_SEPARATOR = "-";
 
   private static final long HELPER_START_TIMEOUT_MILLISECONDS = 60_000L;
-
-  private static final String TEMPORARY_DIRECTORY_PROPERTY = "java.io.tmpdir";
 
   private static final BrowserSource SOURCE = BrowserSource.uri(URI.create("https://example.com/"), 100, 50, 1);
 
@@ -961,10 +957,10 @@ class CefBrowserPlayerTest {
   }
 
   @Test
-  void shouldDownloadNothingWhileTheModuleIsStopped() {
+  void shouldDownloadNothingWhileTheModuleIsStopped(@TempDir final Path folder) {
     final List<URI> downloads = new CopyOnWriteArrayList<>();
     final JcefNatives recording = new JcefNatives(
-      Path.of(System.getProperty(TEMPORARY_DIRECTORY_PROPERTY)).resolve(MISSING_NATIVES_PREFIX + System.nanoTime()),
+      folder,
       (uri, _, _, _) -> this.recordAndFailDownload(downloads, uri),
       UNREACHABLE_REPOSITORY,
       new ArchiveExtractor()
@@ -1001,13 +997,8 @@ class CefBrowserPlayerTest {
   }
 
   @Test
-  void shouldFailTheDefaultSessionsWhenTheNativesCannotBeInstalled() {
-    final JcefNatives broken = new JcefNatives(
-      Path.of(System.getProperty(TEMPORARY_DIRECTORY_PROPERTY)).resolve(MISSING_NATIVES_PREFIX + System.nanoTime()),
-      (_, _, _, _) -> this.failDownload(),
-      UNREACHABLE_REPOSITORY,
-      new ArchiveExtractor()
-    );
+  void shouldFailTheDefaultSessionsWhenTheNativesCannotBeInstalled(@TempDir final Path folder) {
+    final JcefNatives broken = new JcefNatives(folder, (_, _, _, _) -> this.failDownload(), UNREACHABLE_REPOSITORY, new ArchiveExtractor());
     final CefBrowserPlayer.HelperSessionFactory factory = new CefBrowserPlayer.HelperSessionFactory(broken, List.of());
     final CefBrowserPlayer offline = new CefBrowserPlayer(BrowserOptions.DEFAULT, factory);
     final BrowserException failure = assertThrows(BrowserException.class, () -> offline.start(SOURCE));
