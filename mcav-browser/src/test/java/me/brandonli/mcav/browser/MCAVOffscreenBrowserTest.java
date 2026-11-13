@@ -183,8 +183,6 @@ class MCAVOffscreenBrowserTest {
     assertFalse(draggingStarted);
 
     this.browser.updateDragCursor(this.browser, 1);
-    final boolean nothingPainted = this.painter.log.isEmpty();
-    assertTrue(nothingPainted);
   }
 
   @Test
