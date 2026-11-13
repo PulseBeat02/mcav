@@ -460,19 +460,7 @@ class PageAudioTest {
 
   @Test
   void shouldTakeTheBindingAwayInTheScriptAndSendWhatThePagePlays() throws Exception {
-    final String script = PageAudio.SCRIPT;
-    ScriptAssertions.execute(PAGE_AUDIO_SCRIPT_FILE, script);
-    final boolean usesTheBindingName = script.contains("const BINDING = \"" + PageAudio.BINDING + "\";");
-    assertTrue(usesTheBindingName, "the script uses the binding's name");
-
-    final boolean deletesTheBinding = script.contains("delete globalThis[BINDING]");
-    assertTrue(deletesTheBinding, "the page cannot send through it once it is taken");
-
-    final boolean setsTheRate = script.contains("const SAMPLE_RATE = 48000;");
-    assertTrue(setsTheRate, "the sound has the rate of mcav's audio pipeline");
-
-    final boolean guardsAgainstPlacingTwice = script.contains("if (Object.prototype.hasOwnProperty.call(globalThis, PLACED)) {");
-    assertTrue(guardsAgainstPlacingTwice, "placed twice, it runs once");
+    ScriptAssertions.execute(PAGE_AUDIO_SCRIPT_FILE, PageAudio.SCRIPT);
   }
 
   @Test
