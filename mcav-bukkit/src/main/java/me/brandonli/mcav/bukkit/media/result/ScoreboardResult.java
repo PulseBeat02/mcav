@@ -83,7 +83,8 @@ public final class ScoreboardResult implements FunctionalVideoFilter {
    * @param data     the frame to display, which may be resized by the renderer
    * @param metadata the metadata of the original video, which is not used
    * @return always true, because the renderer may resize the frame
-   * @throws NullPointerException if {@code data} or {@code metadata} is null
+   * @throws NullPointerException  if {@code data} or {@code metadata} is null
+   * @throws IllegalStateException if {@code data} has been released
    * @since 1.0.0
    */
   @Override
