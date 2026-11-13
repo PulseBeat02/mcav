@@ -76,6 +76,7 @@ final class Mcv2HostingTest {
       assertSame(http, result);
     }
   }
+
   @Test
   void shouldLookUpTheAddressOnlyWhenAPackIsHosted() {
     final HttpHosting http = mock(HttpHosting.class);

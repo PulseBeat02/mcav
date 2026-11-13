@@ -111,6 +111,7 @@ final class TaskUtilsTest {
     final int count = runs.get();
     assertEquals(0, count);
   }
+
   @Test
   void shouldWarnWhenItDropsATaskBecauseThePluginIsDisabled() {
     final MCAVSandbox plugin = mock(MCAVSandbox.class);
