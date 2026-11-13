@@ -1256,12 +1256,14 @@ class HelperSessionTest {
   }
 
   @Test
-  void shouldFailAnInterruptedStartAndLeaveNothingBehind() throws InterruptedException {
+  void shouldFailAnInterruptedStartAndLeaveNothingBehind() throws InterruptedException, IOException {
+    final Set<ProcessHandle> before = this.liveDescendants();
     final BrowserSource source = BrowserSource.uri(URI.create(PAGE_URL_TEMPLATE.formatted(ScriptedEngine.NEVER_PATH)), 4, 3, 1);
     final HelperLauncher launcher = launcher(ScriptedEngine.class.getName(), START_TIMEOUT_MILLISECONDS);
+    final Path parent = this.shortDirectory();
     final AtomicReference<Throwable> thrown = new AtomicReference<>();
     final AtomicBoolean stillInterrupted = new AtomicBoolean();
-    final Thread starter = new Thread(() -> this.openAndRecordTheFailure(launcher, source, thrown, stillInterrupted));
+    final Thread starter = new Thread(() -> this.openAndRecordTheFailure(launcher, source, parent, thrown, stillInterrupted));
     starter.start();
     Await.until(HELPER_RUNNING_MESSAGE, () -> HelperProcesses.count() == 1);
     starter.interrupt();
@@ -1274,16 +1276,24 @@ class HelperSessionTest {
 
     final int helperCount = HelperProcesses.count();
     assertEquals(0, helperCount);
+
+    try (final Stream<Path> left = Files.list(parent)) {
+      final List<Path> remainingFiles = left.toList();
+      assertEquals(List.of(), remainingFiles);
+    }
+
+    Await.until(HELPER_ENDED_MESSAGE, () -> this.newSince(before).isEmpty());
   }
 
   private void openAndRecordTheFailure(
     final HelperLauncher launcher,
     final BrowserSource source,
+    final Path parent,
     final AtomicReference<Throwable> thrown,
     final AtomicBoolean stillInterrupted
   ) {
     try {
-      HelperSession.open(launcher, NATIVES, source, BrowserOptions.DEFAULT, this.listener);
+      this.openSessionIn(launcher, source, parent);
     } catch (final BrowserException exception) {
       thrown.set(exception);
       stillInterrupted.set(Thread.currentThread().isInterrupted());
