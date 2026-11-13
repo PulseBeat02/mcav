@@ -95,6 +95,10 @@ final class CleanupUtilsTest {
   void shouldAcceptNoActionsAndRejectANullArray() {
     CleanupUtils.runAll();
     assertThrows(NullPointerException.class, () -> CleanupUtils.runAll((Runnable[]) null));
+  }
+
+  @Test
+  void shouldNotBeInstantiable() {
     UtilityClassAssertions.assertNotInstantiable(CleanupUtils.class);
   }
 }
