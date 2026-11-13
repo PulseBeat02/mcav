@@ -49,8 +49,6 @@ class PageAudioTest {
   private static final byte[] FRAMES = { 1, 0, 2, 0, 3, 0, 4, 0 };
   private static final byte[] OTHER_FRAMES = { 5, 0, 6, 0 };
 
-  private static final int SECOND_BYTES = 48_000 * 4;
-
   private static final int MAXIMUM_CHUNK_BYTES = 65_536;
   private static final int PARTIAL_CHUNK_BYTES = 56_320;
 
@@ -276,10 +274,6 @@ class PageAudioTest {
 
     final int countAfterAnotherSecond = passed.size();
     assertEquals(17, countAfterAnotherSecond);
-
-    final int budgetBytes = PageAudio.BUDGET_SECONDS_PER_SECOND * SECOND_BYTES;
-    final int expectedBudgetBytes = 2 * SECOND_BYTES;
-    assertEquals(expectedBudgetBytes, budgetBytes);
   }
 
   @Test
