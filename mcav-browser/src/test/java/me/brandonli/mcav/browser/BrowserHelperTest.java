@@ -47,8 +47,10 @@ import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -57,6 +59,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.IntFunction;
+import me.brandonli.mcav.browser.testing.HelperCoverage;
 import me.brandonli.mcav.browser.testing.OpenFiles;
 import me.brandonli.mcav.browser.testing.StandardError;
 import org.cef.browser.MCAVOffscreenBrowser;
@@ -97,6 +100,13 @@ class BrowserHelperTest {
 
   private static final long JOIN_TIMEOUT_MILLISECONDS = 10_000L;
   private static final long RESULT_TIMEOUT_SECONDS = 10L;
+
+  private static final String JAVA_HOME_PROPERTY = "java.home";
+  private static final String JAVA_BIN_FOLDER = "bin";
+  private static final String JAVA_EXECUTABLE = "java";
+
+  private static final String CLASS_PATH_PROPERTY = "java.class.path";
+  private static final String CLASS_PATH_OPTION = "-cp";
 
   @TempDir
   private Path folder;
@@ -874,6 +884,44 @@ class BrowserHelperTest {
     };
     final int statusForABrokenInput = BrowserHelper.runFromInput(broken, new ScriptedEngine(), this::neverHalts);
     assertEquals(2, statusForABrokenInput);
+  }
+
+  @Test
+  void shouldExitItsJvmWithTheStatusOfItsRun() throws Exception {
+    final int statusWithoutConfiguration = this.runHelperJvm("");
+    assertEquals(2, statusWithoutConfiguration);
+
+    final String line = this.configuration(PAGE).toLine() + LINE_SEPARATOR;
+    final int statusWithoutServer = this.runHelperJvm(line);
+    assertEquals(1, statusWithoutServer);
+  }
+
+  // main ends its JVM with System.exit, so it runs in a JVM of its own
+  private int runHelperJvm(final String standardInput) throws IOException, InterruptedException {
+    final Path java = Path.of(System.getProperty(JAVA_HOME_PROPERTY), JAVA_BIN_FOLDER, JAVA_EXECUTABLE);
+    final List<String> command = new ArrayList<>();
+    command.add(java.toString());
+    command.addAll(HelperCoverage.jvmOptions());
+    command.add(CLASS_PATH_OPTION);
+    command.add(System.getProperty(CLASS_PATH_PROPERTY));
+    command.add(BrowserHelper.class.getName());
+    final ProcessBuilder builder = new ProcessBuilder(command);
+    builder.redirectErrorStream(true);
+    builder.redirectOutput(ProcessBuilder.Redirect.DISCARD);
+    final Process helper = builder.start();
+    try (final OutputStream input = helper.getOutputStream()) {
+      final byte[] bytes = standardInput.getBytes(StandardCharsets.UTF_8);
+      input.write(bytes);
+    }
+
+    try {
+      final boolean exited = helper.waitFor(RESULT_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+      assertTrue(exited, "the JVM of the helper ended");
+
+      return helper.exitValue();
+    } finally {
+      helper.destroyForcibly();
+    }
   }
 
   private static final class Peer implements AutoCloseable {
