@@ -1303,6 +1303,14 @@ class HelperSessionTest {
   }
 
   @Test
+  void shouldWaitForAHelperThatHungUpToExitInsteadOfSpinning() {
+    final HelperSession session = this.open(RawHelperMain.class.getName(), RawHelperMain.HANG_UP_PATH);
+    final List<Thread> threads = session.getThreads();
+    final Thread reader = threads.getFirst();
+    Await.until("the reader waits for the helper to exit", () -> reader.getState() == Thread.State.TIMED_WAITING);
+  }
+
+  @Test
   void shouldNotReportASecondEnd() {
     final HelperSession session = this.open(ScriptedEngine.class.getName(), ScriptedEngine.FAIL_PATH);
     Await.until(SESSION_ENDED_MESSAGE, () -> !this.listener.ended.isEmpty());
