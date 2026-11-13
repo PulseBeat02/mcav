@@ -52,6 +52,11 @@ class MCAVOffscreenBrowserTest {
   static final Pattern CREATION_REPORT = Pattern.compile("^java\\.lang\\.UnsatisfiedLinkError: .*\\.N_CreateBrowser\\(", Pattern.MULTILINE);
   static final Pattern FOCUS_REPORT = Pattern.compile("^java\\.lang\\.UnsatisfiedLinkError: .*\\.N_SetFocus\\(", Pattern.MULTILINE);
 
+  private static final Pattern REPAINT_REPORT = Pattern.compile(
+    "^java\\.lang\\.UnsatisfiedLinkError: .*\\.N_Invalidate\\(",
+    Pattern.MULTILINE
+  );
+
   private static final int VIEW_WIDTH = 640;
   private static final int VIEW_HEIGHT = 480;
 
@@ -188,6 +193,15 @@ class MCAVOffscreenBrowserTest {
       this.browser.createImmediately();
       final long creationReports = this.countReports(errors, CREATION_REPORT);
       assertEquals(1, creationReports);
+    }
+  }
+
+  @Test
+  void shouldAskCefToPaintTheWholeViewAgainOnRepaint() {
+    try (final StandardError errors = new StandardError()) {
+      this.browser.repaint();
+      final long repaintReports = this.countReports(errors, REPAINT_REPORT);
+      assertEquals(1, repaintReports);
     }
   }
 
