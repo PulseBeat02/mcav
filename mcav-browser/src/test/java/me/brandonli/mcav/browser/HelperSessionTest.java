@@ -440,7 +440,8 @@ class HelperSessionTest {
     }
 
     Await.until("the latest picture", () -> holder.blues.contains(6));
-    final List<Integer> missedPictures = holder.blues.stream()
+    final List<Integer> missedPictures = holder.blues
+      .stream()
       .filter(deliveredBlue -> deliveredBlue == 2 || deliveredBlue == 4)
       .toList();
     assertEquals(List.of(), missedPictures);
