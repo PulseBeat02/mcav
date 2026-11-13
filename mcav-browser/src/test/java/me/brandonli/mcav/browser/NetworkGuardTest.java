@@ -91,6 +91,7 @@ class NetworkGuardTest {
 
   private static final int COMMON_POOL_TIMEOUT_SECONDS = 30;
   private static final int HANDSHAKE_TIMEOUT_MILLISECONDS = 200;
+  private static final int PAST_THE_HANDSHAKE_DEADLINE_MILLISECONDS = 1_000;
   private static final int LONG_HANDSHAKE_TIMEOUT_MILLISECONDS = 60_000;
 
   private static final int EPHEMERAL_PORT = 0;
@@ -424,6 +425,17 @@ class NetworkGuardTest {
     final Socket client = this.client(guard);
     client.getOutputStream().write(5);
     this.assertEnded(client);
+  }
+
+  @Test
+  void shouldKeepARelayedConnectionOpenPastTheHandshakeDeadline() throws IOException, InterruptedException {
+    final NetworkGuard guard = this.guard(InetAddress::isLoopbackAddress, NetworkGuard::connect, HANDSHAKE_TIMEOUT_MILLISECONDS);
+    final Socket client = this.connectThrough(guard, ECHO_HOST, this.echo.getLocalPort());
+    Thread.sleep(PAST_THE_HANDSHAKE_DEADLINE_MILLISECONDS);
+
+    final byte[] ping = { 42 };
+    final byte[] echoed = this.exchange(client, ping, 1);
+    assertArrayEquals(ping, echoed);
   }
 
   @Test
