@@ -49,6 +49,7 @@ import org.junit.jupiter.api.Test;
 // Without the natives, JCEF reports and ignores every native call, so the Java side of each method runs here.
 class MCAVOffscreenBrowserTest {
 
+  static final Pattern CREATION_REPORT = Pattern.compile("^java\\.lang\\.UnsatisfiedLinkError: .*\\.N_CreateBrowser\\(", Pattern.MULTILINE);
   static final Pattern FOCUS_REPORT = Pattern.compile("^java\\.lang\\.UnsatisfiedLinkError: .*\\.N_SetFocus\\(", Pattern.MULTILINE);
 
   private static final int VIEW_WIDTH = 640;
@@ -182,11 +183,12 @@ class MCAVOffscreenBrowserTest {
   }
 
   @Test
-  void shouldLeaveTheBrowserUncreatedWhenCreatedWithoutCef() {
-    // without the natives JCEF reports the missing native method and returns; nothing is painted
-    this.browser.createImmediately();
-    final boolean nothingPainted = this.painter.log.isEmpty();
-    assertTrue(nothingPainted);
+  void shouldAskCefToCreateTheBrowserWhenCreatedImmediately() {
+    try (final StandardError errors = new StandardError()) {
+      this.browser.createImmediately();
+      final long creationReports = this.countReports(errors, CREATION_REPORT);
+      assertEquals(1, creationReports);
+    }
   }
 
   private long countReports(final StandardError errors, final Pattern report) {
