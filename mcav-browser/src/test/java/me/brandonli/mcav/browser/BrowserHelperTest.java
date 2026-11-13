@@ -58,6 +58,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.IntFunction;
+import java.util.regex.Pattern;
 import me.brandonli.mcav.browser.testing.HelperCoverage;
 import me.brandonli.mcav.browser.testing.OpenFiles;
 import me.brandonli.mcav.browser.testing.StandardError;
@@ -80,6 +81,10 @@ class BrowserHelperTest {
   private static final String SERVER_CLOSED_REASON = "the server closed the connection";
   private static final String CONFUSED_SERVER_NOTICE = "confused server";
   private static final String INTERRUPT_KEPT_MESSAGE = "the interrupt is kept";
+
+  private static final Pattern CLOSED_CONNECTION_REASON = Pattern.compile(
+    "the server closed the connection|the connection failed \\(.*\\)|a (frame|message) could not be sent \\(.*\\)"
+  );
 
   private static final String INVALID_CONFIGURATION_LINE = "garbage\n";
 
@@ -327,10 +332,10 @@ class BrowserHelperTest {
     final Integer exitStatus = result.get(RESULT_TIMEOUT_SECONDS, TimeUnit.SECONDS);
     assertEquals(0, exitStatus);
 
-    final String reason = helper.getStopReason();
-    final boolean knownReason =
-      reason.equals(SERVER_CLOSED_REASON) || reason.startsWith("the connection failed") || reason.startsWith("a ");
-    assertTrue(knownReason, reason);
+    final @Nullable String stopReason = helper.getStopReason();
+    final String reason = String.valueOf(stopReason);
+    final boolean closedConnectionReason = CLOSED_CONNECTION_REASON.matcher(reason).matches();
+    assertTrue(closedConnectionReason, reason);
   }
 
   @Test
