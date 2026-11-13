@@ -262,6 +262,57 @@ class NullDisplayTest {
   }
 
   @Test
+  void shouldListThreePixmapFormatsAndTwoDepthsWhoseTrueColorVisualIsTheRootVisual() {
+    final ByteBuffer reply = NullDisplay.createSetupReply(ByteOrder.LITTLE_ENDIAN);
+    final List<List<Integer>> formats = List.of(this.formatAt(reply, 60), this.formatAt(reply, 68), this.formatAt(reply, 76));
+    final List<List<Integer>> expectedFormats = List.of(List.of(1, 1, 32), List.of(24, 32, 32), List.of(32, 32, 32));
+    assertEquals(expectedFormats, formats, "depth, bits per pixel and scanline pad of each format");
+
+    final int screen = 84;
+    final int colormap = reply.getInt(screen + 4);
+    assertEquals(0x20, colormap, "the default colormap");
+
+    final int whitePixel = reply.getInt(screen + 8);
+    assertEquals(0xFFFFFF, whitePixel);
+
+    final int blackPixel = reply.getInt(screen + 12);
+    assertEquals(0, blackPixel);
+
+    final int rootVisual = reply.getInt(screen + 32);
+    final int visual = reply.getInt(screen + 48);
+    assertEquals(0x21, rootVisual, "the root visual");
+    assertEquals(rootVisual, visual, "the visual of depth 24 is the root visual");
+
+    final byte depthCount = reply.get(screen + 39);
+    assertEquals(2, depthCount);
+
+    final short visualCount = reply.getShort(screen + 42);
+    assertEquals(1, visualCount, "one visual of depth 24");
+
+    final List<Integer> masks = List.of(reply.getInt(screen + 56), reply.getInt(screen + 60), reply.getInt(screen + 64));
+    final List<Integer> expectedMasks = List.of(0xFF0000, 0x00FF00, 0x0000FF);
+    assertEquals(expectedMasks, masks, "red, green and blue");
+
+    final int lastDepth = screen + 72;
+    final byte lastDepthBits = reply.get(lastDepth);
+    assertEquals(32, lastDepthBits);
+
+    final short lastDepthVisualCount = reply.getShort(lastDepth + 2);
+    assertEquals(0, lastDepthVisualCount, "no visual of depth 32");
+
+    final int replyBytes = reply.limit();
+    final int expectedReplyBytes = lastDepth + 8;
+    assertEquals(expectedReplyBytes, replyBytes, "the last depth ends the reply");
+  }
+
+  private List<Integer> formatAt(final ByteBuffer reply, final int offset) {
+    final int depth = reply.get(offset);
+    final int bitsPerPixel = reply.get(offset + 1);
+    final int scanlinePad = reply.get(offset + 2);
+    return List.of(depth, bitsPerPixel, scanlinePad);
+  }
+
+  @Test
   void shouldRefuseAClientWithoutTheCookieWithAReason() {
     for (final byte[] wrong : new byte[][] {
       setup(ByteOrder.LITTLE_ENDIAN, PROTOCOL_MAJOR_VERSION, COOKIE_NAME, new byte[16]),
