@@ -272,9 +272,7 @@ class JcefNativesTest {
 
   @Test
   void shouldNameEveryPlatformAsJcefmavenDoes() {
-    final List<String> known = Arrays.stream(EnumPlatform.values())
-      .map(EnumPlatform::getIdentifier)
-      .toList();
+    final List<String> known = Arrays.stream(EnumPlatform.values()).map(EnumPlatform::getIdentifier).toList();
     for (final JcefNatives.NativePlatform platform : JcefNatives.NativePlatform.values()) {
       final String identifier = platform.getIdentifier();
       final boolean named = known.contains(identifier);
