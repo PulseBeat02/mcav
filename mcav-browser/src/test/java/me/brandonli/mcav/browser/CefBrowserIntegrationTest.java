@@ -394,6 +394,19 @@ class CefBrowserIntegrationTest {
   }
 
   @Test
+  void shouldRefuseAFileChooserThatAClickOpens() {
+    try (final StandardError reports = new StandardError()) {
+      final BrowserPlayer player = this.player(LOCAL);
+      this.start(player, TestPages.FILE_CHOOSER_PATH);
+      final String refusal = "The browser sent the notice \"Refused a file chooser.\" about the page.";
+      this.clickUntil(player, "the refused file chooser", () -> reports.text().contains(refusal));
+
+      final boolean playing = player.isPlaying();
+      assertTrue(playing);
+    }
+  }
+
+  @Test
   void shouldFailTheStartWhenThePageCannotBeLoaded() {
     final BrowserPlayer player = this.player(LOCAL);
     final BrowserSource unreachable = BrowserSource.uri(URI.create("http://mcav-browser-test.invalid/"), WIDTH, HEIGHT, 1);

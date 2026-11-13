@@ -61,6 +61,7 @@ public final class TestPages implements AutoCloseable {
   public static final String NAMED_FRAME_PATH = "/named-frame";
   public static final String FORM_TARGET_PATH = "/form-target";
   public static final String DOWNLOAD_PATH = "/download";
+  public static final String FILE_CHOOSER_PATH = "/file-chooser";
 
   public static final int MAIN_COLOR = 0xFF0000;
   public static final int POPUP_COLOR = 0x0000FF;
@@ -409,6 +410,7 @@ public final class TestPages implements AutoCloseable {
       httpServer.createContext(NAMED_FRAME_PATH, TestPages::serveLinkIntoANamedFrame);
       httpServer.createContext(FORM_TARGET_PATH, TestPages::serveFormThatTargetsANewWindow);
       httpServer.createContext(DOWNLOAD_PATH, TestPages::serveDownload);
+      httpServer.createContext(FILE_CHOOSER_PATH, TestPages::serveFileChooser);
       httpServer.start();
       return pages;
     } catch (final IOException exception) {
@@ -465,6 +467,10 @@ public final class TestPages implements AutoCloseable {
       exchange,
       "<form action=\"/second\" method=\"get\"><button type=\"submit\" formtarget=\"_blank\" style=\"position:fixed;inset:0;opacity:0\">send</button></form>"
     );
+  }
+
+  private static void serveFileChooser(final HttpExchange exchange) throws IOException {
+    serveHtml(exchange, "<input type=\"file\" style=\"position:fixed;left:0;top:0;width:100%;height:100%;opacity:0\">");
   }
 
   public URI uri(final String path) {
