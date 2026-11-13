@@ -1001,7 +1001,7 @@ class CefBrowserPlayerTest {
     final JcefNatives broken = new JcefNatives(folder, (_, _, _, _) -> this.failDownload(), UNREACHABLE_REPOSITORY, new ArchiveExtractor());
     final CefBrowserPlayer.HelperSessionFactory factory = new CefBrowserPlayer.HelperSessionFactory(broken, List.of());
     final CefBrowserPlayer offline = new CefBrowserPlayer(BrowserOptions.DEFAULT, factory);
-    final BrowserException failure = assertThrows(BrowserException.class, () -> offline.start(SOURCE));
+    final BrowserUnavailableException failure = assertThrows(BrowserUnavailableException.class, () -> offline.start(SOURCE));
     final boolean namesTheInstallFailure = failure.getMessage().startsWith("The browser cannot be installed");
     assertTrue(namesTheInstallFailure, failure.getMessage());
 
