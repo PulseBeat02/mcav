@@ -251,18 +251,6 @@ class CefBrowserPlayerTest {
   }
 
   @Test
-  void shouldRunFramesThroughThePipelineAndCloseThem() {
-    this.player.start(SOURCE);
-    final ImageBuffer frame = this.frame();
-    this.listener.onFrame(frame);
-    final int processedCount = this.processed.size();
-    assertEquals(1, processedCount);
-
-    final ImageBuffer processedFrame = this.processed.getFirst();
-    assertSame(frame, processedFrame);
-  }
-
-  @Test
   void shouldDropFramesOfTheStartBeforeTheSessionIsKnown() {
     final ImageBuffer early = this.frame();
     final CefBrowserPlayer.SessionFactory factory = (_, _, sessionListener) -> this.openSessionAfterAFrame(sessionListener, early);
@@ -923,9 +911,13 @@ class CefBrowserPlayerTest {
     assertTrue(started);
 
     final ClosingProbe probe = new ClosingProbe();
-    this.listener.onFrame(probe.wrap(this.frame()));
+    final ImageBuffer frame = probe.wrap(this.frame());
+    this.listener.onFrame(frame);
     final int processedCount = this.processed.size();
     assertEquals(1, processedCount);
+
+    final ImageBuffer processedFrame = this.processed.getFirst();
+    assertSame(frame, processedFrame);
 
     final boolean closed = probe.isClosed();
     assertTrue(closed);
