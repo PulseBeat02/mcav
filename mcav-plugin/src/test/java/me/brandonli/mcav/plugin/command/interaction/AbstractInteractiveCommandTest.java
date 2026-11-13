@@ -1257,6 +1257,26 @@ final class AbstractInteractiveCommandTest {
   }
 
   @Test
+  void shouldPropagateAFatalFailureOfThePlayerToStopWithoutTellingTheSender() {
+    this.createMockedScreen();
+    this.command.player = BROWSER;
+    final OutOfMemoryError fatal = new OutOfMemoryError(FATAL_FAILURE_MESSAGE);
+    this.command.releaseFailure = fatal;
+    final CommandSender sender = mock(CommandSender.class);
+    final Component message = Component.text(RELEASED_TEXT);
+    final Component failureMessage = Component.text(NOT_RELEASED_TEXT);
+
+    final OutOfMemoryError thrown = assertThrows(
+      OutOfMemoryError.class,
+      () -> this.command.releaseResource(sender, message, failureMessage)
+    );
+    assertSame(fatal, thrown);
+
+    verify(sender, never()).sendMessage(message);
+    verify(sender, never()).sendMessage(failureMessage);
+  }
+
+  @Test
   void shouldRejectScreenCreationAfterShutdownWithoutAcquiringMaps() {
     this.command.shutdown();
     final ScreenSettings settings = this.wallSettings(UUID.randomUUID(), DitheringArgument.NEAREST_COLOR);
