@@ -506,6 +506,9 @@ class NullDisplayTest {
     final short windowClass = answers.getShort(12);
     assertEquals(1, windowClass, "InputOutput");
 
+    final int colormap = answers.getInt(28);
+    assertEquals(0x20, colormap, "the colormap of the screen");
+
     final int geometry = 44;
     final byte depth = answers.get(geometry + 1);
     assertEquals(ROOT_DEPTH, depth, "the depth");
