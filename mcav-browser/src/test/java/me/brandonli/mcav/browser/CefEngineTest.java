@@ -20,12 +20,16 @@ package me.brandonli.mcav.browser;
 import static java.util.Objects.requireNonNull;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockingDetails;
@@ -35,8 +39,11 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.awt.EventQueue;
+import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
+import java.net.InetAddress;
+import java.net.Socket;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -45,20 +52,29 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import me.brandonli.mcav.browser.testing.Await;
 import me.brandonli.mcav.browser.testing.StandardError;
+import me.friwi.jcefmaven.CefAppBuilder;
 import me.friwi.jcefmaven.CefBuildInfo;
+import me.friwi.jcefmaven.IProgressHandler;
+import me.friwi.jcefmaven.MavenCefAppHandlerAdapter;
+import me.friwi.jcefmaven.impl.progress.ConsoleProgressHandler;
 import org.cef.CefApp;
 import org.cef.CefClient;
 import org.cef.CefSettings;
 import org.cef.browser.CefBrowser;
 import org.cef.browser.CefDevToolsClient;
 import org.cef.browser.MCAVOffscreenBrowser;
+import org.cef.handler.CefLifeSpanHandler;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
 
 class CefEngineTest {
@@ -93,11 +109,51 @@ class CefEngineTest {
 
   private static final Pattern FEATURE_SEPARATOR = Pattern.compile(",");
 
+  private static final String CHROMIUM_THREAD_NAME = "mcav-browser-chromium";
+
+  private static final InetAddress LOOPBACK = InetAddress.getLoopbackAddress();
+  private static final String PROXY_SWITCH_PREFIX = "--proxy-server=socks5://127.0.0.1:";
+  private static final String DISPLAY_SWITCH_PREFIX = "--display=127.0.0.1:";
+
+  private static final int VIEW_WIDTH = 640;
+  private static final int VIEW_HEIGHT = 480;
+
+  private static final int FRAME_INTERVAL = 1;
+  private static final long SETTLE_MILLISECONDS = 100L;
+
+  private static final String CONFINEMENT_NOTICE = "notice: %s".formatted(ChromiumConfinement.NOT_ASKED);
+  private static final String INITIALIZATION_FAILURE_LINE = "failure: CEF failed to initialize";
+
+  private static final String OS_NAME_PROPERTY = "os.name";
+
   private CefEngine engine;
+  private CefApp application;
+  private CefClient client;
+  private RecordingBuilder builder;
+  private ContentPolicyTest.RecordingEvents events;
+  private CefEngine recordingEngine;
 
   @BeforeEach
   void setUp() {
     this.engine = new CefEngine();
+    this.application = mock(CefApp.class);
+    this.client = mock(CefClient.class);
+    when(this.application.createClient()).thenReturn(this.client);
+    doAnswer(_ -> this.terminateCef()).when(this.application).dispose();
+    this.builder = new RecordingBuilder(this.application);
+    this.events = new ContentPolicyTest.RecordingEvents();
+    this.recordingEngine = new CefEngine(() -> this.builder);
+  }
+
+  private @Nullable Void terminateCef() {
+    this.builder.terminate();
+
+    return null;
+  }
+
+  @AfterEach
+  void stopRecordingEngine() {
+    this.recordingEngine.stop();
   }
 
   private HelperConfiguration configuration(final AllowedFeature feature) {
@@ -109,8 +165,8 @@ class CefEngineTest {
       ROOT.resolve(NATIVES_FOLDER),
       ROOT.resolve(SESSION_FOLDER).resolve(PROFILE_FOLDER),
       URI.create(PAGE_URL),
-      640,
-      480,
+      VIEW_WIDTH,
+      VIEW_HEIGHT,
       1,
       30,
       allowsJit,
@@ -125,8 +181,8 @@ class CefEngineTest {
   @Test
   void shouldStartChromiumOnAThreadOfItsOwnWhoseFailureReachesTheCaller() throws Exception {
     final List<String> names = new ArrayList<>();
-    this.engine.runOnOwnThread("mcav-browser-chromium", () -> names.add(Thread.currentThread().getName()));
-    final List<String> expectedNames = List.of("mcav-browser-chromium");
+    this.engine.runOnOwnThread(CHROMIUM_THREAD_NAME, () -> names.add(Thread.currentThread().getName()));
+    final List<String> expectedNames = List.of(CHROMIUM_THREAD_NAME);
     assertEquals(expectedNames, names);
 
     final IOException refused = new IOException("Landlock could not restrict the thread because of error 1 from the kernel!");
@@ -326,7 +382,7 @@ class CefEngineTest {
     assertEquals(0, failedCount);
 
     final List<String> log = events.getLog();
-    final List<String> expectedLog = List.of("failure: CEF failed to initialize");
+    final List<String> expectedLog = List.of(INITIALIZATION_FAILURE_LINE);
     assertEquals(expectedLog, log);
   }
 
@@ -585,9 +641,237 @@ class CefEngineTest {
     }
   }
 
+  @Test
+  void shouldBuildCefFromTheInstalledNativesOnTheChromiumThreadAfterTheConfinementNotice(@TempDir final Path folder) throws Exception {
+    this.startRecordingEngine(folder);
+    final List<String> log = this.events.getLog();
+    assertEquals(List.of(CONFINEMENT_NOTICE), log);
+
+    final String buildingThread = this.builder.getBuildingThread();
+    assertEquals(CHROMIUM_THREAD_NAME, buildingThread);
+
+    final File installation = this.builder.getInstallation();
+    assertEquals(folder.resolve(NATIVES_FOLDER).toFile(), installation);
+
+    final boolean skipsInstallation = this.builder.getSkipInstallation();
+    assertTrue(skipsInstallation);
+
+    final IProgressHandler progressHandler = this.builder.getProgressHandler();
+    assertNotNull(progressHandler);
+    final boolean logsProgressToTheConsole = progressHandler instanceof ConsoleProgressHandler;
+    assertFalse(logsProgressToTheConsole);
+  }
+
+  private void startRecordingEngine(final Path folder) throws Exception {
+    final HelperConfiguration configuration = this.startableConfiguration(folder);
+    final PageCompositor painter = new PageCompositor(VIEW_WIDTH, VIEW_HEIGHT, FRAME_INTERVAL, SETTLE_MILLISECONDS, System::nanoTime);
+    this.recordingEngine.start(configuration, painter, this.events);
+  }
+
+  private HelperConfiguration startableConfiguration(final Path folder) {
+    return new HelperConfiguration(
+      new byte[HelperProtocol.TOKEN_BYTES],
+      folder.resolve(SOCKET_FILE),
+      folder.resolve(NATIVES_FOLDER),
+      folder.resolve(PROFILE_FOLDER),
+      URI.create(PAGE_URL),
+      VIEW_WIDTH,
+      VIEW_HEIGHT,
+      FRAME_INTERVAL,
+      30,
+      false,
+      false,
+      false,
+      false,
+      folder.resolve(SERVER_FOLDER),
+      List.of()
+    );
+  }
+
+  @Test
+  void shouldGiveCefTheSwitchesTheSettingsAndAStateListenerThatReportsAFailedStart(@TempDir final Path folder) throws Exception {
+    this.startRecordingEngine(folder);
+    final List<String> switches = this.builder.getJcefArgs();
+    final boolean jitless = switches.contains(JITLESS_SWITCH);
+    assertTrue(jitless);
+
+    final CefSettings settings = this.builder.getCefSettings();
+    final String profile = settings.root_cache_path;
+    assertEquals(folder.resolve(PROFILE_FOLDER).toString(), profile);
+
+    final CefEngine.StateListener listener = assertInstanceOf(CefEngine.StateListener.class, this.builder.getStateHandler());
+    listener.stateHasChanged(CefApp.CefAppState.INITIALIZATION_FAILED);
+    final List<String> log = this.events.getLog();
+    assertEquals(List.of(CONFINEMENT_NOTICE, INITIALIZATION_FAILURE_LINE), log);
+  }
+
+  @Test
+  void shouldRouteChromiumThroughAGuardThatStopsWithTheEngine(@TempDir final Path folder) throws Exception {
+    this.startRecordingEngine(folder);
+    final List<String> switches = this.builder.getJcefArgs();
+    final int port = this.parseSwitchNumber(switches, PROXY_SWITCH_PREFIX);
+    final boolean acceptsBeforeStop = this.acceptsConnections(port);
+    assertTrue(acceptsBeforeStop);
+
+    this.recordingEngine.stop();
+    final boolean acceptsAfterStop = this.acceptsConnections(port);
+    assertFalse(acceptsAfterStop);
+  }
+
+  private int parseSwitchNumber(final List<String> switches, final String prefix) {
+    final List<String> matching = switches
+      .stream()
+      .filter(value -> value.startsWith(prefix))
+      .toList();
+    final int count = matching.size();
+    assertEquals(1, count, switches.toString());
+
+    final String value = matching.getFirst();
+    final String number = value.substring(prefix.length());
+    return Integer.parseInt(number);
+  }
+
+  private boolean acceptsConnections(final int port) {
+    try (final Socket _ = new Socket(LOOPBACK, port)) {
+      return true;
+    } catch (final IOException exception) {
+      return false;
+    }
+  }
+
+  @Test
+  void shouldCreateAndFocusTheBrowserAndOpenThePageOnceCefCreatedIt(@TempDir final Path folder) throws Exception {
+    try (final StandardError errors = new StandardError()) {
+      this.startRecordingEngine(folder);
+      final String text = errors.text();
+      final int creation = this.locateReport(text, MCAVOffscreenBrowserTest.CREATION_REPORT);
+      final int focus = this.locateReport(text, MCAVOffscreenBrowserTest.FOCUS_REPORT);
+      assertTrue(creation < focus, text);
+    }
+
+    final ArgumentCaptor<CefLifeSpanHandler> handlers = ArgumentCaptor.forClass(CefLifeSpanHandler.class);
+    verify(this.client).addLifeSpanHandler(handlers.capture());
+    final ContentPolicy policy = assertInstanceOf(ContentPolicy.class, handlers.getValue());
+    verify(this.client).addRequestHandler(policy);
+    verify(this.client).addJSDialogHandler(policy);
+    verify(this.client).addDownloadHandler(policy);
+    verify(this.client).addDialogHandler(policy);
+    verify(this.client).addContextMenuHandler(policy);
+    verify(this.client).addLoadHandler(policy);
+
+    final CefBrowser prepared = mock(CefBrowser.class);
+    policy.onAfterCreated(prepared);
+    verify(prepared).loadURL(PAGE_URL);
+    final List<String> log = this.events.getLog();
+    assertEquals(List.of(CONFINEMENT_NOTICE, "ready: unknown"), log);
+  }
+
+  private int locateReport(final String text, final Pattern report) {
+    final Matcher matcher = report.matcher(text);
+    final boolean found = matcher.find();
+    assertTrue(found, text);
+
+    return matcher.start();
+  }
+
+  @Test
+  void shouldDisposeOfCefOnStop(@TempDir final Path folder) throws Exception {
+    this.startRecordingEngine(folder);
+    this.recordingEngine.stop();
+    verify(this.application).dispose();
+  }
+
+  @Test
+  void shouldCloseTheNullDisplayOnlyAfterCefOnLinux(@TempDir final Path folder) throws Exception {
+    final String osName = requireNonNull(System.getProperty(OS_NAME_PROPERTY)); // checker framework
+    final OperatingSystem system = OperatingSystem.fromName(osName);
+    assumeTrue(system == OperatingSystem.LINUX, "The null display runs on Linux only!");
+
+    this.startRecordingEngine(folder);
+    final List<String> switches = this.builder.getJcefArgs();
+    final int display = this.parseSwitchNumber(switches, DISPLAY_SWITCH_PREFIX);
+    final int port = NullDisplay.X11_BASE_PORT + display;
+    final AtomicBoolean accepted = new AtomicBoolean();
+    doAnswer(_ -> this.terminateWhileCheckingDisplay(port, accepted)).when(this.application).dispose();
+    this.recordingEngine.stop();
+    final boolean acceptsDuringDisposal = accepted.get();
+    assertTrue(acceptsDuringDisposal);
+
+    final boolean acceptsAfterStop = this.acceptsConnections(port);
+    assertFalse(acceptsAfterStop);
+  }
+
+  private @Nullable Void terminateWhileCheckingDisplay(final int port, final AtomicBoolean accepted) {
+    accepted.set(this.acceptsConnections(port));
+    this.builder.terminate();
+
+    return null;
+  }
+
   private enum AllowedFeature {
     NONE,
     JAVASCRIPT_JIT,
     AUTOPLAY,
+  }
+
+  private static final class RecordingBuilder extends CefAppBuilder {
+
+    private final CefApp application;
+
+    private @Nullable File installation;
+    private @Nullable IProgressHandler progressHandler;
+    private @Nullable MavenCefAppHandlerAdapter stateHandler;
+    private @Nullable String buildingThread;
+
+    RecordingBuilder(final CefApp application) {
+      this.application = application;
+    }
+
+    @Override
+    public void setInstallDir(final File folder) {
+      this.installation = folder;
+    }
+
+    @Override
+    public void setProgressHandler(final IProgressHandler handler) {
+      this.progressHandler = handler;
+    }
+
+    // CefAppBuilder's registers the handler in a static field of CefApp
+    @Override
+    public void setAppHandler(final MavenCefAppHandlerAdapter handler) {
+      this.stateHandler = handler;
+    }
+
+    @Override
+    public CefApp build() {
+      final Thread current = Thread.currentThread();
+      this.buildingThread = current.getName();
+
+      return this.application;
+    }
+
+    void terminate() {
+      final MavenCefAppHandlerAdapter handler = this.stateHandler;
+      if (handler != null) {
+        handler.stateHasChanged(CefApp.CefAppState.TERMINATED);
+      }
+    }
+
+    @Nullable File getInstallation() {
+      return this.installation;
+    }
+
+    @Nullable IProgressHandler getProgressHandler() {
+      return this.progressHandler;
+    }
+
+    @Nullable MavenCefAppHandlerAdapter getStateHandler() {
+      return this.stateHandler;
+    }
+
+    @Nullable String getBuildingThread() {
+      return this.buildingThread;
+    }
   }
 }

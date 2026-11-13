@@ -36,6 +36,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 import me.friwi.jcefmaven.CefAppBuilder;
 import me.friwi.jcefmaven.MavenCefAppHandlerAdapter;
 import org.cef.CefApp;
@@ -121,6 +122,7 @@ final class CefEngine implements HelperEngine {
   );
 
   private final CountDownLatch terminated;
+  private final Supplier<CefAppBuilder> builders;
 
   private volatile @Nullable NetworkGuard guard;
   private volatile @Nullable NullDisplay display;
@@ -129,7 +131,14 @@ final class CefEngine implements HelperEngine {
   private volatile @Nullable MCAVOffscreenBrowser browser;
 
   CefEngine() {
+    this(CefAppBuilder::new);
+  }
+
+  // a recording builder serves the NO_COVERAGE mutants of start, startChromium, startGuard and stop, which only the cef group reaches
+  @VisibleForTesting
+  CefEngine(final Supplier<CefAppBuilder> builders) {
     this.terminated = new CountDownLatch(1);
+    this.builders = builders;
   }
 
   List<String> createSwitches(
@@ -231,7 +240,7 @@ final class CefEngine implements HelperEngine {
     throws Exception {
     final String osName = requireNonNull(System.getProperty(OS_NAME_PROPERTY)); // checker framework
     final OperatingSystem system = OperatingSystem.fromName(osName);
-    final CefAppBuilder builder = new CefAppBuilder();
+    final CefAppBuilder builder = this.builders.get();
     final Path natives = configuration.getNatives();
     final File installation = natives.toFile();
     builder.setInstallDir(installation);
