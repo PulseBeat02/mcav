@@ -93,6 +93,7 @@ class ArchiveExtractorTest {
   private static final String GONE_FILE = "gone";
   private static final String CLOSED_FOLDER = "closed";
   private static final String TIGHTENED_ARCHIVE_FILE = "tightened.zip";
+  private static final String PERMISSIONLESS_ARCHIVE_FILE = "permissionless.zip";
   private static final String UNREADABLE_FILE = "unreadable";
   private static final String CURRENT_FOLDER = "./";
   private static final String PARENT_FOLDER = "..";
@@ -289,10 +290,14 @@ class ArchiveExtractorTest {
 
   @Test
   void shouldExtractTheFilesWithoutPermissionsOnAFileSystemWithoutPosixPermissions() throws IOException {
-    final InputStream archive = new Archive().file(LIBRARY_FILE, EXECUTABLE_MODE, LIBRARY_TEXT).finish();
-    new ArchiveExtractor().extract(archive, this.target, PosixPermissions.SKIPPED);
-    final String libraryText = Files.readString(this.target.resolve(LIBRARY_FILE));
-    assertEquals(LIBRARY_TEXT, libraryText);
+    final Path zip = this.target.resolve(PERMISSIONLESS_ARCHIVE_FILE);
+    try (final FileSystem zipped = FileSystems.newFileSystem(zip, Map.of(CREATE_OPTION, ENABLED_OPTION))) {
+      final Path folder = Files.createDirectory(zipped.getPath(ZIPPED_TARGET_FOLDER));
+      final InputStream archive = new Archive().file(LIBRARY_FILE, EXECUTABLE_MODE, LIBRARY_TEXT).finish();
+      new ArchiveExtractor().extract(archive, folder);
+      final String libraryText = Files.readString(folder.resolve(LIBRARY_FILE));
+      assertEquals(LIBRARY_TEXT, libraryText);
+    }
   }
 
   @Test
