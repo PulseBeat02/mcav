@@ -637,7 +637,7 @@ class JcefNativesTest {
   }
 
   @Test
-  void shouldHoldTheLockOfAnInstallationUntilItIsReleased() throws IOException {
+  void shouldLockTheChannelOfAnInstallation() throws IOException {
     final Path file = this.folder.resolve(EXTERNAL_LOCK_FILE);
     try (
       final FileChannel channel = FileChannel.open(file, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
