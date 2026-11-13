@@ -182,6 +182,7 @@ final class VncCommandTest {
   void shouldConnectToNothingWithInvalidDimensions() {
     this.create("wide", DESKTOP_ADDRESS);
 
+    this.assertReceived(Message.UNSUPPORTED_DIMENSION.build());
     this.desktops.verifyNoInteractions();
     assertNull(this.command.output);
   }
@@ -200,6 +201,7 @@ final class VncCommandTest {
       null
     );
 
+    this.assertReceived(Message.UNSUPPORTED_DIMENSION.build());
     this.desktops.verifyNoInteractions();
     assertNull(this.command.output);
   }
