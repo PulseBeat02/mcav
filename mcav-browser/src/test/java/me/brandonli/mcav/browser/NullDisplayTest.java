@@ -122,6 +122,15 @@ class NullDisplayTest {
 
   private static final int PREDEFINED_ATOM_BYTES = 698;
 
+  // core requests with a reply (X Window System Protocol, chapter 9)
+  private static final Set<Integer> REPLYING_REQUESTS = Set.of(
+    3, 14, 15, 16, 17, 20, 21, 23, 26, 31, 38, 39, 40, 43, 44, 47, 48, 49, 50, 52, 73, 83, 84, 85, 86, 87, 91, 92, 97, 98,
+    99, 101, 103, 106, 108, 110, 116, 117, 118, 119
+  );
+
+  private static final int FIRST_EXTENSION_OPCODE = 128;
+  private static final int OPCODE_COUNT = 256;
+
   @TempDir
   private Path folder;
 
@@ -589,6 +598,26 @@ class NullDisplayTest {
 
     final int secondMajorOpcode = answers.get(REPLY_BYTES + 10) & CHANNEL_MASK;
     assertEquals(128, secondMajorOpcode);
+  }
+
+  @Test
+  void shouldAnswerEveryCoreRequestThatHasAReplyAndEveryExtensionRequestAndNoOtherRequest() {
+    final List<Integer> wronglyAnswered = new ArrayList<>();
+    for (int opcode = 0; opcode < OPCODE_COUNT; opcode++) {
+      final boolean answered = this.isAnswered(opcode);
+      final boolean expectsAnswer = REPLYING_REQUESTS.contains(opcode) || opcode >= FIRST_EXTENSION_OPCODE;
+      if (answered != expectsAnswer) {
+        wronglyAnswered.add(opcode);
+      }
+    }
+
+    assertEquals(List.of(), wronglyAnswered, "requests answered although no client waits, or not answered although one does");
+  }
+
+  private boolean isAnswered(final int opcode) {
+    final ByteBuffer body = ByteBuffer.allocate(8).order(ByteOrder.LITTLE_ENDIAN);
+    final @Nullable ByteBuffer answer = NullDisplay.answer(opcode, 0, body, 1, ByteOrder.LITTLE_ENDIAN, new NullDisplay.Atoms());
+    return answer != null;
   }
 
   @Test
