@@ -117,6 +117,13 @@ final class ChatUtilsTest {
   }
 
   @Test
+  void shouldInsertFormattingCodesInTheCharacterVerbatimIntoRawLines() {
+    final int[] pixels = { RED };
+    final String line = ChatUtils.createRawLine(pixels, "§l#", 1, 0);
+    assertEquals("§x§f§f§0§0§0§0§l#", line);
+  }
+
+  @Test
   void shouldRejectOverflowingImageAndRowBounds() {
     final int[] pixels = new int[4];
     assertThrows(IllegalArgumentException.class, () -> ChatUtils.createRawLine(pixels, CHARACTER, 2, Integer.MAX_VALUE));
@@ -154,6 +161,25 @@ final class ChatUtilsTest {
     final List<Integer> expectedColors = List.of(BLUE_RGB, GREEN_RGB);
     assertEquals("█\n█", text);
     assertEquals(expectedColors, colors);
+  }
+
+  @Test
+  void shouldInterpretFormattingCodesInTheCharacterOfChatComponents() {
+    final int[] pixels = { RED };
+    final Component component = ChatUtils.createChatComponent(pixels, "§l#", 1, 1);
+    final String text = component.getString();
+    final List<Integer> colors = this.getCharacterColors(component);
+    final Optional<Style> style = component.visit(this::findTextStyle, Style.EMPTY);
+    final Optional<Boolean> bold = style.map(Style::isBold);
+    final List<Integer> expectedColors = List.of(RED_RGB);
+    final Optional<Boolean> expectedBold = Optional.of(true);
+    assertEquals("#", text);
+    assertEquals(expectedColors, colors);
+    assertEquals(expectedBold, bold);
+  }
+
+  private Optional<Style> findTextStyle(final Style style, final String content) {
+    return content.isEmpty() ? Optional.empty() : Optional.of(style);
   }
 
   @Test
