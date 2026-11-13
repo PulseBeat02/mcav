@@ -36,6 +36,8 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
+import java.util.regex.Pattern;
+import me.brandonli.mcav.browser.testing.StandardError;
 import org.cef.CefBrowserSettings;
 import org.cef.CefClient;
 import org.cef.browser.MCAVOffscreenBrowser;
@@ -46,6 +48,8 @@ import org.junit.jupiter.api.Test;
 
 // Without the natives, JCEF reports and ignores every native call, so the Java side of each method runs here.
 class MCAVOffscreenBrowserTest {
+
+  static final Pattern FOCUS_REPORT = Pattern.compile("^java\\.lang\\.UnsatisfiedLinkError: .*\\.N_SetFocus\\(", Pattern.MULTILINE);
 
   private static final int VIEW_WIDTH = 640;
   private static final int VIEW_HEIGHT = 480;
@@ -120,25 +124,35 @@ class MCAVOffscreenBrowserTest {
 
   @Test
   void shouldPassFocusChangesToCefOnlyWhenTheyChangeSomething() {
-    final boolean focusedAtFirst = this.browser.isFocused();
-    assertFalse(focusedAtFirst);
+    try (final StandardError errors = new StandardError()) {
+      final boolean focusedAtFirst = this.browser.isFocused();
+      assertFalse(focusedAtFirst);
 
-    this.browser.setFocus(true);
-    final boolean focusedAfterFocusing = this.browser.isFocused();
-    assertTrue(focusedAfterFocusing);
+      this.browser.setFocus(true);
+      final boolean focusedAfterFocusing = this.browser.isFocused();
+      final long reportsAfterFocusing = this.countReports(errors, FOCUS_REPORT);
+      assertTrue(focusedAfterFocusing);
+      assertEquals(1, reportsAfterFocusing);
 
-    // JCEF gives a focused browser focus again from inside the focus event; that call must change nothing
-    this.browser.setFocus(true);
-    final boolean focusedAfterRefocusing = this.browser.isFocused();
-    assertTrue(focusedAfterRefocusing);
+      // JCEF gives a focused browser focus again from inside the focus event; that call must change nothing
+      this.browser.setFocus(true);
+      final boolean focusedAfterRefocusing = this.browser.isFocused();
+      final long reportsAfterRefocusing = this.countReports(errors, FOCUS_REPORT);
+      assertTrue(focusedAfterRefocusing);
+      assertEquals(1, reportsAfterRefocusing);
 
-    this.browser.setFocus(false);
-    final boolean focusedAfterUnfocusing = this.browser.isFocused();
-    assertFalse(focusedAfterUnfocusing);
+      this.browser.setFocus(false);
+      final boolean focusedAfterUnfocusing = this.browser.isFocused();
+      final long reportsAfterUnfocusing = this.countReports(errors, FOCUS_REPORT);
+      assertFalse(focusedAfterUnfocusing);
+      assertEquals(2, reportsAfterUnfocusing);
 
-    this.browser.setFocus(false);
-    final boolean focusedAfterUnfocusingAgain = this.browser.isFocused();
-    assertFalse(focusedAfterUnfocusingAgain);
+      this.browser.setFocus(false);
+      final boolean focusedAfterUnfocusingAgain = this.browser.isFocused();
+      final long reportsAfterUnfocusingAgain = this.countReports(errors, FOCUS_REPORT);
+      assertFalse(focusedAfterUnfocusingAgain);
+      assertEquals(2, reportsAfterUnfocusingAgain);
+    }
   }
 
   @Test
@@ -173,6 +187,11 @@ class MCAVOffscreenBrowserTest {
     this.browser.createImmediately();
     final boolean nothingPainted = this.painter.log.isEmpty();
     assertTrue(nothingPainted);
+  }
+
+  private long countReports(final StandardError errors, final Pattern report) {
+    final String text = errors.text();
+    return report.matcher(text).results().count();
   }
 
   private static final class RecordingPainter implements MCAVOffscreenBrowser.PaintListener {
