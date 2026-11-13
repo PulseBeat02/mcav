@@ -990,6 +990,26 @@ final class VirtualizeCommandTest {
   }
 
   @Test
+  void shouldTellTheSenderWhenAMachineAsksForTooMuchMemoryAndStartNothing() {
+    this.create(RESOLUTION, BLOCK_DIMENSIONS, "-m 999999999T");
+
+    final List<Component> messages = Components.received(this.sender);
+    final boolean toldOnce = messages.size() == 1;
+    assertTrue(toldOnce, messages.toString());
+
+    final long maximumMemoryBytes = VirtualizeCommand.maximumMemoryBytes();
+    final long maximumMebibytes = maximumMemoryBytes >> QemuHardwareValues.MEBIBYTE_SHIFT;
+    final String text = Components.plain(messages.getFirst());
+    final String expected =
+      "Invalid QEMU flags! QEMU option -m 999999999T asks for more than the %s MiB a machine may have on this server!".formatted(
+        maximumMebibytes
+      );
+    assertEquals(expected, text);
+
+    this.machines.verifyNoInteractions();
+  }
+
+  @Test
   void shouldListTheSupportedOptionsWithADashAndInOrder() {
     final List<String> supported = VirtualizeCommand.supportedOptions();
     final List<String> sorted = new ArrayList<>(supported);
