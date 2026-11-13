@@ -150,7 +150,9 @@ class CefEngineTest {
     this.application = mock(CefApp.class);
     this.client = mock(CefClient.class);
     when(this.application.createClient()).thenReturn(this.client);
-    doAnswer(_ -> this.terminateCef()).when(this.application).dispose();
+    doAnswer(_ -> this.terminateCef())
+      .when(this.application)
+      .dispose();
     this.builder = new RecordingBuilder(this.application);
     this.events = new ContentPolicyTest.RecordingEvents();
     this.recordingEngine = new CefEngine(() -> this.builder);
@@ -817,7 +819,9 @@ class CefEngineTest {
     final int display = this.parseSwitchNumber(switches, DISPLAY_SWITCH_PREFIX);
     final int port = NullDisplay.X11_BASE_PORT + display;
     final AtomicBoolean accepted = new AtomicBoolean();
-    doAnswer(_ -> this.terminateWhileCheckingDisplay(port, accepted)).when(this.application).dispose();
+    doAnswer(_ -> this.terminateWhileCheckingDisplay(port, accepted))
+      .when(this.application)
+      .dispose();
     this.recordingEngine.stop();
     final boolean acceptsDuringDisposal = accepted.get();
     assertTrue(acceptsDuringDisposal);
