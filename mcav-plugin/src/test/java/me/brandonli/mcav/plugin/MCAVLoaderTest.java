@@ -264,9 +264,17 @@ final class MCAVLoaderTest {
     final Path common = this.jarOf(COMMON_JAR_FILE_NAME, MCAV_CLASS_NAME);
     final MCAVLoader loader = new MCAVLoader(this.cache, List.of(MCAV_CLASS_NAME, MCV2_RESULT_CLASS_NAME));
     loader.checkModules(List.of(bukkit, common));
+  }
 
-    final MCAVLoader emptyLoader = new MCAVLoader(this.cache, List.of());
-    assertThrows(UncheckedIOException.class, () -> emptyLoader.checkModules(List.of(this.cache.resolve(MISSING_JAR_FILE_NAME))));
+  @Test
+  void shouldReportADownloadedLibraryThatCannotBeRead() {
+    final Path missing = this.cache.resolve(MISSING_JAR_FILE_NAME);
+    final MCAVLoader loader = new MCAVLoader(this.cache, List.of());
+    final UncheckedIOException refused = assertThrows(UncheckedIOException.class, () -> loader.checkModules(List.of(missing)));
+
+    final String message = refused.getMessage();
+    final String expected = "Downloaded library %s could not be read!".formatted(missing);
+    assertEquals(expected, message);
   }
 
   @Test
@@ -323,23 +331,19 @@ final class MCAVLoaderTest {
       final List<String> requiredClasses = MCAVLoader.readRequiredClasses(withoutTheList);
       assertEquals(List.of(), requiredClasses);
     }
-    final ClassLoader unreadable = new ClassLoader(null) {
-      @Override
-      public InputStream getResourceAsStream(final String name) {
-        return new InputStream() {
-          @Override
-          public int read() throws IOException {
-            throw new IOException(JAR_REPLACED_MESSAGE);
-          }
+  }
 
-          @Override
-          public int read(final byte[] buffer, final int offset, final int length) throws IOException {
-            throw new IOException(JAR_REPLACED_MESSAGE);
-          }
-        };
-      }
-    };
-    assertThrows(UncheckedIOException.class, () -> MCAVLoader.readRequiredClasses(unreadable));
+  @Test
+  void shouldReportAListOfClassesThatCannotBeRead() {
+    final ClassLoader unreadable = new UnreadableClassLoader();
+    final UncheckedIOException refused = assertThrows(UncheckedIOException.class, () -> MCAVLoader.readRequiredClasses(unreadable));
+
+    final String message = refused.getMessage();
+    assertEquals("Cannot read the classes the plugin needs from its modules!", message);
+
+    final IOException cause = refused.getCause();
+    final String causeMessage = cause.getMessage();
+    assertEquals(JAR_REPLACED_MESSAGE, causeMessage);
   }
 
   @Test
@@ -354,5 +358,31 @@ final class MCAVLoaderTest {
     final List<String> requiredClasses = MCAVLoader.readRequiredClasses(listed);
     final List<String> expected = List.of(MCAV_CLASS_NAME, MCAV_API_CLASS_NAME);
     assertEquals(expected, requiredClasses);
+  }
+
+  // a list that the class loader finds but cannot read, as when the jar is replaced while the server starts
+  private static final class UnreadableClassLoader extends ClassLoader {
+
+    UnreadableClassLoader() {
+      super(null);
+    }
+
+    @Override
+    public InputStream getResourceAsStream(final String name) {
+      return new FailingInputStream();
+    }
+  }
+
+  private static final class FailingInputStream extends InputStream {
+
+    @Override
+    public int read() throws IOException {
+      throw new IOException(JAR_REPLACED_MESSAGE);
+    }
+
+    @Override
+    public int read(final byte[] buffer, final int offset, final int length) throws IOException {
+      throw new IOException(JAR_REPLACED_MESSAGE);
+    }
   }
 }
