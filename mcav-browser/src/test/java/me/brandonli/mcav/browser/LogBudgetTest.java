@@ -70,6 +70,19 @@ final class LogBudgetTest {
   }
 
   @Test
+  void shouldCountOnlyTheLinesSkippedSinceTheLastCount() {
+    this.lines(LogBudget.BURST + 10);
+    this.now.addAndGet(LogBudget.REFILL_NANOSECONDS);
+    this.line("a second later");
+    this.lines(3);
+    this.now.addAndGet(LogBudget.REFILL_NANOSECONDS);
+    this.line("two seconds later");
+    final List<String> laterLines = this.log.subList(LogBudget.BURST, this.log.size());
+    final List<String> expectedLaterLines = List.of("skipped 10", "a second later", "skipped 3", "two seconds later");
+    assertEquals(expectedLaterLines, laterLines);
+  }
+
+  @Test
   void shouldRefillTheBurstAndNoMoreAfterALongQuietTime() {
     this.lines(LogBudget.BURST);
     this.now.addAndGet(LogBudget.REFILL_NANOSECONDS * 1_000);
