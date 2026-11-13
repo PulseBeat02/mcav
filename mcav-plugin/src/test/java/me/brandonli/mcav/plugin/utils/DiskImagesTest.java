@@ -115,7 +115,7 @@ final class DiskImagesTest {
   }
 
   @ParameterizedTest
-  @ValueSource(strings = { "../outside.iso", "../../outside.iso", "/etc/passwd", "linux/../../outside.iso" })
+  @ValueSource(strings = { "../outside.iso", "../../outside.iso", "/etc/passwd", "linux/../../outside.iso", "../iso-library/outside.iso" })
   void shouldRefuseAnImageOutsideTheFolder(final String image) {
     final IllegalArgumentException failure = assertThrows(IllegalArgumentException.class, () -> DiskImages.require(this.folder, image));
 
