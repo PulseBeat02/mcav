@@ -164,8 +164,6 @@ final class BukkitModuleTest {
     final BukkitModule module = new BukkitModule();
     final PluginManager pluginManager = this.server.getPluginManager();
     module.start();
-    final String name = module.getModuleName();
-    assertEquals("bukkit", name);
 
     verifyNoInteractions(pluginManager);
     assertThrows(IllegalStateException.class, BukkitModule::getPlugin);
@@ -192,5 +190,12 @@ final class BukkitModuleTest {
     module.stop();
     final boolean connected = PacketUtils.isConnected(PLAYER);
     assertTrue(connected, "nothing is shut down while no plugin is injected");
+  }
+
+  @Test
+  void shouldBeNamedBukkit() {
+    final BukkitModule module = new BukkitModule();
+    final String name = module.getModuleName();
+    assertEquals("bukkit", name);
   }
 }
