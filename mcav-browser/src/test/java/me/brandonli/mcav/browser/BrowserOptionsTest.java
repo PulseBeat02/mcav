@@ -23,6 +23,8 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import me.brandonli.mcav.browser.testing.EqualityAssertions;
 import org.junit.jupiter.api.Test;
@@ -104,6 +106,29 @@ class BrowserOptionsTest {
     final List<Boolean> privateNetworksFlags = this.flagsOf(privateNetworksOnly);
     final List<Boolean> expectedPrivateNetworksFlags = List.of(false, true, false, true);
     assertEquals(expectedPrivateNetworksFlags, privateNetworksFlags);
+  }
+
+  @Test
+  void shouldCopyTheRefusedHostsWhenTheyAreSet() {
+    final List<String> hosts = new ArrayList<>(List.of(REFUSED_HOST));
+    final BrowserOptionsBuilder builder = BrowserOptions.builder().refusedHosts(hosts);
+    hosts.add("other.example.com");
+
+    final BrowserOptions options = builder.build();
+    final List<String> refusedHosts = options.getRefusedHosts();
+    final List<String> expectedRefusedHosts = List.of(REFUSED_HOST);
+    assertEquals(expectedRefusedHosts, refusedHosts);
+  }
+
+  @Test
+  void shouldRefuseANullListOrANullHostWhenTheHostsAreSet() {
+    final BrowserOptionsBuilder builder = BrowserOptions.builder();
+    final NullPointerException refused = assertThrows(NullPointerException.class, () -> builder.refusedHosts(null));
+    final String message = refused.getMessage();
+    assertEquals("Refused hosts must not be null!", message);
+
+    final List<String> hostsWithANull = Arrays.asList(REFUSED_HOST, null);
+    assertThrows(NullPointerException.class, () -> builder.refusedHosts(hostsWithANull));
   }
 
   @Test
