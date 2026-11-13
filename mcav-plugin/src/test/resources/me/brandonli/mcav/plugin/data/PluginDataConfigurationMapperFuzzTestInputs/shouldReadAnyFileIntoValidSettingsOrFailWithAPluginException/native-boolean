@@ -1,0 +1,5 @@
+mcv2:
+  native: off
+  default-codec: " dither "
+  pack:
+    hosting: nowhere

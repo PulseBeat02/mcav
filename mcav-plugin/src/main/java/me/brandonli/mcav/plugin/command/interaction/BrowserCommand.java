@@ -190,7 +190,8 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
    * maps for every viewer. The wall of item frames stays in place for the next browser, video, or image.
    *
    * <p>Requires the permission {@code mcav.command.browser.release}; players and the console can run it. The sender is
-   * told "Browser released!", also when no browser was running.
+   * told "Browser released!" once the browser has stopped, also when no browser was running. When the browser fails
+   * to stop, the sender is told that it could not be released, and the console logs why.
    *
    * @param sender who ran the command
    * @throws NullPointerException if {@code sender} is null
@@ -203,7 +204,8 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
     Preconditions.checkNotNull(sender, SENDER_NULL_MESSAGE);
 
     final Component released = Message.RELEASE_BROWSER.build();
-    this.releaseResource(sender, released);
+    final Component failed = Message.RELEASE_BROWSER_ERROR.build();
+    this.releaseResource(sender, released, failed);
   }
 
   /**

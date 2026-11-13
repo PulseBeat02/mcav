@@ -215,6 +215,14 @@ public interface Message extends LocaleTools {
   NullComponent RELEASE_IMAGE_START = LocaleTools.direct("mcav.command.image.release.start");
 
   /**
+   * Key {@code mcav.command.image.release.error}: {@code /mcav image release} could not remove the image; the console
+   * has the error.
+   *
+   * @since 1.0.0
+   */
+  NullComponent RELEASE_IMAGE_ERROR = LocaleTools.direct("mcav.command.image.release.error");
+
+  /**
    * Key {@code mcav.command.image.load}: an {@code /mcav image} command has finished loading and now shows the image.
    *
    * @since 1.0.0
@@ -293,6 +301,14 @@ public interface Message extends LocaleTools {
   NullComponent VM_RELEASE = LocaleTools.direct("mcav.command.vm.release");
 
   /**
+   * Key {@code mcav.command.vm.release.error}: {@code /mcav vm release} could not stop the virtual machine;
+   * the console has the error.
+   *
+   * @since 1.0.0
+   */
+  NullComponent VM_RELEASE_ERROR = LocaleTools.direct("mcav.command.vm.release.error");
+
+  /**
    * Key {@code mcav.command.vnc.loading}: {@code /mcav vnc create} accepted its arguments and connects to the VNC
    * server in the background.
    *
@@ -313,6 +329,14 @@ public interface Message extends LocaleTools {
    * @since 1.0.0
    */
   NullComponent VNC_RELEASE = LocaleTools.direct("mcav.command.vnc.release");
+
+  /**
+   * Key {@code mcav.command.vnc.release.error}: {@code /mcav vnc release} could not disconnect from the
+   * desktop; the console has the error.
+   *
+   * @since 1.0.0
+   */
+  NullComponent VNC_RELEASE_ERROR = LocaleTools.direct("mcav.command.vnc.release.error");
 
   /**
    * Key {@code mcav.command.vnc.error}: {@code /mcav vnc create} could not connect to the VNC server, or it refused
@@ -407,6 +431,14 @@ public interface Message extends LocaleTools {
    * @since 1.0.0
    */
   NullComponent RELEASE_PLAYER = LocaleTools.direct("mcav.command.video.release");
+
+  /**
+   * Key {@code mcav.command.video.release.error}: {@code /mcav video release} could not stop the video; the console has
+   * the error.
+   *
+   * @since 1.0.0
+   */
+  NullComponent RELEASE_PLAYER_ERROR = LocaleTools.direct("mcav.command.video.release.error");
 
   /**
    * Key {@code mcav.command.video.pause}: confirms {@code /mcav video pause}.
@@ -552,6 +584,14 @@ public interface Message extends LocaleTools {
   NullComponent RELEASE_BROWSER = LocaleTools.direct("mcav.command.browser.release");
 
   /**
+   * Key {@code mcav.command.browser.release.error}: {@code /mcav browser release} could not close the
+   * browser; the console has the error.
+   *
+   * @since 1.0.0
+   */
+  NullComponent RELEASE_BROWSER_ERROR = LocaleTools.direct("mcav.command.browser.release.error");
+
+  /**
    * Key {@code mcav.command.browser.start}: the browser of {@code /mcav browser create} started and now shows on the
    * maps.
    *
@@ -560,8 +600,8 @@ public interface Message extends LocaleTools {
   NullComponent START_BROWSER = LocaleTools.direct("mcav.command.browser.start");
 
   /**
-   * Key {@code mcav.command.mrl.error}: an image command got an empty source, an animated GIF, a capture device or an
-   * FFmpeg input, or could not load the image for a reason that the console logs.
+   * Key {@code mcav.command.mrl.error}: a video or image command got an empty source, or an image command got an animated
+   * GIF, a capture device or an FFmpeg input, or could not load the image for a reason that the console logs.
    *
    * @since 1.0.0
    */

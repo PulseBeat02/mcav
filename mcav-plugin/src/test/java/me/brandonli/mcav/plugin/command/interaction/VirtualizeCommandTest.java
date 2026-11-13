@@ -465,7 +465,7 @@ final class VirtualizeCommandTest {
   }
 
   @Test
-  void shouldLetGoOfTheSoundWhenTheMachineFailsToEndWhileThePluginDisables() {
+  void shouldLetGoOfTheSoundAndTellTheSenderWhenTheMachineFailsToEndWhileThePluginDisables() {
     this.makeVoiceChatReady();
     when(this.provider.constructFilter(eq(AudioArgument.SIMPLE_VOICE_CHAT), any(), any(), eq(this.machine))).thenReturn(
       mock(AudioFilter.class)
@@ -492,6 +492,12 @@ final class VirtualizeCommandTest {
     verify(this.callback).detach();
     verify(sound).detach();
     verify(this.machine, timeout(RELEASE_MILLISECONDS)).release();
+
+    final Component failed = Message.VM_RELEASE_ERROR.build();
+    verify(this.sender, timeout(RELEASE_MILLISECONDS)).sendMessage(failed);
+
+    final Component released = Message.VM_RELEASE.build();
+    verify(this.sender, never()).sendMessage(released);
   }
 
   private void makeVoiceChatReady() {
@@ -509,6 +515,7 @@ final class VirtualizeCommandTest {
     verify(this.machine, timeout(RELEASE_MILLISECONDS)).release();
 
     final Component released = Message.VM_RELEASE.build();
+    verify(this.sender, timeout(RELEASE_MILLISECONDS).times(2)).sendMessage(released);
     this.assertReceived(released, released);
   }
 

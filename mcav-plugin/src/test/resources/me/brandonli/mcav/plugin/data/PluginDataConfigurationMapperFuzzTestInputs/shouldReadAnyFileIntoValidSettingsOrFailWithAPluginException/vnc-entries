@@ -1,0 +1,10 @@
+vnc:
+  allowed-hosts:
+    - host: desktop.example
+      port: 5901
+      password: secret
+    - host: " "
+      port: 5902
+    - host: big.example
+      port: 70000
+    - scalar

@@ -1,0 +1,5 @@
+http-server:
+  port: 0
+mcv2:
+  pack:
+    http-port: 65536

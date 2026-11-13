@@ -68,7 +68,8 @@ public final class ImageControlCommand implements AnnotationCommandFeature {
    *
    * <p>Requires the permission {@code mcav.command.image.release}; players and the console can run it. The sender
    * is told "Releasing image..." at once and "Image released!" when it is done. When no image is shown, the
-   * command does nothing but still sends both messages.
+   * command does nothing but still sends both messages. When the image cannot be removed, the sender is told that it
+   * could not be released instead of "Image released!", and the console logs why.
    *
    * @param sender who ran the command
    * @throws NullPointerException if {@code sender} is null
@@ -85,14 +86,17 @@ public final class ImageControlCommand implements AnnotationCommandFeature {
 
     final ExecutorService service = this.manager.getService();
     final Component released = Message.RELEASE_IMAGE.build();
+    final Component notReleased = Message.RELEASE_IMAGE_ERROR.build();
     final Runnable done = TaskUtils.createMainThreadHandover(this.plugin, () -> sender.sendMessage(released));
+    final Runnable failed = TaskUtils.createMainThreadHandover(this.plugin, () -> sender.sendMessage(notReleased));
     final CompletableFuture<Void> release = CompletableFuture.runAsync(() -> this.manager.releaseImage(ReleaseThread.MAIN_THREAD), service);
-    TaskUtils.whenComplete(release, (_, failure) -> this.reportRelease(done, failure));
+    TaskUtils.whenComplete(release, (_, failure) -> this.reportRelease(done, failed, failure));
   }
 
-  private void reportRelease(final Runnable done, final @Nullable Throwable failure) {
+  private void reportRelease(final Runnable done, final Runnable failed, final @Nullable Throwable failure) {
     if (failure != null) {
       LOGGER.error("Failed to release the image.", failure);
+      failed.run();
       return;
     }
 

@@ -172,7 +172,9 @@ public final class VncCommand extends AbstractInteractiveCommand<VncPlayer> {
    * Handles {@code /mcav vnc release}: disconnects from the desktop, stops streaming to its maps, and clears the maps
    * for every viewer. The wall stays in place.
    *
-   * <p>Requires the permission {@code mcav.command.vnc.release}; players and the console can run it.
+   * <p>Requires the permission {@code mcav.command.vnc.release}; players and the console can run it. The sender is told
+   * "VNC desktop released!" once the connection is closed, also when no desktop was connected. When the connection
+   * fails to close, the sender is told that it could not be released, and the console logs why.
    *
    * @param sender who ran the command
    * @throws NullPointerException if {@code sender} is null
@@ -185,7 +187,8 @@ public final class VncCommand extends AbstractInteractiveCommand<VncPlayer> {
     Preconditions.checkNotNull(sender, SENDER_NULL_MESSAGE);
 
     final Component released = Message.VNC_RELEASE.build();
-    this.releaseResource(sender, released);
+    final Component failed = Message.VNC_RELEASE_ERROR.build();
+    this.releaseResource(sender, released, failed);
   }
 
   /**

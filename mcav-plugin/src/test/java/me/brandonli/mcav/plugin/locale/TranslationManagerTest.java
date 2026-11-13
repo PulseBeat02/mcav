@@ -28,6 +28,7 @@ import static org.mockito.Mockito.when;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.CharacterCodingException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -154,6 +155,31 @@ final class TranslationManagerTest {
     final String message = exception.getMessage();
     final boolean mentionsFile = message.equals("Messages from %s could not be loaded!".formatted(file));
     assertTrue(mentionsFile, message);
+  }
+
+  @Test
+  void shouldFailWhenTheMessagesHaveAMalformedEscape() throws IOException {
+    final Path file = this.folder.resolve(RESOURCE);
+    final Path parent = file.getParent();
+    Files.createDirectories(parent);
+    Files.writeString(file, "mcav.command.screen.build=\\u00zz\n", StandardCharsets.UTF_8);
+    final PluginException exception = assertThrows(PluginException.class, TranslationManager::new);
+
+    final Throwable cause = exception.getCause();
+    assertInstanceOf(IllegalArgumentException.class, cause);
+  }
+
+  @Test
+  void shouldFailWhenTheMessagesAreNotUtf8() throws IOException {
+    final Path file = this.folder.resolve(RESOURCE);
+    final Path parent = file.getParent();
+    Files.createDirectories(parent);
+    final byte[] contents = "mcav.command.screen.build=caf\u00e9\n".getBytes(StandardCharsets.ISO_8859_1);
+    Files.write(file, contents);
+    final PluginException exception = assertThrows(PluginException.class, TranslationManager::new);
+
+    final Throwable cause = exception.getCause();
+    assertInstanceOf(CharacterCodingException.class, cause);
   }
 
   @Test
