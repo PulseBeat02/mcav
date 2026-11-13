@@ -106,4 +106,23 @@ final class WallPictureTest {
     final int[] secondSource = picture.toSource(448, 10);
     assertNull(secondSource);
   }
+
+  @Test
+  void shouldRoundAnOddCenteringDifferenceTowardZeroAsTheMapsDo() {
+    final WallPicture picture = WallPicture.of(1, 1, 131, 125, false);
+
+    final int[] source = picture.toSource(0, 1);
+    final int[] expectedSource = { 1, 0 };
+    assertArrayEquals(expectedSource, source);
+
+    final int[] pictureSource = picture.toSource(127, 125);
+    final int[] expectedPictureSource = { 128, 124 };
+    assertArrayEquals(expectedPictureSource, pictureSource);
+
+    final int[] secondSource = picture.toSource(0, 0);
+    assertNull(secondSource);
+
+    final int[] thirdSource = picture.toSource(0, 126);
+    assertNull(thirdSource);
+  }
 }
