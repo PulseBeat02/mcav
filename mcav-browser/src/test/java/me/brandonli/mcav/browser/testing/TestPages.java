@@ -37,7 +37,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -52,7 +51,6 @@ public final class TestPages implements AutoCloseable {
   public static final String TONE_WRAPPED_PATH = "/tone-wrapped";
   public static final String AV_SYNC_PATH = "/av-sync";
   public static final String TONE_WAVE_PATH = "/tone.wav";
-  public static final String HOOKED_PATH = "/hooked";
   public static final String EVENT_PATH = "/event";
   public static final String DIALOG_PATH = "/dialog";
   public static final String TO_FILE_PATH = "/to-file";
@@ -360,12 +358,10 @@ public final class TestPages implements AutoCloseable {
 
   private final HttpServer server;
   private final List<PageEvent> events;
-  private final AtomicReference<Runnable> loadHook;
 
   private TestPages(final HttpServer server) {
     this.server = server;
     this.events = new ArrayList<>();
-    this.loadHook = new AtomicReference<>(() -> {});
   }
 
   public static TestPages start() {
@@ -382,7 +378,6 @@ public final class TestPages implements AutoCloseable {
       httpServer.createContext(TONE_WRAPPED_PATH, exchange -> servePage(exchange, "tone-wrapped", MAIN_COLOR, WRAPPED_TONE_SCRIPT));
       httpServer.createContext(AV_SYNC_PATH, exchange -> servePage(exchange, "av-sync", AV_SYNC_COLOR, TOGGLE_SCRIPT));
       httpServer.createContext(TONE_WAVE_PATH, TestPages::serveToneWave);
-      httpServer.createContext(HOOKED_PATH, pages::serveMainPageAfterTheLoadHook);
       httpServer.createContext(EVENT_PATH, pages::recordEvent);
       httpServer.createContext(DIALOG_PATH, TestPages::serveDialogs);
       httpServer.createContext(TO_FILE_PATH, exchange ->
@@ -576,12 +571,6 @@ public final class TestPages implements AutoCloseable {
     }
   }
 
-  private void serveMainPageAfterTheLoadHook(final HttpExchange exchange) throws IOException {
-    final Runnable hook = this.loadHook.get();
-    hook.run();
-    servePage(exchange, MAIN_PAGE_NAME, MAIN_COLOR);
-  }
-
   private void recordEvent(final HttpExchange exchange) throws IOException {
     final URI requestUri = exchange.getRequestURI();
     final String query = requestUri.getRawQuery();
@@ -630,10 +619,6 @@ public final class TestPages implements AutoCloseable {
     }
 
     return parameters;
-  }
-
-  public void setLoadHook(final Runnable hook) {
-    this.loadHook.set(hook);
   }
 
   public List<PageEvent> getEvents() {
