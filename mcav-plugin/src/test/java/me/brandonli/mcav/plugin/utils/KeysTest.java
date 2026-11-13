@@ -30,10 +30,12 @@ final class KeysTest {
     final String map = this.format(Keys.MAP_KEY);
     final String first = this.format(Keys.FIRST_MAP_KEY);
     final String last = this.format(Keys.LAST_MAP_KEY);
+    final String screen = this.format(Keys.SCREEN_KEY);
     assertEquals("mcav", Keys.NAMESPACE);
     assertEquals("mcav:map", map);
     assertEquals("mcav:first_map", first);
     assertEquals("mcav:second_map", last);
+    assertEquals("mcav:screen", screen);
   }
 
   private String format(final NamespacedKey key) {
