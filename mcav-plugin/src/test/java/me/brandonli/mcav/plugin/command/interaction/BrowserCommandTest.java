@@ -340,6 +340,25 @@ final class BrowserCommandTest {
   }
 
   @Test
+  void shouldKeepTheRunningBrowserWhenTheNextOneIsRefused() {
+    final CompletableFuture<Boolean> start = CompletableFuture.completedFuture(true);
+    when(this.browser.startAsync(any(BrowserSource.class), any())).thenReturn(start);
+    this.create(RESOLUTION, BLOCK_DIMENSIONS, PAGE_URL);
+
+    this.create(RESOLUTION, BLOCK_DIMENSIONS, AudioArgument.DISCORD_BOT, SITE_URL);
+
+    assertSame(this.browser, this.command.player);
+    assertSame(this.ditherFilter, this.command.output);
+    verify(this.callback, never()).detach();
+    verify(this.ditherFilter, never()).release();
+    this.browsers.verify(() -> BrowserPlayer.create(any(BrowserOptions.class)));
+
+    final Component started = Message.START_BROWSER.build();
+    final Component refused = Message.DISCORD_BOT_OFF.build();
+    this.assertReceived(Message.BROWSER_LOADING.build(), started, refused);
+  }
+
+  @Test
   void shouldDescribeABrowserThatCannotRunOnThisServerSo() {
     final BrowserUnavailableException unavailable = new BrowserUnavailableException("The browser cannot be installed: offline!");
 
