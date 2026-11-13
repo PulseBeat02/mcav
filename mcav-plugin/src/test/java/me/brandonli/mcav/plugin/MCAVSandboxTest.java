@@ -322,6 +322,22 @@ final class MCAVSandboxTest {
     verify(this.api, times(1)).release();
   }
 
+  @Test
+  void shouldRefuseItsPartsButKeepItsConfigurationAfterItIsDisabled() {
+    this.sandbox.onEnable();
+    final PluginDataConfigurationMapper configuration = this.sandbox.getConfiguration();
+    this.sandbox.onDisable();
+    assertThrows(IllegalStateException.class, this.sandbox::getMCAV);
+    assertThrows(IllegalStateException.class, this.sandbox::getVideoPlayerManager);
+    assertThrows(IllegalStateException.class, this.sandbox::getAudioProvider);
+    assertThrows(IllegalStateException.class, this.sandbox::getImageManager);
+    assertThrows(IllegalStateException.class, this.sandbox::getMcv2Support);
+    assertThrows(IllegalStateException.class, this.sandbox::getOnlinePlayers);
+
+    final PluginDataConfigurationMapper kept = this.sandbox.getConfiguration();
+    assertSame(configuration, kept);
+  }
+
   private void assertLibraryInstalled() {
     verify(this.api).install(BukkitModule.class, BrowserModule.class, VmModule.class, SvcModule.class);
     verify(this.bukkitModule).inject(this.sandbox);
