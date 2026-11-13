@@ -56,4 +56,18 @@ final class Mcv2KeyframeRequestTest {
     final boolean secondTaken = requests.take();
     assertFalse(secondTaken);
   }
+
+  @Test
+  void shouldReportAPendingRequestWithoutTakingIt() {
+    final Mcv2KeyframeRequest requests = new Mcv2KeyframeRequest();
+    final boolean requestedBefore = requests.isRequested();
+    assertFalse(requestedBefore);
+
+    requests.request();
+    final boolean requested = requests.isRequested();
+    assertTrue(requested);
+
+    final boolean taken = requests.take();
+    assertTrue(taken, "reporting the request left it for a frame to take");
+  }
 }
