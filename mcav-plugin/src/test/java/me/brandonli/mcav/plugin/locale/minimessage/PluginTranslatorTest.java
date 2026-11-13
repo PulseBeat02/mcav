@@ -42,7 +42,9 @@ import net.kyori.adventure.text.TranslatableComponent;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextColor;
 import net.kyori.adventure.text.format.TextDecoration;
+import net.kyori.adventure.text.minimessage.Context;
 import net.kyori.adventure.text.minimessage.MiniMessage;
+import net.kyori.adventure.text.minimessage.tag.resolver.ArgumentQueue;
 import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.junit.jupiter.api.BeforeEach;
@@ -196,8 +198,68 @@ final class PluginTranslatorTest {
   }
 
   @Test
-  void shouldRefuseNullArguments() {
+  void shouldRefuseNullArguments() throws IOException {
+    final StringReader reader = new StringReader(MESSAGES);
+    final ResourceBundle bundle = new PropertyResourceBundle(reader);
+    final Key noKey = null;
     assertThrows(NullPointerException.class, () -> new ArgumentTag(null));
     assertThrows(NullPointerException.class, () -> new PluginTranslator(KEY, null));
+    assertThrows(NullPointerException.class, () -> new PluginTranslator(noKey, bundle));
+  }
+
+  @Test
+  void shouldRefuseANullMiniMessage() {
+    final MiniMessage noMiniMessage = null;
+    final NullPointerException refused = assertThrows(NullPointerException.class, () -> new FixedTranslator(noMiniMessage));
+
+    final String message = refused.getMessage();
+    assertEquals("MiniMessage must not be null!", message);
+  }
+
+  @Test
+  void shouldRefuseToTranslateANullComponent() {
+    final TranslatableComponent noComponent = null;
+    final NullPointerException refused = assertThrows(NullPointerException.class, () -> this.translator.translate(noComponent, Locale.ROOT));
+
+    final String message = refused.getMessage();
+    assertEquals("Component must not be null!", message);
+  }
+
+  @Test
+  void shouldRefuseToTranslateForANullLocale() {
+    final TranslatableComponent component = Component.translatable(PLAIN_KEY);
+    final Locale noLocale = null;
+    final NullPointerException refused = assertThrows(NullPointerException.class, () -> this.translator.translate(component, noLocale));
+
+    final String message = refused.getMessage();
+    assertEquals("Locale must not be null!", message);
+  }
+
+  @Test
+  void shouldRefuseANullArgumentQueue() {
+    final ArgumentTag tag = new ArgumentTag(List.of());
+    final ArgumentQueue noArguments = null;
+    final Context noContext = null;
+    final NullPointerException refused = assertThrows(NullPointerException.class, () -> tag.resolve("arg", noArguments, noContext));
+
+    final String message = refused.getMessage();
+    assertEquals("Arguments must not be null!", message);
+  }
+
+  private static final class FixedTranslator extends MiniMessageTranslator {
+
+    FixedTranslator(final MiniMessage miniMessage) {
+      super(miniMessage);
+    }
+
+    @Override
+    protected Optional<String> getMiniMessageString(final String key, final Locale locale) {
+      return Optional.empty();
+    }
+
+    @Override
+    public @NonNull Key name() {
+      return KEY;
+    }
   }
 }
