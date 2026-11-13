@@ -95,6 +95,8 @@ final class BrowserCommandTest {
   private static final String REFUSED_PAGE_MESSAGE =
     "The browser refused page https://example.com/page, because its address is not public!";
 
+  private static final String START_FAILURE_LOG = "Starting the browser for";
+
   private BrowserCommand command;
   private MCAVSandbox plugin;
   private AudioProvider provider;
@@ -379,11 +381,32 @@ final class BrowserCommandTest {
       output = capture.getOutput();
     }
 
-    final boolean logged = output.contains("Starting the browser for");
+    final boolean logged = output.contains(START_FAILURE_LOG);
     assertFalse(logged, output);
 
     final Component refusedMessage = Message.BROWSER_REFUSED.build();
     this.assertReceived(Message.BROWSER_LOADING.build(), refusedMessage);
+  }
+
+  @Test
+  void shouldLogABrowserThatFailedToStartAsAnErrorWithItsPage() {
+    final CompletableFuture<Boolean> start = CompletableFuture.failedFuture(new IllegalStateException("page load!"));
+    when(this.browser.startAsync(any(BrowserSource.class), any())).thenReturn(start);
+    final String output;
+    try (final StandardErrorCapture capture = StandardErrorCapture.start()) {
+      this.create(RESOLUTION, BLOCK_DIMENSIONS, PAGE_URL);
+      verify(this.browser, timeout(RELEASE_MILLISECONDS)).release();
+      output = capture.getOutput();
+    }
+
+    final String startFailure = "%s %s failed.".formatted(START_FAILURE_LOG, PAGE_URL);
+    final boolean logged = output.contains(startFailure);
+    final boolean error = output.contains("ERROR");
+    assertTrue(logged, output);
+    assertTrue(error, output);
+
+    final Component failed = Message.BROWSER_ERROR.build();
+    this.assertReceived(Message.BROWSER_LOADING.build(), failed);
   }
 
   @Test
