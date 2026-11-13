@@ -325,6 +325,21 @@ final class BrowserCommandTest {
   }
 
   @Test
+  void shouldKeepThePageSilentWithoutAnAudioOutput() {
+    final AudioAttachableCallback audio = mock(AudioAttachableCallback.class);
+    when(this.browser.getAudioAttachableCallback()).thenReturn(audio);
+    final CompletableFuture<Boolean> start = CompletableFuture.completedFuture(true);
+    when(this.browser.startAsync(any(BrowserSource.class), any())).thenReturn(start);
+
+    this.create(RESOLUTION, BLOCK_DIMENSIONS, PAGE_URL);
+
+    verify(audio, never()).attach(any());
+    verify(this.provider, never()).constructFilter(any(), any(), any(), any());
+
+    verify(this.viewer, never()).sendMessage(any(Component.class));
+  }
+
+  @Test
   void shouldDescribeABrowserThatCannotRunOnThisServerSo() {
     final BrowserUnavailableException unavailable = new BrowserUnavailableException("The browser cannot be installed: offline!");
 
