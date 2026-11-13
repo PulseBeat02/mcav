@@ -1,0 +1,8 @@
+vnc:
+ !allowed-hosts:
+    - host: desktop.example
+      port: 5901
+      password: secret
+    - host: " "
+      poot:  70000
+    - scalNoar

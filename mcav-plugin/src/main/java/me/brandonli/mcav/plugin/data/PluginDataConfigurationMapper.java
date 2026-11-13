@@ -45,6 +45,7 @@ import org.bukkit.configuration.file.YamlConfiguration;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.yaml.snakeyaml.error.YAMLException;
 
 /**
  * Reads {@code config.yml} into typed settings. Missing values fall back to defaults instead of failing, but a
@@ -215,7 +216,7 @@ public final class PluginDataConfigurationMapper {
       final String reason = exception.getMessage();
       final String message = "Because of \"%s\", file %s could not be read!".formatted(reason, file);
       throw new PluginException(message, exception);
-    } catch (final InvalidConfigurationException exception) {
+    } catch (final InvalidConfigurationException | YAMLException | IllegalArgumentException exception) {
       final String reason = exception.getMessage();
       final String message = "Because of \"%s\", file %s is not valid YAML!".formatted(reason, file);
       throw new PluginException(message, exception);
