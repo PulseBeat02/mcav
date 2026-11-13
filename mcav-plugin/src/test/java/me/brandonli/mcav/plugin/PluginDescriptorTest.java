@@ -46,6 +46,8 @@ final class PluginDescriptorTest {
 
   private static final String DESCRIPTOR_RESOURCE_PATH = "/paper-plugin.yml";
 
+  private static final String VOICE_CHAT_REQUIRED_PATH = "dependencies/server/voicechat/required";
+
   private static final String CLASS_FILE_EXTENSION = ".class";
 
   private static final char PATH_SEPARATOR = '/';
@@ -53,14 +55,7 @@ final class PluginDescriptorTest {
   @Test
   void shouldDeclareInTheDescriptorEveryPermissionTheCommandsCheckForOperatorsAndNoOther()
     throws IOException, URISyntaxException, InvalidConfigurationException {
-    final YamlConfiguration descriptor = new YamlConfiguration();
-    descriptor.options().pathSeparator(PATH_SEPARATOR);
-    try (final InputStream in = PluginDescriptorTest.class.getResourceAsStream(DESCRIPTOR_RESOURCE_PATH)) {
-      assertNotNull(in, "the build writes the descriptor");
-
-      final Reader reader = new InputStreamReader(in, StandardCharsets.UTF_8);
-      descriptor.load(reader);
-    }
+    final YamlConfiguration descriptor = this.readDescriptor();
     final ConfigurationSection permissions = descriptor.getConfigurationSection("permissions");
     assertNotNull(permissions, "the descriptor declares permissions");
 
@@ -77,6 +72,19 @@ final class PluginDescriptorTest {
       final boolean blank = permissions.getString("%s/description".formatted(name), "").isBlank();
       assertFalse(blank, "%s says what it allows".formatted(name));
     }
+  }
+
+  private YamlConfiguration readDescriptor() throws IOException, InvalidConfigurationException {
+    final YamlConfiguration descriptor = new YamlConfiguration();
+    descriptor.options().pathSeparator(PATH_SEPARATOR);
+    try (final InputStream in = PluginDescriptorTest.class.getResourceAsStream(DESCRIPTOR_RESOURCE_PATH)) {
+      assertNotNull(in, "the build writes the descriptor");
+
+      final Reader reader = new InputStreamReader(in, StandardCharsets.UTF_8);
+      descriptor.load(reader);
+    }
+
+    return descriptor;
   }
 
   private Set<String> checkedPermissions() throws IOException, URISyntaxException {
@@ -112,5 +120,19 @@ final class PluginDescriptorTest {
         checked.addAll(List.of(permission.value()));
       }
     }
+  }
+
+  @Test
+  void shouldNameThePluginItsLoaderAndAnOptionalVoiceChatInTheDescriptor() throws IOException, InvalidConfigurationException {
+    final YamlConfiguration descriptor = this.readDescriptor();
+    final String main = descriptor.getString("main");
+    final String loader = descriptor.getString("loader");
+    final String pluginClassName = MCAVSandbox.class.getName();
+    final String loaderClassName = MCAVLoader.class.getName();
+    assertEquals(pluginClassName, main);
+    assertEquals(loaderClassName, loader);
+
+    final boolean voiceChatRequired = descriptor.getBoolean(VOICE_CHAT_REQUIRED_PATH, true);
+    assertFalse(voiceChatRequired, "MCAV starts without Simple Voice Chat and reports a missing one itself");
   }
 }

@@ -1,4 +1,3 @@
-me/brandonli/mcav/plugin/MCAVSandbox.java | public MCAVSandbox() {} | JavaPlugin can only be constructed by the plugin class loader of a running Paper server
 me/brandonli/mcav/plugin/audio/AudioProvider.java | return switch (claim.argument) { | constructFilter returns AudioFilter.NO_OPERATION for NONE before it connects a claim
 me/brandonli/mcav/plugin/audio/AudioProvider.java | final String message = "Audio argument NONE has no output to connect!"; | constructFilter returns AudioFilter.NO_OPERATION for NONE before it connects a claim
 me/brandonli/mcav/plugin/audio/AudioProvider.java | throw new IllegalStateException(message); | constructFilter returns AudioFilter.NO_OPERATION for NONE before it connects a claim

@@ -17,6 +17,7 @@
  */
 package me.brandonli.mcav.plugin.listener;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyBoolean;
@@ -262,9 +263,29 @@ final class JukeboxListenerTest {
   }
 
   @Test
+  void shouldIgnoreADiscWhoseNameIsNoValidFileName() throws IOException {
+    this.createImage(IMAGE_FILE_NAME);
+    final PlayerInteractEvent event = this.interaction(
+      Action.RIGHT_CLICK_BLOCK,
+      Material.JUKEBOX,
+      Material.MUSIC_DISC_CAT,
+      "[alpine\u0000.iso]"
+    );
+    this.assertIgnored(event);
+  }
+
+  @Test
   void shouldRefuseNullArguments() {
     assertThrows(NullPointerException.class, () -> new JukeboxListener(null));
     assertThrows(NullPointerException.class, () -> this.listener.onJukeboxInteract(null));
+  }
+
+  @Test
+  void shouldRefuseANullPluginWithItsOwnMessage() {
+    final NullPointerException exception = assertThrows(NullPointerException.class, () -> new JukeboxListener(null));
+
+    final String message = exception.getMessage();
+    assertEquals("Plugin must not be null!", message);
   }
 
   @ParameterizedTest

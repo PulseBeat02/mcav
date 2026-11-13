@@ -20,6 +20,7 @@ package me.brandonli.mcav.plugin;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -39,12 +40,23 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.withSettings;
 
+import io.papermc.paper.InternalAPIBridge;
+import io.papermc.paper.plugin.configuration.PluginMeta;
+import io.papermc.paper.plugin.provider.classloader.ConfiguredPluginClassLoader;
+import io.papermc.paper.plugin.provider.classloader.PluginClassLoaderGroup;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.net.URL;
+import java.net.URLClassLoader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.CodeSource;
+import java.security.ProtectionDomain;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
@@ -95,6 +107,8 @@ final class MCAVSandboxTest {
   private static final String CONFIGURATION_FILE_NAME = "config.yml";
   private static final String ISO_FOLDER_NAME = "iso";
   private static final String NATIVES_FOLDER_NAME = "natives";
+
+  private static final String PLUGIN_CLASS_NAME = MCAVSandbox.class.getName();
 
   @TempDir
   private Path folder;
@@ -150,6 +164,32 @@ final class MCAVSandboxTest {
     this.paperManagers.close();
     this.bukkitModules.close();
     this.pointers.close();
+  }
+
+  @Test
+  void shouldCreateNothingButThePluginWhenPaperConstructsIt() throws ReflectiveOperationException, IOException {
+    final InternalAPIBridge bridge = mock(InternalAPIBridge.class);
+    final ProtectionDomain domain = MCAVSandbox.class.getProtectionDomain();
+    final CodeSource source = domain.getCodeSource();
+    final URL classes = source.getLocation();
+    try (
+      final MockedStatic<InternalAPIBridge> bridges = Mockito.mockStatic(InternalAPIBridge.class);
+      final FolderPluginClassLoader loader = new FolderPluginClassLoader(classes)
+    ) {
+      bridges.when(InternalAPIBridge::get).thenReturn(bridge);
+      final Class<?> pluginClass = loader.loadClass(PLUGIN_CLASS_NAME);
+      final Constructor<?> constructor = pluginClass.getConstructor();
+      final Object plugin = constructor.newInstance();
+      final @Nullable JavaPlugin initialized = loader.getPlugin();
+      assertSame(plugin, initialized);
+
+      final Method getter = pluginClass.getMethod("getMCAV");
+      final InvocationTargetException invocation = assertThrows(InvocationTargetException.class, () -> getter.invoke(plugin));
+      final Throwable cause = invocation.getCause();
+      final IllegalStateException refusal = assertInstanceOf(IllegalStateException.class, cause);
+      final String message = refusal.getMessage();
+      assertEquals("The library is only available while the plugin is enabled!", message);
+    }
   }
 
   private void mockPluginEnvironment(final Server server) {
@@ -280,6 +320,22 @@ final class MCAVSandboxTest {
 
     this.sandbox.onDisable();
     verify(this.api, times(1)).release();
+  }
+
+  @Test
+  void shouldRefuseItsPartsButKeepItsConfigurationAfterItIsDisabled() {
+    this.sandbox.onEnable();
+    final PluginDataConfigurationMapper configuration = this.sandbox.getConfiguration();
+    this.sandbox.onDisable();
+    assertThrows(IllegalStateException.class, this.sandbox::getMCAV);
+    assertThrows(IllegalStateException.class, this.sandbox::getVideoPlayerManager);
+    assertThrows(IllegalStateException.class, this.sandbox::getAudioProvider);
+    assertThrows(IllegalStateException.class, this.sandbox::getImageManager);
+    assertThrows(IllegalStateException.class, this.sandbox::getMcv2Support);
+    assertThrows(IllegalStateException.class, this.sandbox::getOnlinePlayers);
+
+    final PluginDataConfigurationMapper kept = this.sandbox.getConfiguration();
+    assertSame(configuration, kept);
   }
 
   private void assertLibraryInstalled() {
@@ -469,7 +525,9 @@ final class MCAVSandboxTest {
       );
       final MockedConstruction<JukeboxListener> listeners = Mockito.mockConstruction(JukeboxListener.class);
       final MockedConstruction<AnnotationParserHandler> handlers = Mockito.mockConstruction(AnnotationParserHandler.class);
-      final MockedConstruction<AudioProvider> providers = Mockito.mockConstruction(AudioProvider.class)
+      final MockedConstruction<AudioProvider> providers = Mockito.mockConstruction(AudioProvider.class);
+      final MockedConstruction<Mcv2Support> supports = Mockito.mockConstruction(Mcv2Support.class);
+      final MockedConstruction<OnlinePlayers> trackers = Mockito.mockConstruction(OnlinePlayers.class)
     ) {
       this.sandbox.onEnable();
       final IllegalStateException thrown = assertThrows(IllegalStateException.class, this.sandbox::onDisable);
@@ -490,12 +548,19 @@ final class MCAVSandboxTest {
       final JukeboxListener listener = createdListeners.getFirst();
       final AnnotationParserHandler handler = createdHandlers.getFirst();
       final AudioProvider provider = audioProviders.getFirst();
+      final List<Mcv2Support> mcv2Supports = supports.constructed();
+      final List<OnlinePlayers> playerTrackers = trackers.constructed();
+      final Mcv2Support support = mcv2Supports.getFirst();
+      final OnlinePlayers online = playerTrackers.getFirst();
       verify(videoManager, times(1)).shutdown();
       verify(imageManager, times(1)).shutdown();
       verify(listener, times(1)).shutdown();
       verify(handler, times(1)).shutdownCommands();
       verify(provider, times(1)).shutdown();
+      verify(support, times(1)).shutdown();
+      verify(online, times(1)).shutdown();
       verify(this.api, times(1)).release();
+      this.pointers.verify(Pointer::interruptDeallocatorThread, times(1));
     }
   }
 
@@ -643,5 +708,57 @@ final class MCAVSandboxTest {
 
     this.sandbox.onDisable();
     verify(this.api).release();
+  }
+
+  // stands in for Paper's plugin class loader: it defines the plugin class itself and receives each plugin it builds in init
+  private static final class FolderPluginClassLoader extends URLClassLoader implements ConfiguredPluginClassLoader {
+
+    private @Nullable JavaPlugin plugin;
+
+    FolderPluginClassLoader(final URL classes) {
+      super(new URL[] { classes }, MCAVSandboxTest.class.getClassLoader());
+    }
+
+    @Override
+    protected Class<?> loadClass(final String name, final boolean resolve) throws ClassNotFoundException {
+      if (!name.equals(PLUGIN_CLASS_NAME)) {
+        return super.loadClass(name, resolve);
+      }
+
+      final @Nullable Class<?> loaded = this.findLoadedClass(name);
+      if (loaded != null) {
+        return loaded;
+      }
+
+      return this.findClass(name);
+    }
+
+    @Override
+    public Class<?> loadClass(final String name, final boolean resolve, final boolean checkGlobal, final boolean checkLibraries)
+      throws ClassNotFoundException {
+      return this.loadClass(name, resolve);
+    }
+
+    @Override
+    public void init(final JavaPlugin plugin) {
+      this.plugin = plugin;
+    }
+
+    @Override
+    public @Nullable JavaPlugin getPlugin() {
+      return this.plugin;
+    }
+
+    @Override
+    public PluginMeta getConfiguration() {
+      final String message = "The stand-in class loader has no plugin descriptor!";
+      throw new UnsupportedOperationException(message);
+    }
+
+    @Override
+    public @Nullable PluginClassLoaderGroup getGroup() {
+      final String message = "The stand-in class loader belongs to no group!";
+      throw new UnsupportedOperationException(message);
+    }
   }
 }

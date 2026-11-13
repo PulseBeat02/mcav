@@ -90,6 +90,10 @@ final class AudioProviderTest {
   private static final String DISCORD_NOT_READY_MESSAGE = "The Discord bot is not ready!";
   private static final String WEB_PAGE_NOT_READY_MESSAGE = "The audio web page is not ready!";
 
+  private static final String PORT_IN_USE_MESSAGE = "port 3000 is in use!";
+
+  private static final String DISCORD_FAILURE_LOG = "The Discord bot could not connect, so its audio is not available.";
+
   private static final int BIT_RATE = 1_536_000;
   private static final int SAMPLE_RATE = 48_000;
   private static final int SAMPLE_BUFFER_BYTES = 4;
@@ -184,6 +188,16 @@ final class AudioProviderTest {
     assertThrows(NullPointerException.class, () -> this.provider.constructFilter(null, this.dump, this.players));
     assertThrows(NullPointerException.class, () -> this.provider.constructFilter(AudioArgument.NONE, null, this.players));
     assertThrows(NullPointerException.class, () -> this.provider.constructFilter(AudioArgument.NONE, this.dump, null));
+    assertThrows(NullPointerException.class, () -> this.provider.constructFilter(AudioArgument.NONE, this.dump, this.players, null));
+    assertThrows(NullPointerException.class, () -> this.provider.releaseAudioFilter(null));
+  }
+
+  @Test
+  void shouldRefuseANullPluginWithItsOwnMessage() {
+    final NullPointerException exception = assertThrows(NullPointerException.class, () -> new AudioProvider(null));
+
+    final String message = exception.getMessage();
+    assertEquals("Plugin must not be null!", message);
   }
 
   @Test
@@ -369,6 +383,35 @@ final class AudioProviderTest {
   }
 
   @Test
+  void shouldLogWhenTheGuildHasNotAddedTheBot() {
+    this.enableDiscord();
+    when(this.jda.getGuildById(GUILD_ID)).thenReturn(null);
+    final String output = this.initializeCapturingErrors();
+    final boolean reported = output.contains(DISCORD_FAILURE_LOG);
+    final boolean explained = output.contains("Guild 100 has not added the Discord bot!");
+    assertTrue(reported, output);
+    assertTrue(explained, output);
+  }
+
+  @Test
+  void shouldLogWhenTheVoiceChannelDoesNotExist() {
+    this.enableDiscord();
+    when(this.guild.getVoiceChannelById(CHANNEL_ID)).thenReturn(null);
+    final String output = this.initializeCapturingErrors();
+    final boolean reported = output.contains(DISCORD_FAILURE_LOG);
+    final boolean explained = output.contains("Discord voice channel 200 does not exist!");
+    assertTrue(reported, output);
+    assertTrue(explained, output);
+  }
+
+  private String initializeCapturingErrors() {
+    try (final StandardErrorCapture errors = StandardErrorCapture.start()) {
+      this.provider.initialize();
+      return errors.getOutput();
+    }
+  }
+
+  @Test
   void shouldShutTheBotDownAndKeepTheInterruptWhenInterruptedWhileLoggingIn() throws InterruptedException {
     this.enableDiscord();
     doThrow(new InterruptedException("stop!")).when(this.jda).awaitReady();
@@ -431,7 +474,7 @@ final class AudioProviderTest {
   @Test
   void shouldLeaveTheWebPageUnavailableWhenItFailsToStart() {
     this.enableHttp();
-    doThrow(new IllegalStateException("port 3000 is in use!")).when(this.httpServer).start();
+    doThrow(new IllegalStateException(PORT_IN_USE_MESSAGE)).when(this.httpServer).start();
     this.provider.initialize();
     final boolean ready = this.provider.isHttpReady();
     assertFalse(ready);
@@ -441,6 +484,17 @@ final class AudioProviderTest {
 
     final String url = this.provider.constructHttpUrl();
     assertEquals(HTTP_SERVER_URL, url);
+  }
+
+  @Test
+  void shouldLogWhyTheWebPageCouldNotStart() {
+    this.enableHttp();
+    doThrow(new IllegalStateException(PORT_IN_USE_MESSAGE)).when(this.httpServer).start();
+    final String output = this.initializeCapturingErrors();
+    final boolean reported = output.contains("The audio web page could not be started, so its audio is not available.");
+    final boolean explained = output.contains(PORT_IN_USE_MESSAGE);
+    assertTrue(reported, output);
+    assertTrue(explained, output);
   }
 
   @Test
@@ -455,6 +509,10 @@ final class AudioProviderTest {
   void shouldPlayNoAudioForTheNoneOutput() {
     final AudioFilter filter = this.provider.constructFilter(AudioArgument.NONE, this.dump, this.players);
     assertSame(AudioFilter.NO_OPERATION, filter);
+
+    final Object machine = new Object();
+    final AudioFilter machineFilter = this.provider.constructFilter(AudioArgument.NONE, this.dump, this.players, machine);
+    assertSame(AudioFilter.NO_OPERATION, machineFilter);
   }
 
   @Test
@@ -563,11 +621,6 @@ final class AudioProviderTest {
 
     final boolean thirdFiltered = sound.applyFilter(samples, metadata);
     assertFalse(thirdFiltered, "a released source plays no more");
-    assertThrows(NullPointerException.class, () -> this.provider.releaseAudioFilter(null));
-    assertThrows(NullPointerException.class, () -> this.provider.constructFilter(AudioArgument.NONE, this.dump, this.players, null));
-
-    final AudioFilter constructFilter = this.provider.constructFilter(AudioArgument.NONE, this.dump, this.players, machine);
-    assertSame(AudioFilter.NO_OPERATION, constructFilter);
   }
 
   @Test

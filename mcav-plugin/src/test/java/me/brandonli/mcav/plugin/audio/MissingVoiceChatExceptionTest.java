@@ -18,8 +18,10 @@
 package me.brandonli.mcav.plugin.audio;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
+import me.brandonli.mcav.plugin.PluginException;
 import org.junit.jupiter.api.Test;
 
 final class MissingVoiceChatExceptionTest {
@@ -35,5 +37,18 @@ final class MissingVoiceChatExceptionTest {
     final Throwable actualCause = exception.getCause();
     assertEquals(MESSAGE, message);
     assertSame(cause, actualCause);
+  }
+
+  @Test
+  void shouldKeepTheMessage() {
+    final MissingVoiceChatException exception = new MissingVoiceChatException(MESSAGE);
+    final String message = exception.getMessage();
+    assertEquals(MESSAGE, message);
+  }
+
+  @Test
+  void shouldBeAPluginException() {
+    final MissingVoiceChatException exception = new MissingVoiceChatException(MESSAGE);
+    assertInstanceOf(PluginException.class, exception, "a caller handles a missing Simple Voice Chat like every failure of the plugin");
   }
 }

@@ -18,6 +18,7 @@
 package me.brandonli.mcav.plugin.audio;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -32,6 +33,8 @@ import org.bukkit.entity.Player;
 import org.junit.jupiter.api.Test;
 
 final class AudioOutputsTest {
+
+  private static final String AUDIO_TYPE_NULL_MESSAGE = "Audio type must not be null!";
 
   private final AudioProvider provider = mock(AudioProvider.class);
 
@@ -84,6 +87,21 @@ final class AudioOutputsTest {
   }
 
   @Test
+  void shouldPlayDiscordAudioOnceTheBotIsReady() {
+    when(this.provider.isDiscordBotEnabled()).thenReturn(true);
+
+    final Optional<Component> starting = AudioOutputs.findProblem(this.provider, AudioArgument.DISCORD_BOT);
+    final Component notReady = Message.AUDIO_NOT_READY.build();
+    final Optional<Component> expectedNotReady = Optional.of(notReady);
+    assertEquals(expectedNotReady, starting);
+
+    when(this.provider.isDiscordBotReady()).thenReturn(true);
+
+    final Optional<Component> ready = AudioOutputs.findProblem(this.provider, AudioArgument.DISCORD_BOT);
+    assertEquals(Optional.empty(), ready);
+  }
+
+  @Test
   void shouldGiveTheViewersTheLinkOfOutputsThatHaveOne() {
     when(this.provider.constructVoiceChannelUrl()).thenReturn("https://discord.com/channels/1/2");
     final Player viewer = mock(Player.class);
@@ -103,6 +121,31 @@ final class AudioOutputsTest {
 
     final Optional<Component> audioOutputsLink = AudioOutputs.createLink(this.provider, AudioArgument.SIMPLE_VOICE_CHAT);
     assertEquals(Optional.empty(), audioOutputsLink);
+  }
+
+  @Test
+  void shouldRefuseNullArguments() {
+    assertThrows(NullPointerException.class, () -> AudioOutputs.findProblem(null, AudioArgument.NONE));
+    assertThrows(NullPointerException.class, () -> AudioOutputs.findProblem(this.provider, null));
+    assertThrows(NullPointerException.class, () -> AudioOutputs.createLink(null, AudioArgument.NONE));
+    assertThrows(NullPointerException.class, () -> AudioOutputs.createLink(this.provider, null));
+    assertThrows(NullPointerException.class, () -> AudioOutputs.sendLink(this.provider, AudioArgument.NONE, null));
+  }
+
+  @Test
+  void shouldRefuseANullAudioTypeWhenFindingAProblemWithItsOwnMessage() {
+    final NullPointerException exception = assertThrows(NullPointerException.class, () -> AudioOutputs.findProblem(this.provider, null));
+
+    final String message = exception.getMessage();
+    assertEquals(AUDIO_TYPE_NULL_MESSAGE, message);
+  }
+
+  @Test
+  void shouldRefuseANullAudioTypeWhenCreatingALinkWithItsOwnMessage() {
+    final NullPointerException exception = assertThrows(NullPointerException.class, () -> AudioOutputs.createLink(this.provider, null));
+
+    final String message = exception.getMessage();
+    assertEquals(AUDIO_TYPE_NULL_MESSAGE, message);
   }
 
   @Test

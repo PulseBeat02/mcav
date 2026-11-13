@@ -18,8 +18,10 @@
 package me.brandonli.mcav.plugin;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
+import me.brandonli.mcav.MCAVException;
 import org.junit.jupiter.api.Test;
 
 final class PluginExceptionTest {
@@ -43,5 +45,11 @@ final class PluginExceptionTest {
     final Throwable actualCause = exception.getCause();
     assertEquals(MESSAGE, message);
     assertSame(cause, actualCause);
+  }
+
+  @Test
+  void shouldBeAnMCAVException() {
+    final PluginException exception = new PluginException(MESSAGE);
+    assertInstanceOf(MCAVException.class, exception, "a caller handles the plugin's failures like those of every module");
   }
 }
