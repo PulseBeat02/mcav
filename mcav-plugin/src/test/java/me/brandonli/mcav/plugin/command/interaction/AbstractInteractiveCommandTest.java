@@ -218,6 +218,14 @@ final class AbstractInteractiveCommandTest {
   }
 
   @Test
+  void shouldRefuseANullPluginOrExecutor() {
+    final ExecutorService executor = mock(ExecutorService.class);
+    assertThrows(NullPointerException.class, () -> new RecordingCommand(null));
+    assertThrows(NullPointerException.class, () -> new RecordingCommand(null, executor));
+    assertThrows(NullPointerException.class, () -> new RecordingCommand(this.plugin, null));
+  }
+
+  @Test
   void shouldReleaseEverythingAndStopListeningWhenShutDown() {
     this.command.player = BROWSER;
     final FunctionalVideoFilter maps = mock(FunctionalVideoFilter.class);
