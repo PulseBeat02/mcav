@@ -37,6 +37,7 @@ const BINARY_ENCODING = "binary";
 const BASE64_ENCODING = "base64";
 
 const RUNNING_STATE = "running";
+const CLOSED_STATE = "closed";
 
 const listeners = new Map();
 const contexts = [];
@@ -134,6 +135,11 @@ class AudioContext extends BaseAudioContext {
     return Promise.resolve();
   }
 
+  close() {
+    this.currentState = CLOSED_STATE;
+    return Promise.resolve();
+  }
+
   createMediaElementSource(element) {
     return new MediaElementAudioSourceNode(this, { mediaElement: element });
   }
@@ -191,7 +197,7 @@ const countListeners = ([type, callbacks]) => [type, callbacks.length];
 const deliver = channels => {
   const buffer = new AudioBuffer(channels);
   const event = new AudioProcessingEvent(buffer);
-  const onAudioProcess = processors[0].listeners.get("audioprocess")[0];
+  const onAudioProcess = processors.at(-1).listeners.get("audioprocess")[0];
   onAudioProcess(event);
 };
 
@@ -299,3 +305,13 @@ for (let chunk = 0; chunk < QUIET_WINDOW_CHUNKS; chunk++) {
 
 deliverSilence();
 assertPackets(afterSound, "The renewed window is finite too");
+
+first.close();
+const replacement = new page.AudioContext({ sampleRate: OTHER_SAMPLE_RATE });
+assert.notEqual(replacement, first, "A closed context is made again when the page makes one!");
+assert.equal(replacement.sampleRate, CAPTURED_SAMPLE_RATE, "The new context uses the required rate!");
+const sharedReplacement = new page.AudioContext();
+assert.equal(sharedReplacement, replacement, "The new context is shared too!");
+deliver([new Float32Array([0.5])]);
+afterSound.push(monoSound);
+assertPackets(afterSound, "The new context hands over its sound");
