@@ -43,9 +43,11 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
@@ -96,6 +98,8 @@ class CefBrowserPlayerTest {
   private static final String NAME_SEPARATOR = "-";
 
   private static final long HELPER_START_TIMEOUT_MILLISECONDS = 60_000L;
+
+  private static final long ASYNCHRONOUS_START_SECONDS = 10L;
 
   private static final BrowserSource SOURCE = BrowserSource.uri(URI.create("https://example.com/"), 100, 50, 1);
 
@@ -911,6 +915,9 @@ class CefBrowserPlayerTest {
       queued.getFirst().run();
       final Boolean startSucceeded = started.get(10, TimeUnit.SECONDS);
       assertTrue(startSucceeded);
+
+      Mockito.verify(executor).execute(Mockito.any());
+      Mockito.verifyNoMoreInteractions(executor);
     } finally {
       this.player.release();
     }
@@ -1074,6 +1081,72 @@ class CefBrowserPlayerTest {
     } finally {
       executor.shutdownNow();
     }
+  }
+
+  @Test
+  void shouldCompleteAnAsynchronousStartExceptionallyWhenTheStartThrows() {
+    this.startFailure = new BrowserException(START_FAILURE_MESSAGE);
+    final ExecutorService executor = Executors.newSingleThreadExecutor();
+    try {
+      final CompletableFuture<Boolean> started = this.player.startAsync(SOURCE, executor);
+      final ExecutionException failure = assertThrows(ExecutionException.class, () -> started.get(ASYNCHRONOUS_START_SECONDS, TimeUnit.SECONDS));
+      final Throwable cause = failure.getCause();
+      assertSame(this.startFailure, cause);
+    } finally {
+      executor.shutdownNow();
+    }
+  }
+
+  @Test
+  void shouldRefuseAnAsynchronousStartThatTheExecutorRefuses() {
+    final ExecutorService executor = Executors.newSingleThreadExecutor();
+    executor.shutdown();
+
+    assertThrows(RejectedExecutionException.class, () -> this.player.startAsync(SOURCE, executor));
+
+    final boolean empty = this.sessions.isEmpty();
+    assertTrue(empty, "a refused start opens no session");
+  }
+
+  @Test
+  void shouldKeepThePlayerAndItsHelperWhenAnAsynchronousStartIsCancelled() throws InterruptedException {
+    final CountDownLatch opening = new CountDownLatch(1);
+    final CountDownLatch cancelled = new CountDownLatch(1);
+    final CefBrowserPlayer.SessionFactory factory = (_, _, sessionListener) -> this.openOnceCancelled(sessionListener, opening, cancelled);
+    final CefBrowserPlayer cancelling = new CefBrowserPlayer(BrowserOptions.DEFAULT, factory);
+    final ExecutorService executor = Executors.newSingleThreadExecutor();
+    try {
+      final CompletableFuture<Boolean> started = cancelling.startAsync(SOURCE, executor);
+      opening.await();
+      final boolean cancelledNow = started.cancel(true);
+      assertTrue(cancelledNow);
+
+      cancelled.countDown();
+      Await.until("the cancelled start went on", cancelling::isPlaying);
+      final FakeSession session = this.sessions.getFirst();
+      assertEquals(0, session.closed, "the helper of a cancelled start keeps running");
+    } finally {
+      executor.shutdownNow();
+      cancelling.release();
+    }
+  }
+
+  private BrowserSession openOnceCancelled(
+    final BrowserSession.Listener sessionListener,
+    final CountDownLatch opening,
+    final CountDownLatch cancelled
+  ) {
+    opening.countDown();
+    try {
+      cancelled.await();
+    } catch (final InterruptedException exception) {
+      final Thread current = Thread.currentThread();
+      current.interrupt();
+
+      throw new BrowserException(INTERRUPTED_START_MESSAGE, exception);
+    }
+
+    return this.openRecordedSession(sessionListener);
   }
 
   private static final class FakeSession implements BrowserSession {
