@@ -687,6 +687,16 @@ final class VirtualizeCommandTest {
     assertTrue(explained, message);
   }
 
+  @ParameterizedTest
+  @ValueSource(strings = { "-audio pa,model=hda", "-audiodev pa,id=snd0" })
+  void shouldRefuseAudioOptionsThatWouldSetUpTheSoundItself(final String options) {
+    final IllegalArgumentException failure = this.assertRefusedOptions(options);
+
+    final String message = failure.getMessage();
+    final boolean explained = message.contains(" is not supported, use one of ");
+    assertTrue(explained, message);
+  }
+
   @Test
   void shouldAcceptTheHardwareOfCommonMachines() {
     this.assertArguments(
