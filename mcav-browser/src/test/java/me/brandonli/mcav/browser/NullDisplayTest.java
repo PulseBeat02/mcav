@@ -124,8 +124,46 @@ class NullDisplayTest {
 
   // core requests with a reply (X Window System Protocol, chapter 9)
   private static final Set<Integer> REPLYING_REQUESTS = Set.of(
-    3, 14, 15, 16, 17, 20, 21, 23, 26, 31, 38, 39, 40, 43, 44, 47, 48, 49, 50, 52, 73, 83, 84, 85, 86, 87, 91, 92, 97, 98,
-    99, 101, 103, 106, 108, 110, 116, 117, 118, 119
+    3,
+    14,
+    15,
+    16,
+    17,
+    20,
+    21,
+    23,
+    26,
+    31,
+    38,
+    39,
+    40,
+    43,
+    44,
+    47,
+    48,
+    49,
+    50,
+    52,
+    73,
+    83,
+    84,
+    85,
+    86,
+    87,
+    91,
+    92,
+    97,
+    98,
+    99,
+    101,
+    103,
+    106,
+    108,
+    110,
+    116,
+    117,
+    118,
+    119
   );
 
   private static final int FIRST_EXTENSION_OPCODE = 128;
