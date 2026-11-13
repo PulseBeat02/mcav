@@ -1326,13 +1326,15 @@ final class CompressedMapResultTest {
     final int count = this.firstViewerPacketCount();
     final List<ClientboundMapItemDataPacket> cleared = this.packetsOf(FIRST, 0);
     final int clearedCount = cleared.size();
-    final ClientboundMapItemDataPacket last = cleared.get(3);
     final byte[] transparent = new byte[MAP_SIZE * MAP_SIZE];
 
     assertEquals(1, count, "the first release clears the maps at once");
     assertEquals(4, clearedCount, "every map of the 2x2 grid is cleared");
 
-    MapPackets.assertMapPacket(last, 6, 0, 0, MAP_SIZE, MAP_SIZE, transparent);
+    MapPackets.assertMapPacket(cleared.get(0), 3, 0, 0, MAP_SIZE, MAP_SIZE, transparent);
+    MapPackets.assertMapPacket(cleared.get(1), 4, 0, 0, MAP_SIZE, MAP_SIZE, transparent);
+    MapPackets.assertMapPacket(cleared.get(2), 5, 0, 0, MAP_SIZE, MAP_SIZE, transparent);
+    MapPackets.assertMapPacket(cleared.get(3), 6, 0, 0, MAP_SIZE, MAP_SIZE, transparent);
   }
 
   @Test
