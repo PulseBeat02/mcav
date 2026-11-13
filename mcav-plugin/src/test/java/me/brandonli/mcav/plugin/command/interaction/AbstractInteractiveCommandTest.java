@@ -1266,9 +1266,8 @@ final class AbstractInteractiveCommandTest {
     final Component message = Component.text(RELEASED_TEXT);
     final Component failureMessage = Component.text(NOT_RELEASED_TEXT);
 
-    final OutOfMemoryError thrown = assertThrows(
-      OutOfMemoryError.class,
-      () -> this.command.releaseResource(sender, message, failureMessage)
+    final OutOfMemoryError thrown = assertThrows(OutOfMemoryError.class, () ->
+      this.command.releaseResource(sender, message, failureMessage)
     );
     assertSame(fatal, thrown);
 

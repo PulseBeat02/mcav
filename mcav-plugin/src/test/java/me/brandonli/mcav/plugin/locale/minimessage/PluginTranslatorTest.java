@@ -185,9 +185,8 @@ final class PluginTranslatorTest {
     final List<ComponentLike> arguments = List.of(Component.text("value"));
     final ArgumentTag tag = new ArgumentTag(arguments);
     final AtomicReference<RuntimeException> failure = new AtomicReference<>();
-    final TagResolver resolver = TagResolver.resolver(
-      "arg",
-      (queue, context) -> this.resolveAndRecordException(tag, queue, context, failure)
+    final TagResolver resolver = TagResolver.resolver("arg", (queue, context) ->
+      this.resolveAndRecordException(tag, queue, context, failure)
     );
     final MiniMessage miniMessage = MiniMessage.miniMessage();
     miniMessage.deserialize("<arg:first>", resolver);
@@ -254,7 +253,9 @@ final class PluginTranslatorTest {
   @Test
   void shouldRefuseToTranslateANullComponent() {
     final TranslatableComponent noComponent = null;
-    final NullPointerException refused = assertThrows(NullPointerException.class, () -> this.translator.translate(noComponent, Locale.ROOT));
+    final NullPointerException refused = assertThrows(NullPointerException.class, () ->
+      this.translator.translate(noComponent, Locale.ROOT)
+    );
 
     final String message = refused.getMessage();
     assertEquals("Component must not be null!", message);
