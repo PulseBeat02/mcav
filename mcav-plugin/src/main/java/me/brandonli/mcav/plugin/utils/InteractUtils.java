@@ -250,6 +250,11 @@ public final class InteractUtils {
 
   private static @Nullable ItemFrame findFirstCorner(final Player player, final BlockFace hitFace, final ItemFrame target) {
     final Set<ItemFrame> wallFrames = collectWallFrames(player, hitFace, target);
+    final boolean onWall = wallFrames.contains(target);
+    if (!onWall) {
+      return null;
+    }
+
     final ItemFrame firstCorner = findTaggedFrame(wallFrames, Keys.FIRST_MAP_KEY);
     final ItemFrame lastCorner = findTaggedFrame(wallFrames, Keys.LAST_MAP_KEY);
     if (lastCorner == null) {

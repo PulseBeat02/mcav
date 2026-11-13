@@ -129,7 +129,8 @@ final class DumpRedactionPropertyTest {
     final List<String> lines = List.of(
       "[12:34:56 INFO]: %s[%s] logged in with entity id 42 at ([world]1.5, 64.0, -3.5)".formatted(name, socket),
       "[12:34:56 INFO]: Disconnecting %s (%s): You are not whitelisted on this server!".formatted(name, socket),
-      "[12:34:56 INFO]: %s lost connection: Disconnected".formatted(socket)
+      "[12:34:56 INFO]: %s lost connection: Disconnected".formatted(socket),
+      "[12:34:56 INFO]: Banned IP %s: Banned by an operator.".formatted(host)
     );
 
     for (final String line : lines) {

@@ -113,6 +113,23 @@ final class TaskUtilsTest {
   }
 
   @Test
+  void shouldWarnWhenItDropsATaskBecauseThePluginIsDisabled() {
+    final MCAVSandbox plugin = mock(MCAVSandbox.class);
+    final BukkitScheduler scheduler = TestServer.getScheduler();
+    when(scheduler.runTask(any(Plugin.class), any(Runnable.class))).thenThrow(new IllegalPluginAccessException("disabled!"));
+    final String output;
+    try (final StandardErrorCapture errors = StandardErrorCapture.start()) {
+      TaskUtils.runOnMainThread(plugin, () -> {});
+      output = errors.getOutput();
+    }
+
+    final boolean warned = output.contains("Dropped a task for the main thread because the plugin is disabled.");
+    final boolean withCause = output.contains("disabled!");
+    assertTrue(warned, output);
+    assertTrue(withCause, output);
+  }
+
+  @Test
   void shouldPassTheResultOfTheFutureToTheCallback() {
     final CompletableFuture<String> future = CompletableFuture.completedFuture(FUTURE_RESULT);
     final AtomicReference<String> result = new AtomicReference<>();
@@ -212,5 +229,14 @@ final class TaskUtilsTest {
     assertThrows(NullPointerException.class, () -> TaskUtils.createMainThreadHandover(plugin, null));
     assertThrows(NullPointerException.class, () -> TaskUtils.whenComplete(null, callback));
     assertThrows(NullPointerException.class, () -> TaskUtils.whenComplete(future, null));
+  }
+
+  @Test
+  void shouldRefuseANullFutureWithItsOwnMessage() {
+    final BiConsumer<String, Throwable> callback = (_, _) -> {};
+    final NullPointerException exception = assertThrows(NullPointerException.class, () -> TaskUtils.whenComplete(null, callback));
+
+    final String message = exception.getMessage();
+    assertEquals("Future must not be null!", message);
   }
 }

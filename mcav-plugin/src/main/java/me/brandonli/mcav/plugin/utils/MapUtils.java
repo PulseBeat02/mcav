@@ -180,8 +180,8 @@ public final class MapUtils {
   /**
    * Builds a map screen in front of the sender: a wall of blocks with an item frame on every block, holding the
    * maps from {@code map} on, row by row from the top left corner as seen by the sender. Players build the wall in
-   * the direction they are facing, other senders build it to the north. Players looking straight up or down build
-   * nothing.
+   * the cardinal direction they are facing, also when they look straight up or down; other senders build it to the
+   * north.
    *
    * @param sender   who builds the screen
    * @param location where the screen is built

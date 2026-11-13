@@ -414,6 +414,15 @@ final class DumpUtilsTest {
   }
 
   @Test
+  void shouldRedactAnIpv6AddressThatTheLogWritesWithoutBrackets() {
+    final String banned = "[12:34:56 INFO]: [Steve: Banned IP 2001:db8::1: Banned by an operator.]";
+
+    final String redacted = DumpUtils.redactLogLine(banned);
+
+    assertEquals("[12:34:56 INFO]: [Steve: Banned IP <redacted-address>: Banned by an operator.]", redacted);
+  }
+
+  @Test
   void shouldRedactTheUserTheQueryAndTheFragmentOfEveryWebAddress() {
     final String command =
       "[12:34:56 INFO]: Steve issued server command: /mcav browser create @a 640x360 1 5x3 0 NEAREST_COLOR NONE https://alice:open@example.com/page?code=abc#frag";

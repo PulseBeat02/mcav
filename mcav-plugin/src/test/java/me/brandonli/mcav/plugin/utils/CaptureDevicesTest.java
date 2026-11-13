@@ -27,8 +27,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
 import java.io.IOException;
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.PosixFileAttributeView;
@@ -38,6 +36,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import me.brandonli.mcav.plugin.testing.EqualityAssertions;
+import me.brandonli.mcav.plugin.testing.UtilityClassAssertions;
 import me.brandonli.mcav.utils.os.Os;
 import me.brandonli.mcav.utils.os.OsUtils;
 import org.bytedeco.javacv.FrameGrabber;
@@ -75,13 +74,8 @@ final class CaptureDevicesTest {
   Path folder;
 
   @Test
-  void shouldBeAUtilityClass() throws ReflectiveOperationException {
-    final Constructor<CaptureDevices> constructor = CaptureDevices.class.getDeclaredConstructor();
-    constructor.setAccessible(true);
-    final InvocationTargetException thrown = assertThrows(InvocationTargetException.class, constructor::newInstance);
-
-    final Class<? extends Throwable> thrownClass = thrown.getCause().getClass();
-    assertEquals(UnsupportedOperationException.class, thrownClass);
+  void shouldNotBeInstantiable() {
+    UtilityClassAssertions.assertNotInstantiable(CaptureDevices.class);
   }
 
   @Test
