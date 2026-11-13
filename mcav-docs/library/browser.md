@@ -83,6 +83,7 @@ and started again, and no process of the browser is left.
 
 Describe the page with a `BrowserSource`: an absolute `http` or `https` address of at most 65 536 characters, the size
 of the page and its frames (at most 4096 pixels per side), and how many painted frames make one streamed frame.
+`BrowserSource.uri` refuses an address whose host name `java.net.URI` cannot read, such as one with an underscore.
 `BrowserPlayer.create()` uses the default options; `BrowserPlayer.create(BrowserOptions)` takes others.
 
 The example opens a page, clicks into it, and types a search. The `display` filter is yours and shows the frames;
