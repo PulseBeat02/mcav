@@ -25,6 +25,7 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
@@ -32,6 +33,7 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.net.URI;
 import java.nio.ByteBuffer;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -41,14 +43,17 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.LockSupport;
+import java.util.function.BiConsumer;
 import java.util.function.Supplier;
 import me.brandonli.mcav.browser.testing.Await;
 import me.brandonli.mcav.media.image.ImageBuffer;
@@ -62,6 +67,7 @@ import me.brandonli.mcav.utils.audio.DelayedAudioOutput;
 import me.brandonli.mcav.utils.interaction.MouseClick;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.mockito.MockedConstruction;
 import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
@@ -83,14 +89,17 @@ class CefBrowserPlayerTest {
 
   private static final int DROPPED_INPUT_COUNT = 500;
 
-  private static final String MISSING_NATIVES_PREFIX = "mcav-no-natives-";
-
   private static final String HELPER_FACTORY_TEXT = "the helper factory";
   private static final String INPUT_KEY = "x";
 
   private static final String UNREACHABLE_REPOSITORY = "https://unreachable.test/";
 
-  private static final String TEMPORARY_DIRECTORY_PROPERTY = "java.io.tmpdir";
+  private static final String INSTALLATION_PREFIX = "jcef-";
+  private static final String NAME_SEPARATOR = "-";
+
+  private static final long HELPER_START_TIMEOUT_MILLISECONDS = 60_000L;
+
+  private static final long ASYNCHRONOUS_START_SECONDS = 10L;
 
   private static final BrowserSource SOURCE = BrowserSource.uri(URI.create("https://example.com/"), 100, 50, 1);
 
@@ -165,10 +174,6 @@ class CefBrowserPlayerTest {
   @Test
   void shouldPassTheSoundOfTheCurrentSessionToTheAudioPipelineAndNoOtherSound() throws InterruptedException {
     final List<byte[]> heard = this.attachSoundRecorder();
-    final AudioAttachableCallback audioAttachableCallback = this.player.getAudioAttachableCallback();
-    final AudioAttachableCallback currentAudioAttachableCallback = this.player.getAudioAttachableCallback();
-    assertSame(currentAudioAttachableCallback, audioAttachableCallback);
-
     final boolean started = this.player.start(SOURCE);
     assertTrue(started);
 
@@ -244,18 +249,6 @@ class CefBrowserPlayerTest {
 
     final int sessionCount = this.sessions.size();
     assertEquals(1, sessionCount);
-  }
-
-  @Test
-  void shouldRunFramesThroughThePipelineAndCloseThem() {
-    this.player.start(SOURCE);
-    final ImageBuffer frame = this.frame();
-    this.listener.onFrame(frame);
-    final int processedCount = this.processed.size();
-    assertEquals(1, processedCount);
-
-    final ImageBuffer processedFrame = this.processed.getFirst();
-    assertSame(frame, processedFrame);
   }
 
   @Test
@@ -510,13 +503,16 @@ class CefBrowserPlayerTest {
   }
 
   @Test
-  void shouldDropAFrameOfTheCurrentSessionAfterItFailed() {
+  void shouldDropAndCloseAFrameOfTheCurrentSessionAfterItFailed() {
     this.player.start(SOURCE);
     this.listener.onEnded(END_REASON, new IllegalStateException(CRASH_REASON));
-    final ImageBuffer late = this.frame();
-    this.listener.onFrame(late);
+    final ClosingProbe probe = new ClosingProbe();
+    this.listener.onFrame(probe.wrap(this.frame()));
     final int processedCount = this.processed.size();
     assertEquals(0, processedCount, "a failed player shows nothing more");
+
+    final boolean closed = probe.isClosed();
+    assertTrue(closed, "a dropped frame is closed all the same");
   }
 
   @Test
@@ -810,13 +806,30 @@ class CefBrowserPlayerTest {
 
   @Test
   void shouldIgnoreInputWhileThePlayerIsNotPlaying() {
+    this.sendEveryKindOfInput();
+    this.player.start(SOURCE);
+    this.listener.onEnded(END_REASON, new IllegalStateException(CRASH_REASON));
+    this.sendEveryKindOfInput();
+    final FakeSession session = this.sessions.getFirst();
+    assertEquals(List.of(), session.sent);
+  }
+
+  private void sendEveryKindOfInput() {
     this.player.moveMouse(1, 1);
     this.player.sendMouseEvent(MouseClick.LEFT, 1, 1);
     this.player.scroll(1, 1, 0, 10);
     this.player.sendKeyEvent(INPUT_KEY);
-    this.player.start(SOURCE);
-    this.listener.onEnded(END_REASON, new IllegalStateException(CRASH_REASON));
-    this.player.sendKeyEvent(INPUT_KEY);
+  }
+
+  @Test
+  void shouldIgnoreInputAfterTheRelease() {
+    final boolean started = this.player.start(SOURCE);
+    assertTrue(started);
+
+    final boolean released = this.player.release();
+    assertTrue(released);
+
+    this.sendEveryKindOfInput();
     final FakeSession session = this.sessions.getFirst();
     assertEquals(List.of(), session.sent);
   }
@@ -866,13 +879,19 @@ class CefBrowserPlayerTest {
   }
 
   @Test
-  void shouldReadTheExceptionHandlerBack() {
-    final boolean handlerPresent = this.player.getExceptionHandler() != null;
-    assertTrue(handlerPresent);
+  void shouldReadTheExceptionHandlerAndTheCallbacksBack() {
+    final BiConsumer<String, Throwable> handler = (_, _) -> {};
+    this.player.setExceptionHandler(handler);
+    final BiConsumer<String, Throwable> readHandler = this.player.getExceptionHandler();
+    assertSame(handler, readHandler);
 
-    final VideoAttachableCallback callback = this.player.getVideoAttachableCallback();
-    final VideoAttachableCallback secondCallback = this.player.getVideoAttachableCallback();
-    assertSame(callback, secondCallback);
+    final VideoAttachableCallback videoCallback = this.player.getVideoAttachableCallback();
+    final VideoAttachableCallback secondVideoCallback = this.player.getVideoAttachableCallback();
+    assertSame(videoCallback, secondVideoCallback);
+
+    final AudioAttachableCallback audioCallback = this.player.getAudioAttachableCallback();
+    final AudioAttachableCallback secondAudioCallback = this.player.getAudioAttachableCallback();
+    assertSame(audioCallback, secondAudioCallback);
   }
 
   @Test
@@ -896,6 +915,9 @@ class CefBrowserPlayerTest {
       queued.getFirst().run();
       final Boolean startSucceeded = started.get(10, TimeUnit.SECONDS);
       assertTrue(startSucceeded);
+
+      Mockito.verify(executor).execute(Mockito.any());
+      Mockito.verifyNoMoreInteractions(executor);
     } finally {
       this.player.release();
     }
@@ -915,16 +937,31 @@ class CefBrowserPlayerTest {
 
   @Test
   void shouldCloseAPictureOnceThePipelineHasIt() {
+    final ClosingProbe probe = new ClosingProbe();
+    final VideoPipelineStepBuilder builder = PipelineBuilder.video();
+    builder.then((samples, _) -> this.recordOpenFrame(samples, probe));
+    this.player.getVideoAttachableCallback().attach(builder.build());
     final boolean started = this.player.start(SOURCE);
     assertTrue(started);
 
-    final ClosingProbe probe = new ClosingProbe();
-    this.listener.onFrame(probe.wrap(this.frame()));
+    final ImageBuffer frame = probe.wrap(this.frame());
+    this.listener.onFrame(frame);
     final int processedCount = this.processed.size();
-    assertEquals(1, processedCount);
+    assertEquals(1, processedCount, "the pipeline gets the picture before it is closed");
+
+    final ImageBuffer processedFrame = this.processed.getFirst();
+    assertSame(frame, processedFrame);
 
     final boolean closed = probe.isClosed();
     assertTrue(closed);
+  }
+
+  private boolean recordOpenFrame(final ImageBuffer samples, final ClosingProbe probe) {
+    if (!probe.isClosed()) {
+      this.processed.add(samples);
+    }
+
+    return false;
   }
 
   @Test
@@ -953,10 +990,10 @@ class CefBrowserPlayerTest {
   }
 
   @Test
-  void shouldDownloadNothingWhileTheModuleIsStopped() {
+  void shouldDownloadNothingWhileTheModuleIsStopped(@TempDir final Path folder) {
     final List<URI> downloads = new CopyOnWriteArrayList<>();
     final JcefNatives recording = new JcefNatives(
-      Path.of(System.getProperty(TEMPORARY_DIRECTORY_PROPERTY)).resolve(MISSING_NATIVES_PREFIX + System.nanoTime()),
+      folder,
       (uri, _, _, _) -> this.recordAndFailDownload(downloads, uri),
       UNREACHABLE_REPOSITORY,
       new ArchiveExtractor()
@@ -993,16 +1030,11 @@ class CefBrowserPlayerTest {
   }
 
   @Test
-  void shouldFailTheDefaultSessionsWhenTheNativesCannotBeInstalled() {
-    final JcefNatives broken = new JcefNatives(
-      Path.of(System.getProperty(TEMPORARY_DIRECTORY_PROPERTY)).resolve(MISSING_NATIVES_PREFIX + System.nanoTime()),
-      (_, _, _, _) -> this.failDownload(),
-      UNREACHABLE_REPOSITORY,
-      new ArchiveExtractor()
-    );
+  void shouldFailTheDefaultSessionsWhenTheNativesCannotBeInstalled(@TempDir final Path folder) {
+    final JcefNatives broken = new JcefNatives(folder, (_, _, _, _) -> this.failDownload(), UNREACHABLE_REPOSITORY, new ArchiveExtractor());
     final CefBrowserPlayer.HelperSessionFactory factory = new CefBrowserPlayer.HelperSessionFactory(broken, List.of());
     final CefBrowserPlayer offline = new CefBrowserPlayer(BrowserOptions.DEFAULT, factory);
-    final BrowserException failure = assertThrows(BrowserException.class, () -> offline.start(SOURCE));
+    final BrowserUnavailableException failure = assertThrows(BrowserUnavailableException.class, () -> offline.start(SOURCE));
     final boolean namesTheInstallFailure = failure.getMessage().startsWith("The browser cannot be installed");
     assertTrue(namesTheInstallFailure, failure.getMessage());
 
@@ -1018,6 +1050,31 @@ class CefBrowserPlayerTest {
   }
 
   @Test
+  void shouldOpenAHelperSessionThroughTheLauncherOfTheFactory(@TempDir final Path folder) throws IOException {
+    final boolean supported = BrowserPlayer.isSupported();
+    assumeTrue(supported, "This machine has no CEF build!");
+
+    final JcefNatives.NativePlatform platform = JcefNatives.detectCurrent();
+    final String identifier = platform.getIdentifier();
+    final Path installation = folder.resolve(INSTALLATION_PREFIX + JcefNatives.JCEFMAVEN_VERSION + NAME_SEPARATOR + identifier);
+    Files.createDirectories(installation);
+    Files.createFile(installation.resolve(JcefNatives.INSTALL_MARKER));
+
+    final JcefNatives installed = new JcefNatives(
+      folder,
+      (_, _, _, _) -> this.failDownload(),
+      UNREACHABLE_REPOSITORY,
+      new ArchiveExtractor()
+    );
+    final LinuxLibraries libraries = new LinuxLibraries(folder, (_, _, _, _) -> this.failDownload(), List.of(), List.of());
+    final HelperLauncher launcher = HelperSessionTest.launcher(ScriptedEngine.class.getName(), HELPER_START_TIMEOUT_MILLISECONDS);
+    final CefBrowserPlayer.HelperSessionFactory factory = new CefBrowserPlayer.HelperSessionFactory(installed, libraries, launcher);
+    try (final BrowserSession session = this.openWithARecordingListener(factory)) {
+      assertInstanceOf(HelperSession.class, session);
+    }
+  }
+
+  @Test
   void shouldTellWhetherTheBrowserStartedAfterAnAsynchronousStart() {
     final boolean released = this.player.release();
     assertTrue(released);
@@ -1029,6 +1086,74 @@ class CefBrowserPlayerTest {
     } finally {
       executor.shutdownNow();
     }
+  }
+
+  @Test
+  void shouldCompleteAnAsynchronousStartExceptionallyWhenTheStartThrows() {
+    this.startFailure = new BrowserException(START_FAILURE_MESSAGE);
+    final ExecutorService executor = Executors.newSingleThreadExecutor();
+    try {
+      final CompletableFuture<Boolean> started = this.player.startAsync(SOURCE, executor);
+      final ExecutionException failure = assertThrows(ExecutionException.class, () ->
+        started.get(ASYNCHRONOUS_START_SECONDS, TimeUnit.SECONDS)
+      );
+      final Throwable cause = failure.getCause();
+      assertSame(this.startFailure, cause);
+    } finally {
+      executor.shutdownNow();
+    }
+  }
+
+  @Test
+  void shouldRefuseAnAsynchronousStartThatTheExecutorRefuses() {
+    final ExecutorService executor = Executors.newSingleThreadExecutor();
+    executor.shutdown();
+
+    assertThrows(RejectedExecutionException.class, () -> this.player.startAsync(SOURCE, executor));
+
+    final boolean empty = this.sessions.isEmpty();
+    assertTrue(empty, "a refused start opens no session");
+  }
+
+  @Test
+  void shouldKeepThePlayerAndItsHelperWhenAnAsynchronousStartIsCancelled() throws InterruptedException {
+    final CountDownLatch opening = new CountDownLatch(1);
+    final CountDownLatch cancelled = new CountDownLatch(1);
+    final CefBrowserPlayer.SessionFactory factory = (_, _, sessionListener) -> this.openOnceCancelled(sessionListener, opening, cancelled);
+    final CefBrowserPlayer cancelling = new CefBrowserPlayer(BrowserOptions.DEFAULT, factory);
+    final ExecutorService executor = Executors.newSingleThreadExecutor();
+    try {
+      final CompletableFuture<Boolean> started = cancelling.startAsync(SOURCE, executor);
+      opening.await();
+      final boolean cancelledNow = started.cancel(true);
+      assertTrue(cancelledNow);
+
+      cancelled.countDown();
+      Await.until("the cancelled start went on", cancelling::isPlaying);
+      final FakeSession session = this.sessions.getFirst();
+      assertEquals(0, session.closed, "the helper of a cancelled start keeps running");
+    } finally {
+      executor.shutdownNow();
+      cancelling.release();
+    }
+  }
+
+  private BrowserSession openOnceCancelled(
+    final BrowserSession.Listener sessionListener,
+    final CountDownLatch opening,
+    final CountDownLatch cancelled
+  ) {
+    opening.countDown();
+    try {
+      cancelled.await();
+    } catch (final InterruptedException exception) {
+      final Thread current = Thread.currentThread();
+      current.interrupt();
+
+      throw new BrowserException(INTERRUPTED_START_MESSAGE, exception);
+    }
+
+    return this.openRecordedSession(sessionListener);
   }
 
   private static final class FakeSession implements BrowserSession {
