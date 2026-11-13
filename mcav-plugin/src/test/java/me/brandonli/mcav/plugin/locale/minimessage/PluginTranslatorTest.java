@@ -19,6 +19,7 @@ package me.brandonli.mcav.plugin.locale.minimessage;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -30,9 +31,11 @@ import java.io.StringReader;
 import java.text.MessageFormat;
 import java.util.List;
 import java.util.Locale;
+import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.PropertyResourceBundle;
 import java.util.ResourceBundle;
+import java.util.concurrent.atomic.AtomicReference;
 import me.brandonli.mcav.plugin.testing.Components;
 import net.kyori.adventure.key.Key;
 import net.kyori.adventure.text.Component;
@@ -44,6 +47,7 @@ import net.kyori.adventure.text.format.TextColor;
 import net.kyori.adventure.text.format.TextDecoration;
 import net.kyori.adventure.text.minimessage.Context;
 import net.kyori.adventure.text.minimessage.MiniMessage;
+import net.kyori.adventure.text.minimessage.tag.Tag;
 import net.kyori.adventure.text.minimessage.tag.resolver.ArgumentQueue;
 import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -174,6 +178,37 @@ final class PluginTranslatorTest {
     final Component component = miniMessage.deserialize("<arg:1> then <arg:0>", tag);
     final String text = Components.plain(component);
     assertEquals("one then zero", text);
+  }
+
+  @Test
+  void shouldRefuseAnIndexThatIsNotAWholeNumber() {
+    final List<ComponentLike> arguments = List.of(Component.text("value"));
+    final ArgumentTag tag = new ArgumentTag(arguments);
+    final AtomicReference<RuntimeException> failure = new AtomicReference<>();
+    final TagResolver resolver = TagResolver.resolver(
+      "arg",
+      (queue, context) -> this.resolveAndRecordException(tag, queue, context, failure)
+    );
+    final MiniMessage miniMessage = MiniMessage.miniMessage();
+    miniMessage.deserialize("<arg:first>", resolver);
+
+    final RuntimeException refused = failure.get();
+    assertInstanceOf(NoSuchElementException.class, refused);
+  }
+
+  private Tag resolveAndRecordException(
+    final ArgumentTag tag,
+    final ArgumentQueue queue,
+    final Context context,
+    final AtomicReference<RuntimeException> failure
+  ) {
+    try {
+      return tag.resolve("arg", queue, context);
+    } catch (final RuntimeException exception) {
+      failure.set(exception);
+
+      throw exception;
+    }
   }
 
   @Test
