@@ -605,7 +605,7 @@ final class VirtualizeCommandTest {
   }
 
   @Test
-  void shouldTokenizAnEmptyLineToNothing() {
+  void shouldTokenizeAnEmptyLineToNothing() {
     this.assertTokens("");
   }
 
