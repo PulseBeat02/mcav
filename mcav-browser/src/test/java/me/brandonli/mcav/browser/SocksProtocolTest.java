@@ -20,6 +20,7 @@ package me.brandonli.mcav.browser;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -214,6 +215,15 @@ class SocksProtocolTest {
     for (final String bad : new String[] { "2606::zz::1", "1.2.3.4:80", "[::1", "exa[mple]", "exam]ple", "fe80::1%eth0" }) {
       assertThrows(ProtocolException.class, () -> this.request(domainRequest(1, bad, HTTP_PORT)), bad);
     }
+  }
+
+  @Test
+  void shouldNameTheHostAndKeepTheCauseWhenAnIpv6AddressIsMalformed() {
+    final ProtocolException failure = assertThrows(ProtocolException.class, () -> this.requestAConnection("2606::zz::1", HTTP_PORT));
+    final String message = failure.getMessage();
+    assertEquals("Host name 2606::zz::1 of the request is not an IPv6 address!", message);
+    final Throwable cause = failure.getCause();
+    assertInstanceOf(IllegalArgumentException.class, cause);
   }
 
   @Test
