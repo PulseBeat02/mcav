@@ -525,7 +525,9 @@ final class MCAVSandboxTest {
       );
       final MockedConstruction<JukeboxListener> listeners = Mockito.mockConstruction(JukeboxListener.class);
       final MockedConstruction<AnnotationParserHandler> handlers = Mockito.mockConstruction(AnnotationParserHandler.class);
-      final MockedConstruction<AudioProvider> providers = Mockito.mockConstruction(AudioProvider.class)
+      final MockedConstruction<AudioProvider> providers = Mockito.mockConstruction(AudioProvider.class);
+      final MockedConstruction<Mcv2Support> supports = Mockito.mockConstruction(Mcv2Support.class);
+      final MockedConstruction<OnlinePlayers> trackers = Mockito.mockConstruction(OnlinePlayers.class)
     ) {
       this.sandbox.onEnable();
       final IllegalStateException thrown = assertThrows(IllegalStateException.class, this.sandbox::onDisable);
@@ -546,12 +548,19 @@ final class MCAVSandboxTest {
       final JukeboxListener listener = createdListeners.getFirst();
       final AnnotationParserHandler handler = createdHandlers.getFirst();
       final AudioProvider provider = audioProviders.getFirst();
+      final List<Mcv2Support> mcv2Supports = supports.constructed();
+      final List<OnlinePlayers> playerTrackers = trackers.constructed();
+      final Mcv2Support support = mcv2Supports.getFirst();
+      final OnlinePlayers online = playerTrackers.getFirst();
       verify(videoManager, times(1)).shutdown();
       verify(imageManager, times(1)).shutdown();
       verify(listener, times(1)).shutdown();
       verify(handler, times(1)).shutdownCommands();
       verify(provider, times(1)).shutdown();
+      verify(support, times(1)).shutdown();
+      verify(online, times(1)).shutdown();
       verify(this.api, times(1)).release();
+      this.pointers.verify(Pointer::interruptDeallocatorThread, times(1));
     }
   }
 
