@@ -469,14 +469,14 @@ final class InteractUtilsTest {
   }
 
   @Test
-  void shouldReturnNullWhenThePlayerLooksAtNoEntity() {
+  void shouldFindNoPixelWhenThePlayerLooksAtNoEntity() {
     when(this.player.getTargetEntity(anyInt())).thenReturn(null);
     final Optional<int[]> coordinates = InteractUtils.findBoardCoordinates(this.player);
     assertEquals(Optional.empty(), coordinates);
   }
 
   @Test
-  void shouldReturnNullWhenThePlayerLooksAtNoBlockFace() {
+  void shouldFindNoPixelWhenThePlayerLooksAtNoBlockFace() {
     this.buildSouthWall();
     when(this.player.getTargetBlockFace(anyInt())).thenReturn(null);
     final Optional<int[]> coordinates = InteractUtils.findBoardCoordinates(this.player);
@@ -484,7 +484,7 @@ final class InteractUtilsTest {
   }
 
   @Test
-  void shouldReturnNullForAWallWithoutItsLastCorner() {
+  void shouldFindNoPixelOnAWallWithoutItsLastCorner() {
     final Location first = this.fakeWorld.createLocation(0.5, FRAME_CENTER_Y, 0.0);
     final Location second = this.fakeWorld.createLocation(1.5, FRAME_CENTER_Y, 0.0);
     this.fakeWorld.addFrame(first, BlockFace.SOUTH, Keys.MAP_KEY, Keys.FIRST_MAP_KEY);
@@ -497,7 +497,7 @@ final class InteractUtilsTest {
   }
 
   @Test
-  void shouldReturnNullForAWallWithoutItsFirstCorner() {
+  void shouldFindNoPixelOnAWallWithoutItsFirstCorner() {
     final Location first = this.fakeWorld.createLocation(0.5, FRAME_CENTER_Y, 0.0);
     final Location second = this.fakeWorld.createLocation(1.5, FRAME_CENTER_Y, 0.0);
     this.fakeWorld.addFrame(first, BlockFace.SOUTH, Keys.MAP_KEY);
