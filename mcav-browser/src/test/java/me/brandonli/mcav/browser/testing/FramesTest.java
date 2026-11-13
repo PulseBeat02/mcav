@@ -57,11 +57,13 @@ final class FramesTest {
       final int center = frame.getCenter();
       final boolean showsRed = frames.lastShows(0xFF0000);
       final boolean showsBlue = frames.lastShows(0x0000FF);
+      final boolean showsNearRed = frames.lastShows(0xFE0000);
       assertFalse(changed);
       assertArrayEquals(expectedPixels, after);
       assertEquals(0xFF0000, center);
       assertTrue(showsRed);
       assertFalse(showsBlue);
+      assertFalse(showsNearRed);
     }
   }
 

@@ -34,13 +34,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 public final class Frames {
 
-  private static final int RED_SHIFT = 16;
-  private static final int BITS_PER_CHANNEL = 8;
-
-  private static final int CHANNEL_MASK = 0xFF;
   private static final int RGB_MASK = 0xFFFFFF;
-
-  private static final int CHANNEL_TOLERANCE = 40;
 
   private static final String CENTER_SEPARATOR = ", ";
 
@@ -109,21 +103,7 @@ public final class Frames {
     }
 
     final int center = frame.getCenter();
-    return this.isNear(rgb, center);
-  }
-
-  // JPEG compression shifts colors a little
-  private boolean isNear(final int expected, final int actual) {
-    for (int shift = 0; shift <= RED_SHIFT; shift += BITS_PER_CHANNEL) {
-      final int expectedChannel = (expected >> shift) & CHANNEL_MASK;
-      final int actualChannel = (actual >> shift) & CHANNEL_MASK;
-      final int difference = Math.abs(expectedChannel - actualChannel);
-      if (difference > CHANNEL_TOLERANCE) {
-        return false;
-      }
-    }
-
-    return true;
+    return center == rgb;
   }
 
   public String describeLast() {
