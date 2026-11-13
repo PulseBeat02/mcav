@@ -79,6 +79,8 @@ import me.brandonli.mcav.plugin.utils.Keys;
 import me.brandonli.mcav.plugin.utils.MapCodec;
 import me.brandonli.mcav.utils.immutable.Pair;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.Bukkit;
 import org.bukkit.FluidCollisionMode;
 import org.bukkit.Location;
@@ -1174,6 +1176,22 @@ final class AbstractInteractiveCommandTest {
 
     final boolean nothingForwarded = this.command.forwarded.isEmpty();
     assertTrue(nothingForwarded);
+  }
+
+  @Test
+  void shouldTypeOnlyThePlainTextOfAStyledChatMessage() {
+    this.createMockedScreen();
+    this.command.player = BROWSER;
+    final Component enable = Component.text(ENABLED_TEXT);
+    final Component disable = Component.text(DISABLED_TEXT);
+    final Component world = Component.text(" world").decorate(TextDecoration.BOLD);
+    final Component message = Component.text("hello", NamedTextColor.RED).append(world);
+    this.command.toggleInteraction(this.player, enable, disable);
+    final AsyncChatEvent event = this.chat(message);
+
+    this.command.onChatMessage(event);
+
+    this.assertForwarded("browser text hello world");
   }
 
   @Test
