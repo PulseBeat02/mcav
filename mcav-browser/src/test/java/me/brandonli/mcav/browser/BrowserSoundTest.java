@@ -54,6 +54,7 @@ class BrowserSoundTest {
   private static final long SOUND_OBSERVATION_MILLISECONDS = 2_000L;
   private static final int TARGET_MAXIMUM_SOUND_DELAY_MILLISECONDS = 80;
   private static final int ACCEPTABLE_MAXIMUM_SOUND_DELAY_MILLISECONDS = 185;
+  private static final long ON_TIME_SOUND_DELAY_MILLISECONDS = 20L;
 
   private static final String PROCESS_SEPARATOR = " ";
 
@@ -76,6 +77,8 @@ class BrowserSoundTest {
 
   private static final int FREQUENCY_TOLERANCE_HERTZ = 20;
   private static final double TONE_SHARE_THRESHOLD = 0.5;
+
+  private static final long CLICK_DEADLINE_SECONDS = 20L;
 
   private final TestPages pages = TestPages.start();
   private final List<BrowserPlayer> players = new ArrayList<>();
@@ -196,7 +199,7 @@ class BrowserSoundTest {
 
   // Chromium ignores clicks for a moment after a page appears
   private void startClicking(final BrowserPlayer player) {
-    final long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(FREQUENCY_TOLERANCE_HERTZ);
+    final long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(CLICK_DEADLINE_SECONDS);
     while (this.pages.count(MOUSE_DOWN_EVENT) == 0) {
       final boolean beforeDeadline = System.nanoTime() < deadline;
       assertTrue(beforeDeadline, "the page never took a click");
@@ -364,7 +367,7 @@ class BrowserSoundTest {
     for (int change = 0; change < 50; change++) {
       final long shown = TimeUnit.MILLISECONDS.toNanos(800L * change);
       picture.add(shown);
-      sound.add(shown + TimeUnit.MILLISECONDS.toNanos(change < 10 ? FREQUENCY_TOLERANCE_HERTZ : 300));
+      sound.add(shown + TimeUnit.MILLISECONDS.toNanos(change < 10 ? ON_TIME_SOUND_DELAY_MILLISECONDS : 300));
     }
 
     final SyncJudgement late = SyncJudgement.of(picture, sound, TimeUnit.MILLISECONDS.toNanos(400));
@@ -378,7 +381,7 @@ class BrowserSoundTest {
 
     final List<Long> onTime = picture
       .stream()
-      .map(shown -> shown + TimeUnit.MILLISECONDS.toNanos(FREQUENCY_TOLERANCE_HERTZ))
+      .map(shown -> shown + TimeUnit.MILLISECONDS.toNanos(ON_TIME_SOUND_DELAY_MILLISECONDS))
       .toList();
     final SyncJudgement inSync = SyncJudgement.of(picture, onTime, TimeUnit.MILLISECONDS.toNanos(400));
     final long changesWithinTarget = inSync.within(TARGET_MINIMUM_SOUND_DELAY_MILLISECONDS, TARGET_MAXIMUM_SOUND_DELAY_MILLISECONDS);

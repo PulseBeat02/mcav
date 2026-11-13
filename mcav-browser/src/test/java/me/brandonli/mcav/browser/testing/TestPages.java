@@ -37,7 +37,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -52,7 +51,6 @@ public final class TestPages implements AutoCloseable {
   public static final String TONE_WRAPPED_PATH = "/tone-wrapped";
   public static final String AV_SYNC_PATH = "/av-sync";
   public static final String TONE_WAVE_PATH = "/tone.wav";
-  public static final String HOOKED_PATH = "/hooked";
   public static final String EVENT_PATH = "/event";
   public static final String DIALOG_PATH = "/dialog";
   public static final String TO_FILE_PATH = "/to-file";
@@ -63,6 +61,7 @@ public final class TestPages implements AutoCloseable {
   public static final String NAMED_FRAME_PATH = "/named-frame";
   public static final String FORM_TARGET_PATH = "/form-target";
   public static final String DOWNLOAD_PATH = "/download";
+  public static final String FILE_CHOOSER_PATH = "/file-chooser";
 
   public static final int MAIN_COLOR = 0xFF0000;
   public static final int POPUP_COLOR = 0x0000FF;
@@ -360,12 +359,10 @@ public final class TestPages implements AutoCloseable {
 
   private final HttpServer server;
   private final List<PageEvent> events;
-  private final AtomicReference<Runnable> loadHook;
 
   private TestPages(final HttpServer server) {
     this.server = server;
     this.events = new ArrayList<>();
-    this.loadHook = new AtomicReference<>(() -> {});
   }
 
   public static TestPages start() {
@@ -382,7 +379,6 @@ public final class TestPages implements AutoCloseable {
       httpServer.createContext(TONE_WRAPPED_PATH, exchange -> servePage(exchange, "tone-wrapped", MAIN_COLOR, WRAPPED_TONE_SCRIPT));
       httpServer.createContext(AV_SYNC_PATH, exchange -> servePage(exchange, "av-sync", AV_SYNC_COLOR, TOGGLE_SCRIPT));
       httpServer.createContext(TONE_WAVE_PATH, TestPages::serveToneWave);
-      httpServer.createContext(HOOKED_PATH, pages::serveMainPageAfterTheLoadHook);
       httpServer.createContext(EVENT_PATH, pages::recordEvent);
       httpServer.createContext(DIALOG_PATH, TestPages::serveDialogs);
       httpServer.createContext(TO_FILE_PATH, exchange ->
@@ -414,6 +410,7 @@ public final class TestPages implements AutoCloseable {
       httpServer.createContext(NAMED_FRAME_PATH, TestPages::serveLinkIntoANamedFrame);
       httpServer.createContext(FORM_TARGET_PATH, TestPages::serveFormThatTargetsANewWindow);
       httpServer.createContext(DOWNLOAD_PATH, TestPages::serveDownload);
+      httpServer.createContext(FILE_CHOOSER_PATH, TestPages::serveFileChooser);
       httpServer.start();
       return pages;
     } catch (final IOException exception) {
@@ -430,7 +427,10 @@ public final class TestPages implements AutoCloseable {
     serveScript(
       exchange,
       """
-      alert("hi"); confirm("sure?"); document.body.style.background = "#00ff00";\
+      alert("hi");
+      const confirmed = confirm("sure?");
+      const answer = prompt("name?");
+      document.body.style.background = confirmed || answer !== null ? "#0000ff" : "#00ff00";\
       """
     );
   }
@@ -467,6 +467,10 @@ public final class TestPages implements AutoCloseable {
       exchange,
       "<form action=\"/second\" method=\"get\"><button type=\"submit\" formtarget=\"_blank\" style=\"position:fixed;inset:0;opacity:0\">send</button></form>"
     );
+  }
+
+  private static void serveFileChooser(final HttpExchange exchange) throws IOException {
+    serveHtml(exchange, "<input type=\"file\" style=\"position:fixed;left:0;top:0;width:100%;height:100%;opacity:0\">");
   }
 
   public URI uri(final String path) {
@@ -576,12 +580,6 @@ public final class TestPages implements AutoCloseable {
     }
   }
 
-  private void serveMainPageAfterTheLoadHook(final HttpExchange exchange) throws IOException {
-    final Runnable hook = this.loadHook.get();
-    hook.run();
-    servePage(exchange, MAIN_PAGE_NAME, MAIN_COLOR);
-  }
-
   private void recordEvent(final HttpExchange exchange) throws IOException {
     final URI requestUri = exchange.getRequestURI();
     final String query = requestUri.getRawQuery();
@@ -630,10 +628,6 @@ public final class TestPages implements AutoCloseable {
     }
 
     return parameters;
-  }
-
-  public void setLoadHook(final Runnable hook) {
-    this.loadHook.set(hook);
   }
 
   public List<PageEvent> getEvents() {

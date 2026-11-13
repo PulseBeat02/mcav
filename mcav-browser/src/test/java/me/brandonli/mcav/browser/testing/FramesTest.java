@@ -28,6 +28,7 @@ import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
 import me.brandonli.mcav.media.player.metadata.OriginalVideoMetadata;
 import me.brandonli.mcav.media.player.pipeline.filter.video.VideoFilter;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
@@ -56,11 +57,31 @@ final class FramesTest {
       final int center = frame.getCenter();
       final boolean showsRed = frames.lastShows(0xFF0000);
       final boolean showsBlue = frames.lastShows(0x0000FF);
+      final boolean showsNearRed = frames.lastShows(0xFE0000);
       assertFalse(changed);
       assertArrayEquals(expectedPixels, after);
       assertEquals(0xFF0000, center);
       assertTrue(showsRed);
       assertFalse(showsBlue);
+      assertFalse(showsNearRed);
     }
+  }
+
+  @Test
+  void shouldRecordTheVideoSizeOfTheMetadataNotOfTheImage() {
+    final VideoAttachableCallback callback = VideoAttachableCallback.create();
+    final Frames frames = Frames.attach(callback);
+    final VideoPipelineStep pipeline = callback.retrieve();
+    final VideoFilter recorder = pipeline.getFilter();
+    final OriginalVideoMetadata metadata = OriginalVideoMetadata.of(640, 480);
+    try (final ImageBuffer image = ImageBuffer.buffer(new int[8], 4, 2)) {
+      final boolean _ = recorder.applyFilter(image, metadata);
+    }
+
+    final Frames.Frame frame = frames.requireLast();
+    final int metadataWidth = frame.getMetadataWidth();
+    final int metadataHeight = frame.getMetadataHeight();
+    assertEquals(640, metadataWidth);
+    assertEquals(480, metadataHeight);
   }
 }

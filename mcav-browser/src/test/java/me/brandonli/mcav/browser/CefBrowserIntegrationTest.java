@@ -128,6 +128,8 @@ class CefBrowserIntegrationTest {
     assertEquals(0, processCount);
 
     Await.until("every browser process of this test has ended", () -> countBrowserProcesses() == 0);
+
+    assertEquals(List.of(), this.failures);
   }
 
   static long countBrowserProcesses() {
@@ -164,9 +166,14 @@ class CefBrowserIntegrationTest {
     final int height = last.getHeight();
     assertEquals(HEIGHT, height);
 
+    final int metadataWidth = last.getMetadataWidth();
+    assertEquals(WIDTH, metadataWidth);
+
+    final int metadataHeight = last.getMetadataHeight();
+    assertEquals(HEIGHT, metadataHeight);
+
     final boolean browserRunning = countBrowserProcesses() > 0;
     assertTrue(browserRunning);
-    assertEquals(List.of(), this.failures);
   }
 
   @Test
@@ -221,7 +228,6 @@ class CefBrowserIntegrationTest {
     final TestPages.PageEvent wheel = this.pages.getEvents("wheel").getFirst();
     final String wheelKey = wheel.getKey();
     assertEquals("1", wheelKey);
-    assertEquals(List.of(), this.failures);
   }
 
   private boolean hasEventAtX(final String type, final int pageX) {
@@ -348,7 +354,7 @@ class CefBrowserIntegrationTest {
   }
 
   @Test
-  void shouldDismissJavaScriptDialogsAndLetThePageGoOn() {
+  void shouldConfirmAlertsAnswerQuestionsWithCancelAndLetThePageGoOn() {
     final BrowserPlayer player = this.player(BrowserOptions.builder().privateNetworks(true).javaScriptJit(true).frameRate(30).build());
     final Frames frames = this.start(player, TestPages.DIALOG_PATH);
     Await.until("the page past its dialogs", () -> frames.lastShows(TestPages.SECOND_COLOR));
@@ -384,6 +390,19 @@ class CefBrowserIntegrationTest {
         .toList();
       final List<String> expectedDownloadReports = List.of(refusal);
       assertEquals(expectedDownloadReports, downloadReports);
+    }
+  }
+
+  @Test
+  void shouldRefuseAFileChooserThatAClickOpens() {
+    try (final StandardError reports = new StandardError()) {
+      final BrowserPlayer player = this.player(LOCAL);
+      this.start(player, TestPages.FILE_CHOOSER_PATH);
+      final String refusal = "The browser sent the notice \"Refused a file chooser.\" about the page.";
+      this.clickUntil(player, "the refused file chooser", () -> reports.text().contains(refusal));
+
+      final boolean playing = player.isPlaying();
+      assertTrue(playing);
     }
   }
 
@@ -429,7 +448,6 @@ class CefBrowserIntegrationTest {
     assertTrue(started);
 
     Await.until("a frame of the page", () -> frames.count() > 0);
-    assertEquals(List.of(), this.failures);
   }
 
   @Test
@@ -467,6 +485,7 @@ class CefBrowserIntegrationTest {
       );
       assertEquals(expectedFailures, this.failures);
 
+      this.failures.clear();
       Await.until("the browser processes ended", () -> countBrowserProcesses() == 0);
     } finally {
       module.start();

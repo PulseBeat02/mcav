@@ -41,6 +41,14 @@ public final class NoFlagsServerMain {
 
   static final String PASSED = "NO-FLAGS PROOF PASSED";
 
+  private static final List<String> GRAALVM_DEFAULTS = List.of(
+    "-XX:ThreadPriorityPolicy=1",
+    "-XX:+UnlockExperimentalVMOptions",
+    "-XX:+EnableJVMCIProduct",
+    "-XX:+EnableJVMCI",
+    "-XX:-UnlockExperimentalVMOptions"
+  );
+
   private NoFlagsServerMain() {
     final String message = "Utility class cannot be instantiated!";
     throw new UnsupportedOperationException(message);
@@ -55,31 +63,38 @@ public final class NoFlagsServerMain {
     System.out.println("DISPLAY=%s WAYLAND_DISPLAY=%s".formatted(display, waylandDisplay));
     final List<String> options = arguments
       .stream()
-      .filter(argument -> !HeadlessProofMain.GRAALVM_DEFAULTS.contains(argument))
+      .filter(argument -> !GRAALVM_DEFAULTS.contains(argument))
       .toList();
-    HeadlessProofMain.check(options.equals(List.of(HEADLESS_OPTION)), "the JVM runs with no option but headless AWT");
-    HeadlessProofMain.check(GraphicsEnvironment.isHeadless(), "AWT is headless");
-    HeadlessProofMain.check(display == null && waylandDisplay == null, "there is no display");
+    check(options.equals(List.of(HEADLESS_OPTION)), "the JVM runs with no option but headless AWT");
+    check(GraphicsEnvironment.isHeadless(), "AWT is headless");
+    check(display == null && waylandDisplay == null, "there is no display");
     for (int round = 1; round <= ROUNDS; round++) {
       final MCAVApi api = MCAV.api();
       api.install(BrowserModule.class);
       final BrowserPlayer player = BrowserPlayer.create(BrowserOptions.builder().privateNetworks(true).build());
       final Frames frames = Frames.attach(player.getVideoAttachableCallback());
-      HeadlessProofMain.check(player.start(BrowserSource.uri(page, 320, 240, FRAME_INTERVAL)), "the browser starts");
+      check(player.start(BrowserSource.uri(page, 320, 240, FRAME_INTERVAL)), "the browser starts");
       Await.until("a red frame", () -> frames.lastShows(TestPages.MAIN_COLOR));
       final Frames.Frame frame = frames.requireLast();
       System.out.printf("round %d: a %dx%d frame, center pixel %06x%n", round, frame.getWidth(), frame.getHeight(), frame.getCenter());
-      HeadlessProofMain.check(CefBrowserIntegrationTest.countBrowserProcesses() > 0, "the browser runs in processes of its own");
+      check(CefBrowserIntegrationTest.countBrowserProcesses() > 0, "the browser runs in processes of its own");
       if (round == 1) {
         player.release();
       }
       api.release();
-      HeadlessProofMain.check(HelperProcesses.count() == 0, "no browser session is left");
+      check(HelperProcesses.count() == 0, "no browser session is left");
       Await.until("every browser process ended", () -> CefBrowserIntegrationTest.countBrowserProcesses() == 0);
       System.out.printf("round %d: disabled, no browser process left%n", round);
     }
 
     System.out.println(PASSED);
     System.exit(0);
+  }
+
+  private static void check(final boolean holds, final String description) {
+    if (!holds) {
+      final String message = "The check that %s failed!".formatted(description);
+      throw new AssertionError(message);
+    }
   }
 }
