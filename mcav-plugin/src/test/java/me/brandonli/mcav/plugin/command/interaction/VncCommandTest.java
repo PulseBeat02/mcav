@@ -18,9 +18,11 @@
 package me.brandonli.mcav.plugin.command.interaction;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -43,6 +45,7 @@ import me.brandonli.mcav.plugin.data.PluginDataConfigurationMapper;
 import me.brandonli.mcav.plugin.listener.OnlinePlayers;
 import me.brandonli.mcav.plugin.locale.Message;
 import me.brandonli.mcav.plugin.testing.Components;
+import me.brandonli.mcav.plugin.testing.StandardErrorCapture;
 import me.brandonli.mcav.plugin.testing.TestServer;
 import me.brandonli.mcav.plugin.utils.DitheringArgument;
 import me.brandonli.mcav.plugin.utils.MapCodec;
@@ -69,7 +72,8 @@ final class VncCommandTest {
   private static final long RELEASE_MILLISECONDS = 5000;
 
   private static final String LOOPBACK_HOST = "127.0.0.1";
-  private static final VncAllowList.Entry DESKTOP = VncAllowList.Entry.of(LOOPBACK_HOST, 5901, "secret");
+  private static final String DESKTOP_PASSWORD = "secret";
+  private static final VncAllowList.Entry DESKTOP = VncAllowList.Entry.of(LOOPBACK_HOST, 5901, DESKTOP_PASSWORD);
 
   private static final String DESKTOP_ADDRESS = "127.0.0.1:5901";
 
@@ -137,7 +141,7 @@ final class VncCommandTest {
     assertEquals(5901, port);
 
     final Optional<String> password = source.getPassword();
-    final Optional<String> expectedPassword = Optional.of("secret");
+    final Optional<String> expectedPassword = Optional.of(DESKTOP_PASSWORD);
     assertEquals(expectedPassword, password);
 
     final int screenWidth = source.getScreenWidth();
@@ -251,6 +255,30 @@ final class VncCommandTest {
     this.create(RESOLUTION, DESKTOP_ADDRESS);
 
     this.assertReceived(Message.VNC_LOADING.build(), Message.VNC_ERROR.build());
+  }
+
+  @Test
+  void shouldLogAnUnreachableServerWithItsReasonAndWithoutItsPassword() {
+    final String reason = "connection refused!";
+    final CompletableFuture<Boolean> start = CompletableFuture.failedFuture(new IllegalStateException(reason));
+    when(this.desktop.startAsync(any(VncSource.class), any())).thenReturn(start);
+    final String output;
+    try (final StandardErrorCapture capture = StandardErrorCapture.start()) {
+      this.create(RESOLUTION, DESKTOP_ADDRESS);
+      verify(this.desktop, timeout(RELEASE_MILLISECONDS)).release();
+      output = capture.getOutput();
+    }
+
+    final boolean leaked = output.contains(DESKTOP_PASSWORD);
+    assertFalse(leaked, output);
+
+    final String startFailure = "Starting the VNC desktop of %s failed.".formatted(DESKTOP_ADDRESS);
+    final boolean logged = output.contains(startFailure);
+    final boolean explained = output.contains(reason);
+    final boolean error = output.contains("ERROR");
+    assertTrue(logged, output);
+    assertTrue(explained, output);
+    assertTrue(error, output);
   }
 
   @Test
