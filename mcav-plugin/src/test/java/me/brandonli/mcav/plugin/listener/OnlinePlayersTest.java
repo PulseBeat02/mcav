@@ -42,6 +42,8 @@ import org.mockito.Mockito;
 
 final class OnlinePlayersTest {
 
+  private static final String EVENT_NULL_MESSAGE = "Event must not be null!";
+
   @Test
   void shouldFollowThePlayersFromThoseOnlineAtTheStart() {
     final Server server = TestServer.reset();
@@ -88,6 +90,24 @@ final class OnlinePlayersTest {
     assertThrows(NullPointerException.class, () -> online.start(null));
     assertThrows(NullPointerException.class, () -> online.onPlayerJoin(null));
     assertThrows(NullPointerException.class, () -> online.onPlayerQuit(null));
+  }
+
+  @Test
+  void shouldRefuseANullJoinEventWithItsOwnMessage() {
+    final OnlinePlayers online = new OnlinePlayers();
+    final NullPointerException exception = assertThrows(NullPointerException.class, () -> online.onPlayerJoin(null));
+
+    final String message = exception.getMessage();
+    assertEquals(EVENT_NULL_MESSAGE, message);
+  }
+
+  @Test
+  void shouldRefuseANullQuitEventWithItsOwnMessage() {
+    final OnlinePlayers online = new OnlinePlayers();
+    final NullPointerException exception = assertThrows(NullPointerException.class, () -> online.onPlayerQuit(null));
+
+    final String message = exception.getMessage();
+    assertEquals(EVENT_NULL_MESSAGE, message);
   }
 
   private Player player(final UUID uuid) {

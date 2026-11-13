@@ -34,6 +34,8 @@ import org.junit.jupiter.api.Test;
 
 final class AudioOutputsTest {
 
+  private static final String AUDIO_TYPE_NULL_MESSAGE = "Audio type must not be null!";
+
   private final AudioProvider provider = mock(AudioProvider.class);
 
   @Test
@@ -128,6 +130,22 @@ final class AudioOutputsTest {
     assertThrows(NullPointerException.class, () -> AudioOutputs.createLink(null, AudioArgument.NONE));
     assertThrows(NullPointerException.class, () -> AudioOutputs.createLink(this.provider, null));
     assertThrows(NullPointerException.class, () -> AudioOutputs.sendLink(this.provider, AudioArgument.NONE, null));
+  }
+
+  @Test
+  void shouldRefuseANullAudioTypeWhenFindingAProblemWithItsOwnMessage() {
+    final NullPointerException exception = assertThrows(NullPointerException.class, () -> AudioOutputs.findProblem(this.provider, null));
+
+    final String message = exception.getMessage();
+    assertEquals(AUDIO_TYPE_NULL_MESSAGE, message);
+  }
+
+  @Test
+  void shouldRefuseANullAudioTypeWhenCreatingALinkWithItsOwnMessage() {
+    final NullPointerException exception = assertThrows(NullPointerException.class, () -> AudioOutputs.createLink(this.provider, null));
+
+    final String message = exception.getMessage();
+    assertEquals(AUDIO_TYPE_NULL_MESSAGE, message);
   }
 
   @Test

@@ -17,6 +17,7 @@
  */
 package me.brandonli.mcav.plugin.listener;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyBoolean;
@@ -272,6 +273,14 @@ final class JukeboxListenerTest {
   void shouldRefuseNullArguments() {
     assertThrows(NullPointerException.class, () -> new JukeboxListener(null));
     assertThrows(NullPointerException.class, () -> this.listener.onJukeboxInteract(null));
+  }
+
+  @Test
+  void shouldRefuseANullPluginWithItsOwnMessage() {
+    final NullPointerException exception = assertThrows(NullPointerException.class, () -> new JukeboxListener(null));
+
+    final String message = exception.getMessage();
+    assertEquals("Plugin must not be null!", message);
   }
 
   @ParameterizedTest

@@ -193,6 +193,14 @@ final class AudioProviderTest {
   }
 
   @Test
+  void shouldRefuseANullPluginWithItsOwnMessage() {
+    final NullPointerException exception = assertThrows(NullPointerException.class, () -> new AudioProvider(null));
+
+    final String message = exception.getMessage();
+    assertEquals("Plugin must not be null!", message);
+  }
+
+  @Test
   void shouldLinkToTheConfiguredVoiceChannel() {
     final String url = this.provider.constructVoiceChannelUrl();
     assertEquals("https://discord.com/channels/100/200", url);
