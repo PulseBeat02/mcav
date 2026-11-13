@@ -188,6 +188,8 @@ final class AudioProviderTest {
     assertThrows(NullPointerException.class, () -> this.provider.constructFilter(null, this.dump, this.players));
     assertThrows(NullPointerException.class, () -> this.provider.constructFilter(AudioArgument.NONE, null, this.players));
     assertThrows(NullPointerException.class, () -> this.provider.constructFilter(AudioArgument.NONE, this.dump, null));
+    assertThrows(NullPointerException.class, () -> this.provider.constructFilter(AudioArgument.NONE, this.dump, this.players, null));
+    assertThrows(NullPointerException.class, () -> this.provider.releaseAudioFilter(null));
   }
 
   @Test
@@ -499,6 +501,10 @@ final class AudioProviderTest {
   void shouldPlayNoAudioForTheNoneOutput() {
     final AudioFilter filter = this.provider.constructFilter(AudioArgument.NONE, this.dump, this.players);
     assertSame(AudioFilter.NO_OPERATION, filter);
+
+    final Object machine = new Object();
+    final AudioFilter machineFilter = this.provider.constructFilter(AudioArgument.NONE, this.dump, this.players, machine);
+    assertSame(AudioFilter.NO_OPERATION, machineFilter);
   }
 
   @Test
@@ -607,11 +613,6 @@ final class AudioProviderTest {
 
     final boolean thirdFiltered = sound.applyFilter(samples, metadata);
     assertFalse(thirdFiltered, "a released source plays no more");
-    assertThrows(NullPointerException.class, () -> this.provider.releaseAudioFilter(null));
-    assertThrows(NullPointerException.class, () -> this.provider.constructFilter(AudioArgument.NONE, this.dump, this.players, null));
-
-    final AudioFilter constructFilter = this.provider.constructFilter(AudioArgument.NONE, this.dump, this.players, machine);
-    assertSame(AudioFilter.NO_OPERATION, constructFilter);
   }
 
   @Test
