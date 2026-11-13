@@ -69,8 +69,8 @@ class AudioNode extends EventTarget {
     return target;
   }
 
-  disconnect() {
-    this.connections = [];
+  disconnect(target) {
+    this.connections = target === undefined ? [] : this.connections.filter(connection => connection !== target);
   }
 }
 
@@ -315,3 +315,10 @@ assert.equal(sharedReplacement, replacement, "The new context is shared too!");
 deliver([new Float32Array([0.5])]);
 afterSound.push(monoSound);
 assertPackets(afterSound, "The new context hands over its sound");
+
+const bus = gains.find(gain => gain.connections.includes(processors.at(-1)));
+const pageNode = new page.AudioNode(replacement);
+pageNode.connect(replacement.destination);
+assert.ok(pageNode.connections.includes(bus), "What the page connects to the destination reaches the tap!");
+pageNode.disconnect(replacement.destination);
+assert.deepEqual(pageNode.connections, [], "What the page takes from the destination leaves the tap!");
