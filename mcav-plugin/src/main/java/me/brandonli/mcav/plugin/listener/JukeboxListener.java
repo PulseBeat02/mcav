@@ -19,6 +19,7 @@ package me.brandonli.mcav.plugin.listener;
 
 import com.google.common.base.Preconditions;
 import java.nio.file.Files;
+import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -185,7 +186,11 @@ public final class JukeboxListener implements Listener {
     final String withoutBrackets = bracketMatcher.replaceAll("");
     final Matcher illegalMatcher = ILLEGAL_FILE_NAME_CHARACTERS.matcher(withoutBrackets);
     final String fileName = illegalMatcher.replaceAll(NAME_REPLACEMENT);
-    final Path image = this.isoFolder.resolve(fileName);
+    final @Nullable Path image = this.resolveImage(fileName);
+    if (image == null) {
+      return null;
+    }
+
     final Path normalized = image.normalize();
     final boolean inside = normalized.startsWith(this.isoFolder);
     final boolean exists = Files.isRegularFile(normalized);
@@ -194,5 +199,14 @@ public final class JukeboxListener implements Listener {
     }
 
     return normalized;
+  }
+
+  // a name the file system refuses, such as one with a NUL character, has no image
+  private @Nullable Path resolveImage(final String fileName) {
+    try {
+      return this.isoFolder.resolve(fileName);
+    } catch (final InvalidPathException exception) {
+      return null;
+    }
   }
 }
