@@ -132,7 +132,7 @@ final class ChatUtilsTest {
   }
 
   @Test
-  void shouldRejectRowsOutsideOfTheImage() {
+  void shouldRejectMissingArgumentsZeroWidthsAndRowsOutsideOfTheImageForRawLines() {
     final int[] pixels = new int[4];
     assertThrows(NullPointerException.class, () -> ChatUtils.createRawLine(null, CHARACTER, 2, 0));
     assertThrows(NullPointerException.class, () -> ChatUtils.createRawLine(pixels, null, 2, 0));
@@ -183,7 +183,7 @@ final class ChatUtilsTest {
   }
 
   @Test
-  void shouldRejectImagesThatDoNotMatchThePixels() {
+  void shouldRejectMissingArgumentsEmptyImagesAndTooFewPixelsForChatComponents() {
     final int[] pixels = new int[4];
     assertThrows(NullPointerException.class, () -> ChatUtils.createChatComponent(null, CHARACTER, 2, 2));
     assertThrows(NullPointerException.class, () -> ChatUtils.createChatComponent(pixels, null, 2, 2));
