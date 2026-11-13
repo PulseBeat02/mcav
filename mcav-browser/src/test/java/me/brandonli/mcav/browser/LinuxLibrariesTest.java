@@ -1121,6 +1121,16 @@ class LinuxLibrariesTest {
   }
 
   @Test
+  void shouldFindALibraryOfThePlatformBehindOneOfAnotherArchitecture() throws IOException {
+    final Path i386 = Files.createDirectories(this.folder.resolve(I386_FOLDER));
+    Files.write(i386.resolve(X11_LIBRARY_FILE), this.elf(ELF_32_BIT, LITTLE_ENDIAN, I386_MACHINE));
+    final Path amd64 = Files.createDirectories(this.folder.resolve(MULTIARCH_FOLDER));
+    Files.write(amd64.resolve(X11_LIBRARY_FILE), this.elf(ELF_64_BIT, LITTLE_ENDIAN, AMD64_MACHINE));
+    final boolean present = LinuxLibraries.isPresent(X11_LIBRARY_FILE, List.of(i386, amd64), PLATFORM);
+    assertTrue(present, "the loader skips the 32-bit library and loads the 64-bit one behind it");
+  }
+
+  @Test
   void shouldLetAPlatformExpectNoLibraryOfTheServerAndKeepTheLibrariesInTheCacheOfMcav() {
     final LinuxLibraries nothingExpected = new LinuxLibraries(
       this.folder,
