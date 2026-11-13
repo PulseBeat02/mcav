@@ -51,6 +51,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.LockSupport;
+import java.util.function.BiConsumer;
 import java.util.function.Supplier;
 import me.brandonli.mcav.browser.testing.Await;
 import me.brandonli.mcav.media.image.ImageBuffer;
@@ -169,10 +170,6 @@ class CefBrowserPlayerTest {
   @Test
   void shouldPassTheSoundOfTheCurrentSessionToTheAudioPipelineAndNoOtherSound() throws InterruptedException {
     final List<byte[]> heard = this.attachSoundRecorder();
-    final AudioAttachableCallback audioAttachableCallback = this.player.getAudioAttachableCallback();
-    final AudioAttachableCallback currentAudioAttachableCallback = this.player.getAudioAttachableCallback();
-    assertSame(currentAudioAttachableCallback, audioAttachableCallback);
-
     final boolean started = this.player.start(SOURCE);
     assertTrue(started);
 
@@ -878,13 +875,19 @@ class CefBrowserPlayerTest {
   }
 
   @Test
-  void shouldReadTheExceptionHandlerBack() {
-    final boolean handlerPresent = this.player.getExceptionHandler() != null;
-    assertTrue(handlerPresent);
+  void shouldReadTheExceptionHandlerAndTheCallbacksBack() {
+    final BiConsumer<String, Throwable> handler = (_, _) -> {};
+    this.player.setExceptionHandler(handler);
+    final BiConsumer<String, Throwable> readHandler = this.player.getExceptionHandler();
+    assertSame(handler, readHandler);
 
-    final VideoAttachableCallback callback = this.player.getVideoAttachableCallback();
-    final VideoAttachableCallback secondCallback = this.player.getVideoAttachableCallback();
-    assertSame(callback, secondCallback);
+    final VideoAttachableCallback videoCallback = this.player.getVideoAttachableCallback();
+    final VideoAttachableCallback secondVideoCallback = this.player.getVideoAttachableCallback();
+    assertSame(videoCallback, secondVideoCallback);
+
+    final AudioAttachableCallback audioCallback = this.player.getAudioAttachableCallback();
+    final AudioAttachableCallback secondAudioCallback = this.player.getAudioAttachableCallback();
+    assertSame(audioCallback, secondAudioCallback);
   }
 
   @Test
