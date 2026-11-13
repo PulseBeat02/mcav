@@ -220,6 +220,21 @@ final class MCAVLoaderTest {
   }
 
   @Test
+  void shouldRefuseANullClasspathBuilder() {
+    final DependencySet set = this.dependencies(List.of());
+    final PluginClasspathBuilder missing = null;
+    // the empty set keeps a run without the check offline
+    try (final MockedStatic<DependencySet> sets = Mockito.mockStatic(DependencySet.class, Mockito.CALLS_REAL_METHODS)) {
+      sets.when(() -> DependencySet.readFromClasspathResource(any(ClassLoader.class), eq(DEPENDENCIES_RESOURCE_PATH))).thenReturn(set);
+      final MCAVLoader loader = new MCAVLoader(this.cache, List.of());
+      final NullPointerException refused = assertThrows(NullPointerException.class, () -> loader.classloader(missing));
+
+      final String message = refused.getMessage();
+      assertEquals("Classpath builder must not be null!", message);
+    }
+  }
+
+  @Test
   void shouldRefuseModulesOlderThanThePlugin() throws IOException {
     final Path old = this.jarOf(OLD_BUKKIT_JAR_FILE_NAME, BUKKIT_MODULE_CLASS_NAME);
     final List<String> required = List.of(BUKKIT_MODULE_CLASS_NAME, MCV2_RESULT_CLASS_NAME);
