@@ -52,6 +52,7 @@ final class GeneratedMediaTest {
   private static final String SUCCESS_ARGUMENT = "success";
   private static final String FAILURE_ARGUMENT = "failure";
   private static final String TIMEOUT_ARGUMENT = "timeout";
+  private static final String EMPTY_ARGUMENT = "empty";
 
   private static final String COMPLETED_MEDIA = "completed media";
   private static final String DIAGNOSTIC = "fixture encoder diagnostic";
@@ -70,6 +71,7 @@ final class GeneratedMediaTest {
         public static void main(String[] args) throws Exception {
           Path output = Path.of(args[1]);
           if (!output.toString().endsWith(".mp4")) throw new AssertionError("Format extension was lost!");
+          if (args[0].equals("empty")) { return; }
           Files.writeString(output, args[0].equals("success") ? "completed media" : "partial media");
           if (args[0].equals("failure")) { System.err.println("fixture encoder diagnostic"); System.exit(7); }
           if (args[0].equals("timeout")) { Thread.sleep(60_000L); }
@@ -180,6 +182,22 @@ final class GeneratedMediaTest {
 
     final boolean withinTheDeadline = elapsed < 20_000_000_000L;
     assertTrue(withinTheDeadline, "the deadline plus bounded process cleanup must not wait for the 60 second fixture");
+
+    final boolean published = Files.exists(output);
+    assertFalse(published);
+
+    this.assertNoPartialFiles();
+  }
+
+  @Test
+  void shouldNotPublishAnEncodingThatSucceedsWithoutMedia() throws Exception {
+    final Path output = this.directory.resolve(VIDEO_FILE_NAME);
+    final UncheckedIOException thrown = assertThrows(UncheckedIOException.class, () ->
+      GeneratedMedia.generate(output, path -> this.command(path, EMPTY_ARGUMENT))
+    );
+    final String message = thrown.getMessage();
+    final boolean namesTheEmptyResult = message.contains("succeeded without producing nonempty media");
+    assertTrue(namesTheEmptyResult);
 
     final boolean published = Files.exists(output);
     assertFalse(published);

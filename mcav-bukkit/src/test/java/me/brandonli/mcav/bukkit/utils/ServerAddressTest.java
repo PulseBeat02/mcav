@@ -110,6 +110,16 @@ final class ServerAddressTest {
   }
 
   @Test
+  void shouldTreatABlankAddressAsNotConfigured() {
+    this.configureServerAddress(" ");
+    final byte[] body = PUBLIC_ADDRESS.getBytes(StandardCharsets.US_ASCII);
+    this.http.respond(ADDRESS_PATH, HTTP_OK, body);
+    final URI service = this.http.uri(ADDRESS_PATH);
+    final String address = ServerAddress.getPublicAddress(service);
+    assertEquals(PUBLIC_ADDRESS, address);
+  }
+
+  @Test
   void shouldPreserveAConfiguredHostname() {
     this.configureServerAddress("mc.example.org");
     final String address = ServerAddress.getPublicAddress();

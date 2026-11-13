@@ -361,9 +361,15 @@ final class PacketUtilsTest {
   @Test
   void shouldRejectMissingArguments() {
     final List<UUID> viewers = List.of(FIRST);
+    final Component text = Component.literal("text");
+    final ClientboundSystemChatPacket packet = new ClientboundSystemChatPacket(text, false);
+    final List<ChannelFuture> writes = new ArrayList<>();
     assertThrows(NullPointerException.class, () -> PacketUtils.isConnected(null));
     assertThrows(NullPointerException.class, () -> PacketUtils.sendPackets(null));
     assertThrows(NullPointerException.class, () -> PacketUtils.sendPackets(viewers, (Packet<?>[]) null));
+    assertThrows(NullPointerException.class, () -> PacketUtils.sendPacket(null, packet, writes::add));
+    assertThrows(NullPointerException.class, () -> PacketUtils.sendPacket(FIRST, null, writes::add));
+    assertThrows(NullPointerException.class, () -> PacketUtils.sendPacket(FIRST, packet, null));
   }
 
   @Test

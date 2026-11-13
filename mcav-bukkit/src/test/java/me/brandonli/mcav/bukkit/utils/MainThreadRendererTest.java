@@ -19,10 +19,12 @@ package me.brandonli.mcav.bukkit.utils;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -91,6 +93,31 @@ final class MainThreadRendererTest {
   }
 
   @Test
+  void shouldFailToStartRenderingOrScheduleTasksBeforeAPluginIsInjected() {
+    FakeServer.clearInjectedPlugin();
+    this.server.setPrimaryThread(false);
+    final RecordingRenderer renderer = new RecordingRenderer();
+    final AtomicInteger runs = new AtomicInteger();
+    assertThrows(IllegalStateException.class, renderer::startRendering);
+    assertThrows(IllegalStateException.class, () -> MainThreadRenderer.runOnMainThread(runs::incrementAndGet));
+
+    final int taskCount = this.server.getScheduledTaskCount();
+    final int count = runs.get();
+    assertEquals(0, taskCount);
+    assertEquals(0, count);
+  }
+
+  @Test
+  void shouldPropagateTheSchedulerRefusalWhenStartingRendering() {
+    final BukkitScheduler scheduler = this.server.getScheduler();
+    final IllegalPluginAccessException refusal = new IllegalPluginAccessException("Plugin attempted to register task while disabled!");
+    doThrow(refusal).when(scheduler).runTaskTimer(any(Plugin.class), any(Runnable.class), eq(0L), eq(1L));
+    final RecordingRenderer renderer = new RecordingRenderer();
+    final IllegalPluginAccessException thrown = assertThrows(IllegalPluginAccessException.class, renderer::startRendering);
+    assertSame(refusal, thrown);
+  }
+
+  @Test
   void shouldApplyOnlyTheLatestFrameAndOnlyOnce() {
     final RecordingRenderer renderer = new RecordingRenderer();
     renderer.startRendering();
@@ -152,6 +179,18 @@ final class MainThreadRendererTest {
   }
 
   @Test
+  void shouldApplyAFrameSubmittedWhileStoppedOnceRenderingStarts() {
+    final RecordingRenderer renderer = new RecordingRenderer();
+    renderer.submit(FRAME);
+    renderer.startRendering();
+    this.server.runTasks();
+
+    final List<String> applied = renderer.getAppliedFrames();
+    final List<String> expected = List.of(FRAME);
+    assertEquals(expected, applied);
+  }
+
+  @Test
   void shouldRunTasksImmediatelyOnTheMainThread() {
     final AtomicInteger runs = new AtomicInteger();
     MainThreadRenderer.runOnMainThread(runs::incrementAndGet);
@@ -159,6 +198,18 @@ final class MainThreadRendererTest {
     final BukkitScheduler scheduler = this.server.getScheduler();
     assertEquals(1, count);
     verify(scheduler, never()).runTask(any(Plugin.class), any(Runnable.class));
+  }
+
+  @Test
+  void shouldPropagateTheFailureOfATaskThatRunsImmediately() {
+    final IllegalStateException failure = new IllegalStateException("Display is gone!");
+    final Runnable task = () -> this.throwFailure(failure);
+    final IllegalStateException thrown = assertThrows(IllegalStateException.class, () -> MainThreadRenderer.runOnMainThread(task));
+    assertSame(failure, thrown);
+  }
+
+  private void throwFailure(final IllegalStateException failure) {
+    throw failure;
   }
 
   @Test
