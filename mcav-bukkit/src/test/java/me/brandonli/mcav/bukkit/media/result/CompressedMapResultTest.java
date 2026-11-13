@@ -49,10 +49,12 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.ForkJoinTask;
+import java.util.concurrent.FutureTask;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 import me.brandonli.mcav.bukkit.media.config.MapConfiguration;
 import me.brandonli.mcav.bukkit.media.config.MapConfigurationBuilder;
 import me.brandonli.mcav.bukkit.media.map.MapLayout;
@@ -108,6 +110,7 @@ final class CompressedMapResultTest {
   private static final UUID FIRST = UUID.fromString("00000000-0000-0000-0000-000000000001");
   private static final UUID SECOND = UUID.fromString("00000000-0000-0000-0000-000000000002");
   private static final Duration TIMEOUT = Duration.ofSeconds(10);
+  private static final long POLL_MILLISECONDS = 5L;
 
   private static final int MAP_SIZE = 128;
 
@@ -314,9 +317,7 @@ final class CompressedMapResultTest {
   void shouldLetAnotherThreadAcquireTheProcessingLockDuringARefresh() throws ReflectiveOperationException, InterruptedException {
     final MapConfiguration configuration = this.createConfiguration(1, 1, Sizing.ORIGINAL);
     final CompressedMapResult result = new CompressedMapResult(configuration, LARGE_BYTE_BUDGET);
-    final Field lockField = CompressedMapResult.class.getDeclaredField("lock");
-    lockField.setAccessible(true);
-    final Lock lock = (Lock) lockField.get(result);
+    final Lock lock = this.lockOf(result);
     try {
       result.refresh();
       this.runInAnotherThread(() -> this.assertLockFree(lock));
@@ -332,6 +333,12 @@ final class CompressedMapResultTest {
     }
 
     assertTrue(acquired, "refresh must release the processing lock for the next frame on another thread");
+  }
+
+  private ReentrantLock lockOf(final CompressedMapResult result) throws ReflectiveOperationException {
+    final Field lockField = CompressedMapResult.class.getDeclaredField("lock");
+    lockField.setAccessible(true);
+    return (ReentrantLock) lockField.get(result);
   }
 
   @Test
@@ -434,7 +441,10 @@ final class CompressedMapResultTest {
   private void join(final UUID uuid) throws EventException {
     final Player player = this.server.addPlayer(uuid);
     PacketUtils.initialize();
+    this.join(player);
+  }
 
+  private void join(final Player player) throws EventException {
     final Listener listener = this.joinListener();
     final EventExecutor executor = this.joinExecutor();
     final PlayerJoinEvent event = new PlayerJoinEvent(player, (Component) null);
@@ -471,6 +481,69 @@ final class CompressedMapResultTest {
   private int secondViewerPacketCount() {
     final List<Packet<?>> packets = this.server.getSentPackets(SECOND);
     return packets.size();
+  }
+
+  @Test
+  void shouldMakeAViewerWhoJoinsDuringAFrameWaitForThatFrame() throws Exception {
+    final MapConfiguration configuration = this.createConfiguration(1, 1, Sizing.ORIGINAL);
+    final CompressedMapResult result = new CompressedMapResult(configuration, LARGE_BYTE_BUDGET);
+    final ReentrantLock lock = this.lockOf(result);
+    try (final ImageBuffer image = Images.solid(MAP_SIZE, MAP_SIZE, BLACK)) {
+      result.start();
+      result.process(image, this.algorithm);
+
+      final Player player = this.server.addPlayer(SECOND);
+      PacketUtils.initialize();
+      final FutureTask<Boolean> joining = new FutureTask<>(() -> this.joinQuietly(player), true);
+      final byte[] changed = this.changedFrame();
+      this.nextFrame = changed;
+      doAnswer(_ -> this.joinDuringTheFrame(lock, joining))
+        .when(this.algorithm)
+        .ditherIntoBytes(any(ImageBuffer.class));
+      result.process(image, this.algorithm);
+      final long timeout = TIMEOUT.toMillis();
+      joining.get(timeout, TimeUnit.MILLISECONDS);
+
+      final byte[] picture = this.replaySecondViewerPicture();
+      assertArrayEquals(changed, picture, "the joining viewer sees the frame that was in progress, whole");
+    } finally {
+      result.release();
+    }
+  }
+
+  private void joinQuietly(final Player player) {
+    try (final MockedStatic<Bukkit> _ = this.server.mockBukkitOnThisThread()) {
+      this.join(player);
+    } catch (final EventException exception) {
+      throw new AssertionError("The join could not be handled!", exception);
+    }
+  }
+
+  private byte[] joinDuringTheFrame(final ReentrantLock lock, final FutureTask<Boolean> joining) throws InterruptedException {
+    final Thread joiner = Thread.ofPlatform().daemon().start(joining);
+    this.awaitQueuedOrDone(lock, joiner);
+
+    final int packetCount = this.secondViewerPacketCount();
+    assertEquals(0, packetCount, "a viewer who joins during a frame is sent nothing before that frame");
+
+    return this.nextFrame.clone();
+  }
+
+  private void awaitQueuedOrDone(final ReentrantLock lock, final Thread joiner) throws InterruptedException {
+    final long timeout = TIMEOUT.toNanos();
+    final long deadline = System.nanoTime() + timeout;
+    while (!lock.hasQueuedThread(joiner) && joiner.isAlive() && System.nanoTime() < deadline) {
+      Thread.sleep(POLL_MILLISECONDS);
+    }
+  }
+
+  private byte[] replaySecondViewerPicture() {
+    final List<Packet<?>> sent = this.server.getSentPackets(SECOND);
+    final List<ClientboundMapItemDataPacket> packets = sent.stream().map(MapPackets::unbundle).flatMap(List::stream).toList();
+    final byte[] canvas = new byte[MAP_SIZE * MAP_SIZE];
+    this.applyPacketsToCanvas(canvas, 1, 1, packets);
+
+    return canvas;
   }
 
   @Test
