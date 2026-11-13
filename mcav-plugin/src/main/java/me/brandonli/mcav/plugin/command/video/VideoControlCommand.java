@@ -125,7 +125,8 @@ public final class VideoControlCommand implements AnnotationCommandFeature {
    *
    * <p>Requires the permission {@code mcav.command.video.release}; players and the console can run it. The sender
    * is told "Releasing the video player..." at once and "Video player released!" once the video is stopped in the
-   * background. When no video is loaded, both messages are still sent.
+   * background. When no video is loaded, both messages are still sent. When the video cannot be stopped, the sender
+   * is told that it could not be released instead of "Video player released!", and the console logs why.
    *
    * @param sender who ran the command
    * @throws NullPointerException if {@code sender} is null
@@ -144,14 +145,17 @@ public final class VideoControlCommand implements AnnotationCommandFeature {
 
     final ExecutorService service = this.manager.getService();
     final Component released = Message.RELEASE_PLAYER.build();
+    final Component notReleased = Message.RELEASE_PLAYER_ERROR.build();
     final Runnable done = TaskUtils.createMainThreadHandover(this.plugin, () -> sender.sendMessage(released));
+    final Runnable failed = TaskUtils.createMainThreadHandover(this.plugin, () -> sender.sendMessage(notReleased));
     final CompletableFuture<Void> release = CompletableFuture.runAsync(this.manager::clearCurrentVideo, service);
-    TaskUtils.whenComplete(release, (_, failure) -> this.reportRelease(done, failure));
+    TaskUtils.whenComplete(release, (_, failure) -> this.reportRelease(done, failed, failure));
   }
 
-  private void reportRelease(final Runnable done, final @Nullable Throwable failure) {
+  private void reportRelease(final Runnable done, final Runnable failed, final @Nullable Throwable failure) {
     if (failure != null) {
       LOGGER.error("Failed to release the video player.", failure);
+      failed.run();
       return;
     }
 

@@ -409,6 +409,14 @@ public interface Message extends LocaleTools {
   NullComponent RELEASE_PLAYER = LocaleTools.direct("mcav.command.video.release");
 
   /**
+   * Key {@code mcav.command.video.release.error}: {@code /mcav video release} could not stop the video; the console has
+   * the error.
+   *
+   * @since 1.0.0
+   */
+  NullComponent RELEASE_PLAYER_ERROR = LocaleTools.direct("mcav.command.video.release.error");
+
+  /**
    * Key {@code mcav.command.video.pause}: confirms {@code /mcav video pause}.
    *
    * @since 1.0.0
