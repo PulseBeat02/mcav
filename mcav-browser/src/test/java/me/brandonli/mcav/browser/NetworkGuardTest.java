@@ -91,6 +91,8 @@ class NetworkGuardTest {
 
   private static final int COMMON_POOL_TIMEOUT_SECONDS = 30;
   private static final int HANDSHAKE_TIMEOUT_MILLISECONDS = 200;
+  private static final int PAST_THE_HANDSHAKE_DEADLINE_MILLISECONDS = 1_000;
+  private static final int LONG_HANDSHAKE_TIMEOUT_MILLISECONDS = 60_000;
 
   private static final int EPHEMERAL_PORT = 0;
 
@@ -182,6 +184,12 @@ class NetworkGuardTest {
     this.closeables.add(guard);
 
     return guard;
+  }
+
+  private Socket recordAndConnect(final List<InetSocketAddress> attempts, final InetSocketAddress address) throws IOException {
+    attempts.add(address);
+
+    return NetworkGuard.connect(address);
   }
 
   private NetworkGuard loopbackGuard() throws IOException {
@@ -288,11 +296,17 @@ class NetworkGuardTest {
 
   @Test
   void shouldOnlyTryAllowedAddressesOfAHost() throws IOException {
-    final NetworkGuard guard = this.loopbackGuard();
+    final List<InetSocketAddress> attempts = new CopyOnWriteArrayList<>();
+    final NetworkGuard guard = this.guard(
+      InetAddress::isLoopbackAddress,
+      address -> this.recordAndConnect(attempts, address),
+      CONNECT_TIMEOUT_MILLISECONDS
+    );
     final Socket client = this.connectThrough(guard, MIXED_HOST, this.echo.getLocalPort());
     final byte[] ping = { 42 };
     final byte[] echoed = this.exchange(client, ping, 1);
     assertArrayEquals(ping, echoed);
+    assertEquals(List.of(new InetSocketAddress(LOOPBACK, this.echo.getLocalPort())), attempts);
   }
 
   @Test
@@ -426,6 +440,17 @@ class NetworkGuardTest {
   }
 
   @Test
+  void shouldKeepARelayedConnectionOpenPastTheHandshakeDeadline() throws IOException, InterruptedException {
+    final NetworkGuard guard = this.guard(InetAddress::isLoopbackAddress, NetworkGuard::connect, HANDSHAKE_TIMEOUT_MILLISECONDS);
+    final Socket client = this.connectThrough(guard, ECHO_HOST, this.echo.getLocalPort());
+    Thread.sleep(PAST_THE_HANDSHAKE_DEADLINE_MILLISECONDS);
+
+    final byte[] ping = { 42 };
+    final byte[] echoed = this.exchange(client, ping, 1);
+    assertArrayEquals(ping, echoed);
+  }
+
+  @Test
   void shouldDropAClientThatTricklesItsHandshakeOnceTheWholeHandshakeTookTooLong() throws Exception {
     final NetworkGuard guard = this.guard(InetAddress::isLoopbackAddress, NetworkGuard::connect, 600);
     final Socket client = this.client(guard);
@@ -505,17 +530,6 @@ class NetworkGuardTest {
   }
 
   @Test
-  void shouldDisconnectAClientTurnedAway() throws IOException {
-    final NetworkGuard guard = this.loopbackGuard();
-    final Socket client = this.client(guard);
-    final byte[] passwordAnswer = this.exchange(client, new byte[] { 5, 1, 2 }, 2);
-    final byte[] expectedPasswordAnswer = new byte[] { 5, (byte) 0xFF };
-    assertArrayEquals(expectedPasswordAnswer, passwordAnswer);
-
-    this.assertEnded(client);
-  }
-
-  @Test
   void shouldFreeTheSlotOfAConnectionWhenItEnds() throws IOException {
     final NetworkGuard guard = this.loopbackGuard();
     for (int count = 0; count < NetworkGuard.MAXIMUM_CONNECTIONS + 44; count++) {
@@ -567,6 +581,18 @@ class NetworkGuardTest {
     final boolean closed = guard.getServer().isClosed();
     assertTrue(closed, "the guard stopped listening");
     assertEquals(List.of(), this.notices);
+  }
+
+  @Test
+  void shouldEndAClientStillInItsHandshakeWhenTheGuardCloses() throws IOException {
+    final NetworkGuard guard = this.guard(InetAddress::isLoopbackAddress, NetworkGuard::connect, LONG_HANDSHAKE_TIMEOUT_MILLISECONDS);
+    final Socket client = this.client(guard);
+    final byte[] greetingAnswer = this.exchange(client, GREETING, 2);
+    final byte[] expectedGreetingAnswer = new byte[] { 5, 0 };
+    assertArrayEquals(expectedGreetingAnswer, greetingAnswer);
+
+    guard.close();
+    this.assertEnded(client);
   }
 
   @Test

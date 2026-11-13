@@ -78,6 +78,9 @@ class NavigationPolicyTest {
 
   @Test
   void shouldAlsoLetFramesHoldLocalDocumentsOfTheBrowser() {
+    final boolean httpsAllowed = NavigationPolicy.allowsNavigation("https://example.com/frame", FrameKind.CHILD);
+    assertTrue(httpsAllowed);
+
     final boolean aboutBlankAllowed = NavigationPolicy.allowsNavigation(BLANK_DOCUMENT_URL, FrameKind.CHILD);
     assertTrue(aboutBlankAllowed);
 
@@ -111,6 +114,9 @@ class NavigationPolicyTest {
 
   @Test
   void shouldOnlyLetRequestsUseTheWebSchemes() {
+    final boolean httpAllowed = NavigationPolicy.allowsRequest("http://example.com/a.png");
+    assertTrue(httpAllowed);
+
     final boolean httpsAllowed = NavigationPolicy.allowsRequest("https://example.com/a.png");
     assertTrue(httpsAllowed);
 
