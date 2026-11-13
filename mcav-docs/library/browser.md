@@ -42,9 +42,9 @@ fixed at the next start.
 systems, `start` fails with a `BrowserUnavailableException` that names the platform, and nothing is downloaded; so does
 a start whose download or check fails, with the reason in its message.
 
-### Linux on a stock server
+### Linux on a headless server
 
-The browser runs on a stock headless Linux server, such as a Minecraft server in a Docker image, with nothing installed
+The browser runs on a headless Linux server, such as a Minecraft server in a Docker image, with nothing installed
 but a full Java runtime (see below) and no JVM options. Chromium draws on its headless platform, which needs no display
 server. CEF's Java binding still asks for an X display once at the start, for a window of one pixel it never shows; the
 helper answers it itself with a null display: a minimal X11 endpoint inside the helper, on the loopback interface, that
