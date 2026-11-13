@@ -278,6 +278,18 @@ final class InteractUtilsTest {
   }
 
   @Test
+  void shouldFindNoPixelOnAPlainFrameBesideALegacyWall() {
+    this.buildSouthWall();
+    final Location beside = this.fakeWorld.createLocation(4.5, FRAME_CENTER_Y, 0.0);
+    final ItemFrame plain = this.fakeWorld.addFrame(beside, BlockFace.SOUTH);
+    final Block wallBlock = this.fakeWorld.block(4, BLOCK_Y, -1);
+    final Location eye = this.eye(4.3, EYE_Y, EYE_DISTANCE, LOOK_NORTH);
+    this.aimAt(plain, BlockFace.SOUTH, wallBlock, eye);
+    final Optional<int[]> coordinates = InteractUtils.findBoardCoordinates(this.player);
+    assertEquals(Optional.empty(), coordinates, "a frame that is not a map of the wall is not part of it");
+  }
+
+  @Test
   void shouldMirrorThePixelOnAWallFacingNorth() {
     final Location left = this.fakeWorld.createLocation(1.5, FRAME_CENTER_Y, 0.0);
     final Location right = this.fakeWorld.createLocation(0.5, FRAME_CENTER_Y, 0.0);
