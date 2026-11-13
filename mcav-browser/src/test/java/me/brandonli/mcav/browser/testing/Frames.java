@@ -195,6 +195,14 @@ public final class Frames {
       return this.center;
     }
 
+    public int getMetadataWidth() {
+      return this.metadataWidth;
+    }
+
+    public int getMetadataHeight() {
+      return this.metadataHeight;
+    }
+
     @Override
     public boolean equals(final @Nullable Object other) {
       if (this == other) {

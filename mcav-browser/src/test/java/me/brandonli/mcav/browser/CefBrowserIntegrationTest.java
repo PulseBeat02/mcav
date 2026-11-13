@@ -166,6 +166,12 @@ class CefBrowserIntegrationTest {
     final int height = last.getHeight();
     assertEquals(HEIGHT, height);
 
+    final int metadataWidth = last.getMetadataWidth();
+    assertEquals(WIDTH, metadataWidth);
+
+    final int metadataHeight = last.getMetadataHeight();
+    assertEquals(HEIGHT, metadataHeight);
+
     final boolean browserRunning = countBrowserProcesses() > 0;
     assertTrue(browserRunning);
   }

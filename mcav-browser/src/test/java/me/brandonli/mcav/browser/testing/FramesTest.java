@@ -28,6 +28,7 @@ import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
 import me.brandonli.mcav.media.player.metadata.OriginalVideoMetadata;
 import me.brandonli.mcav.media.player.pipeline.filter.video.VideoFilter;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
@@ -62,5 +63,23 @@ final class FramesTest {
       assertTrue(showsRed);
       assertFalse(showsBlue);
     }
+  }
+
+  @Test
+  void shouldRecordTheVideoSizeOfTheMetadataNotOfTheImage() {
+    final VideoAttachableCallback callback = VideoAttachableCallback.create();
+    final Frames frames = Frames.attach(callback);
+    final VideoPipelineStep pipeline = callback.retrieve();
+    final VideoFilter recorder = pipeline.getFilter();
+    final OriginalVideoMetadata metadata = OriginalVideoMetadata.of(640, 480);
+    try (final ImageBuffer image = ImageBuffer.buffer(new int[8], 4, 2)) {
+      final boolean _ = recorder.applyFilter(image, metadata);
+    }
+
+    final Frames.Frame frame = frames.requireLast();
+    final int metadataWidth = frame.getMetadataWidth();
+    final int metadataHeight = frame.getMetadataHeight();
+    assertEquals(640, metadataWidth);
+    assertEquals(480, metadataHeight);
   }
 }
