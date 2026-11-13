@@ -447,13 +447,25 @@ final class CefBrowserPlayer implements BrowserPlayer {
 
     @VisibleForTesting
     HelperSessionFactory(final JcefNatives natives, final List<String> extraJvmOptions) {
-      this(natives, new LinuxLibraries(), extraJvmOptions);
+      this(natives, new LinuxLibraries(), extraJvmOptions, null);
     }
 
-    private HelperSessionFactory(final JcefNatives natives, final LinuxLibraries libraries, final List<String> extraJvmOptions) {
+    // serves the mutants of open and getLauncher, which otherwise only the cef group reaches
+    @VisibleForTesting
+    HelperSessionFactory(final JcefNatives natives, final LinuxLibraries libraries, final HelperLauncher launcher) {
+      this(natives, libraries, List.of(), launcher);
+    }
+
+    private HelperSessionFactory(
+      final JcefNatives natives,
+      final LinuxLibraries libraries,
+      final List<String> extraJvmOptions,
+      final @Nullable HelperLauncher launcher
+    ) {
       this.natives = natives;
       this.libraries = libraries;
       this.extraJvmOptions = List.copyOf(extraJvmOptions);
+      this.launcher = launcher;
     }
 
     @Override

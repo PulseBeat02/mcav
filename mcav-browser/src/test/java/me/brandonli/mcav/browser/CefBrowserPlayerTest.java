@@ -25,6 +25,7 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
@@ -32,6 +33,7 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.net.URI;
 import java.nio.ByteBuffer;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -62,6 +64,7 @@ import me.brandonli.mcav.utils.audio.DelayedAudioOutput;
 import me.brandonli.mcav.utils.interaction.MouseClick;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.mockito.MockedConstruction;
 import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
@@ -89,6 +92,11 @@ class CefBrowserPlayerTest {
   private static final String INPUT_KEY = "x";
 
   private static final String UNREACHABLE_REPOSITORY = "https://unreachable.test/";
+
+  private static final String INSTALLATION_PREFIX = "jcef-";
+  private static final String NAME_SEPARATOR = "-";
+
+  private static final long HELPER_START_TIMEOUT_MILLISECONDS = 60_000L;
 
   private static final String TEMPORARY_DIRECTORY_PROPERTY = "java.io.tmpdir";
 
@@ -1015,6 +1023,26 @@ class CefBrowserPlayerTest {
 
   private void failDownload() throws IOException {
     throw new IOException(OFFLINE_MESSAGE);
+  }
+
+  @Test
+  void shouldOpenAHelperSessionThroughTheLauncherOfTheFactory(@TempDir final Path folder) throws IOException {
+    final boolean supported = BrowserPlayer.isSupported();
+    assumeTrue(supported, "This machine has no CEF build!");
+
+    final JcefNatives.NativePlatform platform = JcefNatives.detectCurrent();
+    final String identifier = platform.getIdentifier();
+    final Path installation = folder.resolve(INSTALLATION_PREFIX + JcefNatives.JCEFMAVEN_VERSION + NAME_SEPARATOR + identifier);
+    Files.createDirectories(installation);
+    Files.createFile(installation.resolve(JcefNatives.INSTALL_MARKER));
+
+    final JcefNatives installed = new JcefNatives(folder, (_, _, _, _) -> this.failDownload(), UNREACHABLE_REPOSITORY, new ArchiveExtractor());
+    final LinuxLibraries libraries = new LinuxLibraries(folder, (_, _, _, _) -> this.failDownload(), List.of(), List.of());
+    final HelperLauncher launcher = HelperSessionTest.launcher(ScriptedEngine.class.getName(), HELPER_START_TIMEOUT_MILLISECONDS);
+    final CefBrowserPlayer.HelperSessionFactory factory = new CefBrowserPlayer.HelperSessionFactory(installed, libraries, launcher);
+    try (final BrowserSession session = this.openWithARecordingListener(factory)) {
+      assertInstanceOf(HelperSession.class, session);
+    }
   }
 
   @Test
