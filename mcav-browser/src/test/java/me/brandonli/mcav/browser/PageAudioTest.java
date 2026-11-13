@@ -49,8 +49,6 @@ class PageAudioTest {
   private static final byte[] FRAMES = { 1, 0, 2, 0, 3, 0, 4, 0 };
   private static final byte[] OTHER_FRAMES = { 5, 0, 6, 0 };
 
-  private static final int SECOND_BYTES = 48_000 * 4;
-
   private static final int MAXIMUM_CHUNK_BYTES = 65_536;
   private static final int PARTIAL_CHUNK_BYTES = 56_320;
 
@@ -276,10 +274,6 @@ class PageAudioTest {
 
     final int countAfterAnotherSecond = passed.size();
     assertEquals(17, countAfterAnotherSecond);
-
-    final int budgetBytes = PageAudio.BUDGET_SECONDS_PER_SECOND * SECOND_BYTES;
-    final int expectedBudgetBytes = 2 * SECOND_BYTES;
-    assertEquals(expectedBudgetBytes, budgetBytes);
   }
 
   @Test
@@ -466,19 +460,7 @@ class PageAudioTest {
 
   @Test
   void shouldTakeTheBindingAwayInTheScriptAndSendWhatThePagePlays() throws Exception {
-    final String script = PageAudio.SCRIPT;
-    ScriptAssertions.execute(PAGE_AUDIO_SCRIPT_FILE, script);
-    final boolean usesTheBindingName = script.contains("const BINDING = \"" + PageAudio.BINDING + "\";");
-    assertTrue(usesTheBindingName, "the script uses the binding's name");
-
-    final boolean deletesTheBinding = script.contains("delete globalThis[BINDING]");
-    assertTrue(deletesTheBinding, "the page cannot send through it once it is taken");
-
-    final boolean setsTheRate = script.contains("const SAMPLE_RATE = 48000;");
-    assertTrue(setsTheRate, "the sound has the rate of mcav's audio pipeline");
-
-    final boolean guardsAgainstPlacingTwice = script.contains("if (Object.prototype.hasOwnProperty.call(globalThis, PLACED)) {");
-    assertTrue(guardsAgainstPlacingTwice, "placed twice, it runs once");
+    ScriptAssertions.execute(PAGE_AUDIO_SCRIPT_FILE, PageAudio.SCRIPT);
   }
 
   @Test

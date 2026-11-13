@@ -37,11 +37,13 @@ const BINARY_ENCODING = "binary";
 const BASE64_ENCODING = "base64";
 
 const RUNNING_STATE = "running";
+const CLOSED_STATE = "closed";
 
 const listeners = new Map();
 const contexts = [];
 const processors = [];
 const gains = [];
+const sources = [];
 const received = [];
 
 class EventTarget {
@@ -68,8 +70,8 @@ class AudioNode extends EventTarget {
     return target;
   }
 
-  disconnect() {
-    this.connections = [];
+  disconnect(target) {
+    this.connections = target === undefined ? [] : this.connections.filter(connection => connection !== target);
   }
 }
 
@@ -134,6 +136,11 @@ class AudioContext extends BaseAudioContext {
     return Promise.resolve();
   }
 
+  close() {
+    this.currentState = CLOSED_STATE;
+    return Promise.resolve();
+  }
+
   createMediaElementSource(element) {
     return new MediaElementAudioSourceNode(this, { mediaElement: element });
   }
@@ -173,6 +180,7 @@ class MediaElementAudioSourceNode extends AudioNode {
   constructor(context, options) {
     super(context);
     this.element = options.mediaElement;
+    sources.push(this);
   }
 }
 
@@ -191,7 +199,7 @@ const countListeners = ([type, callbacks]) => [type, callbacks.length];
 const deliver = channels => {
   const buffer = new AudioBuffer(channels);
   const event = new AudioProcessingEvent(buffer);
-  const onAudioProcess = processors[0].listeners.get("audioprocess")[0];
+  const onAudioProcess = processors.at(-1).listeners.get("audioprocess")[0];
   onAudioProcess(event);
 };
 
@@ -299,3 +307,36 @@ for (let chunk = 0; chunk < QUIET_WINDOW_CHUNKS; chunk++) {
 
 deliverSilence();
 assertPackets(afterSound, "The renewed window is finite too");
+
+first.close();
+const replacement = new page.AudioContext({ sampleRate: OTHER_SAMPLE_RATE });
+assert.notEqual(replacement, first, "A closed context is made again when the page makes one!");
+assert.equal(replacement.sampleRate, CAPTURED_SAMPLE_RATE, "The new context uses the required rate!");
+const sharedReplacement = new page.AudioContext();
+assert.equal(sharedReplacement, replacement, "The new context is shared too!");
+deliver([new Float32Array([0.5])]);
+afterSound.push(monoSound);
+assertPackets(afterSound, "The new context hands over its sound");
+
+const bus = gains.find(gain => gain.connections.includes(processors.at(-1)));
+const pageNode = new page.AudioNode(replacement);
+pageNode.connect(replacement.destination);
+assert.ok(pageNode.connections.includes(bus), "What the page connects to the destination reaches the tap!");
+pageNode.disconnect(replacement.destination);
+assert.deepEqual(pageNode.connections, [], "What the page takes from the destination leaves the tap!");
+
+const element = new page.HTMLMediaElement();
+element.play();
+const captured = sources.at(-1);
+assert.equal(captured.element, element, "A playing element gets a source!");
+assert.ok(captured.connections.includes(bus), "A playing element plays into the tap!");
+const pageSource = replacement.createMediaElementSource(element);
+assert.equal(pageSource, captured, "The page gets the source of the element!");
+assert.deepEqual(pageSource.connections, [], "The source the page asks for is cut from the tap!");
+const constructedSource = new page.MediaElementAudioSourceNode(replacement, { mediaElement: element });
+assert.equal(constructedSource, captured, "A constructed source of the element is that source too!");
+const autoplayed = new page.HTMLMediaElement();
+listeners.get("play")[0]({ target: autoplayed });
+const autoplayedSource = sources.at(-1);
+assert.equal(autoplayedSource.element, autoplayed, "An element that plays by itself gets a source!");
+assert.ok(autoplayedSource.connections.includes(bus), "An element that plays by itself plays into the tap!");
