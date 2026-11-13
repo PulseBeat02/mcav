@@ -23,11 +23,13 @@ plugins {
 }
 
 val cefTestGroup: String = "cef"
+val offscreenBrowserClasses: String = "org.cef.browser.MCAVOffscreenBrowser*"
 
 val helperCoveragePath: String = "jacoco/helper.exec"
 
 pitest {
     excludedGroups = setOf(cefTestGroup)
+    targetClasses.add(offscreenBrowserClasses)
 }
 
 val helperCoverage: Provider<RegularFile> = layout.buildDirectory.file(helperCoveragePath)
