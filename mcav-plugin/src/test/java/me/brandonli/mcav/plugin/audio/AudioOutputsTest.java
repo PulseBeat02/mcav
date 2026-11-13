@@ -84,6 +84,21 @@ final class AudioOutputsTest {
   }
 
   @Test
+  void shouldPlayDiscordAudioOnceTheBotIsReady() {
+    when(this.provider.isDiscordBotEnabled()).thenReturn(true);
+
+    final Optional<Component> starting = AudioOutputs.findProblem(this.provider, AudioArgument.DISCORD_BOT);
+    final Component notReady = Message.AUDIO_NOT_READY.build();
+    final Optional<Component> expectedNotReady = Optional.of(notReady);
+    assertEquals(expectedNotReady, starting);
+
+    when(this.provider.isDiscordBotReady()).thenReturn(true);
+
+    final Optional<Component> ready = AudioOutputs.findProblem(this.provider, AudioArgument.DISCORD_BOT);
+    assertEquals(Optional.empty(), ready);
+  }
+
+  @Test
   void shouldGiveTheViewersTheLinkOfOutputsThatHaveOne() {
     when(this.provider.constructVoiceChannelUrl()).thenReturn("https://discord.com/channels/1/2");
     final Player viewer = mock(Player.class);
