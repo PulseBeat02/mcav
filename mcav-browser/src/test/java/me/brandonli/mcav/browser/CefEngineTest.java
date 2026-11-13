@@ -96,6 +96,17 @@ class CefEngineTest {
 
   private static final String MOCK_KEYCHAIN_SWITCH = "--use-mock-keychain";
 
+  private static final List<String> LOCKDOWN_SWITCHES = List.of(
+    "--hide-scrollbars",
+    "--disable-component-update",
+    "--disable-background-networking",
+    "--disable-sync",
+    "--disable-default-apps",
+    "--disable-notifications",
+    "--no-first-run",
+    "--disable-webgpu"
+  );
+
   private static final String EMPTY_PARAMETERS = "{}";
 
   private static final String UNCONFIRMED_SCRIPTS_NOTICE = "The scripts of the page were not confirmed in 2 attempts; it loads anyway.";
@@ -214,7 +225,14 @@ class CefEngineTest {
   void shouldRunChromiumWithoutGpuSoundExtensionsOrPermissionPrompts() {
     final List<String> switches = this.engine.createSwitches(this.configuration(AllowedFeature.NONE), OperatingSystem.OTHER, 0, null);
     final boolean disablesGpuSoundExtensionsAndPrompts = switches.containsAll(
-      List.of("--disable-gpu", "--mute-audio", "--disable-extensions", "--deny-permission-prompts", "--site-per-process")
+      List.of(
+        "--disable-gpu",
+        "--disable-gpu-compositing",
+        "--mute-audio",
+        "--disable-extensions",
+        "--deny-permission-prompts",
+        "--site-per-process"
+      )
     );
     assertTrue(disablesGpuSoundExtensionsAndPrompts);
 
@@ -249,6 +267,13 @@ class CefEngineTest {
       final boolean remoteDebugging = value.startsWith("--remote-debugging");
       assertFalse(remoteDebugging, value);
     }
+  }
+
+  @Test
+  void shouldStartChromiumLockedDown() {
+    final List<String> switches = this.engine.createSwitches(this.configuration(AllowedFeature.NONE), OperatingSystem.OTHER, 0, null);
+    final boolean locksDownChromium = switches.containsAll(LOCKDOWN_SWITCHES);
+    assertTrue(locksDownChromium);
   }
 
   @Test
