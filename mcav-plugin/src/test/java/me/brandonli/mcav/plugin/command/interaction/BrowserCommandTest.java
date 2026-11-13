@@ -626,7 +626,10 @@ final class BrowserCommandTest {
     this.assertReceived(released);
 
     this.command.releaseBrowser(this.sender);
-    verify(this.browser, timeout(RELEASE_MILLISECONDS)).release();
+    this.command.shutdown();
+
+    verify(this.browser).release();
+    this.assertReceived(released, released);
   }
 
   @Test
