@@ -17,6 +17,7 @@
  */
 package me.brandonli.mcav.plugin.command.interaction;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.mock;
 
@@ -70,5 +71,18 @@ final class ScreenSoundTest {
       .add("viewers", this.viewers)
       .toString();
     assertEquals(expected, text);
+  }
+
+  @Test
+  void shouldKeepItsOwnCopyOfTheViewers() {
+    final ScreenSound sound = new ScreenSound(AudioArgument.HTTP_SERVER, this.viewers);
+    final Player[] expected = this.viewers.clone();
+    final Player otherViewer = mock(Player.class);
+    this.viewers[0] = otherViewer;
+    final Player[] returned = sound.getViewers();
+    returned[0] = otherViewer;
+
+    final Player[] kept = sound.getViewers();
+    assertArrayEquals(expected, kept);
   }
 }
