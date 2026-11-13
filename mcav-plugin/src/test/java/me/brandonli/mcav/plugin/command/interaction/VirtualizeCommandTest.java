@@ -964,6 +964,16 @@ final class VirtualizeCommandTest {
   }
 
   @Test
+  void shouldRefuseADriveThatNamesTwoDiskImages() throws IOException {
+    this.image(DISK_A_FILE_NAME);
+    this.image(DISK_B_FILE_NAME);
+    final IllegalArgumentException failure = this.assertRefusedOptions("-drive file=a.img,file=b.img");
+
+    final String message = failure.getMessage();
+    assertEquals("Drive file=a.img,file=b.img must name its disk image exactly once, as file=<image>!", message);
+  }
+
+  @Test
   void shouldRefuseASwitchThatIsGivenAValue() {
     final IllegalArgumentException failure = this.assertRefusedOptions("-snapshot yes");
 
