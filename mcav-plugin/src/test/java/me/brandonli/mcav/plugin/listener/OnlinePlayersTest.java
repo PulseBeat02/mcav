@@ -80,6 +80,16 @@ final class OnlinePlayersTest {
     assertTrue(empty);
   }
 
+  @Test
+  void shouldRefuseNullArguments() {
+    // with a test server, only the check can refuse a null plugin
+    TestServer.reset();
+    final OnlinePlayers online = new OnlinePlayers();
+    assertThrows(NullPointerException.class, () -> online.start(null));
+    assertThrows(NullPointerException.class, () -> online.onPlayerJoin(null));
+    assertThrows(NullPointerException.class, () -> online.onPlayerQuit(null));
+  }
+
   private Player player(final UUID uuid) {
     final Player player = mock(Player.class);
     when(player.getUniqueId()).thenReturn(uuid);

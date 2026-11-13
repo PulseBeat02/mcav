@@ -18,6 +18,7 @@
 package me.brandonli.mcav.plugin.audio;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -118,6 +119,15 @@ final class AudioOutputsTest {
 
     final Optional<Component> audioOutputsLink = AudioOutputs.createLink(this.provider, AudioArgument.SIMPLE_VOICE_CHAT);
     assertEquals(Optional.empty(), audioOutputsLink);
+  }
+
+  @Test
+  void shouldRefuseNullArguments() {
+    assertThrows(NullPointerException.class, () -> AudioOutputs.findProblem(null, AudioArgument.NONE));
+    assertThrows(NullPointerException.class, () -> AudioOutputs.findProblem(this.provider, null));
+    assertThrows(NullPointerException.class, () -> AudioOutputs.createLink(null, AudioArgument.NONE));
+    assertThrows(NullPointerException.class, () -> AudioOutputs.createLink(this.provider, null));
+    assertThrows(NullPointerException.class, () -> AudioOutputs.sendLink(this.provider, AudioArgument.NONE, null));
   }
 
   @Test
