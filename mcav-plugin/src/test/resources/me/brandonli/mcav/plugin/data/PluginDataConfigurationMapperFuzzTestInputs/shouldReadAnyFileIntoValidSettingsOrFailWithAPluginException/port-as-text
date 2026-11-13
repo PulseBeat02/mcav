@@ -1,0 +1,5 @@
+http-server:
+  port: "8080"
+mcv2:
+  pack:
+    http-port: eighty

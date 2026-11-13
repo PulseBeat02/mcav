@@ -1,0 +1,3 @@
+mcv2:
+  encoder-threads: -1
+  native: maybe

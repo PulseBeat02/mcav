@@ -1,0 +1,4 @@
+http-server:
+  port: 4294975488
+mcv2:
+  encoder-threads: 1.5

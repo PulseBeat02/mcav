@@ -1,0 +1,6 @@
+browser:
+  refused-hosts:
+    - "a, b"
+    - " "
+    - "tab\there"
+    - play.example.com

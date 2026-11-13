@@ -1,0 +1,4 @@
+base: &base
+  enabled: true
+  port: 8081
+http-server: *base
