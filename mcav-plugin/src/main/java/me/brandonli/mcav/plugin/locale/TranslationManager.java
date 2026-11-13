@@ -69,7 +69,8 @@ public final class TranslationManager {
   /**
    * Creates a manager that loads the messages of the language configured in the plugin.
    *
-   * @throws PluginException if the messages cannot be copied to or read from the data folder
+   * @throws PluginException if the messages cannot be copied to the data folder, or cannot be read from it as a UTF-8
+   *                         properties file
    * @since 1.0.0
    */
   public TranslationManager() {
@@ -94,9 +95,10 @@ public final class TranslationManager {
 
       final ResourceBundle bundled = this.readBundledFile(propertiesPath);
       try (final Reader reader = Files.newBufferedReader(file)) {
+        // Properties throws IllegalArgumentException for a malformed Unicode escape
         return LayeredBundle.of(reader, bundled);
       }
-    } catch (final IOException exception) {
+    } catch (final IOException | IllegalArgumentException exception) {
       final String message = "Messages from %s could not be loaded!".formatted(file);
       throw new PluginException(message, exception);
     }

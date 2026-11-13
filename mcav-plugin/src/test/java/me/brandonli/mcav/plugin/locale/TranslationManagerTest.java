@@ -157,6 +157,18 @@ final class TranslationManagerTest {
   }
 
   @Test
+  void shouldFailWhenTheMessagesHaveAMalformedEscape() throws IOException {
+    final Path file = this.folder.resolve(RESOURCE);
+    final Path parent = file.getParent();
+    Files.createDirectories(parent);
+    Files.writeString(file, "mcav.command.screen.build=\\u00zz\n", StandardCharsets.UTF_8);
+    final PluginException exception = assertThrows(PluginException.class, TranslationManager::new);
+
+    final Throwable cause = exception.getCause();
+    assertInstanceOf(IllegalArgumentException.class, cause);
+  }
+
+  @Test
   void shouldFailWhenTheMessagesCannotBeCopied() throws IOException {
     final Path blocker = this.folder.resolve(LOCALE_FOLDER_NAME);
     Files.writeString(blocker, "not a folder", StandardCharsets.UTF_8);
