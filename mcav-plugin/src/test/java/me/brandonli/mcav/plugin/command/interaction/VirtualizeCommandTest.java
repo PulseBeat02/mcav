@@ -109,6 +109,9 @@ final class VirtualizeCommandTest {
   private static final String MEMORY_SIZE = "2048M";
   private static final String FILE_PROPERTY_PREFIX = "file=";
 
+  private static final String VALUE_SEPARATOR = ",";
+  private static final String ESCAPED_VALUE_SEPARATOR = ",,";
+
   private static final String ABSOLUTE_DRIVE_PATH = "/tmp";
   private static final String NETWORK_DRIVE_PATH = "\\\\server";
 
@@ -118,6 +121,7 @@ final class VirtualizeCommandTest {
   private static final String DISK_FILE_NAME = "disk.img";
   private static final String DISK_A_FILE_NAME = "a.img";
   private static final String DISK_B_FILE_NAME = "b.img";
+  private static final String COMMA_FOLDER_NAME = "mc,server";
 
   private static final int GIBIBYTE_SHIFT = 30;
 
@@ -601,7 +605,7 @@ final class VirtualizeCommandTest {
   }
 
   @Test
-  void shouldTokenizAnEmptyLineToNothing() {
+  void shouldTokenizeAnEmptyLineToNothing() {
     this.assertTokens("");
   }
 
@@ -680,6 +684,16 @@ final class VirtualizeCommandTest {
 
     final String message = failure.getMessage();
     final boolean explained = message.contains("must not name a file") || message.contains("is not allowed");
+    assertTrue(explained, message);
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = { "-audio pa,model=hda", "-audiodev pa,id=snd0" })
+  void shouldRefuseAudioOptionsThatWouldSetUpTheSoundItself(final String options) {
+    final IllegalArgumentException failure = this.assertRefusedOptions(options);
+
+    final String message = failure.getMessage();
+    final boolean explained = message.contains(" is not supported, use one of ");
     assertTrue(explained, message);
   }
 
@@ -890,6 +904,16 @@ final class VirtualizeCommandTest {
     );
   }
 
+  @Test
+  void shouldWriteEachCommaOfADriveImagePathTwiceAsQemuReadsIt() throws IOException {
+    final Path folder = this.dataFolder.resolve(COMMA_FOLDER_NAME);
+    this.imageFolder = DiskImages.folderOf(folder);
+    final String image = this.image(DISK_FILE_NAME);
+    final String escapedImage = image.replace(VALUE_SEPARATOR, ESCAPED_VALUE_SEPARATOR);
+
+    this.assertArguments("-drive file=disk.img,media=disk", DRIVE_OPTION, "%s%s,media=disk".formatted(FILE_PROPERTY_PREFIX, escapedImage));
+  }
+
   @ParameterizedTest
   @ValueSource(strings = { "driver=file", "node-name=disk", "backing=none", "file.locking=off", "throttling.iops-total=100" })
   void shouldRefuseADrivePropertyOutsideTheList(final String part) throws IOException {
@@ -940,6 +964,16 @@ final class VirtualizeCommandTest {
   }
 
   @Test
+  void shouldRefuseADriveThatNamesTwoDiskImages() throws IOException {
+    this.image(DISK_A_FILE_NAME);
+    this.image(DISK_B_FILE_NAME);
+    final IllegalArgumentException failure = this.assertRefusedOptions("-drive file=a.img,file=b.img");
+
+    final String message = failure.getMessage();
+    assertEquals("Drive file=a.img,file=b.img must name its disk image exactly once, as file=<image>!", message);
+  }
+
+  @Test
   void shouldRefuseASwitchThatIsGivenAValue() {
     final IllegalArgumentException failure = this.assertRefusedOptions("-snapshot yes");
 
@@ -973,6 +1007,26 @@ final class VirtualizeCommandTest {
     this.machines.verifyNoInteractions();
     assertNull(this.command.player);
     assertNull(this.command.output);
+  }
+
+  @Test
+  void shouldTellTheSenderWhenAMachineAsksForTooMuchMemoryAndStartNothing() {
+    this.create(RESOLUTION, BLOCK_DIMENSIONS, "-m 999999999T");
+
+    final List<Component> messages = Components.received(this.sender);
+    final boolean toldOnce = messages.size() == 1;
+    assertTrue(toldOnce, messages.toString());
+
+    final long maximumMemoryBytes = VirtualizeCommand.maximumMemoryBytes();
+    final long maximumMebibytes = maximumMemoryBytes >> QemuHardwareValues.MEBIBYTE_SHIFT;
+    final String text = Components.plain(messages.getFirst());
+    final String expected =
+      "Invalid QEMU flags! QEMU option -m 999999999T asks for more than the %s MiB a machine may have on this server!".formatted(
+        maximumMebibytes
+      );
+    assertEquals(expected, text);
+
+    this.machines.verifyNoInteractions();
   }
 
   @Test

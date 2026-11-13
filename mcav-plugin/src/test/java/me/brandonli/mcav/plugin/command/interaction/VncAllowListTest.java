@@ -179,6 +179,14 @@ final class VncAllowListTest {
   }
 
   @Test
+  void shouldGiveItsEntriesInTheirOrderAndUnmodifiable() {
+    final List<VncAllowList.Entry> entries = LIST.getEntries();
+    final List<VncAllowList.Entry> expected = List.of(DESKTOP, LOOPBACK);
+    assertEquals(expected, entries);
+    assertThrows(UnsupportedOperationException.class, () -> entries.add(DESKTOP));
+  }
+
+  @Test
   void shouldFollowTheEqualityContract() {
     final VncAllowList equalList = VncAllowList.of(List.of(DESKTOP, LOOPBACK));
     final VncAllowList otherEntries = VncAllowList.of(List.of(LOOPBACK, DESKTOP));

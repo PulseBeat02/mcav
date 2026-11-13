@@ -18,10 +18,13 @@
 package me.brandonli.mcav.plugin.command.interaction;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
@@ -30,16 +33,19 @@ import static org.mockito.Mockito.when;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import me.brandonli.mcav.bukkit.media.mcv2.Mcv2.Settings;
 import me.brandonli.mcav.bukkit.media.result.CompressedMapResult;
 import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
 import me.brandonli.mcav.media.player.pipeline.filter.video.FunctionalVideoFilter;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.DitherFilter;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.plugin.MCAVSandbox;
+import me.brandonli.mcav.plugin.command.video.Mcv2Support;
 import me.brandonli.mcav.plugin.data.PluginDataConfigurationMapper;
 import me.brandonli.mcav.plugin.listener.OnlinePlayers;
 import me.brandonli.mcav.plugin.locale.Message;
 import me.brandonli.mcav.plugin.testing.Components;
+import me.brandonli.mcav.plugin.testing.StandardErrorCapture;
 import me.brandonli.mcav.plugin.testing.TestServer;
 import me.brandonli.mcav.plugin.utils.DitheringArgument;
 import me.brandonli.mcav.plugin.utils.MapCodec;
@@ -51,6 +57,7 @@ import net.kyori.adventure.text.Component;
 import org.bukkit.Server;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.incendo.cloud.bukkit.data.MultiplePlayerSelector;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -65,13 +72,15 @@ final class VncCommandTest {
   private static final long RELEASE_MILLISECONDS = 5000;
 
   private static final String LOOPBACK_HOST = "127.0.0.1";
-  private static final VncAllowList.Entry DESKTOP = VncAllowList.Entry.of(LOOPBACK_HOST, 5901, "secret");
+  private static final String DESKTOP_PASSWORD = "secret";
+  private static final VncAllowList.Entry DESKTOP = VncAllowList.Entry.of(LOOPBACK_HOST, 5901, DESKTOP_PASSWORD);
 
   private static final String DESKTOP_ADDRESS = "127.0.0.1:5901";
 
   private static final String RESOLUTION = "1280x720";
   private static final int FRAMES_PER_SECOND = 20;
 
+  private MCAVSandbox plugin;
   private VncCommand command;
   private PluginDataConfigurationMapper configuration;
   private CommandSender sender;
@@ -85,14 +94,14 @@ final class VncCommandTest {
   @BeforeEach
   void createCommand() {
     final Server server = TestServer.reset();
-    final MCAVSandbox plugin = mock(MCAVSandbox.class);
-    when(plugin.getOnlinePlayers()).thenReturn(new OnlinePlayers());
-    when(plugin.getServer()).thenReturn(server);
+    this.plugin = mock(MCAVSandbox.class);
+    when(this.plugin.getOnlinePlayers()).thenReturn(new OnlinePlayers());
+    when(this.plugin.getServer()).thenReturn(server);
     this.configuration = mock(PluginDataConfigurationMapper.class);
-    when(plugin.getConfiguration()).thenReturn(this.configuration);
+    when(this.plugin.getConfiguration()).thenReturn(this.configuration);
     when(this.configuration.getVncAllowList()).thenReturn(VncAllowList.of(List.of(DESKTOP)));
     when(this.configuration.getMcv2DefaultCodec()).thenReturn(MapCodec.DITHER);
-    this.command = new VncCommand(plugin);
+    this.command = new VncCommand(this.plugin);
     this.sender = mock(CommandSender.class);
     this.selector = mock(MultiplePlayerSelector.class);
     when(this.selector.values()).thenReturn(List.of(mock(Player.class)));
@@ -132,7 +141,7 @@ final class VncCommandTest {
     assertEquals(5901, port);
 
     final Optional<String> password = source.getPassword();
-    final Optional<String> expectedPassword = Optional.of("secret");
+    final Optional<String> expectedPassword = Optional.of(DESKTOP_PASSWORD);
     assertEquals(expectedPassword, password);
 
     final int screenWidth = source.getScreenWidth();
@@ -150,6 +159,10 @@ final class VncCommandTest {
   }
 
   private void create(final String resolution, final String server) {
+    this.create(resolution, server, null);
+  }
+
+  private void create(final String resolution, final String server, final @Nullable MapCodec codec) {
     this.command.createVnc(
       this.sender,
       this.selector,
@@ -159,7 +172,7 @@ final class VncCommandTest {
       0,
       DitheringArgument.NEAREST_COLOR,
       server,
-      null
+      codec
     );
   }
 
@@ -182,6 +195,7 @@ final class VncCommandTest {
   void shouldConnectToNothingWithInvalidDimensions() {
     this.create("wide", DESKTOP_ADDRESS);
 
+    this.assertReceived(Message.UNSUPPORTED_DIMENSION.build());
     this.desktops.verifyNoInteractions();
     assertNull(this.command.output);
   }
@@ -200,8 +214,36 @@ final class VncCommandTest {
       null
     );
 
+    this.assertReceived(Message.UNSUPPORTED_DIMENSION.build());
     this.desktops.verifyNoInteractions();
     assertNull(this.command.output);
+  }
+
+  @Test
+  void shouldAskForMcv2WhenTheFlagChoosesIt() {
+    when(this.desktop.startAsync(any(VncSource.class), any())).thenReturn(CompletableFuture.completedFuture(true));
+    final Mcv2Support support = mock(Mcv2Support.class);
+    when(this.plugin.getMcv2Support()).thenReturn(support);
+
+    this.create(RESOLUTION, DESKTOP_ADDRESS, MapCodec.MCV2);
+
+    this.assertAskedForMcv2(support);
+  }
+
+  private void assertAskedForMcv2(final Mcv2Support support) {
+    verify(support).configure(eq(this.sender), eq(Pair.pair(5, 3)), eq(Pair.pair(1280, 720)), eq(0), eq(Settings.DEFAULT), any());
+  }
+
+  @Test
+  void shouldAskForMcv2WhenTheConfiguredDefaultChoosesIt() {
+    when(this.desktop.startAsync(any(VncSource.class), any())).thenReturn(CompletableFuture.completedFuture(true));
+    final Mcv2Support support = mock(Mcv2Support.class);
+    when(this.plugin.getMcv2Support()).thenReturn(support);
+    when(this.configuration.getMcv2DefaultCodec()).thenReturn(MapCodec.MCV2);
+
+    this.create(RESOLUTION, DESKTOP_ADDRESS);
+
+    this.assertAskedForMcv2(support);
   }
 
   @Test
@@ -213,6 +255,30 @@ final class VncCommandTest {
     this.create(RESOLUTION, DESKTOP_ADDRESS);
 
     this.assertReceived(Message.VNC_LOADING.build(), Message.VNC_ERROR.build());
+  }
+
+  @Test
+  void shouldLogAnUnreachableServerWithItsReasonAndWithoutItsPassword() {
+    final String reason = "connection refused!";
+    final CompletableFuture<Boolean> start = CompletableFuture.failedFuture(new IllegalStateException(reason));
+    when(this.desktop.startAsync(any(VncSource.class), any())).thenReturn(start);
+    final String output;
+    try (final StandardErrorCapture capture = StandardErrorCapture.start()) {
+      this.create(RESOLUTION, DESKTOP_ADDRESS);
+      verify(this.desktop, timeout(RELEASE_MILLISECONDS)).release();
+      output = capture.getOutput();
+    }
+
+    final boolean leaked = output.contains(DESKTOP_PASSWORD);
+    assertFalse(leaked, output);
+
+    final String startFailure = "Starting the VNC desktop of %s failed.".formatted(DESKTOP_ADDRESS);
+    final boolean logged = output.contains(startFailure);
+    final boolean explained = output.contains(reason);
+    final boolean error = output.contains("ERROR");
+    assertTrue(logged, output);
+    assertTrue(explained, output);
+    assertTrue(error, output);
   }
 
   @Test
