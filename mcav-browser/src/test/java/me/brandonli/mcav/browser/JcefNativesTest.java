@@ -47,6 +47,7 @@ import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -68,6 +69,7 @@ import me.brandonli.mcav.utils.os.Arch;
 import me.brandonli.mcav.utils.os.Bits;
 import me.brandonli.mcav.utils.os.Os;
 import me.brandonli.mcav.utils.os.OsUtils;
+import me.friwi.jcefmaven.EnumPlatform;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.api.parallel.ResourceLock;
@@ -265,6 +267,18 @@ class JcefNativesTest {
 
       final boolean plausibleSize = platform.getSize() > 100_000_000L && platform.getSize() < 200_000_000L;
       assertTrue(plausibleSize, platform.getIdentifier());
+    }
+  }
+
+  @Test
+  void shouldNameEveryPlatformAsJcefmavenDoes() {
+    final List<String> known = Arrays.stream(EnumPlatform.values())
+      .map(EnumPlatform::getIdentifier)
+      .toList();
+    for (final JcefNatives.NativePlatform platform : JcefNatives.NativePlatform.values()) {
+      final String identifier = platform.getIdentifier();
+      final boolean named = known.contains(identifier);
+      assertTrue(named, identifier);
     }
   }
 
