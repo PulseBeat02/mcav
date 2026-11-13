@@ -83,6 +83,8 @@ import org.junit.jupiter.api.condition.OS;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.api.parallel.ResourceLock;
 import org.junit.jupiter.api.parallel.Resources;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 class HelperSessionTest {
 
@@ -145,6 +147,9 @@ class HelperSessionTest {
   private static final String PAGE = "/page";
 
   private static final long START_TIMEOUT_MILLISECONDS = 60_000L;
+
+  // the helper must connect before this deadline, and a loaded host takes seconds to start it
+  private static final long SHOW_TIMEOUT_MILLISECONDS = 15_000L;
 
   private static final long SOUND_HOLD_MILLISECONDS = 3_000L;
 
@@ -786,10 +791,20 @@ class HelperSessionTest {
 
   @Test
   void shouldTimeOutWhenTheHelperNeverShowsThePage() {
-    // the helper must connect before this deadline, and a loaded host takes seconds to start it
-    final BrowserException failure = this.openFails(ScriptedEngine.class.getName(), ScriptedEngine.NEVER_PATH, 15_000L);
+    final BrowserException failure = this.openFails(ScriptedEngine.class.getName(), ScriptedEngine.NEVER_PATH, SHOW_TIMEOUT_MILLISECONDS);
     final boolean reportsTheTimeout = failure.getMessage().contains("did not show https://example.com/never in time");
     assertTrue(reportsTheTimeout, failure.getMessage());
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = { RawHelperMain.UNLOADED_PATH, RawHelperMain.UNPAINTED_PATH })
+  void shouldTimeOutWhenThePageNeverLoadsOrNeverShowsAFrame(final String path) {
+    final BrowserException failure = this.openFails(RawHelperMain.class.getName(), path, SHOW_TIMEOUT_MILLISECONDS);
+    final String message = failure.getMessage();
+    final String address = PAGE_URL_TEMPLATE.formatted(path);
+    final String expected = "did not show %s in time".formatted(address);
+    final boolean reportsTheTimeout = message.contains(expected);
+    assertTrue(reportsTheTimeout, message);
   }
 
   @Test
