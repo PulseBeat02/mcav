@@ -22,6 +22,7 @@ import static java.util.Objects.requireNonNull;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.gson.Gson;
+import com.google.gson.JsonIOException;
 import com.google.gson.JsonSyntaxException;
 import com.google.gson.reflect.TypeToken;
 import java.io.IOException;
@@ -316,7 +317,7 @@ public final class McPackHosting implements WebsiteHosting {
     try (final Reader reader = Files.newBufferedReader(cacheFile)) {
       final Map<String, String> cache = gson.fromJson(reader, CACHE_TYPE);
       return this.copyCache(cache);
-    } catch (final IOException | JsonSyntaxException exception) {
+    } catch (final IOException | JsonIOException | JsonSyntaxException exception) {
       LOGGER.warn("Could not read the upload cache {}, the pack will be uploaded again.", cacheFile, exception);
       return new HashMap<>();
     }
@@ -335,7 +336,7 @@ public final class McPackHosting implements WebsiteHosting {
     final Gson gson = GsonProvider.getSimple();
     try (final Writer writer = Files.newBufferedWriter(cacheFile)) {
       gson.toJson(cache, CACHE_TYPE, writer);
-    } catch (final IOException exception) {
+    } catch (final IOException | JsonIOException exception) {
       LOGGER.warn("Could not write the upload cache {}, the pack will be uploaded again next time.", cacheFile, exception);
     }
   }

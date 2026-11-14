@@ -425,6 +425,29 @@ final class McPackHostingTest {
   }
 
   @Test
+  void shouldTreatCachesThatAreNotUtf8AsEmpty() throws Exception {
+    final Path cacheFile = this.getCacheFile();
+    final McPackHosting hosting = this.createHosting(this.zip);
+    // past the reader's first 8 KB, so the JSON parses before the bad byte fails
+    final String json = "{\"a\":\"b\"}" + " ".repeat(9000);
+    final byte[] text = json.getBytes(StandardCharsets.UTF_8);
+    final ByteArrayOutputStream contents = new ByteArrayOutputStream();
+    contents.writeBytes(text);
+    contents.write(0xFF);
+    final byte[] undecodable = contents.toByteArray();
+
+    Files.write(cacheFile, undecodable);
+    hosting.start();
+
+    final int uploadCount = this.uploadCount();
+    final JsonObject cache = this.readCache();
+    final String hash = this.sha1(PACK);
+    final boolean cached = cache.has(hash);
+    assertEquals(1, uploadCount);
+    assertTrue(cached, "the cache is written again");
+  }
+
+  @Test
   void shouldUseTheUploadAndLogAWarningWhenTheCacheCannotBeWritten() throws Exception {
     final Path cacheFile = this.getCacheFile();
     Files.createDirectory(cacheFile);
