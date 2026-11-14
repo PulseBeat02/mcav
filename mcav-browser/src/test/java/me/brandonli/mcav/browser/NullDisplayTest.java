@@ -115,6 +115,8 @@ class NullDisplayTest {
 
   private static final String AUTHORITY_FILE = "Xauthority";
 
+  private static final String ACCEPT_THREAD_NAME = "mcav-browser-null-display";
+
   private static final String DISPLAY_PREFIX = "127.0.0.1:";
   private static final Pattern DISPLAY_ADDRESS = Pattern.compile("127\\.0\\.0\\.1:(\\d+)");
 
@@ -668,7 +670,7 @@ class NullDisplayTest {
       final List<Thread> threads = Thread.getAllStackTraces()
         .keySet()
         .stream()
-        .filter(thread -> thread.getName().equals("mcav-browser-null-display"))
+        .filter(thread -> thread.getName().equals(ACCEPT_THREAD_NAME))
         .toList();
       final boolean empty = threads.isEmpty();
       assertFalse(empty);
@@ -1309,6 +1311,37 @@ class NullDisplayTest {
         assertEquals(1, responseType, REPLY_MESSAGE);
       }
     }
+  }
+
+  @Test
+  void shouldStopAcceptingBeforeCloseReturns() throws IOException {
+    final Set<Thread> before = this.findLiveThreads();
+    final Path authority = this.folder.resolve(AUTHORITY_FILE);
+    final NullDisplay display = NullDisplay.start(authority);
+    final Thread acceptor = this.findStartedThread(before, ACCEPT_THREAD_NAME);
+    display.close();
+
+    final boolean accepting = acceptor.isAlive();
+    assertFalse(accepting);
+  }
+
+  private Set<Thread> findLiveThreads() {
+    final Map<Thread, StackTraceElement[]> traces = Thread.getAllStackTraces();
+    final Set<Thread> threads = traces.keySet();
+    return Set.copyOf(threads);
+  }
+
+  private Thread findStartedThread(final Set<Thread> before, final String name) {
+    final Set<Thread> after = this.findLiveThreads();
+    final List<Thread> started = after
+      .stream()
+      .filter(thread -> !before.contains(thread))
+      .filter(thread -> name.equals(thread.getName()))
+      .toList();
+    final int count = started.size();
+    assertEquals(1, count, started.toString());
+
+    return started.getFirst();
   }
 
   @FunctionalInterface
