@@ -646,4 +646,21 @@ final class DeltaMapEncoderTest {
 
     this.assertPatchCount(1, patches);
   }
+
+  @Test
+  void shouldKeepAnEarlierSnapshotWhenALaterFrameChangesTheMap() {
+    final MapLayout layout = MapLayout.of(0, 1, 1, MAP_SIZE, MAP_SIZE);
+    final DeltaMapEncoder encoder = new DeltaMapEncoder(layout, LARGE_BUDGET);
+    final byte[] image = MapLayoutTest.createImage(MAP_SIZE, MAP_SIZE);
+    encoder.encode(image);
+    final List<MapTilePatch> snapshot = encoder.snapshot();
+    final byte[] changed = this.change(image, MAP_SIZE, 0, 0, MAP_SIZE, MAP_SIZE);
+    final List<MapTilePatch> patches = encoder.encode(changed);
+
+    this.assertPatchCount(1, patches);
+
+    this.assertPatchCount(1, snapshot);
+    final MapTilePatch patch = snapshot.getFirst();
+    this.assertPatch(patch, 0, 0, 0, MAP_SIZE, MAP_SIZE, image);
+  }
 }
