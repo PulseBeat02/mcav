@@ -66,6 +66,15 @@ class CounterVideoTest(unittest.TestCase):
         numbers: list[int | None] = [mcv2_tools.counter_video_read(sample) for sample in lumas]
         self.assertEqual([0, 1, 2, 3, 4], numbers)
 
+    def test_should_exit_when_the_clip_has_no_frame_it_can_stamp(self) -> None:
+        for width, height, pixels in [(767, HEIGHT, 767 * HEIGHT), (WIDTH, 31, WIDTH * 31), (WIDTH, HEIGHT, WIDTH)]:
+            with self.subTest(width=width, height=height, pixels=pixels):
+                clip: numpy.ndarray = numpy.zeros(pixels * CHANNELS, numpy.uint8)
+                status: str | int | None
+                _: bytes
+                status, _ = self.run_counter_video(clip, width, height, "1")
+                self.assertEqual("The clip must have a frame at least 768 pixels wide and 32 pixels high!", status)
+
     def sample_lumas(self, frame: numpy.ndarray) -> list[int]:
         offset: int = mcv2_tools.LATENCY_SAMPLE_OFFSET
         block: int = mcv2_tools.COUNTER_VIDEO_BLOCK
