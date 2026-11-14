@@ -26,6 +26,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -103,6 +104,21 @@ final class Mcv2PacerTest {
     assertThrows(IllegalArgumentException.class, () -> new Mcv2Pacer(List.of(new int[] { 1 })));
     assertThrows(IllegalArgumentException.class, () -> new Mcv2Pacer(List.of(new int[] { 0, 1 })));
     assertThrows(IllegalArgumentException.class, () -> new Mcv2Pacer(List.of(new int[] { 1, 0 })));
+    assertThrows(IllegalArgumentException.class, () -> new Mcv2Pacer(List.of(new int[] { 1, 2, 3 })));
+  }
+
+  @Test
+  void shouldRefuseNullArguments() {
+    final List<int[]> nullSize = Collections.singletonList(null);
+    final List<Mcv2Pacer.Preset> nullPreset = Collections.singletonList(null);
+    final Mcv2Pacer pacer = new Mcv2Pacer(List.of(FULL));
+
+    assertThrows(NullPointerException.class, () -> new Mcv2Pacer(null, List.of(LIVE), Mcv2Pacer.Floor.DITHERED_MAPS));
+    assertThrows(NullPointerException.class, () -> new Mcv2Pacer(List.of(FULL), null, Mcv2Pacer.Floor.DITHERED_MAPS));
+    assertThrows(NullPointerException.class, () -> new Mcv2Pacer(List.of(FULL), List.of(LIVE), null));
+    assertThrows(NullPointerException.class, () -> new Mcv2Pacer(nullSize));
+    assertThrows(NullPointerException.class, () -> new Mcv2Pacer(List.of(FULL), nullPreset, Mcv2Pacer.Floor.DITHERED_MAPS));
+    assertThrows(NullPointerException.class, () -> pacer.reportEncodedFrame(1, null, 0));
   }
 
   @Test
@@ -937,6 +953,34 @@ final class Mcv2PacerTest {
   }
 
   @Test
+  void shouldKeepOffARungThatKeepsFailingForAtMostSixHundredSeconds() {
+    /*
+     * 50 fps: the top fails at once after every return, so it is kept off 10, 20, 40, 80, 160 and 320 seconds; the
+     * seventh keep-off would be 640 seconds and stops at 600
+     */
+    final Mcv2Pacer pacer = new Mcv2Pacer(List.of(FULL));
+    final Exact clock = new Exact(pacer, FRAME_50, 0);
+    final Mcv2Pacer.Rung top = pacer.getLadder().getFirst();
+    for (int stepNumber = 0; stepNumber < 6; stepNumber++) {
+      clock.until(30, 1000);
+      final Mcv2Pacer.Rung climbedTo = clock.until(10, 20_000).getTo();
+      assertEquals(top, climbedTo);
+    }
+
+    clock.until(30, 1000);
+    final long stepped = clock.now;
+    final Mcv2Pacer.Rung to = clock.until(10, 40_000).getTo();
+    assertEquals(top, to);
+
+    final long keptOff = clock.now - stepped;
+    final String climbedBack = CLIMBED_BACK_PREFIX + keptOff / NANOSECONDS_PER_SECOND + AFTER_THE_STEP_SUFFIX;
+    final boolean keptOffSixHundredSeconds = keptOff >= 600 * SECOND;
+    final boolean shorterThanTheDoubledKeepOff = keptOff < 640 * SECOND;
+    assertTrue(keptOffSixHundredSeconds, climbedBack);
+    assertTrue(shorterThanTheDoubledKeepOff, climbedBack);
+  }
+
+  @Test
   void shouldNotShortenTheNextWaitWhenATryHoldsLessThanItsWait() {
     final Mcv2Pacer pacer = new Mcv2Pacer(List.of(FULL, SMALL));
     final Driver driver = new Driver(pacer, 60, 0);
@@ -1047,6 +1091,32 @@ final class Mcv2PacerTest {
     final long expectedWait = 30 * SECOND;
     final long wait = clock.now - fellBack;
     assertEquals(expectedWait, wait, TRIED_AGAIN_PREFIX + (clock.now - fellBack) / NANOSECONDS_PER_SECOND + AFTER_FALLING_BACK_SUFFIX);
+  }
+
+  @Test
+  void shouldWaitAtMostSixHundredSecondsBeforeTryingTheEncodedRungsAgain() {
+    /*
+     * 50 fps, one size: every try fails at once, so the waits on the dithered maps are 30, 60, 120, 240 and 480
+     * seconds; the sixth would be 960 seconds and stops at 600
+     */
+    final Mcv2Pacer pacer = new Mcv2Pacer(List.of(FULL));
+    final Exact clock = new Exact(pacer, FRAME_50, 0);
+    Mcv2Pacer.Change fall = clock.until(1000, 100_000);
+    while (!fall.getTo().isDithered()) {
+      fall = clock.until(1000, 100_000);
+    }
+
+    for (int tryNumber = 0; tryNumber < 5; tryNumber++) {
+      clock.until(1000, 30_000);
+      final boolean fellBackAgain = clock.until(1000, 1000).getTo().isDithered();
+      assertTrue(fellBackAgain);
+    }
+
+    final long fellBack = clock.now;
+    clock.until(1000, 60_000);
+    final long expectedWait = 600 * SECOND;
+    final long wait = clock.now - fellBack;
+    assertEquals(expectedWait, wait, TRIED_AGAIN_PREFIX + wait / NANOSECONDS_PER_SECOND + AFTER_FALLING_BACK_SUFFIX);
   }
 
   @Test
@@ -1161,6 +1231,14 @@ final class Mcv2PacerTest {
 
     final double videoFramesPerSecond = change.getVideoFramesPerSecond();
     assertEquals(3.0, videoFramesPerSecond);
+  }
+
+  @Test
+  void shouldRefuseNullPartsOfPresetsRungsAndChanges() {
+    assertThrows(NullPointerException.class, () -> Mcv2Pacer.Preset.of(null, 1));
+    assertThrows(NullPointerException.class, () -> Mcv2Pacer.Rung.of(1280, 720, 1, null));
+    assertThrows(NullPointerException.class, () -> Mcv2Pacer.Change.of(null, Mcv2Pacer.Rung.DITHERED, false, 0, 0, 0));
+    assertThrows(NullPointerException.class, () -> Mcv2Pacer.Change.of(Mcv2Pacer.Rung.DITHERED, null, false, 0, 0, 0));
   }
 
   private static final class Driver {
