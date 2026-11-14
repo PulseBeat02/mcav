@@ -204,6 +204,18 @@ class DifferentialTest(unittest.TestCase):
             printed: str = errors.getvalue()
             self.assertIn('crash', printed)
 
+    def test_should_report_a_java_result_with_more_frames_than_the_reference(self) -> None:
+        expected: dict[str, list[str]] = {ARCHIVE_NAME: [REJECT]}
+        actual: dict[str, list[str]] = {ARCHIVE_NAME: [REJECT, REJECT]}
+        counts: dict[str, int]
+        failures: list[dict[str, object]]
+        counts, failures = mcv2_tools.differential_compare(expected, actual)
+        frame_count: dict[str, object] = dict(archive=ARCHIVE_NAME, reason='frame count', mcav=2, reference=1)
+        self.assertEqual([frame_count], failures)
+
+        disagreements: int = counts[DISAGREEMENTS_KEY]
+        self.assertEqual(1, disagreements)
+
     def report(self, frames: list[bytes], tokens: list[str]) -> tuple[int, Any]:
         with tempfile.TemporaryDirectory() as directory:
             output: Path = Path(directory)
