@@ -53,12 +53,18 @@ FIRST_CAPTURE_FILE: str = "capture-1.png"
 SECOND_CAPTURE_FILE: str = "capture-2.png"
 STRIPED_CAPTURE_FILE: str = "capture-{}.png"
 STRIPED_CAPTURES: int = 4
+
+PAGE_CAPTURE_FILE: str = "page-{}.png"
+
 DESCRIPTOR_FAILURE: str = f"{CAPTURE_FILE}: descriptor"
 SLOT_FAILURE: str = f"{CAPTURE_FILE}: slot 0 square {mcv2_tools.STRIP_CHECK_GREEN}, page valid False"
 
 SQUARES_KEY: str = "captures_with_squares"
 DESCRIPTORS_KEY: str = "descriptor_rows"
 FAILURES_KEY: str = "failures"
+VALID_PAGES_KEY: str = "valid_pages_per_slot"
+MISSING_PAGES_KEY: str = "slots_without_a_page"
+DISTINCT_PAGES_KEY: str = "distinct_pages"
 
 TWO_PAGE_WIDTH: int = 3200
 TWO_PAGE_LEAVES: int = 100
@@ -230,6 +236,35 @@ class StripCheckTest(unittest.TestCase):
         self.assertEqual(mcv2_tools.STRIP_CHECK_PRINTED_FAILURES, len(lines) - 1)
         self.assertGreater(failures, mcv2_tools.STRIP_CHECK_PRINTED_FAILURES)
 
+    def test_should_count_valid_distinct_and_missing_pages(self) -> None:
+        frame_pages: list[bytes] = make_pages(two_page_frame(), 5)
+        other_page: bytes = make_pages(pack_frame(1, 1, 7, 7, {}), 5)[0]
+        screens: list[numpy.ndarray] = [
+            page_capture(frame_pages[0]),
+            page_capture(frame_pages[1]),
+            page_capture(frame_pages[0]),
+            page_capture(other_page),
+            passing_capture(),
+        ]
+        with self.assertRaises(ValueError) as raised:
+            mcv2_tools.strip_check_read_strip_page(padded_symbols(b""))
+
+        blank_reason: str = f"0: {raised.exception}"
+        with tempfile.TemporaryDirectory() as directory:
+            captures: Path = Path(directory)
+            for index, screen in enumerate(screens):
+                image: Image.Image = Image.fromarray(screen)
+                image.save(captures / PAGE_CAPTURE_FILE.format(index))
+            status: int | str | None
+            lines: list[str]
+            status, lines = self.run_strip_check(captures)
+
+        summary: Any = json.loads(lines[-1])
+        self.assertEqual(mcv2_tools.SUCCESS_EXIT_CODE, status)
+        self.assertEqual({"0": 4}, summary[VALID_PAGES_KEY])
+        self.assertEqual(3, summary[DISTINCT_PAGES_KEY])
+        self.assertEqual({blank_reason: 1}, summary[MISSING_PAGES_KEY])
+
     def check_screen(self, screen: numpy.ndarray) -> tuple[int | str | None, list[str], Any]:
         with tempfile.TemporaryDirectory() as directory:
             captures: Path = Path(directory)
@@ -278,6 +313,29 @@ def paint_square(screen: numpy.ndarray, square: int, color: tuple[int, ...]) -> 
     top: int = mcv2_tools.page_rows(SQUARES_WIDTH) * SLOTS + mcv2_tools.STRIP_CHECK_DEFAULT_SCREENS
     left: int = VIDEO_WIDTH + mcv2_tools.STRIP_CHECK_MARGIN + square * mcv2_tools.STRIP_CHECK_STEP
     screen[top : top + mcv2_tools.STRIP_CHECK_SQUARE, left : left + mcv2_tools.STRIP_CHECK_SQUARE] = color
+
+
+def page_capture(symbols: bytes) -> numpy.ndarray:
+    screen: numpy.ndarray = passing_capture()
+    paint_page(screen, 0, symbols)
+    paint_square(screen, 0, mcv2_tools.STRIP_CHECK_GREEN)
+    return screen
+
+
+def paint_page(screen: numpy.ndarray, slot: int, symbols: bytes) -> None:
+    width: int = screen.shape[1]
+    rows: int = mcv2_tools.page_rows(width)
+    page: numpy.ndarray = numpy.zeros((rows * width, mcv2_reference.CHANNELS), numpy.uint8)
+    page[: mcv2_tools.PAGE_PIXELS] = page_pixels(symbols)
+    screen[slot * rows : (slot + 1) * rows] = page.reshape(rows, width, mcv2_reference.CHANNELS)
+
+
+def page_pixels(symbols: bytes) -> numpy.ndarray:
+    groups: numpy.ndarray = padded_symbols(symbols).astype(numpy.uint32).reshape(-1, mcv2_tools.SYMBOLS_PER_PIXEL)
+    shifts: numpy.ndarray = numpy.array(mcv2_tools.SYMBOL_SHIFTS, numpy.uint32)
+    words: numpy.ndarray = numpy.bitwise_or.reduce(groups << shifts, axis=1)
+    channels: list[numpy.ndarray] = [words >> channel * mcv2_reference.BITS_PER_BYTE for channel in range(mcv2_reference.CHANNELS)]
+    return numpy.stack(channels, axis=1).astype(numpy.uint8)
 
 
 def two_page_frame() -> bytes:
