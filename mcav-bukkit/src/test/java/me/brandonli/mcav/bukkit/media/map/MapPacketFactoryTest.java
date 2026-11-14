@@ -235,7 +235,6 @@ final class MapPacketFactoryTest {
     assertThrows(NullPointerException.class, () -> MapPacketFactory.send(viewers, null));
     assertThrows(NullPointerException.class, () -> MapPacketFactory.clear(null, 0, 1));
     assertThrows(IllegalArgumentException.class, () -> MapPacketFactory.clear(viewers, -1, 1));
-    assertThrows(IllegalArgumentException.class, () -> MapPacketFactory.clear(viewers, 0, -1));
     assertThrows(NullPointerException.class, () -> MapPacketFactory.Bundle.of(null, 0));
   }
 

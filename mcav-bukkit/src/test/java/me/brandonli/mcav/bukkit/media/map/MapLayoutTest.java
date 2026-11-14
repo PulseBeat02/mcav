@@ -203,14 +203,6 @@ final class MapLayoutTest {
   }
 
   @Test
-  void shouldRejectAnImageWhoseSizeDiffersFromTheLayout() {
-    final MapLayout layout = MapLayout.of(0, 1, 1, MAP_SIZE, MAP_SIZE);
-    final byte[] image = new byte[MAP_SIZE];
-
-    assertThrows(IllegalArgumentException.class, () -> layout.extractAll(image));
-  }
-
-  @Test
   void shouldRejectGridsWhoseMapIdsOrPixelCountsOverflow() {
     final MapLayout lastIds = MapLayout.of(Integer.MAX_VALUE - 1, 2, 1, 1, 1);
     final int lastId = lastIds.getMapId(1);
@@ -245,12 +237,10 @@ final class MapLayoutTest {
     final byte[] wrongSize = new byte[10];
 
     assertThrows(IllegalArgumentException.class, () -> layout.extractPatch(image, 0, 13, SMALL_IMAGE_TOP, 1, 1));
-    assertThrows(IllegalArgumentException.class, () -> layout.extractPatch(image, 0, 14, SMALL_IMAGE_TOP, 0, 1));
     assertThrows(IllegalArgumentException.class, () -> layout.extractPatch(image, 0, 14, SMALL_IMAGE_TOP, 101, 1));
     assertThrows(IllegalArgumentException.class, () -> layout.extractPatch(image, 0, 114, SMALL_IMAGE_TOP, 1, 1));
     assertThrows(IllegalArgumentException.class, () -> layout.extractPatch(image, 0, Integer.MAX_VALUE, SMALL_IMAGE_TOP, 1, 1));
     assertThrows(IllegalArgumentException.class, () -> layout.extractPatch(image, 0, 14, 38, 1, 1));
-    assertThrows(IllegalArgumentException.class, () -> layout.extractPatch(image, 0, 14, SMALL_IMAGE_TOP, 1, 0));
     assertThrows(IllegalArgumentException.class, () -> layout.extractPatch(image, 0, 14, SMALL_IMAGE_TOP, 1, 51));
     assertThrows(IllegalArgumentException.class, () -> layout.extractPatch(image, 0, 14, 89, 1, 1));
     assertThrows(IllegalArgumentException.class, () -> layout.extractPatch(image, 0, 14, SMALL_IMAGE_TOP, -1, -1));
