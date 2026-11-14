@@ -34,6 +34,8 @@ import java.io.InputStream;
 import java.io.Reader;
 import java.io.StringReader;
 import java.lang.reflect.Method;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -42,6 +44,7 @@ import java.util.Set;
 import me.brandonli.mcav.bukkit.BukkitException;
 import me.brandonli.mcav.bukkit.testing.UtilityClassAssertions;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.error.FilterLiteDither;
+import me.brandonli.mcav.media.player.pipeline.filter.video.dither.palette.DitherPalette;
 import me.brandonli.mcav.utils.IoUtils;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
@@ -139,6 +142,22 @@ final class BlockPaletteLookupTest {
       final Material material = BlockPaletteLookup.getMaterial(pixel);
       assertNotEquals(Material.AIR, material, "every dithered color belongs to a block");
     }
+  }
+
+  @Test
+  void shouldDitherToEveryBlockOfTheBundledPalette() {
+    final Reader reader = IoUtils.getResourceAsStreamReader(PALETTE_RESOURCE);
+    final Map<String, int @Nullable []> palette = BlockPaletteLookup.parsePalette(reader);
+    final Map<Integer, Material> materials = BlockPaletteLookup.resolveMaterials(palette);
+    final Collection<Material> resolved = materials.values();
+    final FilterLiteDither dithering = BlockPaletteLookup.getDither();
+    final DitherPalette ditherPalette = dithering.getPalette();
+    final int[] colors = ditherPalette.getPalette();
+
+    final List<Material> dithered = Arrays.stream(colors).mapToObj(BlockPaletteLookup::getMaterial).toList();
+    final Set<Material> blocks = Set.copyOf(dithered);
+    final Set<Material> expected = Set.copyOf(resolved);
+    assertEquals(expected, blocks);
   }
 
   @Test
