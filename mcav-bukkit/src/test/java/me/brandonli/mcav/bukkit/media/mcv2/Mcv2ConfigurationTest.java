@@ -243,11 +243,16 @@ final class Mcv2ConfigurationTest {
         .maximumFrameRate(Mcv2Configuration.MAXIMUM_FRAME_RATE + 0.5)
         .build()
     );
+    final IllegalArgumentException nanRateException = assertThrows(IllegalArgumentException.class, () ->
+      complete().maximumFrameRate(Double.NaN).build()
+    );
     final String negativeRateMessage = negativeRateException.getMessage();
     final String tooFastRateMessage = tooFastRateException.getMessage();
+    final String nanRateMessage = nanRateException.getMessage();
     final String rateExpected = "Frame rate must be between 0 and %s inclusive!".formatted(Mcv2Configuration.MAXIMUM_FRAME_RATE);
     assertEquals(rateExpected, negativeRateMessage);
     assertEquals(rateExpected, tooFastRateMessage);
+    assertEquals(rateExpected, nanRateMessage);
   }
 
   @Test
