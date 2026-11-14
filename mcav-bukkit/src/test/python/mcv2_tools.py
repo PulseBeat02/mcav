@@ -1331,6 +1331,9 @@ def capture_check_main() -> None:
     screen_height, screen_width = numpy.asarray(Image.open(paths[0]).convert(RGB_MODE)).shape[:2]
     visible: Any = min(height, screen_height - arguments.top)
     shown: Any = min(width, screen_width)
+    if arguments.top < 0 or visible <= 0:
+        message: str = f"Top {arguments.top} must lie inside the {screen_height} rows of the captures!"
+        parser.error(message)
     if visible < height or shown < width:
         print(f"the screen shows {shown}x{visible} of the {width}x{height} picture; the rest is not compared")
         reference_frames = numpy.ascontiguousarray(reference_frames[:, :visible, :shown])

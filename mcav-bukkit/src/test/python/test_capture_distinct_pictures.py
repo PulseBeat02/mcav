@@ -19,7 +19,7 @@ import math
 import sys
 import tempfile
 import unittest
-from contextlib import redirect_stdout
+from contextlib import redirect_stderr, redirect_stdout
 from io import StringIO
 from pathlib import Path
 from typing import Any
@@ -150,6 +150,14 @@ class CaptureCheckTest(unittest.TestCase):
         squares: float = FIRST_GRAY**2 + SECOND_GRAY**2 + luminance_constant
         self.assertAlmostEqual(products / squares, ssim_mean)
 
+    def test_should_exit_2_when_the_top_rows_hide_the_whole_capture(self) -> None:
+        status: str | int | None = self.run_capture_check_with_top(SIDE)
+        self.assertEqual(2, status)
+
+    def test_should_exit_2_on_a_negative_top(self) -> None:
+        status: str | int | None = self.run_capture_check_with_top(-1)
+        self.assertEqual(2, status)
+
     def run_capture_check(
         self,
         references: list[numpy.ndarray],
@@ -178,6 +186,20 @@ class CaptureCheckTest(unittest.TestCase):
             last_line: str = text.splitlines()[-1]
             result: dict[str, float | int | str] = json.loads(last_line)
             return ended.exception.code, result, text
+
+    def run_capture_check_with_top(self, top: int) -> str | int | None:
+        picture: numpy.ndarray = numpy.full(PICTURE_SHAPE, FIRST_GRAY, numpy.uint8)
+        with tempfile.TemporaryDirectory() as directory:
+            root: Path = Path(directory)
+            reference: Path = root / REFERENCE_NAME
+            reference.write_bytes(picture.tobytes())
+            image: Image.Image = Image.fromarray(picture)
+            image.save(root / f"{CAPTURE_PREFIX}00{CAPTURE_SUFFIX}")
+            arguments: list[str] = [PROGRAM, str(reference), str(SIDE), str(SIDE), str(root), "--top", str(top)]
+            with patch.object(sys, "argv", arguments), redirect_stderr(StringIO()), self.assertRaises(SystemExit) as ended:
+                mcv2_tools.capture_check_main()
+
+            return ended.exception.code
 
 
 if __name__ == "__main__":
