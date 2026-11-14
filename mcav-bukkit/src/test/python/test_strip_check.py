@@ -14,7 +14,13 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import sys
+import tempfile
 import unittest
+from contextlib import redirect_stdout
+from io import StringIO
+from pathlib import Path
+from unittest.mock import patch
 
 import numpy
 
@@ -25,6 +31,15 @@ from mcv2_reference import pack_frame
 import mcv2_tools
 
 PAGE_ROWS: int = mcv2_tools.PAGE_PIXELS // mcv2_reference.MAP_SIDE
+
+PROGRAM: str = "mcv2_tools.py"
+STRIP_CHECK: str = "strip_check"
+VIDEO_WIDTH_OPTION: str = "--video-width"
+
+SLOTS: int = 1
+VIDEO_WIDTH: int = mcv2_reference.MAP_SIDE
+
+NOTES_FILE: str = "notes.txt"
 
 TWO_PAGE_WIDTH: int = 3200
 TWO_PAGE_LEAVES: int = 100
@@ -97,6 +112,32 @@ class StripCheckTest(unittest.TestCase):
         symbols: numpy.ndarray = mcv2_tools.strip_check_page_symbols(screen, 0, PAGE_ROWS + 1)
         actual: bytes = symbols.tobytes()
         self.assertEqual(bytes(mcv2_reference.PAGE_SYMBOLS), actual)
+
+    def test_should_exit_with_the_usage_status_when_the_folder_holds_no_png_screenshot(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            captures: Path = Path(directory)
+            notes: Path = captures / NOTES_FILE
+            notes.touch()
+
+            status: int | str | None
+            lines: list[str]
+            status, lines = self.run_strip_check(captures)
+
+        self.assertEqual(mcv2_tools.USAGE_EXIT_CODE, status)
+        self.assertEqual([], lines)
+
+    def run_strip_check(self, captures: Path) -> tuple[int | str | None, list[str]]:
+        arguments: list[str] = [PROGRAM, STRIP_CHECK, str(captures), mcv2_tools.SLOTS_OPTION, str(SLOTS), VIDEO_WIDTH_OPTION, str(VIDEO_WIDTH)]
+        output: StringIO = StringIO()
+        with (
+            patch.object(sys, "argv", arguments),
+            redirect_stdout(output),
+            self.assertRaises(SystemExit) as raised,
+        ):
+            mcv2_tools.main()
+
+        text: str = output.getvalue()
+        return raised.exception.code, text.splitlines()
 
 
 def blank_screen(rows: int) -> numpy.ndarray:
