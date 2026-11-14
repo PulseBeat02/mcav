@@ -110,10 +110,24 @@ class CaptureCheckTest(unittest.TestCase):
 
         self.assertIn("capture-01.png is not exact: closest frame 0", text)
 
+    def test_should_match_the_picture_below_the_top_rows(self) -> None:
+        picture: numpy.ndarray = numpy.full(PICTURE_SHAPE, FIRST_GRAY, numpy.uint8)
+        band: numpy.ndarray = numpy.full(PICTURE_SHAPE, SECOND_GRAY, numpy.uint8)
+        capture: numpy.ndarray = numpy.concatenate([band, picture])
+        status: str | int | None
+        result: dict[str, float | int | str]
+        _: str
+        status, result, _ = self.run_capture_check([picture], [capture], top=SIDE)
+        self.assertEqual(0, status)
+
+        exact_captures: float | int | str = result[EXACT_CAPTURES_KEY]
+        self.assertEqual(1, exact_captures)
+
     def run_capture_check(
         self,
         references: list[numpy.ndarray],
-        captures: list[numpy.ndarray]
+        captures: list[numpy.ndarray],
+        top: int = 0
     ) -> tuple[str | int | None, dict[str, float | int | str], str]:
         with tempfile.TemporaryDirectory() as directory:
             root: Path = Path(directory)
@@ -128,7 +142,7 @@ class CaptureCheckTest(unittest.TestCase):
             width: int
             _: int
             height, width, _ = references[0].shape
-            arguments: list[str] = [PROGRAM, str(reference), str(width), str(height), str(root), "--top", "0"]
+            arguments: list[str] = [PROGRAM, str(reference), str(width), str(height), str(root), "--top", str(top)]
             output: StringIO = StringIO()
             with patch.object(sys, "argv", arguments), redirect_stdout(output), self.assertRaises(SystemExit) as ended:
                 mcv2_tools.capture_check_main()
