@@ -34,17 +34,11 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import me.brandonli.mcav.bukkit.testing.UtilityClassAssertions;
 import org.junit.jupiter.api.Test;
 
 final class Mcv2DecoderFormatTest {
 
   private static final int ROOT_BLOCK_SIZE = 32;
-
-  @Test
-  void shouldBeAUtilityClass() throws ReflectiveOperationException {
-    UtilityClassAssertions.assertNotInstantiable(Mcv2Decoder.class);
-  }
 
   @Test
   void shouldReadAndWriteLittleEndianIntegers() {

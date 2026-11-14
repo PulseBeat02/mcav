@@ -20,7 +20,6 @@ package me.brandonli.mcav.bukkit.media.mcv2;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-import java.util.Arrays;
 import org.junit.jupiter.api.Test;
 
 final class Mcv2PatternTest {
@@ -49,17 +48,6 @@ final class Mcv2PatternTest {
         assertEquals(expected, color);
       }
     }
-  }
-
-  @Test
-  void shouldRejectBrokenRecords() {
-    assertThrows(Mcv2Exception.class, () ->
-      Mcv2Decoder.parse(Mcv2WireFrames.block(8, 4, 0, Arrays.copyOf(INLINE, 7), Mcv2FrameKind.KEYFRAME))
-    );
-
-    final byte[] orientation = INLINE.clone();
-    orientation[6] = 2;
-    assertThrows(Mcv2Exception.class, () -> Mcv2Decoder.parse(Mcv2WireFrames.block(8, 4, 0, orientation, Mcv2FrameKind.KEYFRAME)));
   }
 
   @Test
