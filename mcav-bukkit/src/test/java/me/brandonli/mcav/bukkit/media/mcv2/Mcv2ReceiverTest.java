@@ -122,6 +122,20 @@ final class Mcv2ReceiverTest {
   }
 
   @Test
+  void shouldRefuseAFramePredictedFromAnOlderReceivedFrame() {
+    final Mcv2Receiver receiver = new Mcv2Receiver();
+    receiver.accept(this.keyframeWithId(1, 3));
+    final byte[] next = Mcv2Trees.write(4, 4, 2, 1, Mcv2FrameKind.PREDICTED, List.of(motion(0, 0)));
+    receiver.accept(next);
+
+    final byte[] stale = Mcv2Trees.write(4, 4, 3, 1, Mcv2FrameKind.PREDICTED, List.of(motion(0, 0)));
+    assertThrows(Mcv2Exception.class, () -> receiver.accept(stale));
+
+    final long frameId = receiver.getFrameId().orElseThrow();
+    assertEquals(2, frameId);
+  }
+
+  @Test
   void shouldRejectAReferenceWithTheSamePixelCountButDifferentDimensions() {
     final Mcv2Receiver receiver = new Mcv2Receiver();
     receiver.accept(Mcv2Trees.write(8, 16, 0, 0, Mcv2FrameKind.KEYFRAME, List.of(solid(1, 2, 3))));
