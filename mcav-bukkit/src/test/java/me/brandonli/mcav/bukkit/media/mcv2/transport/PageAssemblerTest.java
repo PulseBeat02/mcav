@@ -111,6 +111,13 @@ final class PageAssemblerTest {
     assertThrows(IllegalArgumentException.class, () -> new PageAssembler(1, 9));
   }
 
+  @Test
+  void shouldRefuseANullPage() {
+    final PageAssembler assembler = new PageAssembler(3, 6);
+
+    assertThrows(NullPointerException.class, () -> assembler.push(null));
+  }
+
   private static Stream<Arguments> disagreements() {
     return Stream.of(
       Arguments.of("page count", page(1), pages(TINY).get(0)),

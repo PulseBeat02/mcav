@@ -58,6 +58,13 @@ final class Mcv2ReceiverTest {
   }
 
   @Test
+  void shouldRefuseNullFrameBytes() {
+    final Mcv2Receiver receiver = new Mcv2Receiver();
+
+    assertThrows(NullPointerException.class, () -> receiver.accept(null));
+  }
+
+  @Test
   void shouldStillRequireAFrameAfterFrameZeroToBeNewer() {
     final Mcv2Receiver receiver = new Mcv2Receiver();
     receiver.accept(this.keyframeWithId(0, 1));
@@ -112,6 +119,20 @@ final class Mcv2ReceiverTest {
 
     final long frameIdAfterRetry = receiver.getFrameId().orElseThrow();
     assertEquals(3, frameIdAfterRetry);
+  }
+
+  @Test
+  void shouldRefuseAFramePredictedFromAnOlderReceivedFrame() {
+    final Mcv2Receiver receiver = new Mcv2Receiver();
+    receiver.accept(this.keyframeWithId(1, 3));
+    final byte[] next = Mcv2Trees.write(4, 4, 2, 1, Mcv2FrameKind.PREDICTED, List.of(motion(0, 0)));
+    receiver.accept(next);
+
+    final byte[] stale = Mcv2Trees.write(4, 4, 3, 1, Mcv2FrameKind.PREDICTED, List.of(motion(0, 0)));
+    assertThrows(Mcv2Exception.class, () -> receiver.accept(stale));
+
+    final long frameId = receiver.getFrameId().orElseThrow();
+    assertEquals(2, frameId);
   }
 
   @Test

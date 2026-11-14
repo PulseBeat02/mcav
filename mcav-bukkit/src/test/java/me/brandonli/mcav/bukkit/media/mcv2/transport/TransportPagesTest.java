@@ -155,6 +155,18 @@ final class TransportPagesTest {
     assertThrows(NullPointerException.class, () -> TransportPages.makePages((Mcv2Decoder.Frame) null, 7));
   }
 
+  @ParameterizedTest(name = "stream id {0}")
+  @ValueSource(longs = { 0L, 0xFFFFFFFFL })
+  void shouldAcceptTheSmallestAndTheLargestStreamIds(final long streamId) {
+    final byte[] frame = Mcv2Trees.tiny();
+    final List<byte[]> pages = TransportPages.makePages(frame, streamId);
+    final byte[] symbols = pages.get(0);
+    final TransportPage page = TransportPages.readPage(symbols);
+
+    final long pageStreamId = page.getStreamId();
+    assertEquals(streamId, pageStreamId);
+  }
+
   @Test
   void shouldKnowThePageCapacities() {
     final int capacity = TransportPages.capacity();
@@ -185,6 +197,13 @@ final class TransportPagesTest {
       final byte[] roundTrip = TransportPages.fromSymbols(TransportPages.toSymbols(data), data.length);
       assertArrayEquals(data, roundTrip);
     }
+  }
+
+  @Test
+  void shouldUnpackNoSymbolsIntoNoBytes() {
+    final byte[] expectedData = new byte[0];
+    final byte[] data = TransportPages.fromSymbols(new byte[0], 0);
+    assertArrayEquals(expectedData, data);
   }
 
   @Test
