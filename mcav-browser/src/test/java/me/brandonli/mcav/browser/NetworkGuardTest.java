@@ -45,6 +45,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -52,6 +53,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
 import java.util.function.Predicate;
 import me.brandonli.mcav.browser.testing.Await;
 import me.brandonli.mcav.browser.testing.OpenFiles;
@@ -64,6 +66,8 @@ import org.mockito.MockedConstruction;
 import org.mockito.Mockito;
 
 class NetworkGuardTest {
+
+  private static final String ACCEPT_THREAD_NAME = "mcav-browser-guard";
 
   private static final String PRIVATE_IPV4 = "10.0.0.1";
 
@@ -548,7 +552,7 @@ class NetworkGuardTest {
     final List<Thread> threads = Thread.getAllStackTraces()
       .keySet()
       .stream()
-      .filter(thread -> thread.getName().equals("mcav-browser-guard"))
+      .filter(thread -> thread.getName().equals(ACCEPT_THREAD_NAME))
       .toList();
     final boolean empty = threads.isEmpty();
     assertFalse(empty);
@@ -876,6 +880,66 @@ class NetworkGuardTest {
     NetworkGuard.closeQuietly(() -> this.countAndFailClosing(closed));
     final int closeCount = closed.get();
     assertEquals(1, closeCount);
+  }
+
+  @Test
+  void shouldStopAcceptingBeforeCloseReturns() throws IOException {
+    final Set<Thread> before = this.findLiveThreads();
+    final Consumer<String> notices = _ -> {};
+    final NetworkGuard guard = NetworkGuard.start(notices, List.of());
+    final Thread acceptor = this.findStartedThread(before, ACCEPT_THREAD_NAME);
+    guard.close();
+
+    final boolean accepting = acceptor.isAlive();
+    assertFalse(accepting);
+  }
+
+  @Test
+  void shouldKeepTheInterruptOfItsCallerWhileWaitingForAnAcceptThread() throws InterruptedException {
+    final CountDownLatch release = new CountDownLatch(1);
+    final Thread waiting = new Thread(() -> this.waitUntilReleased(release));
+    waiting.setDaemon(true);
+    waiting.start();
+
+    try {
+      final Thread current = Thread.currentThread();
+      current.interrupt();
+      NetworkGuard.awaitEnd(waiting);
+
+      final boolean interrupted = Thread.interrupted();
+      assertTrue(interrupted);
+    } finally {
+      release.countDown();
+      waiting.join();
+    }
+  }
+
+  private void waitUntilReleased(final CountDownLatch release) {
+    try {
+      release.await();
+    } catch (final InterruptedException exception) {
+      final Thread current = Thread.currentThread();
+      current.interrupt();
+    }
+  }
+
+  private Set<Thread> findLiveThreads() {
+    final Map<Thread, StackTraceElement[]> traces = Thread.getAllStackTraces();
+    final Set<Thread> threads = traces.keySet();
+    return Set.copyOf(threads);
+  }
+
+  private Thread findStartedThread(final Set<Thread> before, final String name) {
+    final Set<Thread> after = this.findLiveThreads();
+    final List<Thread> started = after
+      .stream()
+      .filter(thread -> !before.contains(thread))
+      .filter(thread -> name.equals(thread.getName()))
+      .toList();
+    final int count = started.size();
+    assertEquals(1, count, started.toString());
+
+    return started.getFirst();
   }
 
   private void countAndFailClosing(final AtomicInteger closed) throws IOException {

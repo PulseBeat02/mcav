@@ -73,6 +73,10 @@ final class NetworkGuard implements Closeable {
   private static final int BACKLOG = 64;
   private static final int EPHEMERAL_PORT = 0;
 
+  private static final Thread NOT_STARTED = new Thread("mcav-browser-not-started");
+
+  private static final long ACCEPT_STOP_TIMEOUT_MILLISECONDS = 10_000L;
+
   private final ServerSocket server;
   private final Resolver resolver;
   private final Predicate<InetAddress> policy;
@@ -84,6 +88,7 @@ final class NetworkGuard implements Closeable {
   private final Set<String> reported;
 
   private volatile boolean closed;
+  private volatile Thread acceptor;
 
   private NetworkGuard(
     final ServerSocket server,
@@ -102,6 +107,7 @@ final class NetworkGuard implements Closeable {
     this.slots = new Semaphore(MAXIMUM_CONNECTIONS);
     this.sockets = ConcurrentHashMap.newKeySet();
     this.reported = ConcurrentHashMap.newKeySet();
+    this.acceptor = NOT_STARTED;
   }
 
   static NetworkGuard start(final Consumer<String> notices, final List<String> refusedHosts) throws IOException {
@@ -124,17 +130,24 @@ final class NetworkGuard implements Closeable {
     server.bind(new InetSocketAddress(loopback, EPHEMERAL_PORT), BACKLOG);
 
     final NetworkGuard guard = new NetworkGuard(server, resolver, policy, connector, notices, handshakeTimeoutMilliseconds);
-    final Thread thread = new Thread(guard::acceptConnections, ACCEPT_THREAD_NAME);
-    thread.setDaemon(true);
-    thread.start();
+    guard.startAccepting();
 
     return guard;
+  }
+
+  private void startAccepting() {
+    final Thread thread = new Thread(this::acceptConnections, ACCEPT_THREAD_NAME);
+    thread.setDaemon(true);
+    this.acceptor = thread;
+    thread.start();
   }
 
   @Override
   public void close() {
     this.closed = true;
     closeQuietly(this.server);
+    // a thread blocked in accept() keeps the socket listening until it leaves it
+    awaitEnd(this.acceptor);
     for (final Socket socket : this.sockets) {
       closeQuietly(socket);
     }
@@ -347,6 +360,15 @@ final class NetworkGuard implements Closeable {
       closeable.close();
     } catch (final IOException exception) {
       // already gone
+    }
+  }
+
+  static void awaitEnd(final Thread thread) {
+    try {
+      thread.join(ACCEPT_STOP_TIMEOUT_MILLISECONDS);
+    } catch (final InterruptedException exception) {
+      final Thread current = Thread.currentThread();
+      current.interrupt();
     }
   }
 
