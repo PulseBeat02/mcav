@@ -26,6 +26,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -103,6 +104,20 @@ final class Mcv2PacerTest {
     assertThrows(IllegalArgumentException.class, () -> new Mcv2Pacer(List.of(new int[] { 1 })));
     assertThrows(IllegalArgumentException.class, () -> new Mcv2Pacer(List.of(new int[] { 0, 1 })));
     assertThrows(IllegalArgumentException.class, () -> new Mcv2Pacer(List.of(new int[] { 1, 0 })));
+  }
+
+  @Test
+  void shouldRefuseNullArguments() {
+    final List<int[]> nullSize = Collections.singletonList(null);
+    final List<Mcv2Pacer.Preset> nullPreset = Collections.singletonList(null);
+    final Mcv2Pacer pacer = new Mcv2Pacer(List.of(FULL));
+
+    assertThrows(NullPointerException.class, () -> new Mcv2Pacer(null, List.of(LIVE), Mcv2Pacer.Floor.DITHERED_MAPS));
+    assertThrows(NullPointerException.class, () -> new Mcv2Pacer(List.of(FULL), null, Mcv2Pacer.Floor.DITHERED_MAPS));
+    assertThrows(NullPointerException.class, () -> new Mcv2Pacer(List.of(FULL), List.of(LIVE), null));
+    assertThrows(NullPointerException.class, () -> new Mcv2Pacer(nullSize));
+    assertThrows(NullPointerException.class, () -> new Mcv2Pacer(List.of(FULL), nullPreset, Mcv2Pacer.Floor.DITHERED_MAPS));
+    assertThrows(NullPointerException.class, () -> pacer.reportEncodedFrame(1, null, 0));
   }
 
   @Test
