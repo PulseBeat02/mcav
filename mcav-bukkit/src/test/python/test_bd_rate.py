@@ -49,6 +49,12 @@ DOUBLED_RATE_CURVE: list[dict[str, float]] = [
     {RATE_KEY: 16.0, METRIC_KEY: 90.0},
     {RATE_KEY: 32.0, METRIC_KEY: 100.0},
 ]
+TOUCHING_CURVE: list[dict[str, float]] = [
+    {RATE_KEY: 8.0, METRIC_KEY: 90.0},
+    {RATE_KEY: 16.0, METRIC_KEY: 100.0},
+    {RATE_KEY: 32.0, METRIC_KEY: 110.0},
+    {RATE_KEY: 64.0, METRIC_KEY: 120.0},
+]
 
 
 class BdRateTest(unittest.TestCase):
@@ -68,6 +74,20 @@ class BdRateTest(unittest.TestCase):
         quality_high: float | str = result[QUALITY_HIGH_KEY]
         self.assertEqual(70.0, quality_low)
         self.assertEqual(90.0, quality_high)
+
+    def test_should_exit_when_a_curve_has_fewer_than_four_points(self) -> None:
+        with self.assertRaises(SystemExit) as context:
+            self.run_bd_rate(REFERENCE_CURVE, REFERENCE_CURVE[1:])
+
+        status: str | int | None = context.exception.code
+        self.assertEqual("Each curve needs at least four points!", status)
+
+    def test_should_fail_when_the_curves_share_only_one_quality(self) -> None:
+        with self.assertRaises(ValueError) as context:
+            self.run_bd_rate(REFERENCE_CURVE, TOUCHING_CURVE)
+
+        message: str = str(context.exception)
+        self.assertEqual("The curves share no quality range!", message)
 
     def run_bd_rate(self, reference: list[dict[str, float]], test: list[dict[str, float]]) -> dict[str, float | str]:
         output: StringIO = StringIO()
