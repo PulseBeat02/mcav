@@ -221,6 +221,36 @@ class DifferentialTest(unittest.TestCase):
         mutant: list[bytes] = mcv2_tools.differential_mutant([b'abcd'], randomizer)
         self.assertEqual([b'\x60bcd'], mutant)
 
+    def test_should_refuse_negative_counts_and_runs_without_archives(self) -> None:
+        refused: list[list[str]] = [
+            ['--streams', '-1'],
+            ['--conformance', '-1'],
+            ['--mutants', '-1'],
+            ['--streams', '0', '--conformance', '0'],
+        ]
+        status: object
+        printed: str
+        for options in refused:
+            with self.subTest(options=options):
+                status, printed = self.run_main(options)
+                self.assertEqual(2, status)
+                self.assertIn('at least one archive is required!', printed)
+
+        status, printed = self.run_main(['--mutants', '0'])
+        self.assertEqual(0, status)
+
+    def run_main(self, options: list[str]) -> tuple[object, str]:
+        errors: StringIO = StringIO()
+        with (
+            patch.object(mcv2_tools.sys, 'argv', [PLACEHOLDER, PLACEHOLDER, *options]),
+            patch.object(mcv2_tools, 'differential_run', return_value=0),
+            redirect_stderr(errors),
+            self.assertRaises(SystemExit) as raised,
+        ):
+            mcv2_tools.differential_main()
+
+        return raised.exception.code, errors.getvalue()
+
     def report(self, frames: list[bytes], tokens: list[str]) -> tuple[int, Any]:
         with tempfile.TemporaryDirectory() as directory:
             output: Path = Path(directory)
