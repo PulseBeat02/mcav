@@ -18,6 +18,7 @@
 package me.brandonli.mcav.browser;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.util.concurrent.Uninterruptibles;
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.Closeable;
@@ -40,6 +41,7 @@ import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
+import java.time.Duration;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
@@ -56,6 +58,10 @@ final class NullDisplay implements AutoCloseable {
 
   private static final String ACCEPT_THREAD_NAME = "mcav-browser-null-display";
   private static final String CLIENT_THREAD_NAME = "mcav-browser-null-display-client";
+
+  private static final Thread NOT_STARTED = new Thread("mcav-browser-not-started");
+
+  private static final Duration ACCEPT_STOP_TIMEOUT = Duration.ofSeconds(10);
 
   static final int X11_BASE_PORT = 6000;
 
@@ -333,6 +339,8 @@ final class NullDisplay implements AutoCloseable {
   private final Deque<Socket> pending;
   private final int setupTimeoutMilliseconds;
 
+  private volatile Thread acceptor;
+
   private NullDisplay(final ServerSocket server, final byte[] cookie, final int setupTimeoutMilliseconds) {
     this.server = server;
     this.setupTimeoutMilliseconds = setupTimeoutMilliseconds;
@@ -341,6 +349,7 @@ final class NullDisplay implements AutoCloseable {
     this.slots = new Semaphore(MAXIMUM_CONNECTIONS);
     this.clients = ConcurrentHashMap.newKeySet();
     this.pending = new ArrayDeque<>();
+    this.acceptor = NOT_STARTED;
   }
 
   static NullDisplay start(final Path authority) throws IOException {
@@ -355,15 +364,20 @@ final class NullDisplay implements AutoCloseable {
       writeAuthority(authority, cookie);
 
       final NullDisplay display = new NullDisplay(server, cookie, setupTimeoutMilliseconds);
-      final Thread thread = new Thread(display::acceptConnections, ACCEPT_THREAD_NAME);
-      thread.setDaemon(true);
-      thread.start();
+      display.startAccepting();
 
       return display;
     } catch (final IOException | RuntimeException exception) {
       server.close();
       throw exception;
     }
+  }
+
+  private void startAccepting() {
+    final Thread thread = new Thread(this::acceptConnections, ACCEPT_THREAD_NAME);
+    thread.setDaemon(true);
+    this.acceptor = thread;
+    thread.start();
   }
 
   // an unusable port stays bound until the search ends, so the system does not hand it out again
@@ -918,6 +932,8 @@ final class NullDisplay implements AutoCloseable {
   @Override
   public void close() {
     this.closeQuietly(this.server);
+    // a thread blocked in accept() keeps the socket listening until it leaves it
+    Uninterruptibles.joinUninterruptibly(this.acceptor, ACCEPT_STOP_TIMEOUT);
     for (final Socket client : this.clients) {
       this.closeQuietly(client);
     }
