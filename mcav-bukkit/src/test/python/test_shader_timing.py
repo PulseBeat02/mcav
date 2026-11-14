@@ -182,6 +182,19 @@ class TimerAccountingTest(unittest.TestCase):
                 predicted_frames: Any = result[NEW_PREDICTED_KEY][TOTAL_KEY][COUNT_KEY]
                 self.assertEqual(2, predicted_frames)
 
+    def test_should_summarize_the_mean_tail_and_count_of_each_pass(self) -> None:
+        samples: list[dict[str, float]] = [{DECODE_PASS: 1.0, TOTAL_KEY: 1.0}, {DECODE_PASS: 3.0, TOTAL_KEY: 3.0}]
+        summary: dict[str, dict[str, float | int]] = mcv2_tools.shader_timing_summarize(samples, (DECODE_PASS,))
+        decode: dict[str, float | int] = summary[DECODE_PASS]
+        self.assertEqual(2.0, decode["mean"])
+        self.assertAlmostEqual(2.9, decode["p95"])
+        self.assertEqual(2, decode[COUNT_KEY])
+
+    def test_should_summarize_a_kind_without_samples_as_zeros(self) -> None:
+        summary: dict[str, dict[str, float | int]] = mcv2_tools.shader_timing_summarize([], (DECODE_PASS,))
+        zeros: dict[str, float | int] = {"mean": 0.0, "p95": 0.0, COUNT_KEY: 0}
+        self.assertEqual({DECODE_PASS: zeros, TOTAL_KEY: zeros}, summary)
+
     def test_should_import_the_transport_of_the_reference_option_from_the_archived_package_directory(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             package: Path = Path(directory) / PACKAGE
