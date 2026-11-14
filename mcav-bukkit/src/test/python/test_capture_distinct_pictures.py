@@ -96,6 +96,20 @@ class CaptureCheckTest(unittest.TestCase):
         ambiguous_reference_frames: float | int | str = result[AMBIGUOUS_REFERENCE_FRAMES_KEY]
         self.assertEqual(2, ambiguous_reference_frames)
 
+    def test_should_fail_when_a_capture_is_not_exact(self) -> None:
+        first: numpy.ndarray = numpy.full(PICTURE_SHAPE, FIRST_GRAY, numpy.uint8)
+        second: numpy.ndarray = numpy.full(PICTURE_SHAPE, SECOND_GRAY, numpy.uint8)
+        status: str | int | None
+        result: dict[str, float | int | str]
+        text: str
+        status, result, text = self.run_capture_check([first], [first, second])
+        self.assertEqual(1, status)
+
+        exact_captures: float | int | str = result[EXACT_CAPTURES_KEY]
+        self.assertEqual(1, exact_captures)
+
+        self.assertIn("capture-01.png is not exact: closest frame 0", text)
+
     def run_capture_check(
         self,
         references: list[numpy.ndarray],
