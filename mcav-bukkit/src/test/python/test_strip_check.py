@@ -56,6 +56,24 @@ STRIPED_CAPTURES: int = 4
 
 PAGE_CAPTURE_FILE: str = "page-{}.png"
 
+LAYOUT_FIRST_SLOT: int = 1
+LAYOUT_TOTAL_SLOTS: int = 2
+LAYOUT_SCREENS: int = 2
+LAYOUT_SCREEN: int = 1
+LAYOUT_DEBUG_TOP: int = 3
+LAYOUT_OPTIONS: list[str] = [
+    "--first-slot",
+    str(LAYOUT_FIRST_SLOT),
+    "--total-slots",
+    str(LAYOUT_TOTAL_SLOTS),
+    "--screens",
+    str(LAYOUT_SCREENS),
+    "--screen",
+    str(LAYOUT_SCREEN),
+    "--debug-top",
+    str(LAYOUT_DEBUG_TOP),
+]
+
 DESCRIPTOR_FAILURE: str = f"{CAPTURE_FILE}: descriptor"
 SLOT_FAILURE: str = f"{CAPTURE_FILE}: slot 0 square {mcv2_tools.STRIP_CHECK_GREEN}, page valid False"
 
@@ -265,20 +283,30 @@ class StripCheckTest(unittest.TestCase):
         self.assertEqual(3, summary[DISTINCT_PAGES_KEY])
         self.assertEqual({blank_reason: 1}, summary[MISSING_PAGES_KEY])
 
-    def check_screen(self, screen: numpy.ndarray) -> tuple[int | str | None, list[str], Any]:
+    def test_should_lay_out_the_page_descriptor_and_squares_by_the_options(self) -> None:
+        frame: bytes = pack_frame(1, 1, 7, 7, {})
+        screen: numpy.ndarray = layout_capture(make_pages(frame, 5)[0])
+        status: int | str | None
+        summary: Any
+        status, _, summary = self.check_screen(screen, *LAYOUT_OPTIONS)
+        self.assertEqual(mcv2_tools.SUCCESS_EXIT_CODE, status)
+        self.assertEqual({"0": 1}, summary[VALID_PAGES_KEY])
+        self.assertEqual(1, summary[DESCRIPTORS_KEY])
+
+    def check_screen(self, screen: numpy.ndarray, *options: str) -> tuple[int | str | None, list[str], Any]:
         with tempfile.TemporaryDirectory() as directory:
             captures: Path = Path(directory)
             image: Image.Image = Image.fromarray(screen)
             image.save(captures / CAPTURE_FILE)
             status: int | str | None
             lines: list[str]
-            status, lines = self.run_strip_check(captures)
+            status, lines = self.run_strip_check(captures, *options)
 
         summary: Any = json.loads(lines[-1])
         return status, lines[:-1], summary
 
-    def run_strip_check(self, captures: Path) -> tuple[int | str | None, list[str]]:
-        arguments: list[str] = [PROGRAM, STRIP_CHECK, str(captures), mcv2_tools.SLOTS_OPTION, str(SLOTS), VIDEO_WIDTH_OPTION, str(VIDEO_WIDTH)]
+    def run_strip_check(self, captures: Path, *options: str) -> tuple[int | str | None, list[str]]:
+        arguments: list[str] = [PROGRAM, STRIP_CHECK, str(captures), mcv2_tools.SLOTS_OPTION, str(SLOTS), VIDEO_WIDTH_OPTION, str(VIDEO_WIDTH), *options]
         output: StringIO = StringIO()
         with (
             patch.object(sys, "argv", arguments),
@@ -336,6 +364,18 @@ def page_pixels(symbols: bytes) -> numpy.ndarray:
     words: numpy.ndarray = numpy.bitwise_or.reduce(groups << shifts, axis=1)
     channels: list[numpy.ndarray] = [words >> channel * mcv2_reference.BITS_PER_BYTE for channel in range(mcv2_reference.CHANNELS)]
     return numpy.stack(channels, axis=1).astype(numpy.uint8)
+
+
+def layout_capture(symbols: bytes) -> numpy.ndarray:
+    rows: int = mcv2_tools.page_rows(SQUARES_WIDTH)
+    descriptor_row: int = LAYOUT_TOTAL_SLOTS * rows + LAYOUT_SCREEN
+    top: int = LAYOUT_TOTAL_SLOTS * rows + LAYOUT_SCREENS + LAYOUT_DEBUG_TOP
+    squares: numpy.ndarray = page_capture(symbols)[-mcv2_tools.STRIP_CHECK_SQUARE :]
+    screen: numpy.ndarray = numpy.zeros((top + mcv2_tools.STRIP_CHECK_SQUARE, SQUARES_WIDTH, mcv2_reference.CHANNELS), numpy.uint8)
+    paint_page(screen, LAYOUT_FIRST_SLOT, symbols)
+    screen[descriptor_row, : len(mcv2_tools.STRIP_CHECK_DESCRIPTOR)] = mcv2_tools.STRIP_CHECK_DESCRIPTOR
+    screen[top:] = squares
+    return screen
 
 
 def two_page_frame() -> bytes:
