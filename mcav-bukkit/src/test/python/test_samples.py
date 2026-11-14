@@ -15,14 +15,19 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import argparse
+import sys
 import tempfile
 import unittest
 from contextlib import redirect_stdout
 from io import StringIO
 from pathlib import Path
+from unittest.mock import patch
 
 import mcv2_tools
 from mcv2_reference import SKIP, Leaf, pack_frame
+
+PROGRAM: str = "mcv2_tools.py"
+SAMPLES: str = "samples"
 
 ARCHIVE_FILE: str = "frames.mcv2"
 DUMP_INDENT: str = "  "
@@ -36,8 +41,7 @@ class SamplesTest(unittest.TestCase):
         frames: list[bytes] = [pack_frame(1, 1, 7, 7, {}), pack_frame(1, 1, 8, 8, {})]
         output: StringIO = StringIO()
         with tempfile.TemporaryDirectory() as directory:
-            archive: Path = Path(directory) / ARCHIVE_FILE
-            archive.write_bytes(mcv2_tools.archive_bytes(frames))
+            archive: Path = write_archive(directory, frames)
             arguments: argparse.Namespace = argparse.Namespace(archive=archive, frame=1)
             with redirect_stdout(output):
                 mcv2_tools.samples_print_bytes(arguments)
@@ -52,6 +56,25 @@ class SamplesTest(unittest.TestCase):
 
         inside: list[Leaf] = [leaf for leaf in neighbors + overlapping if mcv2_tools.samples_inside(leaf, crop)]
         self.assertEqual(overlapping, inside)
+
+    def test_should_dump_the_frame_that_the_command_line_names(self) -> None:
+        frame: bytes = pack_frame(1, 1, 7, 7, {})
+        output: StringIO = StringIO()
+        with tempfile.TemporaryDirectory() as directory:
+            archive: Path = write_archive(directory, [frame])
+            arguments: list[str] = [PROGRAM, SAMPLES, mcv2_tools.BYTES_COMMAND, str(archive), mcv2_tools.FRAME_OPTION, "0"]
+            with patch.object(sys, "argv", arguments), redirect_stdout(output):
+                mcv2_tools.main()
+
+        dumped: bytes = dumped_bytes(output.getvalue())
+        self.assertEqual(frame, dumped)
+
+
+def write_archive(directory: str, frames: list[bytes]) -> Path:
+    archive: Path = Path(directory) / ARCHIVE_FILE
+    archive.write_bytes(mcv2_tools.archive_bytes(frames))
+
+    return archive
 
 
 def dumped_bytes(output: str) -> bytes:
