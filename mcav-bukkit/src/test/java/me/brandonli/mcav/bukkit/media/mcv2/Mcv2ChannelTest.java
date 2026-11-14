@@ -646,6 +646,11 @@ final class Mcv2ChannelTest {
 
     final boolean keyframeRequested = channel.takeKeyframeRequest();
     assertTrue(keyframeRequested);
+  }
+
+  @Test
+  void shouldRefuseANullFrameAndBytesThatAreNotAnMcv2Frame() {
+    final Mcv2Channel channel = new Mcv2Channel(this.configuration, this.viewers, this.screen);
     assertThrows(IllegalArgumentException.class, () -> channel.send(new byte[48]));
     assertThrows(NullPointerException.class, () -> channel.send(null));
   }
