@@ -281,6 +281,18 @@ final class StandardVideoHologramTest {
   }
 
   @Test
+  void shouldStopTheRunningProgressOnANewRequest() {
+    final StandardVideoHologram hologram = new StandardVideoHologram();
+    final UrlParseDump dump = this.createDump(TITLE, UPLOADER, 0, LONG_DURATION_SECONDS);
+    hologram.spawn(this.location, dump);
+    hologram.start();
+    hologram.spawn(this.location, dump);
+
+    final int tasks = this.server.getScheduledTaskCount();
+    assertEquals(0, tasks);
+  }
+
+  @Test
   void shouldRejectInvalidRequests() {
     final StandardVideoHologram hologram = new StandardVideoHologram();
     final UrlParseDump dump = this.createDump(TITLE, UPLOADER, 0, 1);
