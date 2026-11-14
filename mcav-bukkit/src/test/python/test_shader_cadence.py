@@ -148,6 +148,21 @@ class ShaderCadenceTest(unittest.TestCase):
             mcv2_tools.main()
         self.assertEqual(2, status.exception.code)
 
+    def test_should_start_a_check_with_the_least_renders_unseen_frames_and_merges(self) -> None:
+        for options in ((), ("--merge-uploads", "2")):
+            with self.subTest(options=options), self.assertRaises(ShaderCheckStarted):
+                self.start_check(*options)
+
+    def start_check(self, *options: str) -> None:
+        arguments: list[str] = [PROGRAM, "shader_check", "stream.mcs", *options]
+        with (
+            patch.object(sys, "argv", arguments),
+            patch.object(mcv2_tools, "shader_check_screen", mcv2_tools.shader_check_screen),
+            patch.object(mcv2_tools, "shader_check_create_context", side_effect=ShaderCheckStarted),
+            redirect_stderr(StringIO()),
+        ):
+            mcv2_tools.main()
+
     def create_merging_check(self, chain: "FakeChain") -> mcv2_tools.ShaderStreamCheck:
         arguments: argparse.Namespace = argparse.Namespace(
             drop=0, slots=SLOTS, split_uploads=False, renders_per_frame=1, merge_uploads=MERGE_EVERY, unseen_frames=1
@@ -184,6 +199,10 @@ class FakeChain:
         decoded: bool = self.decisions.pop(0)
         picture: numpy.ndarray = numpy.zeros((VIDEO_HEIGHT, VIDEO_WIDTH, mcv2_tools.CHANNELS), numpy.uint8)
         return (decoded, picture)
+
+
+class ShaderCheckStarted(Exception):
+    pass
 
 
 if __name__ == "__main__":
