@@ -76,4 +76,33 @@ final class Mcv2CompactTest {
       assertThrows(Mcv2Exception.class, () -> Mcv2Decoder.parse(data));
     }
   }
+
+  @Test
+  void shouldDecodeTheWorkedCompactExampleToItsStatedPixel() {
+    final int size = 16;
+    final byte[] color = { 100, 120, (byte) 140 };
+    final byte[] reference = new byte[size * size * Mcv2Decoder.CHANNELS];
+    for (int index = 0; index < reference.length; index += Mcv2Decoder.CHANNELS) {
+      System.arraycopy(color, 0, reference, index, Mcv2Decoder.CHANNELS);
+    }
+
+    final byte leftNodes = (byte) 0xFE;
+    final byte rightNodes = 0x10;
+    final byte[] record = { 0, 0, leftNodes, rightNodes, leftNodes, rightNodes, leftNodes, rightNodes, leftNodes, rightNodes };
+    final byte[] data = Mcv2WireFrames.block(size, Mcv2Decoder.MODE_COMPACT, 2, record, Mcv2FrameKind.PREDICTED);
+    final Mcv2Decoder.Frame frame = Mcv2Decoder.parse(data);
+    final byte[] picture = Mcv2Decoder.decode(frame, reference, frame.getReferenceId());
+    final int column = 2;
+    final byte[] expected = { 93, 113, (byte) 133 };
+    final byte[] top = this.pixelAt(picture, size, column, 0);
+    assertArrayEquals(expected, top);
+
+    final byte[] bottom = this.pixelAt(picture, size, column, size - 1);
+    assertArrayEquals(expected, bottom);
+  }
+
+  private byte[] pixelAt(final byte[] picture, final int width, final int column, final int row) {
+    final int offset = (row * width + column) * Mcv2Decoder.CHANNELS;
+    return Arrays.copyOfRange(picture, offset, offset + Mcv2Decoder.CHANNELS);
+  }
 }
