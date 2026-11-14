@@ -15,7 +15,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import unittest
-
 from contextlib import redirect_stdout
 from io import StringIO
 from typing import Any
