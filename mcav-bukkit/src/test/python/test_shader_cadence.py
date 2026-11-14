@@ -110,6 +110,20 @@ class ShaderCadenceTest(unittest.TestCase):
         self.assertEqual(2, check.wrong)
         self.assertEqual(3, check.decoded)
 
+    def test_should_expect_the_chain_to_skip_a_p_frame_whose_reference_was_dropped(self) -> None:
+        chain: FakeChain = FakeChain([True, False])
+        arguments: argparse.Namespace = argparse.Namespace(
+            drop=2, slots=SLOTS, split_uploads=False, renders_per_frame=1, merge_uploads=0, unseen_frames=1
+        )
+        check: mcv2_tools.ShaderStreamCheck = mcv2_tools.ShaderStreamCheck(None, arguments)
+        check.chain = chain
+        for index, frame in enumerate(MERGED_STREAM[:3]):
+            check.check_frame(index, frame)
+
+        self.assertEqual(2, check.renders)
+        self.assertEqual(1, check.skipped)
+        self.assertEqual(0, check.wrong)
+
     def test_should_draw_the_middle_of_the_picture_in_the_middle_of_the_window(self) -> None:
         positions: tuple[numpy.ndarray, ...]
         texels: tuple[numpy.ndarray, ...]
