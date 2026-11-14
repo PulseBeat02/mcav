@@ -38,6 +38,9 @@ STREAM_FRAMES: int = 3
 
 SUCCESS_EXIT_CODE: int = 0
 
+BRIGHT_LUMA: int = mcv2_tools.COUNTER_VIDEO_THRESHOLD
+DARK_LUMA: int = mcv2_tools.COUNTER_VIDEO_THRESHOLD - 1
+
 FRAME_NUMBER: int = 7
 EVENT_BYTES: int = 64
 EVENT_COLORS: int = 64
@@ -186,6 +189,44 @@ class LatencyTest(unittest.TestCase):
         glass_to_glass: float | int = result[MEAN_LATENCY_KEY]
         self.assertEqual(FIRST_FRAME_LATENCY, glass_to_glass)
 
+    def test_should_read_the_utc_times_and_the_counter_number_of_a_frame_event(self) -> None:
+        fingerprint: str = bytes(counter_lumas(FRAME_NUMBER)).hex()
+        values: dict[str, bool | int | str] = {
+            **send_values(1, 0, EVENT_COLORS),
+            mcv2_tools.SENT_FIELD: "1970-01-01T00:00:00.100+00:00",
+            mcv2_tools.ARRIVED_FIELD: "1970-01-01T00:00:00.150+00:00",
+            mcv2_tools.FINGERPRINT_FIELD: fingerprint,
+        }
+        recording: subprocess.CompletedProcess[str] = jfr_run([values])
+        with patch.object(mcv2_tools.subprocess, "run", return_value=recording):
+            events: list[Any] = mcv2_tools.latency_events(RECORDING_PATH, mcv2_tools.JFR_COMMAND)
+
+        read: dict[str, Any] = events[0]
+        sent: float = read["sent"]
+        arrived: float = read["arrived"]
+        self.assertAlmostEqual(FIRST_SENT, sent)
+        self.assertAlmostEqual(LATER_ARRIVAL, arrived)
+
+        number: Any = read[EVENT_NUMBER_KEY]
+        self.assertEqual(FRAME_NUMBER, number)
+
+    def test_should_read_no_counter_number_from_a_missing_short_or_unsynchronized_fingerprint(self) -> None:
+        lumas: list[int] = counter_lumas(FRAME_NUMBER)
+        short: str = bytes(lumas[:-1]).hex()
+        unsynchronized: str = bytes([*lumas[:-1], BRIGHT_LUMA]).hex()
+        missing: dict[str, bool | int] = {**send_values(0, 0, EVENT_COLORS), mcv2_tools.ARRIVED_FIELD: 0}
+        values: list[dict[str, bool | int | str]] = [
+            missing,
+            {**missing, mcv2_tools.FINGERPRINT_FIELD: short},
+            {**missing, mcv2_tools.FINGERPRINT_FIELD: unsynchronized},
+        ]
+        recording: subprocess.CompletedProcess[str] = jfr_run(values)
+        with patch.object(mcv2_tools.subprocess, "run", return_value=recording):
+            events: list[Any] = mcv2_tools.latency_events(RECORDING_PATH, mcv2_tools.JFR_COMMAND)
+
+        numbers: list[Any] = [event[EVENT_NUMBER_KEY] for event in events]
+        self.assertEqual([None, None, None], numbers)
+
     def report(
         self,
         later: dict[str, bool | float | int] | dict[str, bool | int],
@@ -230,6 +271,11 @@ def jfr_run(values: list[dict[str, Any]]) -> subprocess.CompletedProcess[str]:
     recording: dict[str, Any] = {mcv2_tools.JFR_RECORDING_KEY: {mcv2_tools.JFR_EVENTS_KEY: events}}
     output: str = json.dumps(recording)
     return subprocess.CompletedProcess(args=[], returncode=SUCCESS_EXIT_CODE, stdout=output)
+
+
+def counter_lumas(number: int) -> list[int]:
+    bits: list[int] = [(number >> position) & 1 for position in range(mcv2_tools.COUNTER_VIDEO_BITS)]
+    return [BRIGHT_LUMA if bit else DARK_LUMA for bit in [*bits, *mcv2_tools.COUNTER_VIDEO_SYNCHRONIZATION_BITS]]
 
 
 if __name__ == "__main__":
