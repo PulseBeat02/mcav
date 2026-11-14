@@ -29,6 +29,7 @@ from unittest.mock import patch
 import mcv2_tools
 
 CURVES_NAME: str = "codec_curves.json"
+PARTIAL_NAME: str = CURVES_NAME + ".partial"
 DOCUMENTED: Path = Path(__file__).resolve().parents[1] / "resources/mcv2/data" / CURVES_NAME
 
 SOURCES_KEY: str = "sources"
@@ -122,6 +123,16 @@ class ResumeTest(unittest.TestCase):
 
         printed: str = errors.getvalue()
         self.assertIn("proxy30 already has measurements of other content", printed)
+
+    def test_should_resume_the_output_it_saved(self) -> None:
+        documented: Any = json.loads(DOCUMENTED.read_text())
+        identity: Any = documented[SOURCES_KEY][DOCUMENTED_SOURCE]
+        mcv2_tools.codec_curves_save(self.output, documented)
+        measured: Any | dict[Any, Any] = mcv2_tools.codec_curves_resume(self.output, DOCUMENTED_SOURCE, dict(identity))
+        self.assertEqual(documented, measured)
+
+        partial: bool = os.path.exists(os.path.join(self.folder.name, PARTIAL_NAME))
+        self.assertFalse(partial)
 
     def test_should_read_the_points_of_the_first_runs(self) -> None:
         point: dict[str, Any] = {"source": NEW_SOURCE, "codec": "x264", "quality": 20}
