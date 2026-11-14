@@ -20,6 +20,7 @@ package me.brandonli.mcav.bukkit.media.mcv2;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -41,6 +42,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
+import me.brandonli.mcav.bukkit.BukkitException;
 import me.brandonli.mcav.bukkit.testing.UtilityClassAssertions;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.minecraft.world.level.material.MapColor;
@@ -56,6 +58,7 @@ final class Mcv2PackTest {
   private static final String PACK_FILE_NAME = "pack.zip";
   private static final String SCREENS_FILE_NAME = "screens.zip";
   private static final String REFUSED_FILE_NAME = "refused.zip";
+  private static final String BLOCKING_FILE_NAME = "file";
   private static final String LICENSE_HEADER_PATH = "../HEADER";
 
   private static final String PACK_METADATA_ENTRY = "pack.mcmeta";
@@ -477,6 +480,25 @@ final class Mcv2PackTest {
     );
     final String message = exception.getMessage();
     assertEquals("Archive path must not be null!", message);
+  }
+
+  @Test
+  void shouldReportAPackThatCannotBeWritten() throws IOException {
+    final Mcv2Configuration screen = Mcv2ConfigurationTest.complete().build();
+    final Path file = this.directory.resolve(BLOCKING_FILE_NAME);
+    final Path belowFile = file.resolve(REFUSED_FILE_NAME);
+    Files.createFile(file);
+
+    final BukkitException exception = assertThrows(BukkitException.class, () ->
+      Mcv2Pack.write(screen, Mcv2Pack.DebugView.HIDDEN, belowFile)
+    );
+    final String message = exception.getMessage();
+    final Path absolute = belowFile.toAbsolutePath();
+    final String expected = "Resource pack %s could not be written!".formatted(absolute);
+    assertEquals(expected, message);
+
+    final Throwable cause = exception.getCause();
+    assertInstanceOf(IOException.class, cause);
   }
 
   @Test
