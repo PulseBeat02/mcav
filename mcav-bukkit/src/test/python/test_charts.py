@@ -16,6 +16,10 @@
 
 import unittest
 
+from contextlib import redirect_stdout
+from io import StringIO
+from typing import Any
+
 import mcv2_tools
 
 LOWER_POINT: tuple[float, float] = (1.0, 80.0)
@@ -44,6 +48,20 @@ class ChartsTablesTest(unittest.TestCase):
             with self.subTest(value=value):
                 text: str = mcv2_tools.charts_signed(value)
                 self.assertEqual(expected, text)
+
+    def test_should_list_the_removed_features_by_their_mean_worth_largest_first(self) -> None:
+        removed: list[dict[str, Any]] = [removed_feature("smaller", -1.0, 0.0, -0.5), removed_feature("larger", 3.0, 2.0, 2.5)]
+        output: StringIO = StringIO()
+        with redirect_stdout(output):
+            mcv2_tools.charts_print_removed_table(removed)
+
+        rows: list[str] = output.getvalue().splitlines()[-2:]
+        self.assertEqual(["| larger | +3.0% | +2.0% | +2.5% |", "| smaller | -1.0% | 0.0% | -0.5% |"], rows)
+
+
+def removed_feature(name: str, proxy: float, gameplay: float, mean: float) -> dict[str, Any]:
+    rates: dict[str, float] = {mcv2_tools.PROXY_SOURCE: proxy, mcv2_tools.GAMEPLAY_SOURCE: gameplay, mcv2_tools.BD_RATE_MEAN_KEY: mean}
+    return {mcv2_tools.FEATURE_NAME_KEY: name, mcv2_tools.BD_RATE_KEY: rates}
 
 
 if __name__ == "__main__":
