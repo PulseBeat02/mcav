@@ -15,15 +15,21 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import json
+import math
 import os
+import sys
 import tempfile
 import unittest
+from contextlib import redirect_stderr
+from io import StringIO
 from pathlib import Path
 from typing import Any
+from unittest.mock import patch
 
 import mcv2_tools
 
 CURVES_NAME: str = "codec_curves.json"
+PARTIAL_NAME: str = CURVES_NAME + ".partial"
 DOCUMENTED: Path = Path(__file__).resolve().parents[1] / "resources/mcv2/data" / CURVES_NAME
 
 SOURCES_KEY: str = "sources"
@@ -35,6 +41,17 @@ DOCUMENTED_SOURCE: str = "proxy30"
 NEW_SOURCE: str = "a"
 
 DIGEST_DIGITS: int = 64
+
+SOURCE_FILE_NAME: str = "source.rgb"
+MISSING_FFMPEG_NAME: str = "missing-ffmpeg"
+DECODED_FILE_NAME: str = "decoded.rgb"
+
+FRAMES: int = 2
+WIDTH: int = 2
+HEIGHT: int = 1
+CHANNELS: int = 3
+FRAME_BYTES: int = WIDTH * HEIGHT * CHANNELS
+BLACK_FRAMES: bytes = bytes(FRAMES * FRAME_BYTES)
 
 
 class ResumeTest(unittest.TestCase):
@@ -63,6 +80,69 @@ class ResumeTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "proxy30 already has measurements of other content"):
             mcv2_tools.codec_curves_resume(self.output, DOCUMENTED_SOURCE, other)
 
+    def test_should_refuse_a_name_measured_with_other_settings(self) -> None:
+        documented: Any = json.loads(DOCUMENTED.read_text())
+        self.write(documented)
+        identity: Any = documented[SOURCES_KEY][DOCUMENTED_SOURCE]
+        other: dict[str, Any] = {**identity, "frames": identity["frames"] + 1}
+        with self.assertRaisesRegex(ValueError, "proxy30 already has measurements of other content"):
+            mcv2_tools.codec_curves_resume(self.output, DOCUMENTED_SOURCE, other)
+
+    def test_should_exit_2_before_ffmpeg_when_a_name_has_other_content(self) -> None:
+        documented: Any = json.loads(DOCUMENTED.read_text())
+        self.write(documented)
+        source: Path = Path(self.folder.name) / SOURCE_FILE_NAME
+        source.write_bytes(b"\0")
+        missing: str = os.path.join(self.folder.name, MISSING_FFMPEG_NAME)
+        arguments: list[str] = [
+            "mcv2_tools.py",
+            mcv2_tools.FFMPEG_OPTION,
+            missing,
+            mcv2_tools.SOURCE_OPTION,
+            str(source),
+            "--name",
+            DOCUMENTED_SOURCE,
+            mcv2_tools.WIDTH_OPTION,
+            "1",
+            mcv2_tools.HEIGHT_OPTION,
+            "1",
+            mcv2_tools.FRAMES_OPTION,
+            "1",
+            mcv2_tools.FRAMES_PER_SECOND_OPTION,
+            "1",
+            "--qualities",
+            "20",
+            mcv2_tools.OUTPUT_OPTION,
+            self.output,
+        ]
+        errors: StringIO = StringIO()
+        with patch.object(sys, "argv", arguments), redirect_stderr(errors), self.assertRaises(SystemExit) as raised:
+            mcv2_tools.codec_curves_main()
+        status: int | str | None = raised.exception.code
+        self.assertEqual(2, status)
+
+        printed: str = errors.getvalue()
+        self.assertIn("proxy30 already has measurements of other content", printed)
+
+    def test_should_resume_the_output_it_saved(self) -> None:
+        documented: Any = json.loads(DOCUMENTED.read_text())
+        identity: Any = documented[SOURCES_KEY][DOCUMENTED_SOURCE]
+        mcv2_tools.codec_curves_save(self.output, documented)
+        measured: Any | dict[Any, Any] = mcv2_tools.codec_curves_resume(self.output, DOCUMENTED_SOURCE, dict(identity))
+        self.assertEqual(documented, measured)
+
+        partial: bool = os.path.exists(os.path.join(self.folder.name, PARTIAL_NAME))
+        self.assertFalse(partial)
+
+    def test_should_keep_the_notes_of_a_resumed_source(self) -> None:
+        documented: Any = json.loads(DOCUMENTED.read_text())
+        self.write(documented)
+        stored: Any = documented[SOURCES_KEY][DOCUMENTED_SOURCE]
+        identity: dict[str, Any] = {key: stored[key] for key in ("width", "height", "frames", "fps", DIGEST_KEY)}
+        measured: Any | dict[Any, Any] = mcv2_tools.codec_curves_resume(self.output, DOCUMENTED_SOURCE, identity)
+        source: Any = measured[SOURCES_KEY][DOCUMENTED_SOURCE]
+        self.assertEqual(stored, source)
+
     def test_should_read_the_points_of_the_first_runs(self) -> None:
         point: dict[str, Any] = {"source": NEW_SOURCE, "codec": "x264", "quality": 20}
         self.write({SOURCES_KEY: {}, POINTS_KEY: [point]})
@@ -85,6 +165,35 @@ class ResumeTest(unittest.TestCase):
     def write(self, measured: Any | dict[Any, Any]) -> None:
         with open(self.output, "w") as output_file:
             json.dump(measured, output_file)
+
+
+class MeasurementTest(unittest.TestCase):
+    def setUp(self) -> None:
+        self.folder = tempfile.TemporaryDirectory()
+        self.source = os.path.join(self.folder.name, SOURCE_FILE_NAME)
+        Path(self.source).write_bytes(BLACK_FRAMES)
+
+    def tearDown(self) -> None:
+        self.folder.cleanup()
+
+    def test_should_score_identical_frames_at_99_db(self) -> None:
+        psnr: float = mcv2_tools.codec_curves_rgb_psnr(self.source, self.source, FRAMES, WIDTH, HEIGHT)
+        self.assertEqual(99.0, psnr)
+
+    def test_should_score_the_mean_of_the_frame_errors(self) -> None:
+        decoded: str = os.path.join(self.folder.name, DECODED_FILE_NAME)
+        Path(decoded).write_bytes(bytes([3] * FRAME_BYTES + [4] * FRAME_BYTES))
+        psnr: float = mcv2_tools.codec_curves_rgb_psnr(self.source, decoded, FRAMES, WIDTH, HEIGHT)
+        expected: float = 10 * math.log10(255**2 / ((3**2 + 4**2) / 2))
+        self.assertAlmostEqual(expected, psnr)
+
+    def test_should_fail_with_the_program_and_the_end_of_its_errors(self) -> None:
+        script: str = "import sys; sys.stderr.write('first' + '.' * 2000); sys.exit(1)"
+        with self.assertRaises(RuntimeError) as raised:
+            mcv2_tools.codec_curves_run([sys.executable, "-c", script])
+        message: str = str(raised.exception)
+        expected: str = f"Command {sys.executable} failed!\n{'.' * 2000}"
+        self.assertEqual(expected, message)
 
 
 if __name__ == "__main__":

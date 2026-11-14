@@ -1021,7 +1021,7 @@ def codec_curves_resume(output: str, name: str, identity: dict[str, Any] | dict[
         message = f"Name {name} already has measurements of other content; use another --name!"
         raise ValueError(message)
 
-    measured[SOURCES_KEY][name] = identity
+    measured[SOURCES_KEY][name] = {**measured[SOURCES_KEY].get(name, {}), **identity}
     return measured
 
 
@@ -1241,6 +1241,10 @@ def counter_video_main() -> None:
         sys.exit(message)
 
     frames: int = int(arguments.seconds * arguments.frames_per_second)
+    if frames < 1:
+        message: str = f"Seconds {arguments.seconds} at {arguments.frames_per_second} frames per second must give at least one frame!"
+        parser.error(message)
+
     raw: Any = arguments.out.endswith(RAW_SUFFIX)
     encoder: subprocess.Popen[bytes] | None = None
     if not raw:
@@ -1331,6 +1335,9 @@ def capture_check_main() -> None:
     screen_height, screen_width = numpy.asarray(Image.open(paths[0]).convert(RGB_MODE)).shape[:2]
     visible: Any = min(height, screen_height - arguments.top)
     shown: Any = min(width, screen_width)
+    if arguments.top < 0 or visible <= 0:
+        message: str = f"Top {arguments.top} must lie inside the {screen_height} rows of the captures!"
+        parser.error(message)
     if visible < height or shown < width:
         print(f"the screen shows {shown}x{visible} of the {width}x{height} picture; the rest is not compared")
         reference_frames = numpy.ascontiguousarray(reference_frames[:, :visible, :shown])
@@ -3497,6 +3504,10 @@ def latency_main() -> None:
         "--stream", type=int, default=0, help="the frames of a pre-encoded stream played by /mcav mcv2 stream"
     )
     arguments: argparse.Namespace = parser.parse_args()
+    if arguments.stream < 0:
+        message: str = f"Stream length {arguments.stream} must not be negative!"
+        parser.error(message)
+
     frames: list[Any]
     if arguments.stream:
         frames = latency_sends(arguments.recording, arguments.jfr, arguments.stream)
