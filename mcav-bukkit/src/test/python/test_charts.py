@@ -39,6 +39,12 @@ class ChartsTablesTest(unittest.TestCase):
         rate: float | None = mcv2_tools.charts_rate_at([(1.0, 80.0), (2.0, 80.0)], 80)
         self.assertIsNone(rate)
 
+    def test_should_sign_each_percentage_and_print_a_zero_unsigned(self) -> None:
+        for value, expected in [(1.5, "+1.5%"), (-2.0, "-2.0%"), (0.04, "0.0%"), (-0.04, "0.0%")]:
+            with self.subTest(value=value):
+                text: str = mcv2_tools.charts_signed(value)
+                self.assertEqual(expected, text)
+
 
 if __name__ == "__main__":
     unittest.main()
