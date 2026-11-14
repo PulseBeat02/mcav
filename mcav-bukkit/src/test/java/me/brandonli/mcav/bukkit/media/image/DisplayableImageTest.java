@@ -268,6 +268,30 @@ final class DisplayableImageTest {
   }
 
   @Test
+  void shouldCenterMapImagesOnTheWholeWallAndSplitThemAcrossConsecutiveMaps() {
+    final MapConfiguration configuration = this.createMapGridConfiguration(2, 1);
+    final DisplayableImage display = DisplayableImage.map(configuration, this.algorithm);
+    final ImageBuffer image = Images.solid(32, 16, GRAY);
+
+    display.displayImage(image);
+
+    final List<ClientboundMapItemDataPacket> shown = this.mapPackets(0);
+    final int shownCount = shown.size();
+    final ClientboundMapItemDataPacket leftPacket = shown.getFirst();
+    final ClientboundMapItemDataPacket rightPacket = shown.get(1);
+    final byte[] source = MapPackets.pattern(32 * 16, 4);
+    final byte[] leftColors = new byte[16 * 16];
+    final byte[] rightColors = new byte[16 * 16];
+    for (int row = 0; row < 16; row++) {
+      System.arraycopy(source, row * 32, leftColors, row * 16, 16);
+      System.arraycopy(source, row * 32 + 16, rightColors, row * 16, 16);
+    }
+    assertEquals(2, shownCount, "the image spans both maps of the wall");
+    MapPackets.assertMapPacket(leftPacket, 2, 112, 56, 16, 16, leftColors);
+    MapPackets.assertMapPacket(rightPacket, 3, 0, 56, 16, 16, rightColors);
+  }
+
+  @Test
   void shouldCropMapImagesLargerThanTheMapsEquallyOnEverySide() {
     final MapConfiguration configuration = this.createMapConfiguration(Sizing.ORIGINAL);
     final DisplayableImage display = DisplayableImage.map(configuration, this.algorithm);
@@ -306,7 +330,7 @@ final class DisplayableImageTest {
   }
 
   @Test
-  void shouldReplaceThePreviousChatImageAndClearTheChatAgain() {
+  void shouldResizeChatImagesInPlaceReplaceThePreviousChatImageAndClearTheChatAgain() {
     final ChatConfiguration configuration = this.createChatConfiguration();
     final DisplayableImage display = DisplayableImage.chat(configuration);
     final ImageBuffer image = Images.solid(4, 2, GRAY);
@@ -318,18 +342,20 @@ final class DisplayableImageTest {
     final String shown = this.chatMessage(1);
     final String secondClear = this.chatMessage(2);
     final int width = image.getWidth();
+    final int height = image.getHeight();
     assertEquals(CLEARED_CHAT, firstClear);
     assertEquals("##", shown);
     assertEquals(CLEARED_CHAT, secondClear);
     assertEquals(2, width);
+    assertEquals(1, height);
     assertThrows(NullPointerException.class, () -> display.displayImage(null));
   }
 
   @Test
-  void shouldSpawnADisplayForEntityImagesAndRemoveItAgain() {
+  void shouldResizeEntityImagesInPlaceSpawnADisplayAndRemoveItAgain() {
     final EntityConfiguration configuration = this.createEntityConfiguration();
     final DisplayableImage display = DisplayableImage.entity(configuration);
-    final ImageBuffer image = Images.solid(1, 1, GRAY);
+    final ImageBuffer image = Images.solid(4, 2, GRAY);
 
     display.displayImage(image);
     this.server.runTasks();
@@ -349,6 +375,12 @@ final class DisplayableImageTest {
     final List<Integer> expectedColors = List.of(GRAY_RGB);
     assertEquals(expectedColors, colors, "the submitted image's exact color reaches the display");
     verify(entity).remove();
+
+    final int width = image.getWidth();
+    final int height = image.getHeight();
+    assertEquals(1, width);
+    assertEquals(1, height);
+
     assertThrows(NullPointerException.class, () -> display.displayImage(null));
   }
 
@@ -362,14 +394,14 @@ final class DisplayableImageTest {
   }
 
   @Test
-  void shouldShowTheSidebarForScoreboardImagesAndRestoreThePreviousScoreboard() {
+  void shouldResizeScoreboardImagesInPlaceShowTheSidebarAndRestoreThePreviousScoreboard() {
     final ScoreboardManager manager = this.server.getScoreboardManager();
     final FakeScoreboards scoreboards = FakeScoreboards.install(manager);
     final Scoreboard previous = mock(CraftScoreboard.class);
     FakeScoreboards.trackScoreboard(this.viewer, previous);
     final ScoreboardConfiguration configuration = this.createScoreboardConfiguration();
     final DisplayableImage display = DisplayableImage.scoreboard(configuration);
-    final ImageBuffer image = Images.solid(1, 1, GRAY);
+    final ImageBuffer image = Images.solid(4, 2, GRAY);
 
     display.displayImage(image);
     this.server.runTasks();
@@ -383,14 +415,20 @@ final class DisplayableImageTest {
     assertSame(board, shown);
     assertSame(previous, restored);
     verify(firstTeam).suffix(Component.text(CHARACTER, TextColor.color(GRAY_RGB)));
+
+    final int width = image.getWidth();
+    final int height = image.getHeight();
+    assertEquals(1, width);
+    assertEquals(1, height);
+
     assertThrows(NullPointerException.class, () -> display.displayImage(null));
   }
 
   @Test
-  void shouldShowBlocksForBlockImagesAndRestoreTheWorldAgain() {
+  void shouldResizeBlockImagesInPlaceShowBlocksAndRestoreTheWorldAgain() {
     final BlockConfiguration configuration = this.createBlockConfiguration();
     final DisplayableImage display = DisplayableImage.block(configuration);
-    final ImageBuffer image = Images.solid(1, 1, 0xFF000000 | BROWN);
+    final ImageBuffer image = Images.solid(4, 2, 0xFF000000 | BROWN);
 
     display.displayImage(image);
     this.server.runTasks();
@@ -403,6 +441,12 @@ final class DisplayableImageTest {
     final Map<Position, BlockData> restoredBlocks = Map.of(position, original);
     verify(this.viewer).sendMultiBlockChange(shownBlocks);
     verify(this.viewer).sendMultiBlockChange(restoredBlocks);
+
+    final int width = image.getWidth();
+    final int height = image.getHeight();
+    assertEquals(1, width);
+    assertEquals(1, height);
+
     assertThrows(NullPointerException.class, () -> display.displayImage(null));
   }
 

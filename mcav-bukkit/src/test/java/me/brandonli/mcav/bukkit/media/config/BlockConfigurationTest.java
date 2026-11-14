@@ -94,8 +94,12 @@ final class BlockConfigurationTest {
   void shouldRejectNullInSetters() {
     final BlockConfigurationBuilder builder = BlockConfiguration.builder();
 
-    assertThrows(NullPointerException.class, () -> builder.viewers(null));
-    assertThrows(NullPointerException.class, () -> builder.position(null));
+    final NullPointerException nullViewersException = assertThrows(NullPointerException.class, () -> builder.viewers(null));
+    final NullPointerException nullPositionException = assertThrows(NullPointerException.class, () -> builder.position(null));
+    final String nullViewersMessage = nullViewersException.getMessage();
+    final String nullPositionMessage = nullPositionException.getMessage();
+    assertEquals("Viewers must not be null!", nullViewersMessage);
+    assertEquals("Position must not be null!", nullPositionMessage);
   }
 
   @Test
@@ -117,13 +121,16 @@ final class BlockConfigurationTest {
     noHeight.position(POSITION);
     noHeight.blockWidth(1);
 
-    assertThrows(IllegalStateException.class, noViewers::build);
-    assertThrows(IllegalStateException.class, noPosition::build);
-
+    final IllegalStateException noViewersException = assertThrows(IllegalStateException.class, noViewers::build);
+    final IllegalStateException noPositionException = assertThrows(IllegalStateException.class, noPosition::build);
     final IllegalArgumentException noWidthException = assertThrows(IllegalArgumentException.class, noWidth::build);
     final IllegalArgumentException noHeightException = assertThrows(IllegalArgumentException.class, noHeight::build);
+    final String noViewersMessage = noViewersException.getMessage();
+    final String noPositionMessage = noPositionException.getMessage();
     final String noWidthMessage = noWidthException.getMessage();
     final String noHeightMessage = noHeightException.getMessage();
+    assertEquals("Viewers must be set!", noViewersMessage);
+    assertEquals("Position must be set!", noPositionMessage);
     assertEquals("Block width 0 must be positive!", noWidthMessage);
     assertEquals("Block height 0 must be positive!", noHeightMessage);
   }

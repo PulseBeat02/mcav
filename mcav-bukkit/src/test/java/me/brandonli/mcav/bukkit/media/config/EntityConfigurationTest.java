@@ -95,9 +95,15 @@ final class EntityConfigurationTest {
   void shouldRejectNullInSetters() {
     final EntityConfigurationBuilder builder = EntityConfiguration.builder();
 
-    assertThrows(NullPointerException.class, () -> builder.viewers(null));
-    assertThrows(NullPointerException.class, () -> builder.character(null));
-    assertThrows(NullPointerException.class, () -> builder.position(null));
+    final NullPointerException nullViewersException = assertThrows(NullPointerException.class, () -> builder.viewers(null));
+    final NullPointerException nullCharacterException = assertThrows(NullPointerException.class, () -> builder.character(null));
+    final NullPointerException nullPositionException = assertThrows(NullPointerException.class, () -> builder.position(null));
+    final String nullViewersMessage = nullViewersException.getMessage();
+    final String nullCharacterMessage = nullCharacterException.getMessage();
+    final String nullPositionMessage = nullPositionException.getMessage();
+    assertEquals("Viewers must not be null!", nullViewersMessage);
+    assertEquals("Character must not be null!", nullCharacterMessage);
+    assertEquals("Position must not be null!", nullPositionMessage);
   }
 
   @Test
@@ -118,9 +124,15 @@ final class EntityConfigurationTest {
     noPosition.entityWidth(1);
     noPosition.entityHeight(1);
 
-    assertThrows(IllegalStateException.class, noViewers::build);
-    assertThrows(IllegalStateException.class, noCharacter::build);
-    assertThrows(IllegalStateException.class, noPosition::build);
+    final IllegalStateException noViewersException = assertThrows(IllegalStateException.class, noViewers::build);
+    final IllegalStateException noCharacterException = assertThrows(IllegalStateException.class, noCharacter::build);
+    final IllegalStateException noPositionException = assertThrows(IllegalStateException.class, noPosition::build);
+    final String noViewersMessage = noViewersException.getMessage();
+    final String noCharacterMessage = noCharacterException.getMessage();
+    final String noPositionMessage = noPositionException.getMessage();
+    assertEquals("Viewers must be set!", noViewersMessage);
+    assertEquals("Character must be set!", noCharacterMessage);
+    assertEquals("Position must be set!", noPositionMessage);
   }
 
   @Test

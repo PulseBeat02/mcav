@@ -200,9 +200,15 @@ final class Mcv2ConfigurationTest {
       final Pool defaultEncoderPool = complete().build().withVideo(64, 64).getEncoderPool();
       assertSame(expectedEncoderPool, defaultEncoderPool);
 
-      assertThrows(IllegalArgumentException.class, () -> original.withVideo(0, 90));
-      assertThrows(IllegalArgumentException.class, () -> original.withVideo(160, 0));
-      assertThrows(IllegalArgumentException.class, () -> original.withVideo(5000, 90));
+      final IllegalArgumentException noWidthException = assertThrows(IllegalArgumentException.class, () -> original.withVideo(0, 90));
+      final IllegalArgumentException noHeightException = assertThrows(IllegalArgumentException.class, () -> original.withVideo(160, 0));
+      final IllegalArgumentException tooWideException = assertThrows(IllegalArgumentException.class, () -> original.withVideo(5000, 90));
+      final String noWidthMessage = noWidthException.getMessage();
+      final String noHeightMessage = noHeightException.getMessage();
+      final String tooWideMessage = tooWideException.getMessage();
+      assertEquals("Video size must be positive!", noWidthMessage);
+      assertEquals("Video size must be positive!", noHeightMessage);
+      assertEquals("Video width must be between 0 and 4096 inclusive!", tooWideMessage);
     }
   }
 
@@ -229,12 +235,24 @@ final class Mcv2ConfigurationTest {
     final double highestMaximumFrameRate = complete().maximumFrameRate(Mcv2Configuration.MAXIMUM_FRAME_RATE).build().getMaximumFrameRate();
     assertEquals(Mcv2Configuration.MAXIMUM_FRAME_RATE, highestMaximumFrameRate);
 
-    assertThrows(IllegalArgumentException.class, () -> complete().maximumFrameRate(-1).build());
-    assertThrows(IllegalArgumentException.class, () ->
+    final IllegalArgumentException negativeRateException = assertThrows(IllegalArgumentException.class, () ->
+      complete().maximumFrameRate(-1).build()
+    );
+    final IllegalArgumentException tooFastRateException = assertThrows(IllegalArgumentException.class, () ->
       complete()
         .maximumFrameRate(Mcv2Configuration.MAXIMUM_FRAME_RATE + 0.5)
         .build()
     );
+    final IllegalArgumentException nanRateException = assertThrows(IllegalArgumentException.class, () ->
+      complete().maximumFrameRate(Double.NaN).build()
+    );
+    final String negativeRateMessage = negativeRateException.getMessage();
+    final String tooFastRateMessage = tooFastRateException.getMessage();
+    final String nanRateMessage = nanRateException.getMessage();
+    final String rateExpected = "Frame rate must be between 0 and %s inclusive!".formatted(Mcv2Configuration.MAXIMUM_FRAME_RATE);
+    assertEquals(rateExpected, negativeRateMessage);
+    assertEquals(rateExpected, tooFastRateMessage);
+    assertEquals(rateExpected, nanRateMessage);
   }
 
   @Test
@@ -262,13 +280,21 @@ final class Mcv2ConfigurationTest {
     final long originalFirstFrameId = original.getFirstFrameId();
     assertEquals(0, originalFirstFrameId);
 
-    assertThrows(IllegalArgumentException.class, () ->
+    final IllegalArgumentException tooLargeStreamException = assertThrows(IllegalArgumentException.class, () ->
       original.withSlot(Mcv2Configuration.MAXIMUM_STREAM_ID + 1, Mcv2Configuration.DEFAULT_PAGE_MAP, 0)
     );
-    assertThrows(IllegalArgumentException.class, () -> original.withSlot(1, Mcv2Configuration.DEFAULT_PAGE_MAP, -1));
-    assertThrows(IllegalArgumentException.class, () ->
+    final IllegalArgumentException negativeFrameException = assertThrows(IllegalArgumentException.class, () ->
+      original.withSlot(1, Mcv2Configuration.DEFAULT_PAGE_MAP, -1)
+    );
+    final IllegalArgumentException tooLargeFrameException = assertThrows(IllegalArgumentException.class, () ->
       original.withSlot(1, Mcv2Configuration.DEFAULT_PAGE_MAP, Mcv2Decoder.MAXIMUM_UNSIGNED_INT + 1)
     );
+    final String tooLargeStreamMessage = tooLargeStreamException.getMessage();
+    final String negativeFrameMessage = negativeFrameException.getMessage();
+    final String tooLargeFrameMessage = tooLargeFrameException.getMessage();
+    assertEquals("Stream id must be between 0 and 4095 inclusive!", tooLargeStreamMessage);
+    assertEquals("First frame id must be an unsigned 32-bit value!", negativeFrameMessage);
+    assertEquals("First frame id must be an unsigned 32-bit value!", tooLargeFrameMessage);
   }
 
   @Test
@@ -333,6 +359,17 @@ final class Mcv2ConfigurationTest {
     assertEquals(code, facingCode);
   }
 
+  @Test
+  void shouldFailWhenTheFacingIsNotAWallDirection() {
+    final DefaultMcv2ConfigurationBuilder builder = new DefaultMcv2ConfigurationBuilder();
+    final Location origin = new Location(WORLD, 0, 0, 0);
+    final Mcv2Configuration configuration = new Mcv2Configuration(builder, VIEWERS, origin, BlockFace.UP, 0);
+
+    final IllegalStateException exception = assertThrows(IllegalStateException.class, configuration::getRight);
+    final String message = exception.getMessage();
+    assertEquals("Facing UP is not a wall direction!", message);
+  }
+
   private void refuses(final String message, final Consumer<Mcv2ConfigurationBuilder> change) {
     final Mcv2ConfigurationBuilder builder = complete();
     final IllegalArgumentException failure = assertThrows(IllegalArgumentException.class, () ->
@@ -349,7 +386,7 @@ final class Mcv2ConfigurationTest {
 
   @Test
   void shouldRefuseMissingOrInvalidValues() {
-    assertThrows(IllegalStateException.class, () ->
+    final IllegalStateException noViewersException = assertThrows(IllegalStateException.class, () ->
       Mcv2Configuration.builder()
         .origin(new Location(WORLD, 0, 0, 0))
         .facing(BlockFace.SOUTH)
@@ -358,10 +395,10 @@ final class Mcv2ConfigurationTest {
         .rows(1)
         .build()
     );
-    assertThrows(IllegalStateException.class, () ->
+    final IllegalStateException noOriginException = assertThrows(IllegalStateException.class, () ->
       Mcv2Configuration.builder().viewers(VIEWERS).facing(BlockFace.SOUTH).map(0).columns(1).rows(1).build()
     );
-    assertThrows(IllegalStateException.class, () ->
+    final IllegalStateException noFacingException = assertThrows(IllegalStateException.class, () ->
       Mcv2Configuration.builder()
         .viewers(VIEWERS)
         .origin(new Location(WORLD, 0, 0, 0))
@@ -370,6 +407,22 @@ final class Mcv2ConfigurationTest {
         .rows(1)
         .build()
     );
+    final String noViewersMessage = noViewersException.getMessage();
+    final String noOriginMessage = noOriginException.getMessage();
+    final String noFacingMessage = noFacingException.getMessage();
+    assertEquals("Viewers must be set!", noViewersMessage);
+    assertEquals("Origin must be set!", noOriginMessage);
+    assertEquals("Facing must be set!", noFacingMessage);
+
+    final Mcv2ConfigurationBuilder noMap = Mcv2Configuration.builder()
+      .viewers(VIEWERS)
+      .origin(new Location(WORLD, 0, 0, 0))
+      .facing(BlockFace.SOUTH)
+      .columns(1)
+      .rows(1);
+    final IllegalArgumentException noMapException = assertThrows(IllegalArgumentException.class, noMap::build);
+    final String noMapMessage = noMapException.getMessage();
+    assertEquals("Map id -1 must be set and must not be negative!", noMapMessage);
     this.refuses("Origin must be in a world!", builder -> builder.origin(new Location(null, 0, 0, 0)));
     this.refuses("Facing UP is not horizontal, but frames must face a horizontal direction!", builder -> builder.facing(BlockFace.UP));
     this.refuses("Facing NORTH_EAST is not horizontal, but frames must face a horizontal direction!", builder ->
@@ -479,8 +532,12 @@ final class Mcv2ConfigurationTest {
     final int smallestVideoHeight = configuration.withVideo(1, 1).getVideoHeight();
     assertEquals(1, smallestVideoHeight);
 
-    assertThrows(IllegalArgumentException.class, () -> configuration.withVideo(0, 1));
-    assertThrows(IllegalArgumentException.class, () -> configuration.withVideo(1, 0));
+    final IllegalArgumentException noWidthException = assertThrows(IllegalArgumentException.class, () -> configuration.withVideo(0, 1));
+    final IllegalArgumentException noHeightException = assertThrows(IllegalArgumentException.class, () -> configuration.withVideo(1, 0));
+    final String noWidthMessage = noWidthException.getMessage();
+    final String noHeightMessage = noHeightException.getMessage();
+    assertEquals("Video size must be positive!", noWidthMessage);
+    assertEquals("Video size must be positive!", noHeightMessage);
   }
 
   @Test
@@ -502,7 +559,9 @@ final class Mcv2ConfigurationTest {
     final IllegalArgumentException wide = assertThrows(IllegalArgumentException.class, () -> complete().columns(33).build());
     final String message = wide.getMessage();
     assertEquals("A wall of 33 by 3 maps is 4224 by 384 pixels, more than the codec's 4096: set a smaller video size!", message);
-    assertThrows(IllegalArgumentException.class, () -> complete().rows(33).build());
+    final IllegalArgumentException tall = assertThrows(IllegalArgumentException.class, () -> complete().rows(33).build());
+    final String tallMessage = tall.getMessage();
+    assertEquals("A wall of 5 by 33 maps is 640 by 4224 pixels, more than the codec's 4096: set a smaller video size!", tallMessage);
 
     final int wideVideoWidth = complete().columns(33).video(MAXIMUM_VIDEO_SIDE, 0).build().getVideoWidth();
     assertEquals(MAXIMUM_VIDEO_SIDE, wideVideoWidth);

@@ -1,6 +1,3 @@
-me/brandonli/mcav/bukkit/media/mcv2/Mcv2Configuration.java | return switch (this.facing) { | the builder accepts only north, east, south and west as the facing
-me/brandonli/mcav/bukkit/media/mcv2/Mcv2Configuration.java | final String message = "Facing %s is not a wall direction!".formatted(this.facing); | the builder accepts only north, east, south and west as the facing
-me/brandonli/mcav/bukkit/media/mcv2/Mcv2Configuration.java | throw new IllegalStateException(message); | the builder accepts only north, east, south and west as the facing
 me/brandonli/mcav/bukkit/media/mcv2/Mcv2Configuration.java | return switch (right) { | getRight returns only north, east, south or west
 me/brandonli/mcav/bukkit/media/mcv2/Mcv2Configuration.java | final String message = "Right edge %s is not a wall direction!".formatted(right); | getRight returns only north, east, south or west
 me/brandonli/mcav/bukkit/media/mcv2/Mcv2Configuration.java | throw new IllegalStateException(message); | getRight returns only north, east, south or west

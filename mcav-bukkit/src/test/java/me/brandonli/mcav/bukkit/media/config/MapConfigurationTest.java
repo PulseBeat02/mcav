@@ -116,7 +116,9 @@ final class MapConfigurationTest {
   void shouldRejectNullInSetters() {
     final MapConfigurationBuilder builder = MapConfiguration.builder();
 
-    assertThrows(NullPointerException.class, () -> builder.viewers(null));
+    final NullPointerException nullViewersException = assertThrows(NullPointerException.class, () -> builder.viewers(null));
+    final String nullViewersMessage = nullViewersException.getMessage();
+    assertEquals("Viewers must not be null!", nullViewersMessage);
   }
 
   @Test
@@ -136,11 +138,21 @@ final class MapConfigurationTest {
     final MapConfigurationBuilder noHeight = this.completeBuilder();
     noHeight.mapBlockHeight(0);
 
-    assertThrows(IllegalStateException.class, noViewers::build);
-    assertThrows(IllegalArgumentException.class, noMap::build);
-    assertThrows(IllegalArgumentException.class, negativeMap::build);
-    assertThrows(IllegalArgumentException.class, noWidth::build);
-    assertThrows(IllegalArgumentException.class, noHeight::build);
+    final IllegalStateException noViewersException = assertThrows(IllegalStateException.class, noViewers::build);
+    final IllegalArgumentException noMapException = assertThrows(IllegalArgumentException.class, noMap::build);
+    final IllegalArgumentException negativeMapException = assertThrows(IllegalArgumentException.class, negativeMap::build);
+    final IllegalArgumentException noWidthException = assertThrows(IllegalArgumentException.class, noWidth::build);
+    final IllegalArgumentException noHeightException = assertThrows(IllegalArgumentException.class, noHeight::build);
+    final String noViewersMessage = noViewersException.getMessage();
+    final String noMapMessage = noMapException.getMessage();
+    final String negativeMapMessage = negativeMapException.getMessage();
+    final String noWidthMessage = noWidthException.getMessage();
+    final String noHeightMessage = noHeightException.getMessage();
+    assertEquals("Viewers must be set!", noViewersMessage);
+    assertEquals("Map id -1 must be set and must not be negative!", noMapMessage);
+    assertEquals("Map id -2 must be set and must not be negative!", negativeMapMessage);
+    assertEquals("Map block width 0 must be positive!", noWidthMessage);
+    assertEquals("Map block height 0 must be positive!", noHeightMessage);
   }
 
   @Test
@@ -184,8 +196,12 @@ final class MapConfigurationTest {
     width.mapBlockWidth(Integer.MAX_VALUE / MAP_SIZE + 1);
     final MapConfigurationBuilder height = this.completeBuilder();
     height.mapBlockHeight(Integer.MAX_VALUE / MAP_SIZE + 1);
-    assertThrows(IllegalArgumentException.class, width::build);
-    assertThrows(IllegalArgumentException.class, height::build);
+    final IllegalArgumentException widthException = assertThrows(IllegalArgumentException.class, width::build);
+    final IllegalArgumentException heightException = assertThrows(IllegalArgumentException.class, height::build);
+    final String widthMessage = widthException.getMessage();
+    final String heightMessage = heightException.getMessage();
+    assertEquals("Native map resolution exceeds the integer range!", widthMessage);
+    assertEquals("Native map resolution exceeds the integer range!", heightMessage);
   }
 
   @Test
