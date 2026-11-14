@@ -47,11 +47,12 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * 10 P frames on it, and does not step down in the first 5 seconds of the video, while a new encoder warms up.
  *
  * <p>It steps back up when a rung above has been predicted to fit in 70 % of its frame time for 5 seconds, to the
- * highest such rung, and keeps off a rung it had to leave for 10 seconds, longer each time.
+ * highest such rung, and keeps off a rung it had to leave for 10 seconds, twice as long each time it leaves that rung
+ * again, up to 600 seconds, and 10 seconds again once the rung has held as long as it would next be kept off.
  *
  * <p>From the dithered maps it tries the lowest encoded rung again after 30 seconds, and twice as long after every try
- * that failed, up to 600 seconds; on the dithered maps it does not measure the video's rate, since the frames then
- * come as fast as the dithering allows.
+ * that failed, up to 600 seconds, and 30 seconds again once an encoded rung has held as long as the next wait; on the
+ * dithered maps it does not measure the video's rate, since the frames then come as fast as the dithering allows.
  *
  * <p>The thresholds guide adaptation after startup and sample-count gates; they are predictions, not a hard latency
  * guarantee. Changing content or external load can invalidate an earlier timing estimate.
