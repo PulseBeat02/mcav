@@ -15,6 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import json
+import math
 import os
 import sys
 import tempfile
@@ -42,6 +43,14 @@ DIGEST_DIGITS: int = 64
 
 SOURCE_FILE_NAME: str = "source.rgb"
 MISSING_FFMPEG_NAME: str = "missing-ffmpeg"
+DECODED_FILE_NAME: str = "decoded.rgb"
+
+FRAMES: int = 2
+WIDTH: int = 2
+HEIGHT: int = 1
+CHANNELS: int = 3
+FRAME_BYTES: int = WIDTH * HEIGHT * CHANNELS
+BLACK_FRAMES: bytes = bytes(FRAMES * FRAME_BYTES)
 
 
 class ResumeTest(unittest.TestCase):
@@ -136,6 +145,27 @@ class ResumeTest(unittest.TestCase):
     def write(self, measured: Any | dict[Any, Any]) -> None:
         with open(self.output, "w") as output_file:
             json.dump(measured, output_file)
+
+
+class MeasurementTest(unittest.TestCase):
+    def setUp(self) -> None:
+        self.folder = tempfile.TemporaryDirectory()
+        self.source = os.path.join(self.folder.name, SOURCE_FILE_NAME)
+        Path(self.source).write_bytes(BLACK_FRAMES)
+
+    def tearDown(self) -> None:
+        self.folder.cleanup()
+
+    def test_should_score_identical_frames_at_99_db(self) -> None:
+        psnr: float = mcv2_tools.codec_curves_rgb_psnr(self.source, self.source, FRAMES, WIDTH, HEIGHT)
+        self.assertEqual(99.0, psnr)
+
+    def test_should_score_the_mean_of_the_frame_errors(self) -> None:
+        decoded: str = os.path.join(self.folder.name, DECODED_FILE_NAME)
+        Path(decoded).write_bytes(bytes([3] * FRAME_BYTES + [4] * FRAME_BYTES))
+        psnr: float = mcv2_tools.codec_curves_rgb_psnr(self.source, decoded, FRAMES, WIDTH, HEIGHT)
+        expected: float = 10 * math.log10(255**2 / ((3**2 + 4**2) / 2))
+        self.assertAlmostEqual(expected, psnr)
 
 
 if __name__ == "__main__":
