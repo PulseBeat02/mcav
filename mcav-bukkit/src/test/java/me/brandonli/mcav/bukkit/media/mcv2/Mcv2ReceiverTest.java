@@ -58,6 +58,13 @@ final class Mcv2ReceiverTest {
   }
 
   @Test
+  void shouldRefuseNullFrameBytes() {
+    final Mcv2Receiver receiver = new Mcv2Receiver();
+
+    assertThrows(NullPointerException.class, () -> receiver.accept(null));
+  }
+
+  @Test
   void shouldStillRequireAFrameAfterFrameZeroToBeNewer() {
     final Mcv2Receiver receiver = new Mcv2Receiver();
     receiver.accept(this.keyframeWithId(0, 1));
