@@ -402,6 +402,16 @@ final class Mcv2ConfigurationTest {
     assertEquals("Viewers must be set!", noViewersMessage);
     assertEquals("Origin must be set!", noOriginMessage);
     assertEquals("Facing must be set!", noFacingMessage);
+
+    final Mcv2ConfigurationBuilder noMap = Mcv2Configuration.builder()
+      .viewers(VIEWERS)
+      .origin(new Location(WORLD, 0, 0, 0))
+      .facing(BlockFace.SOUTH)
+      .columns(1)
+      .rows(1);
+    final IllegalArgumentException noMapException = assertThrows(IllegalArgumentException.class, noMap::build);
+    final String noMapMessage = noMapException.getMessage();
+    assertEquals("Map id -1 must be set and must not be negative!", noMapMessage);
     this.refuses("Origin must be in a world!", builder -> builder.origin(new Location(null, 0, 0, 0)));
     this.refuses("Facing UP is not horizontal, but frames must face a horizontal direction!", builder -> builder.facing(BlockFace.UP));
     this.refuses("Facing NORTH_EAST is not horizontal, but frames must face a horizontal direction!", builder ->
