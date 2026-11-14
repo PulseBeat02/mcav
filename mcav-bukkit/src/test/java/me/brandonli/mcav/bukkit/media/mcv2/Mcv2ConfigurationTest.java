@@ -359,6 +359,17 @@ final class Mcv2ConfigurationTest {
     assertEquals(code, facingCode);
   }
 
+  @Test
+  void shouldFailWhenTheFacingIsNotAWallDirection() {
+    final DefaultMcv2ConfigurationBuilder builder = new DefaultMcv2ConfigurationBuilder();
+    final Location origin = new Location(WORLD, 0, 0, 0);
+    final Mcv2Configuration configuration = new Mcv2Configuration(builder, VIEWERS, origin, BlockFace.UP, 0);
+
+    final IllegalStateException exception = assertThrows(IllegalStateException.class, configuration::getRight);
+    final String message = exception.getMessage();
+    assertEquals("Facing UP is not a wall direction!", message);
+  }
+
   private void refuses(final String message, final Consumer<Mcv2ConfigurationBuilder> change) {
     final Mcv2ConfigurationBuilder builder = complete();
     final IllegalArgumentException failure = assertThrows(IllegalArgumentException.class, () ->
