@@ -49,6 +49,8 @@ DECODED_COLOR: tuple[int, ...] = next(
 
 NOTES_FILE: str = "notes.txt"
 CAPTURE_FILE: str = "capture.png"
+FIRST_CAPTURE_FILE: str = "capture-1.png"
+SECOND_CAPTURE_FILE: str = "capture-2.png"
 DESCRIPTOR_FAILURE: str = f"{CAPTURE_FILE}: descriptor"
 SLOT_FAILURE: str = f"{CAPTURE_FILE}: slot 0 square {mcv2_tools.STRIP_CHECK_GREEN}, page valid False"
 
@@ -190,6 +192,24 @@ class StripCheckTest(unittest.TestCase):
         status, failures, _ = self.check_screen(screen)
         self.assertEqual(mcv2_tools.FAILURE_EXIT_CODE, status)
         self.assertEqual([SLOT_FAILURE], failures)
+
+    def test_should_fail_a_decoded_frame_counter_that_goes_down(self) -> None:
+        first: numpy.ndarray = passing_capture()
+        paint_square(first, SLOTS + 1, (2, 2, 2))
+        second: numpy.ndarray = passing_capture()
+        paint_square(second, SLOTS + 1, (1, 1, 1))
+        with tempfile.TemporaryDirectory() as directory:
+            captures: Path = Path(directory)
+            first_image: Image.Image = Image.fromarray(first)
+            first_image.save(captures / FIRST_CAPTURE_FILE)
+            second_image: Image.Image = Image.fromarray(second)
+            second_image.save(captures / SECOND_CAPTURE_FILE)
+            status: int | str | None
+            lines: list[str]
+            status, lines = self.run_strip_check(captures)
+
+        self.assertEqual(mcv2_tools.FAILURE_EXIT_CODE, status)
+        self.assertEqual([f"{SECOND_CAPTURE_FILE}: counter went down from 2 to 1"], lines[:-1])
 
     def check_screen(self, screen: numpy.ndarray) -> tuple[int | str | None, list[str], Any]:
         with tempfile.TemporaryDirectory() as directory:
