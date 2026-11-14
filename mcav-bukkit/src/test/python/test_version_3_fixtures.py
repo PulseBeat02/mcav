@@ -129,6 +129,21 @@ class FixtureCoverageTest(unittest.TestCase):
         digest_count: int = len(mcv2_tools.fixtures_digests(mcv2_tools.archive_bytes(left)))
         self.assertEqual(6, digest_count)
 
+    def test_should_pass_a_rejection_fixture_only_when_it_is_rejected_for_its_reason(self) -> None:
+        for name, case in mcv2_tools.rejected_frames().items():
+            with self.subTest(name=name):
+                mcv2_tools.edge_streams_check_rejected(name, case)
+
+        keyframe: bytes = mcv2_tools.edge_streams_random_stream(random.Random(1))[0]
+        reason: str = 'no such reason'
+        accepted: dict[str, str] = dict(frame=keyframe.hex(), reason=reason)
+        with self.assertRaisesRegex(ValueError, 'was accepted!'):
+            mcv2_tools.edge_streams_check_rejected('accepted', accepted)
+
+        refused: dict[str, str] = dict(frame='00', reason=reason)
+        with self.assertRaisesRegex(ValueError, 'must be rejected for'):
+            mcv2_tools.edge_streams_check_rejected('refused', refused)
+
 
 class FixtureToolTest(unittest.TestCase):
     def test_should_round_trip_archives_and_reject_truncations(self) -> None:
