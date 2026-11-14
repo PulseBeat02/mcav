@@ -47,27 +47,28 @@ CHART_FONT: str = "Liberation Sans"
 COMMITTED_CHARTS: Path = Path(__file__).resolve().parents[4] / "mcav-docs/images/mcv2"
 CHART_SUFFIX: str = ".png"
 
+COMMANDS: tuple[str, ...] = (
+    "bd_rate",
+    "codec_curves",
+    "counter_video",
+    "capture_check",
+    "edge_streams",
+    "fixtures",
+    "differential",
+    "rate_quality",
+    "shader_check",
+    "shader_timing",
+    "strip_check",
+    STRIP_FIT_CHECK,
+    "latency",
+    CHARTS,
+    "samples",
+)
+
 
 class HelpCommandTest(unittest.TestCase):
     def test_should_name_each_subcommand_and_describe_its_exit_status_in_the_usage(self) -> None:
-        commands: tuple[str, str, str, str, str, str, str, str, str, str, str, str, str, str, str] = (
-            "bd_rate",
-            "codec_curves",
-            "counter_video",
-            "capture_check",
-            "edge_streams",
-            "fixtures",
-            "differential",
-            "rate_quality",
-            "shader_check",
-            "shader_timing",
-            "strip_check",
-            STRIP_FIT_CHECK,
-            "latency",
-            CHARTS,
-            "samples",
-        )
-        for command in commands:
+        for command in COMMANDS:
             with self.subTest(command=command):
                 code: str | int | None
                 usage: str
@@ -87,6 +88,26 @@ class HelpCommandTest(unittest.TestCase):
             mcv2_tools.main()
 
         return status.exception.code, output.getvalue()
+
+    def test_should_run_the_command_each_name_selects(self) -> None:
+        for command in COMMANDS:
+            with self.subTest(command=command):
+                selections: list[tuple[str, list[str]]] = self.run_recording_commands(command)
+                self.assertEqual([(command, [f"{PROGRAM} {command}"])], selections)
+
+    def run_recording_commands(self, command: str) -> list[tuple[str, list[str]]]:
+        selections: list[tuple[str, list[str]]] = []
+        replacements: dict[str, functools.partial[None]] = {
+            f"{name}_main": functools.partial(self.record_selection, selections, name) for name in COMMANDS
+        }
+        with patch.object(sys, "argv", [PROGRAM, command]), patch.multiple(mcv2_tools, **replacements):
+            mcv2_tools.main()
+
+        return selections
+
+    def record_selection(self, selections: list[tuple[str, list[str]]], name: str) -> None:
+        arguments: list[str] = list(sys.argv)
+        selections.append((name, arguments))
 
 
 class StripCommandTest(unittest.TestCase):
