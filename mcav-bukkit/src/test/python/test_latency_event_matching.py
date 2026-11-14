@@ -34,6 +34,7 @@ CAPTURE_PATH: str = "unused.nut"
 FRAME_NUMBER: int = 7
 EVENT_BYTES: int = 64
 EVENT_COLORS: int = 64
+EVENT_NUMBER_KEY: str = "number"
 
 FIRST_SENT: int = 100
 LATER_ARRIVAL: int = 150
@@ -92,15 +93,32 @@ class LatencyTest(unittest.TestCase):
         glass_to_glass: float | int = result[MEAN_LATENCY_KEY]
         self.assertEqual(FIRST_FRAME_LATENCY, glass_to_glass)
 
+    def test_should_report_each_latency_statistic_of_several_displays(self) -> None:
+        second: dict[str, bool | float | int] = {**event(1, LATER_ARRIVAL, EARLY_SENT), EVENT_NUMBER_KEY: FRAME_NUMBER + 1}
+        third: dict[str, bool | float | int] = {**event(2, 300, 350), EVENT_NUMBER_KEY: FRAME_NUMBER + 2}
+        captures: tuple[tuple[int, int | None], ...] = ((CAPTURE_TIME, FRAME_NUMBER), (250, FRAME_NUMBER + 1), (900, FRAME_NUMBER + 2))
+        result: dict[str, float | int] = self.report_of([event(0, 0, FIRST_SENT), second, third], captures)
+        expected: dict[str, int] = dict(mean=300, p50=200, p95=560, maximum=600)
+        for statistic, value in expected.items():
+            glass_to_glass: float | int = result[f"{LATENCY_KEY_PREFIX}{statistic}"]
+            self.assertAlmostEqual(value, glass_to_glass)
+
     def report(
         self,
         later: dict[str, bool | float | int] | dict[str, bool | int],
         captures: tuple[tuple[int, int | None], ...] = READABLE_CAPTURES,
     ) -> dict[str, float | int]:
+        events: list[dict[str, bool | float | int] | dict[str, bool | int]] = [event(0, 0, FIRST_SENT), later]
+        return self.report_of(events, captures)
+
+    def report_of(
+        self,
+        events: list[dict[str, bool | float | int] | dict[str, bool | int]],
+        captures: tuple[tuple[int, int | None], ...],
+    ) -> dict[str, float | int]:
         with tempfile.TemporaryDirectory() as directory:
             output: Path = Path(directory, REPORT_NAME)
             arguments: list[str] = [PROGRAM, RECORDING_PATH, CAPTURE_PATH, "--json", str(output)]
-            events: list[dict[str, bool | float | int] | dict[str, bool | int]] = [event(0, 0, FIRST_SENT), later]
             with (
                 patch.object(sys, "argv", arguments),
                 patch.object(mcv2_tools, "latency_events", return_value=events),
