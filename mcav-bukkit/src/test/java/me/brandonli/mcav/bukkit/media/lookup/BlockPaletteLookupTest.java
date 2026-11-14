@@ -17,6 +17,7 @@
  */
 package me.brandonli.mcav.bukkit.media.lookup;
 
+import static java.util.Objects.requireNonNull;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
@@ -24,10 +25,15 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.Reader;
 import java.io.StringReader;
+import java.lang.reflect.Method;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -37,10 +43,15 @@ import me.brandonli.mcav.bukkit.BukkitException;
 import me.brandonli.mcav.bukkit.testing.UtilityClassAssertions;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.error.FilterLiteDither;
 import me.brandonli.mcav.utils.IoUtils;
+import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.block.data.BlockData;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.jupiter.api.Test;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
+import org.mockito.invocation.InvocationOnMock;
 
 final class BlockPaletteLookupTest {
 
@@ -57,6 +68,16 @@ final class BlockPaletteLookupTest {
   private static final int SECOND_ENTRY_COLOR = 0x040506;
 
   private static final String CLOSE_FAILURE_MESSAGE = "Close failed!";
+
+  private static final String LOOKUP_CLASS_NAME = BlockPaletteLookup.class.getName();
+  private static final String NESTED_CLASS_PREFIX = LOOKUP_CLASS_NAME + "$";
+  private static final String HOLDER_CLASS_NAME = NESTED_CLASS_PREFIX + "Holder";
+
+  private static final char PACKAGE_SEPARATOR = '.';
+  private static final char RESOURCE_SEPARATOR = '/';
+  private static final String CLASS_FILE_SUFFIX = ".class";
+
+  private static final int NO_OFFSET = 0;
 
   @Test
   void shouldFindTheBlockOfAPaletteColorAndIgnoreTheAlphaChannel() {
@@ -216,6 +237,31 @@ final class BlockPaletteLookupTest {
   }
 
   @Test
+  void shouldBuildTheTablesWhenInitialized() throws ReflectiveOperationException {
+    final ClassLoader parent = requireNonNull(BlockPaletteLookupTest.class.getClassLoader());
+    final IsolatingClassLoader loader = new IsolatingClassLoader(parent);
+    final Class<?> lookup = Class.forName(LOOKUP_CLASS_NAME, true, loader);
+    final Method initialize = lookup.getMethod("initialize");
+
+    try (final MockedStatic<Bukkit> bukkit = Mockito.mockStatic(Bukkit.class)) {
+      bukkit.when(() -> Bukkit.createBlockData(any(Material.class))).thenAnswer(this::createBlockData);
+
+      initialize.invoke(null);
+    }
+
+    final boolean tablesBuilt = loader.isLoaded(HOLDER_CLASS_NAME);
+    assertTrue(tablesBuilt);
+  }
+
+  private BlockData createBlockData(final InvocationOnMock invocation) {
+    final Material material = invocation.getArgument(0);
+    final String name = material.name();
+    final BlockData data = mock(BlockData.class, name);
+    when(data.getMaterial()).thenReturn(material);
+    return data;
+  }
+
+  @Test
   void shouldNotBeInstantiable() {
     UtilityClassAssertions.assertNotInstantiable(BlockPaletteLookup.class);
   }
@@ -245,6 +291,47 @@ final class BlockPaletteLookupTest {
       if (firstClose && this.failOnFirstClose) {
         throw new IOException(CLOSE_FAILURE_MESSAGE);
       }
+    }
+  }
+
+  private static final class IsolatingClassLoader extends ClassLoader {
+
+    IsolatingClassLoader(final ClassLoader parent) {
+      super(parent);
+    }
+
+    @Override
+    protected Class<?> loadClass(final String name, final boolean resolve) throws ClassNotFoundException {
+      final boolean isolated = name.equals(LOOKUP_CLASS_NAME) || name.startsWith(NESTED_CLASS_PREFIX);
+      if (!isolated) {
+        return super.loadClass(name, resolve);
+      }
+
+      synchronized (this.getClassLoadingLock(name)) {
+        final @Nullable Class<?> loaded = this.findLoadedClass(name);
+        if (loaded != null) {
+          return loaded;
+        }
+
+        return this.defineIsolatedClass(name);
+      }
+    }
+
+    private Class<?> defineIsolatedClass(final String name) throws ClassNotFoundException {
+      final String path = name.replace(PACKAGE_SEPARATOR, RESOURCE_SEPARATOR);
+      final String resource = path + CLASS_FILE_SUFFIX;
+      final ClassLoader parent = requireNonNull(this.getParent());
+      try (final InputStream stream = requireNonNull(parent.getResourceAsStream(resource))) {
+        final byte[] bytes = stream.readAllBytes();
+        return this.defineClass(name, bytes, NO_OFFSET, bytes.length);
+      } catch (final IOException exception) {
+        throw new ClassNotFoundException(name, exception);
+      }
+    }
+
+    boolean isLoaded(final String name) {
+      final @Nullable Class<?> loaded = this.findLoadedClass(name);
+      return loaded != null;
     }
   }
 }
