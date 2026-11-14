@@ -43,6 +43,7 @@ ENCODER_FOLDER: str = 'encoder'
 
 PAGES_NAME: str = 'pages.json'
 DIGESTS_NAME: str = 'digests.json'
+REJECTED_NAME: str = 'rejected.json'
 
 PATTERNS_STREAM: str = 'edge-patterns.mcs'
 OLD_STREAM: str = 'old.mcs'
@@ -119,6 +120,12 @@ class FixtureCoverageTest(unittest.TestCase):
             with self.subTest(stream=name):
                 archive: bytes = mcv2_tools.archive_bytes(frames)
                 self.assertEqual((edge_folder / name).read_bytes(), archive)
+
+    def test_should_commit_rejection_cases_equal_to_the_generator_output(self) -> None:
+        rejected: str = json.dumps(mcv2_tools.rejected_frames(), indent=mcv2_tools.JSON_INDENT)
+        expected: str = rejected + mcv2_tools.LINE_SEPARATOR
+        committed: str = (RESOURCES / EDGE_FOLDER / REJECTED_NAME).read_text()
+        self.assertEqual(expected, committed)
 
     def test_should_reproduce_and_decode_random_streams(self) -> None:
         seed: int = 57
