@@ -1050,6 +1050,32 @@ final class Mcv2PacerTest {
   }
 
   @Test
+  void shouldWaitAtMostSixHundredSecondsBeforeTryingTheEncodedRungsAgain() {
+    /*
+     * 50 fps, one size: every try fails at once, so the waits on the dithered maps are 30, 60, 120, 240 and 480
+     * seconds; the sixth would be 960 seconds and stops at 600
+     */
+    final Mcv2Pacer pacer = new Mcv2Pacer(List.of(FULL));
+    final Exact clock = new Exact(pacer, FRAME_50, 0);
+    Mcv2Pacer.Change fall = clock.until(1000, 100_000);
+    while (!fall.getTo().isDithered()) {
+      fall = clock.until(1000, 100_000);
+    }
+
+    for (int tryNumber = 0; tryNumber < 5; tryNumber++) {
+      clock.until(1000, 30_000);
+      final boolean fellBackAgain = clock.until(1000, 1000).getTo().isDithered();
+      assertTrue(fellBackAgain);
+    }
+
+    final long fellBack = clock.now;
+    clock.until(1000, 60_000);
+    final long expectedWait = 600 * SECOND;
+    final long wait = clock.now - fellBack;
+    assertEquals(expectedWait, wait, TRIED_AGAIN_PREFIX + wait / NANOSECONDS_PER_SECOND + AFTER_FALLING_BACK_SUFFIX);
+  }
+
+  @Test
   void shouldComparePresetsByEveryPart() {
     final Mcv2Pacer.Preset preset = Mcv2Pacer.Preset.of(PRESET_NAME, 1);
     EqualityAssertions.assertEqualityContract(
