@@ -42,6 +42,13 @@ final class Mcv2ResourcesTest {
   }
 
   @Test
+  void shouldRefuseNullBytesWithTheirOwnMessage() {
+    final NullPointerException exception = assertThrows(NullPointerException.class, () -> Mcv2Resources.sha256(null));
+    final String message = exception.getMessage();
+    assertEquals("Bytes must not be null!", message);
+  }
+
+  @Test
   void shouldRefuseAnUnknownDigest() {
     assertThrows(AssertionError.class, () -> Mcv2Resources.digest(new byte[0], "NOT-A-DIGEST"));
   }
