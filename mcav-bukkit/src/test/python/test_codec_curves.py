@@ -16,10 +16,14 @@
 
 import json
 import os
+import sys
 import tempfile
 import unittest
+from contextlib import redirect_stderr
+from io import StringIO
 from pathlib import Path
 from typing import Any
+from unittest.mock import patch
 
 import mcv2_tools
 
@@ -35,6 +39,9 @@ DOCUMENTED_SOURCE: str = "proxy30"
 NEW_SOURCE: str = "a"
 
 DIGEST_DIGITS: int = 64
+
+SOURCE_FILE_NAME: str = "source.rgb"
+MISSING_FFMPEG_NAME: str = "missing-ffmpeg"
 
 
 class ResumeTest(unittest.TestCase):
@@ -70,6 +77,42 @@ class ResumeTest(unittest.TestCase):
         other: dict[str, Any] = {**identity, "frames": identity["frames"] + 1}
         with self.assertRaisesRegex(ValueError, "proxy30 already has measurements of other content"):
             mcv2_tools.codec_curves_resume(self.output, DOCUMENTED_SOURCE, other)
+
+    def test_should_exit_2_before_ffmpeg_when_a_name_has_other_content(self) -> None:
+        documented: Any = json.loads(DOCUMENTED.read_text())
+        self.write(documented)
+        source: Path = Path(self.folder.name) / SOURCE_FILE_NAME
+        source.write_bytes(b"\0")
+        missing: str = os.path.join(self.folder.name, MISSING_FFMPEG_NAME)
+        arguments: list[str] = [
+            "mcv2_tools.py",
+            mcv2_tools.FFMPEG_OPTION,
+            missing,
+            mcv2_tools.SOURCE_OPTION,
+            str(source),
+            "--name",
+            DOCUMENTED_SOURCE,
+            mcv2_tools.WIDTH_OPTION,
+            "1",
+            mcv2_tools.HEIGHT_OPTION,
+            "1",
+            mcv2_tools.FRAMES_OPTION,
+            "1",
+            mcv2_tools.FRAMES_PER_SECOND_OPTION,
+            "1",
+            "--qualities",
+            "20",
+            mcv2_tools.OUTPUT_OPTION,
+            self.output,
+        ]
+        errors: StringIO = StringIO()
+        with patch.object(sys, "argv", arguments), redirect_stderr(errors), self.assertRaises(SystemExit) as raised:
+            mcv2_tools.codec_curves_main()
+        status: int | str | None = raised.exception.code
+        self.assertEqual(2, status)
+
+        printed: str = errors.getvalue()
+        self.assertIn("proxy30 already has measurements of other content", printed)
 
     def test_should_read_the_points_of_the_first_runs(self) -> None:
         point: dict[str, Any] = {"source": NEW_SOURCE, "codec": "x264", "quality": 20}
