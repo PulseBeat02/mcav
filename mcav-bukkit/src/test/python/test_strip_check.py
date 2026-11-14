@@ -77,6 +77,8 @@ LAYOUT_OPTIONS: list[str] = [
 TWO_SLOTS: int = 2
 TWO_SLOT_OPTIONS: list[str] = [mcv2_tools.SLOTS_OPTION, str(TWO_SLOTS)]
 
+RGBA_MODE: str = "RGBA"
+
 DESCRIPTOR_FAILURE: str = f"{CAPTURE_FILE}: descriptor"
 SLOT_FAILURE: str = f"{CAPTURE_FILE}: slot 0 square {mcv2_tools.STRIP_CHECK_GREEN}, page valid False"
 
@@ -306,6 +308,14 @@ class StripCheckTest(unittest.TestCase):
         self.assertEqual({"1": 1}, summary[VALID_PAGES_KEY])
         self.assertEqual(1, summary[DESCRIPTORS_KEY])
 
+    def test_should_read_an_rgba_capture_as_rgb(self) -> None:
+        screen: numpy.ndarray = rgba_capture()
+        status: int | str | None
+        failures: list[str]
+        status, failures, _ = self.check_screen(screen)
+        self.assertEqual(mcv2_tools.SUCCESS_EXIT_CODE, status)
+        self.assertEqual([], failures)
+
     def check_screen(self, screen: numpy.ndarray, *options: str) -> tuple[int | str | None, list[str], Any]:
         with tempfile.TemporaryDirectory() as directory:
             captures: Path = Path(directory)
@@ -398,6 +408,13 @@ def two_slot_capture(symbols: bytes) -> numpy.ndarray:
     paint_page(screen, 1, symbols)
     screen[descriptor_row, : len(mcv2_tools.STRIP_CHECK_DESCRIPTOR)] = mcv2_tools.STRIP_CHECK_DESCRIPTOR
     return screen
+
+
+def rgba_capture() -> numpy.ndarray:
+    screen: numpy.ndarray = passing_capture()
+    image: Image.Image = Image.fromarray(screen)
+    rgba: Image.Image = image.convert(RGBA_MODE)
+    return numpy.asarray(rgba)
 
 
 def two_page_frame() -> bytes:
