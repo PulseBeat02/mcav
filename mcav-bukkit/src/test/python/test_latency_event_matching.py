@@ -16,6 +16,7 @@
 
 import json
 import math
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -31,6 +32,11 @@ PROGRAM: str = "mcv2_tools.py"
 REPORT_NAME: str = "report.json"
 RECORDING_PATH: str = "unused.jfr"
 CAPTURE_PATH: str = "unused.nut"
+
+STREAM_OPTION: str = "--stream"
+STREAM_FRAMES: int = 3
+
+SUCCESS_EXIT_CODE: int = 0
 
 FRAME_NUMBER: int = 7
 EVENT_BYTES: int = 64
@@ -56,6 +62,7 @@ AMBIGUOUS_DISPLAYED_KEY: str = "ambiguous_displayed"
 SOURCE_FRAMES_KEY: str = "source_frames"
 CAPTURE_SECONDS_KEY: str = "capture_seconds"
 DISPLAYED_FRAMES_PER_SECOND_KEY: str = "displayed_frames_per_second"
+DISPLAYED_KEY: str = "displayed"
 
 
 class LatencyTest(unittest.TestCase):
@@ -133,7 +140,7 @@ class LatencyTest(unittest.TestCase):
             "backlog_p95": 3.6,
             "captured": 3,
             CAPTURE_SECONDS_KEY: 0.7,
-            "displayed": 3,
+            DISPLAYED_KEY: 3,
             AMBIGUOUS_DISPLAYED_KEY: 0,
             DISPLAYED_FRAMES_PER_SECOND_KEY: 3 / 0.7,
             "server_milliseconds_mean": 175 / 3,
@@ -165,6 +172,20 @@ class LatencyTest(unittest.TestCase):
         source_frames: float | int = result[SOURCE_FRAMES_KEY]
         self.assertEqual(1, source_frames)
 
+    def test_should_match_stream_sends_by_their_frame_in_the_stream_and_skip_unsent_ones(self) -> None:
+        displayed_send: dict[str, bool | int] = send_values(STREAM_FRAMES + 1, 0, EVENT_COLORS)
+        unsent: dict[str, bool | int] = send_values(STREAM_FRAMES + 2, EARLY_SENT, -1)
+        recording: subprocess.CompletedProcess[str] = jfr_run([displayed_send, unsent])
+        captures: tuple[tuple[int, int | None], ...] = ((CAPTURE_TIME, 1), (LATER_CAPTURE_TIME, 2))
+        with patch.object(mcv2_tools.subprocess, "run", return_value=recording):
+            result: dict[str, float | int] = self.report_of([], captures, (STREAM_OPTION, str(STREAM_FRAMES)))
+
+        displayed: float | int = result[DISPLAYED_KEY]
+        self.assertEqual(1, displayed)
+
+        glass_to_glass: float | int = result[MEAN_LATENCY_KEY]
+        self.assertEqual(FIRST_FRAME_LATENCY, glass_to_glass)
+
     def report(
         self,
         later: dict[str, bool | float | int] | dict[str, bool | int],
@@ -177,10 +198,11 @@ class LatencyTest(unittest.TestCase):
         self,
         events: list[dict[str, bool | float | int | None] | dict[str, bool | float | int] | dict[str, bool | int]],
         captures: tuple[tuple[int, int | None], ...],
+        options: tuple[str, ...] = (),
     ) -> dict[str, float | int]:
         with tempfile.TemporaryDirectory() as directory:
             output: Path = Path(directory, REPORT_NAME)
-            arguments: list[str] = [PROGRAM, RECORDING_PATH, CAPTURE_PATH, "--json", str(output)]
+            arguments: list[str] = [PROGRAM, RECORDING_PATH, CAPTURE_PATH, "--json", str(output), *options]
             with (
                 patch.object(sys, "argv", arguments),
                 patch.object(mcv2_tools, "latency_events", return_value=events),
@@ -195,6 +217,19 @@ class LatencyTest(unittest.TestCase):
 def event(frame: int, arrived: int | float, sent: int | float, sent_to: int = 1) -> dict[str, bool | float | int] | dict[str, bool | int]:
     return dict(frame=frame, arrived=arrived, sent=sent, sent_to=sent_to, number=FRAME_NUMBER,
                 keyframe=True, bytes=EVENT_BYTES, colors=EVENT_COLORS, behind=0, waiting=0, backlog=0)
+
+
+def send_values(frame: int, sent: int, colors: int) -> dict[str, bool | int]:
+    return {mcv2_tools.FRAME_ID_FIELD: frame, mcv2_tools.KEYFRAME_FIELD: True, mcv2_tools.BYTES_FIELD: EVENT_BYTES,
+            mcv2_tools.COLORS_FIELD: colors, mcv2_tools.SENT_FIELD: sent, mcv2_tools.SENT_TO_FIELD: 1,
+            mcv2_tools.BEHIND_FIELD: 0, mcv2_tools.WAITING_FIELD: 0, mcv2_tools.BACKLOG_FIELD: 0}
+
+
+def jfr_run(values: list[dict[str, Any]]) -> subprocess.CompletedProcess[str]:
+    events: list[dict[str, Any]] = [{mcv2_tools.JFR_VALUES_KEY: value} for value in values]
+    recording: dict[str, Any] = {mcv2_tools.JFR_RECORDING_KEY: {mcv2_tools.JFR_EVENTS_KEY: events}}
+    output: str = json.dumps(recording)
+    return subprocess.CompletedProcess(args=[], returncode=SUCCESS_EXIT_CODE, stdout=output)
 
 
 if __name__ == "__main__":
