@@ -124,6 +124,26 @@ class ShaderCadenceTest(unittest.TestCase):
         self.assertEqual(1, check.skipped)
         self.assertEqual(0, check.wrong)
 
+    def test_should_expect_the_chain_to_decode_a_second_frame_only_when_the_client_can(self) -> None:
+        ahead: int = 1 + mcv2_reference.ID_HALF_RANGE
+        far_keyframe: bytes = mcv2_reference.pack_frame(VIDEO_WIDTH, VIDEO_HEIGHT, ahead, ahead, {})
+        far_p_frame: bytes = mcv2_reference.pack_frame(VIDEO_WIDTH, VIDEO_HEIGHT, ahead, 1, {})
+        wider_keyframe: bytes = mcv2_reference.pack_frame(VIDEO_WIDTH + 1, VIDEO_HEIGHT, 2, 2, {})
+        second_frames: tuple[tuple[str, bytes, bool], ...] = (
+            ("a keyframe half the id range ahead", far_keyframe, True),
+            ("the first keyframe again", MERGED_STREAM[0], False),
+            ("a P frame half the id range ahead", far_p_frame, False),
+            ("a keyframe of another size", wider_keyframe, False),
+        )
+        for name, frame, decodable in second_frames:
+            with self.subTest(frame=name):
+                check: mcv2_tools.ShaderStreamCheck = self.create_stream_check(FakeChain([True, decodable]), SLOTS)
+                check.check_frame(0, MERGED_STREAM[0])
+                check.check_frame(1, frame)
+
+                self.assertEqual(2, check.renders)
+                self.assertEqual(0, check.wrong)
+
     def test_should_draw_the_middle_of_the_picture_in_the_middle_of_the_window(self) -> None:
         positions: tuple[numpy.ndarray, ...]
         texels: tuple[numpy.ndarray, ...]
@@ -197,6 +217,14 @@ class ShaderCadenceTest(unittest.TestCase):
     def create_merging_check(self, chain: "FakeChain") -> mcv2_tools.ShaderStreamCheck:
         arguments: argparse.Namespace = argparse.Namespace(
             drop=0, slots=SLOTS, split_uploads=False, renders_per_frame=1, merge_uploads=MERGE_EVERY, unseen_frames=1
+        )
+        check: mcv2_tools.ShaderStreamCheck = mcv2_tools.ShaderStreamCheck(None, arguments)
+        check.chain = chain
+        return check
+
+    def create_stream_check(self, chain: "FakeChain", slots: int) -> mcv2_tools.ShaderStreamCheck:
+        arguments: argparse.Namespace = argparse.Namespace(
+            drop=0, slots=slots, split_uploads=False, renders_per_frame=1, merge_uploads=0, unseen_frames=1
         )
         check: mcv2_tools.ShaderStreamCheck = mcv2_tools.ShaderStreamCheck(None, arguments)
         check.chain = chain
