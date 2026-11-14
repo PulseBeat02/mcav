@@ -435,6 +435,51 @@ final class Mcv2PackTest {
   }
 
   @Test
+  void shouldRefuseANullConfigurationWithItsOwnMessage() {
+    final Path zip = this.directory.resolve(REFUSED_FILE_NAME);
+
+    final NullPointerException exception = assertThrows(NullPointerException.class, () ->
+      Mcv2Pack.write((Mcv2Configuration) null, Mcv2Pack.DebugView.HIDDEN, zip)
+    );
+    final String message = exception.getMessage();
+    assertEquals("Configuration must not be null!", message);
+  }
+
+  @Test
+  void shouldRefuseNullScreensWithTheirOwnMessage() {
+    final Path zip = this.directory.resolve(REFUSED_FILE_NAME);
+
+    final NullPointerException exception = assertThrows(NullPointerException.class, () ->
+      Mcv2Pack.write((List<Mcv2Configuration>) null, Mcv2Pack.DebugView.HIDDEN, zip)
+    );
+    final String message = exception.getMessage();
+    assertEquals("Screens must not be null!", message);
+  }
+
+  @Test
+  void shouldRefuseANullDebugViewWithItsOwnMessage() {
+    final Path zip = this.directory.resolve(REFUSED_FILE_NAME);
+    final Mcv2Configuration screen = Mcv2ConfigurationTest.complete().build();
+    final List<Mcv2Configuration> screens = List.of(screen);
+
+    final NullPointerException exception = assertThrows(NullPointerException.class, () -> Mcv2Pack.write(screens, null, zip));
+    final String message = exception.getMessage();
+    assertEquals("Debug view must not be null!", message);
+  }
+
+  @Test
+  void shouldRefuseANullArchivePathWithItsOwnMessage() {
+    final Mcv2Configuration screen = Mcv2ConfigurationTest.complete().build();
+    final List<Mcv2Configuration> screens = List.of(screen);
+
+    final NullPointerException exception = assertThrows(NullPointerException.class, () ->
+      Mcv2Pack.write(screens, Mcv2Pack.DebugView.HIDDEN, null)
+    );
+    final String message = exception.getMessage();
+    assertEquals("Archive path must not be null!", message);
+  }
+
+  @Test
   void shouldRefuseAScreenPassWithoutTheScreenInclude() {
     final byte[] pass = "void main() {}".getBytes(StandardCharsets.UTF_8);
     assertThrows(IllegalStateException.class, () -> Mcv2Pack.screenCopy(pass, 0));
