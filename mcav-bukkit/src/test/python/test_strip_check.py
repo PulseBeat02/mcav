@@ -43,9 +43,14 @@ SLOTS: int = 1
 VIDEO_WIDTH: int = mcv2_reference.MAP_SIDE
 SQUARES_WIDTH: int = VIDEO_WIDTH + mcv2_tools.STRIP_CHECK_MARGIN + (SLOTS + mcv2_tools.STRIP_CHECK_EXTRA_SQUARES) * mcv2_tools.STRIP_CHECK_STEP
 
+DECODED_COLOR: tuple[int, ...] = next(
+    color for color, decision in mcv2_tools.STRIP_CHECK_DECISIONS.items() if decision != mcv2_tools.STRIP_CHECK_CANNOT_DECODE
+)
+
 NOTES_FILE: str = "notes.txt"
 CAPTURE_FILE: str = "capture.png"
 DESCRIPTOR_FAILURE: str = f"{CAPTURE_FILE}: descriptor"
+SLOT_FAILURE: str = f"{CAPTURE_FILE}: slot 0 square {mcv2_tools.STRIP_CHECK_GREEN}, page valid False"
 
 SQUARES_KEY: str = "captures_with_squares"
 DESCRIPTORS_KEY: str = "descriptor_rows"
@@ -169,6 +174,23 @@ class StripCheckTest(unittest.TestCase):
         self.assertEqual(0, descriptors)
         self.assertIn(DESCRIPTOR_FAILURE, failures)
 
+    def test_should_exit_with_success_when_every_check_of_a_capture_passes(self) -> None:
+        screen: numpy.ndarray = passing_capture()
+        status: int | str | None
+        failures: list[str]
+        status, failures, _ = self.check_screen(screen)
+        self.assertEqual(mcv2_tools.SUCCESS_EXIT_CODE, status)
+        self.assertEqual([], failures)
+
+    def test_should_fail_a_green_slot_square_without_a_page(self) -> None:
+        screen: numpy.ndarray = passing_capture()
+        paint_square(screen, 0, mcv2_tools.STRIP_CHECK_GREEN)
+        status: int | str | None
+        failures: list[str]
+        status, failures, _ = self.check_screen(screen)
+        self.assertEqual(mcv2_tools.FAILURE_EXIT_CODE, status)
+        self.assertEqual([SLOT_FAILURE], failures)
+
     def check_screen(self, screen: numpy.ndarray) -> tuple[int | str | None, list[str], Any]:
         with tempfile.TemporaryDirectory() as directory:
             captures: Path = Path(directory)
@@ -202,6 +224,21 @@ def blank_screen(rows: int) -> numpy.ndarray:
 def blank_capture(width: int) -> numpy.ndarray:
     rows: int = mcv2_tools.page_rows(width) * SLOTS + mcv2_tools.STRIP_CHECK_DEFAULT_SCREENS + mcv2_tools.STRIP_CHECK_SQUARE
     return numpy.zeros((rows, width, mcv2_reference.CHANNELS), numpy.uint8)
+
+
+def passing_capture() -> numpy.ndarray:
+    screen: numpy.ndarray = blank_capture(SQUARES_WIDTH)
+    row: int = mcv2_tools.page_rows(SQUARES_WIDTH) * SLOTS
+    screen[row, : len(mcv2_tools.STRIP_CHECK_DESCRIPTOR)] = mcv2_tools.STRIP_CHECK_DESCRIPTOR
+    paint_square(screen, 0, mcv2_tools.STRIP_CHECK_RED)
+    paint_square(screen, SLOTS, DECODED_COLOR)
+    return screen
+
+
+def paint_square(screen: numpy.ndarray, square: int, color: tuple[int, ...]) -> None:
+    top: int = mcv2_tools.page_rows(SQUARES_WIDTH) * SLOTS + mcv2_tools.STRIP_CHECK_DEFAULT_SCREENS
+    left: int = VIDEO_WIDTH + mcv2_tools.STRIP_CHECK_MARGIN + square * mcv2_tools.STRIP_CHECK_STEP
+    screen[top : top + mcv2_tools.STRIP_CHECK_SQUARE, left : left + mcv2_tools.STRIP_CHECK_SQUARE] = color
 
 
 def two_page_frame() -> bytes:
