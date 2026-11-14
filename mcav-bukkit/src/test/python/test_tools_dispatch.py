@@ -202,6 +202,24 @@ class StripCommandTest(unittest.TestCase):
             failures,
         )
 
+    def test_should_pass_the_subcommand_when_the_fitting_strip_is_covered_with_the_row_below_it(self) -> None:
+        status: int | None
+        result: Any
+        status, result = self.run_with_frame(covered_strip_frame)
+        self.assertEqual(0, status)
+
+        failures: Any = result[FAILURES_KEY]
+        self.assertEqual([], failures)
+
+    def test_should_fail_the_subcommand_when_the_fitting_strip_is_not_covered(self) -> None:
+        status: int | None
+        result: Any
+        status, result = self.run_with_frame(uncovered_strip_frame)
+        self.assertEqual(1, status)
+
+        failures: Any = result[FAILURES_KEY]
+        self.assertEqual(["854x480: the strip is not covered with the scene row below it"], failures)
+
     def run_command(self, damaged: tuple[tuple[int, int], int] | None) -> tuple[int | None, Any]:
         frame: functools.partial[tuple[numpy.ndarray, numpy.ndarray, bool]] = functools.partial(fake_strip_frame, damaged)
         return self.run_with_frame(frame)
@@ -282,6 +300,36 @@ def decoding_strip_frame(
     after: numpy.ndarray
     scene, after, _ = fake_strip_frame(None, context, screen, classpath, screen_index)
     return scene, after, True
+
+
+def uncovered_strip_frame(
+    context: SimpleNamespace,
+    screen: tuple[int, int],
+    classpath: None,
+    screen_index: int = 0
+) -> tuple[numpy.ndarray, numpy.ndarray, bool]:
+    scene: numpy.ndarray = numpy.zeros((screen[1], screen[0], RGBA_CHANNELS), numpy.uint8)
+    row_values: numpy.ndarray = numpy.arange(screen[1]).astype(numpy.uint8)
+    scene[:, :, 0] = row_values[:, numpy.newaxis]
+    return scene, scene.copy(), False
+
+
+def covered_strip_frame(
+    context: SimpleNamespace,
+    screen: tuple[int, int],
+    classpath: None,
+    screen_index: int = 0
+) -> tuple[numpy.ndarray, numpy.ndarray, bool]:
+    scene: numpy.ndarray
+    after: numpy.ndarray
+    scene, after, _ = uncovered_strip_frame(context, screen, classpath, screen_index)
+    if (screen, screen_index) != (mcv2_tools.STRIP_FIT_CHECK_FIT_SCREEN, 0):
+        return scene, after, False
+
+    rows: int = mcv2_tools.strip_fit_check_strip_rows(screen[0])
+    below: int = screen[1] - 1 - rows
+    after[below + 1 :] = scene[below]
+    return scene, after, False
 
 
 if __name__ == "__main__":
