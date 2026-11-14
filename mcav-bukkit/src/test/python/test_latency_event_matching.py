@@ -41,8 +41,11 @@ LATER_ARRIVAL: int = 150
 EARLY_SENT: int = 175
 CAPTURE_TIME: int = 200
 LATER_CAPTURE_TIME: int = 210
+THIRD_ARRIVAL: int = 300
+THIRD_SENT: int = 350
 
 READABLE_CAPTURES: tuple[tuple[int, int | None], ...] = ((CAPTURE_TIME, FRAME_NUMBER), (LATER_CAPTURE_TIME, FRAME_NUMBER))
+SEVERAL_CAPTURES: tuple[tuple[int, int | None], ...] = ((CAPTURE_TIME, FRAME_NUMBER), (250, FRAME_NUMBER + 1), (900, FRAME_NUMBER + 2))
 
 FIRST_FRAME_LATENCY: int = 200
 
@@ -95,13 +98,47 @@ class LatencyTest(unittest.TestCase):
 
     def test_should_report_each_latency_statistic_of_several_displays(self) -> None:
         second: dict[str, bool | float | int] = {**event(1, LATER_ARRIVAL, EARLY_SENT), EVENT_NUMBER_KEY: FRAME_NUMBER + 1}
-        third: dict[str, bool | float | int] = {**event(2, 300, 350), EVENT_NUMBER_KEY: FRAME_NUMBER + 2}
-        captures: tuple[tuple[int, int | None], ...] = ((CAPTURE_TIME, FRAME_NUMBER), (250, FRAME_NUMBER + 1), (900, FRAME_NUMBER + 2))
-        result: dict[str, float | int] = self.report_of([event(0, 0, FIRST_SENT), second, third], captures)
+        third: dict[str, bool | float | int] = {**event(2, THIRD_ARRIVAL, THIRD_SENT), EVENT_NUMBER_KEY: FRAME_NUMBER + 2}
+        result: dict[str, float | int] = self.report_of([event(0, 0, FIRST_SENT), second, third], SEVERAL_CAPTURES)
         expected: dict[str, int] = dict(mean=300, p50=200, p95=560, maximum=600)
         for statistic, value in expected.items():
             glass_to_glass: float | int = result[f"{LATENCY_KEY_PREFIX}{statistic}"]
             self.assertAlmostEqual(value, glass_to_glass)
+
+    def test_should_count_the_events_and_captures_of_a_latency_report(self) -> None:
+        second: dict[str, bool | float | int] = {
+            **event(1, LATER_ARRIVAL, EARLY_SENT, sent_to=2),
+            EVENT_NUMBER_KEY: FRAME_NUMBER + 1,
+            "keyframe": False,
+            "behind": 1,
+            "waiting": 2,
+            "backlog": 4,
+            "colors": -1,
+        }
+        third: dict[str, bool | float | int] = {**event(2, THIRD_ARRIVAL, THIRD_SENT), EVENT_NUMBER_KEY: FRAME_NUMBER + 2, "colors": 0}
+        result: dict[str, float | int] = self.report_of([event(0, 0, FIRST_SENT), second, third], SEVERAL_CAPTURES)
+        expected: dict[str, float | int] = {
+            "source_frames": 3,
+            "encoded": 3,
+            "keyframes": 2,
+            "sent_to_viewers": 4,
+            "held_back_for_backlog": 1,
+            "held_back_for_reference": 2,
+            "not_sent_too_large": 1,
+            "backlog_maximum": 4,
+            "backlog_p95": 3.6,
+            "captured": 3,
+            "capture_seconds": 0.7,
+            "displayed": 3,
+            AMBIGUOUS_DISPLAYED_KEY: 0,
+            "displayed_frames_per_second": 3 / 0.7,
+            "server_milliseconds_mean": 175 / 3,
+            "server_milliseconds_p95": 95,
+        }
+        for key, value in expected.items():
+            with self.subTest(key=key):
+                reported: float | int = result[key]
+                self.assertAlmostEqual(value, reported)
 
     def report(
         self,
