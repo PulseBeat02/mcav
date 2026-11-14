@@ -22,8 +22,12 @@ import org.gradle.api.tasks.testing.Test
 
 internal object TestRuntimeProfile {
 
+    // a higher compiler tier such as Graal can keep running an inlined original after PIT swaps a mutant in
+    private const val C1_ONLY_ARGUMENT: String = "-XX:TieredStopAtLevel=1"
+
     fun forMutation(test: Test): List<String> {
         return test.jvmArgs +
-            test.systemProperties.toSortedMap().map { (name, value) -> "-D$name=$value" }
+            test.systemProperties.toSortedMap().map { (name, value) -> "-D$name=$value" } +
+            C1_ONLY_ARGUMENT
     }
 }
