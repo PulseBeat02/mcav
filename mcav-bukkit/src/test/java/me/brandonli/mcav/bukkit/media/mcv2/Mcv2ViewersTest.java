@@ -130,9 +130,20 @@ final class Mcv2ViewersTest {
     final Optional<Mcv2Viewers.PackState> stateAfterQuit = viewers.getState(uuid);
     final boolean stateAbsentAfterQuit = stateAfterQuit.isEmpty();
     assertTrue(stateAbsentAfterQuit);
+  }
 
-    assertThrows(NullPointerException.class, () -> viewers.recordRequest(null));
+  @Test
+  void shouldRefuseANullPlayer() {
+    final Mcv2Viewers viewers = this.viewers();
+    final NullPointerException missingPlayer = assertThrows(NullPointerException.class, () -> viewers.recordRequest(null));
+    final String missingPlayerMessage = missingPlayer.getMessage();
+    assertEquals("Player must not be null!", missingPlayerMessage);
+
     assertThrows(NullPointerException.class, () -> viewers.getState(null));
+  }
+
+  @Test
+  void shouldRefuseANullPackIdOrRefusedCallback() {
     assertThrows(NullPointerException.class, () -> new Mcv2Viewers(null, this.refused::add));
     assertThrows(NullPointerException.class, () -> new Mcv2Viewers(PACK, null));
   }

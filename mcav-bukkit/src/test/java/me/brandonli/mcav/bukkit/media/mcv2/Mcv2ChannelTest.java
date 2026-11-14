@@ -646,6 +646,34 @@ final class Mcv2ChannelTest {
 
     final boolean keyframeRequested = channel.takeKeyframeRequest();
     assertTrue(keyframeRequested);
+  }
+
+  @Test
+  void shouldSendNothingToAReceivingViewerOfAFrameWithMorePagesThanSlots() {
+    final Mcv2Configuration narrow = Mcv2Configuration.builder()
+      .viewers(List.of(LOADED))
+      .origin(new Location(mock(World.class), 0, GROUND_LEVEL, 0))
+      .facing(BlockFace.SOUTH)
+      .map(WALL_MAP)
+      .columns(1)
+      .rows(1)
+      .pageMap(PAGE_MAP)
+      .pageSlots(1)
+      .build();
+    final Mcv2Channel channel = new Mcv2Channel(narrow, this.viewers, this.screen);
+    channel.update();
+    this.server.runTasks();
+    channel.update();
+    final boolean notSent = channel.send(large()).isEmpty();
+    assertTrue(notSent);
+
+    final List<Packet<?>> sent = this.server.getSentPackets(LOADED);
+    assertEquals(List.of(), sent);
+  }
+
+  @Test
+  void shouldRefuseANullFrameAndBytesThatAreNotAnMcv2Frame() {
+    final Mcv2Channel channel = new Mcv2Channel(this.configuration, this.viewers, this.screen);
     assertThrows(IllegalArgumentException.class, () -> channel.send(new byte[48]));
     assertThrows(NullPointerException.class, () -> channel.send(null));
   }
@@ -676,7 +704,12 @@ final class Mcv2ChannelTest {
     // a show that was scheduled before the close does nothing
     channel.show(LOADED);
     verify(this.screen).show(this.player);
+  }
+
+  @Test
+  void shouldRefuseANullConfigurationViewersOrScreen() {
     assertThrows(NullPointerException.class, () -> new Mcv2Channel(null, this.viewers));
+    assertThrows(NullPointerException.class, () -> new Mcv2Channel(null, this.viewers, this.screen));
     assertThrows(NullPointerException.class, () -> new Mcv2Channel(this.configuration, null));
     assertThrows(NullPointerException.class, () -> new Mcv2Channel(this.configuration, this.viewers, null));
   }
