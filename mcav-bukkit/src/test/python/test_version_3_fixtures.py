@@ -43,6 +43,7 @@ ENCODER_FOLDER: str = 'encoder'
 
 PAGES_NAME: str = 'pages.json'
 DIGESTS_NAME: str = 'digests.json'
+REJECTED_NAME: str = 'rejected.json'
 
 PATTERNS_STREAM: str = 'edge-patterns.mcs'
 OLD_STREAM: str = 'old.mcs'
@@ -120,6 +121,12 @@ class FixtureCoverageTest(unittest.TestCase):
                 archive: bytes = mcv2_tools.archive_bytes(frames)
                 self.assertEqual((edge_folder / name).read_bytes(), archive)
 
+    def test_should_commit_rejection_cases_equal_to_the_generator_output(self) -> None:
+        rejected: str = json.dumps(mcv2_tools.rejected_frames(), indent=mcv2_tools.JSON_INDENT)
+        expected: str = rejected + mcv2_tools.LINE_SEPARATOR
+        committed: str = (RESOURCES / EDGE_FOLDER / REJECTED_NAME).read_text()
+        self.assertEqual(expected, committed)
+
     def test_should_reproduce_and_decode_random_streams(self) -> None:
         seed: int = 57
         left: list[bytes] = mcv2_tools.edge_streams_random_stream(random.Random(seed))
@@ -128,6 +135,21 @@ class FixtureCoverageTest(unittest.TestCase):
 
         digest_count: int = len(mcv2_tools.fixtures_digests(mcv2_tools.archive_bytes(left)))
         self.assertEqual(6, digest_count)
+
+    def test_should_pass_a_rejection_fixture_only_when_it_is_rejected_for_its_reason(self) -> None:
+        for name, case in mcv2_tools.rejected_frames().items():
+            with self.subTest(name=name):
+                mcv2_tools.edge_streams_check_rejected(name, case)
+
+        keyframe: bytes = mcv2_tools.edge_streams_random_stream(random.Random(1))[0]
+        reason: str = 'no such reason'
+        accepted: dict[str, str] = dict(frame=keyframe.hex(), reason=reason)
+        with self.assertRaisesRegex(ValueError, 'was accepted!'):
+            mcv2_tools.edge_streams_check_rejected('accepted', accepted)
+
+        refused: dict[str, str] = dict(frame='00', reason=reason)
+        with self.assertRaisesRegex(ValueError, 'must be rejected for'):
+            mcv2_tools.edge_streams_check_rejected('refused', refused)
 
 
 class FixtureToolTest(unittest.TestCase):
@@ -139,6 +161,12 @@ class FixtureToolTest(unittest.TestCase):
         for raw in (b'\1', b'\1\0', b'\1\0\0', b'\2\0\0\0a'):
             with self.subTest(raw=raw), self.assertRaises(ValueError):
                 list(mcv2_tools.archive_frames(raw))
+
+    def test_should_round_trip_an_archive_that_ends_in_an_empty_frame(self) -> None:
+        frames: list[bytes] = [b'abcd', b'']
+        archive: bytes = mcv2_tools.archive_bytes(frames)
+        read_back: list[bytes] = list(mcv2_tools.archive_frames(archive))
+        self.assertEqual(frames, read_back)
 
     def test_should_skip_version_2_streams_with_a_warning(self) -> None:
         root: Path = self.create_conformance_root()
@@ -190,6 +218,19 @@ class FixtureToolTest(unittest.TestCase):
 
         streams: set[Any] = {entry[STREAM_KEY] for entry in table[FRAMES_KEY]}
         self.assertEqual({f'{CONFORMANCE_FOLDER}{STREAM_SEPARATOR}{NEW_STREAM}'}, streams)
+
+    def test_should_refuse_conformance_streams_that_are_empty_oversized_or_start_with_a_delta_frame(self) -> None:
+        delta: bytes = pack_frame(1, 1, 1, 0, {})
+        oversized: bytes = mcv2_tools.VERSION_3_PREFIX + bytes(mcv2_tools.FIXTURES_PREFIX_LIMIT)
+        keyframe_message: str = 'must start with a keyframe'
+        cases: dict[str, tuple[bytes, str]] = {
+            'delta.mcs': (mcv2_tools.archive_bytes([delta]), keyframe_message),
+            'large.mcs': (mcv2_tools.archive_bytes([oversized]), keyframe_message),
+            'empty.mcs': (b'', 'is empty!'),
+        }
+        for name, (archive, message) in cases.items():
+            with self.subTest(name=name):
+                self.assert_conformance_refused(name, archive, message)
 
     def test_should_only_decode_encoder_fixtures_and_never_rewrite_them(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -245,6 +286,12 @@ class FixtureToolTest(unittest.TestCase):
         (output / DIGESTS_NAME).write_text(OLD_DIGESTS)
 
         return root
+
+    def assert_conformance_refused(self, name: str, archive: bytes, message: str) -> None:
+        root: Path = self.create_conformance_root()
+        (root / CONFORMANCE_FOLDER / name).write_bytes(archive)
+        with redirect_stderr(StringIO()), self.assertRaisesRegex(ValueError, message):
+            mcv2_tools.fixtures_conformance(root)
 
 
 if __name__ == '__main__':

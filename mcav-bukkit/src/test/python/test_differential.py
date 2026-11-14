@@ -186,6 +186,100 @@ class DifferentialTest(unittest.TestCase):
                 status: int = mcv2_tools.differential_run(arguments)
                 self.assertEqual(2, status)
 
+    def test_should_exit_2_and_print_java_errors_whatever_status_java_returns(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            arguments: SimpleNamespace = SimpleNamespace(
+                out=Path(directory), java=PLACEHOLDER, classpath=PLACEHOLDER, seed=SEED
+            )
+            failure: SimpleNamespace = SimpleNamespace(returncode=1, stderr='crash')
+            errors: StringIO = StringIO()
+            with (
+                patch.object(mcv2_tools, BUILD_ARCHIVES, return_value={ARCHIVE_NAME: [FOREIGN_FRAME]}),
+                patch.object(mcv2_tools.subprocess, RUN_FUNCTION, return_value=failure),
+                redirect_stderr(errors),
+            ):
+                status: int = mcv2_tools.differential_run(arguments)
+            self.assertEqual(2, status)
+
+            printed: str = errors.getvalue()
+            self.assertIn('crash', printed)
+
+    def test_should_report_a_java_result_with_more_frames_than_the_reference(self) -> None:
+        expected: dict[str, list[str]] = {ARCHIVE_NAME: [REJECT]}
+        actual: dict[str, list[str]] = {ARCHIVE_NAME: [REJECT, REJECT]}
+        counts: dict[str, int]
+        failures: list[dict[str, object]]
+        counts, failures = mcv2_tools.differential_compare(expected, actual)
+        frame_count: dict[str, object] = dict(archive=ARCHIVE_NAME, reason='frame count', mcav=2, reference=1)
+        self.assertEqual([frame_count], failures)
+
+        disagreements: int = counts[DISAGREEMENTS_KEY]
+        self.assertEqual(1, disagreements)
+
+    def test_should_flip_a_bit_when_the_mutations_cancel_out(self) -> None:
+        randomizer: CancellingRandom = CancellingRandom()
+        mutant: list[bytes] = mcv2_tools.differential_mutant([b'abcd'], randomizer)
+        self.assertEqual([b'\x60bcd'], mutant)
+
+    def test_should_refuse_negative_counts_and_runs_without_archives(self) -> None:
+        refused: list[list[str]] = [
+            ['--streams', '-1'],
+            ['--conformance', '-1'],
+            ['--mutants', '-1'],
+            ['--streams', '0', '--conformance', '0'],
+        ]
+        status: object
+        printed: str
+        for options in refused:
+            with self.subTest(options=options):
+                status, printed = self.run_main(options)
+                self.assertEqual(2, status)
+                self.assertIn('at least one archive is required!', printed)
+
+        status, printed = self.run_main(['--mutants', '0'])
+        self.assertEqual(0, status)
+
+    def run_main(self, options: list[str]) -> tuple[object, str]:
+        errors: StringIO = StringIO()
+        with (
+            patch.object(mcv2_tools.sys, 'argv', [PLACEHOLDER, PLACEHOLDER, *options]),
+            patch.object(mcv2_tools, 'differential_run', return_value=0),
+            redirect_stderr(errors),
+            self.assertRaises(SystemExit) as raised,
+        ):
+            mcv2_tools.differential_main()
+
+        return raised.exception.code, errors.getvalue()
+
+    def test_should_refuse_java_output_that_names_an_archive_twice(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            output: Path = Path(directory)
+            arguments: SimpleNamespace = SimpleNamespace(
+                out=output, java=PLACEHOLDER, classpath=PLACEHOLDER, seed=SEED
+            )
+            line: str = TOKEN_SEPARATOR.join([str(output / ARCHIVE_PATH), REFERENCE_DIGEST])
+            response: SimpleNamespace = SimpleNamespace(returncode=0, stderr='', stdout=f'{line}\n{line}')
+            with (
+                patch.object(mcv2_tools, BUILD_ARCHIVES, return_value={ARCHIVE_NAME: [FRAME]}),
+                patch.object(mcv2_tools, 'differential_reference_tokens', return_value=[REFERENCE_DIGEST]),
+                patch.object(mcv2_tools.subprocess, RUN_FUNCTION, return_value=response),
+                self.assertRaisesRegex(ValueError, 'twice!'),
+            ):
+                mcv2_tools.differential_run(arguments)
+
+    def test_should_refuse_an_empty_corpus_and_an_empty_conformance_archive(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            corpus: Path = Path(directory)
+            arguments: SimpleNamespace = SimpleNamespace(
+                seed=SEED, streams=0, conformance=1, mutants=0, corpus=corpus
+            )
+            with self.assertRaisesRegex(ValueError, 'has no committed conformance archives!'):
+                mcv2_tools.differential_build_archives(arguments)
+
+            (corpus / CORPUS_NAME).write_bytes(b'')
+            with self.assertRaisesRegex(ValueError, 'is empty!'):
+                mcv2_tools.differential_build_archives(arguments)
+
     def report(self, frames: list[bytes], tokens: list[str]) -> tuple[int, Any]:
         with tempfile.TemporaryDirectory() as directory:
             output: Path = Path(directory)
@@ -206,6 +300,25 @@ class DifferentialTest(unittest.TestCase):
             self.assertEqual([PLACEHOLDER, '-cp', PLACEHOLDER, TOOLS_CLASS, 'digests', archive_path], command)
 
             return status, json.loads((output / SUMMARY_NAME).read_text())
+
+
+class CancellingRandom(random.Random):
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.integers: list[int] = [2, 7, 7]
+
+    def random(self) -> float:
+        return 1.0
+
+    def randint(self, a: int, b: int) -> int:
+        return self.integers.pop(0)
+
+    def choice(self, seq: Any) -> Any:
+        return seq[0]
+
+    def randrange(self, *arguments: int) -> int:
+        return 0
 
 
 if __name__ == '__main__':
