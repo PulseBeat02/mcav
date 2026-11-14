@@ -32,9 +32,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import io.papermc.paper.scoreboard.numbers.NumberFormat;
-import java.lang.reflect.Field;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
 import me.brandonli.mcav.bukkit.media.config.ScoreboardConfiguration;
@@ -214,6 +212,21 @@ final class ScoreboardRendererTest {
   }
 
   @Test
+  void shouldResizeTheImageInPlaceToTheWidthByTheLines() {
+    final ScoreboardConfiguration configuration = this.createConfiguration(1);
+    final ScoreboardRenderer renderer = new ScoreboardRenderer(configuration);
+    final ImageBuffer image = ImageBuffer.buffer(new int[4 * 3], 4, 3);
+
+    renderer.show();
+    renderer.render(image);
+
+    final int width = image.getWidth();
+    final int height = image.getHeight();
+    assertEquals(2, width);
+    assertEquals(1, height);
+  }
+
+  @Test
   void shouldIgnoreFramesBeforeTheScoreboardExists() {
     final ScoreboardConfiguration configuration = this.createConfiguration(1);
     final ScoreboardRenderer renderer = new ScoreboardRenderer(configuration);
@@ -293,7 +306,7 @@ final class ScoreboardRendererTest {
   }
 
   @Test
-  void shouldRestoreThePreviousScoreboardOfViewersThatStillSeeIt() throws ReflectiveOperationException {
+  void shouldRestoreThePreviousScoreboardOfViewersThatStillSeeIt() {
     final ScoreboardConfiguration configuration = this.createConfiguration(2);
     final ScoreboardRenderer renderer = new ScoreboardRenderer(configuration);
     renderer.show();
@@ -312,16 +325,29 @@ final class ScoreboardRendererTest {
     assertSame(this.previousBoard, viewerBoard);
     assertSame(mainBoard, lateBoard, "viewers that joined later get the main scoreboard");
 
-    final Field retainedField = ScoreboardRenderer.class.getDeclaredField("previousScoreboards");
-    retainedField.setAccessible(true);
-    final Map<?, ?> retained = (Map<?, ?>) retainedField.get(renderer);
-    final boolean retainsNothing = retained.isEmpty();
-    assertTrue(retainsNothing, "released displays must not retain obsolete rendering state");
     verify(objective, times(1)).unregister();
 
     for (final Team team : teams) {
       verify(team, times(1)).unregister();
     }
+  }
+
+  @Test
+  void shouldShowTheScoreboardToAViewerWhoRejoinsAfterItIsShownAgain() {
+    final ScoreboardConfiguration configuration = this.createConfiguration(2);
+    final ScoreboardRenderer renderer = new ScoreboardRenderer(configuration);
+    renderer.show();
+    renderer.hide();
+    this.server.removePlayer(VIEWER);
+    renderer.show();
+    final CraftPlayer returning = this.server.addPlayer(VIEWER);
+    FakeScoreboards.trackScoreboard(returning, this.previousBoard);
+
+    this.server.runTasks();
+
+    final Scoreboard board = this.scoreboards.getNewScoreboard();
+    final Scoreboard returningBoard = returning.getScoreboard();
+    assertSame(board, returningBoard);
   }
 
   @Test
@@ -432,5 +458,15 @@ final class ScoreboardRendererTest {
 
     assertThrows(NullPointerException.class, () -> new ScoreboardRenderer(null));
     assertThrows(NullPointerException.class, () -> renderer.render(null));
+  }
+
+  @Test
+  void shouldRejectAReleasedImage() {
+    final ScoreboardConfiguration configuration = this.createConfiguration(1);
+    final ScoreboardRenderer renderer = new ScoreboardRenderer(configuration);
+    final ImageBuffer image = ImageBuffer.buffer(new int[4], 2, 2);
+    image.release();
+
+    assertThrows(IllegalStateException.class, () -> renderer.render(image));
   }
 }

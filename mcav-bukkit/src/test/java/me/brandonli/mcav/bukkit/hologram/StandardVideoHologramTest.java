@@ -281,6 +281,18 @@ final class StandardVideoHologramTest {
   }
 
   @Test
+  void shouldStopTheRunningProgressOnANewRequest() {
+    final StandardVideoHologram hologram = new StandardVideoHologram();
+    final UrlParseDump dump = this.createDump(TITLE, UPLOADER, 0, LONG_DURATION_SECONDS);
+    hologram.spawn(this.location, dump);
+    hologram.start();
+    hologram.spawn(this.location, dump);
+
+    final int tasks = this.server.getScheduledTaskCount();
+    assertEquals(0, tasks);
+  }
+
+  @Test
   void shouldRejectInvalidRequests() {
     final StandardVideoHologram hologram = new StandardVideoHologram();
     final UrlParseDump dump = this.createDump(TITLE, UPLOADER, 0, 1);
@@ -296,6 +308,16 @@ final class StandardVideoHologramTest {
     hologram.start();
     final BukkitScheduler scheduler = this.server.getScheduler();
     verify(scheduler, never()).runTaskTimer(any(Plugin.class), any(Runnable.class), any(Long.class), any(Long.class));
+  }
+
+  @Test
+  void shouldRejectStartingADisplayWithoutAnInjectedPlugin() {
+    final StandardVideoHologram hologram = new StandardVideoHologram();
+    final UrlParseDump dump = this.createDump(TITLE, UPLOADER, 0, DURATION_SECONDS);
+    hologram.spawn(this.location, dump);
+    FakeServer.clearInjectedPlugin();
+
+    assertThrows(IllegalStateException.class, hologram::start);
   }
 
   private TextDisplay startHologram(final double duration) {
