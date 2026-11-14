@@ -15,6 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import json
+import math
 import sys
 import tempfile
 import unittest
@@ -52,6 +53,9 @@ FIRST_FRAME_LATENCY: int = 200
 LATENCY_KEY_PREFIX: str = "glass_to_glass_milliseconds_"
 MEAN_LATENCY_KEY: str = f"{LATENCY_KEY_PREFIX}mean"
 AMBIGUOUS_DISPLAYED_KEY: str = "ambiguous_displayed"
+SOURCE_FRAMES_KEY: str = "source_frames"
+CAPTURE_SECONDS_KEY: str = "capture_seconds"
+DISPLAYED_FRAMES_PER_SECOND_KEY: str = "displayed_frames_per_second"
 
 
 class LatencyTest(unittest.TestCase):
@@ -118,7 +122,7 @@ class LatencyTest(unittest.TestCase):
         third: dict[str, bool | float | int] = {**event(2, THIRD_ARRIVAL, THIRD_SENT), EVENT_NUMBER_KEY: FRAME_NUMBER + 2, "colors": 0}
         result: dict[str, float | int] = self.report_of([event(0, 0, FIRST_SENT), second, third], SEVERAL_CAPTURES)
         expected: dict[str, float | int] = {
-            "source_frames": 3,
+            SOURCE_FRAMES_KEY: 3,
             "encoded": 3,
             "keyframes": 2,
             "sent_to_viewers": 4,
@@ -128,10 +132,10 @@ class LatencyTest(unittest.TestCase):
             "backlog_maximum": 4,
             "backlog_p95": 3.6,
             "captured": 3,
-            "capture_seconds": 0.7,
+            CAPTURE_SECONDS_KEY: 0.7,
             "displayed": 3,
             AMBIGUOUS_DISPLAYED_KEY: 0,
-            "displayed_frames_per_second": 3 / 0.7,
+            DISPLAYED_FRAMES_PER_SECOND_KEY: 3 / 0.7,
             "server_milliseconds_mean": 175 / 3,
             "server_milliseconds_p95": 95,
         }
@@ -139,6 +143,27 @@ class LatencyTest(unittest.TestCase):
             with self.subTest(key=key):
                 reported: float | int = result[key]
                 self.assertAlmostEqual(value, reported)
+
+    def test_should_report_no_capture_time_and_no_source_frames_for_one_capture_without_events(self) -> None:
+        result: dict[str, float | int] = self.report_of([], ((CAPTURE_TIME, FRAME_NUMBER),))
+        capture_seconds: float | int = result[CAPTURE_SECONDS_KEY]
+        self.assertTrue(math.isnan(capture_seconds))
+
+        source_frames: float | int = result[SOURCE_FRAMES_KEY]
+        self.assertEqual(0, source_frames)
+
+    def test_should_report_no_display_rate_for_captures_at_one_time(self) -> None:
+        captures: tuple[tuple[int, int | None], ...] = ((CAPTURE_TIME, FRAME_NUMBER), (CAPTURE_TIME, FRAME_NUMBER))
+        result: dict[str, float | int] = self.report_of([event(0, 0, FIRST_SENT)], captures)
+        frames_per_second: float | int = result[DISPLAYED_FRAMES_PER_SECOND_KEY]
+        self.assertTrue(math.isnan(frames_per_second))
+
+    def test_should_skip_events_without_a_number_or_a_finite_arrival(self) -> None:
+        unnumbered: dict[str, bool | float | int | None] = {**event(1, LATER_ARRIVAL, EARLY_SENT), EVENT_NUMBER_KEY: None}
+        nonfinite_arrival: dict[str, bool | float | int] = {**event(2, math.nan, EARLY_SENT), EVENT_NUMBER_KEY: FRAME_NUMBER + 100}
+        result: dict[str, float | int] = self.report_of([event(0, 0, FIRST_SENT), unnumbered, nonfinite_arrival], READABLE_CAPTURES)
+        source_frames: float | int = result[SOURCE_FRAMES_KEY]
+        self.assertEqual(1, source_frames)
 
     def report(
         self,
@@ -150,7 +175,7 @@ class LatencyTest(unittest.TestCase):
 
     def report_of(
         self,
-        events: list[dict[str, bool | float | int] | dict[str, bool | int]],
+        events: list[dict[str, bool | float | int | None] | dict[str, bool | float | int] | dict[str, bool | int]],
         captures: tuple[tuple[int, int | None], ...],
     ) -> dict[str, float | int]:
         with tempfile.TemporaryDirectory() as directory:
@@ -167,7 +192,7 @@ class LatencyTest(unittest.TestCase):
             return json.loads(output.read_text())
 
 
-def event(frame: int, arrived: int, sent: int | float, sent_to: int = 1) -> dict[str, bool | float | int] | dict[str, bool | int]:
+def event(frame: int, arrived: int | float, sent: int | float, sent_to: int = 1) -> dict[str, bool | float | int] | dict[str, bool | int]:
     return dict(frame=frame, arrived=arrived, sent=sent, sent_to=sent_to, number=FRAME_NUMBER,
                 keyframe=True, bytes=EVENT_BYTES, colors=EVENT_COLORS, behind=0, waiting=0, backlog=0)
 
