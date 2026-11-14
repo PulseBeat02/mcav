@@ -676,7 +676,12 @@ final class Mcv2ChannelTest {
     // a show that was scheduled before the close does nothing
     channel.show(LOADED);
     verify(this.screen).show(this.player);
+  }
+
+  @Test
+  void shouldRefuseANullConfigurationViewersOrScreen() {
     assertThrows(NullPointerException.class, () -> new Mcv2Channel(null, this.viewers));
+    assertThrows(NullPointerException.class, () -> new Mcv2Channel(null, this.viewers, this.screen));
     assertThrows(NullPointerException.class, () -> new Mcv2Channel(this.configuration, null));
     assertThrows(NullPointerException.class, () -> new Mcv2Channel(this.configuration, this.viewers, null));
   }
