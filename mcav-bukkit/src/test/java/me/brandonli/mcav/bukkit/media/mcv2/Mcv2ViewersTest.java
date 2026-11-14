@@ -135,7 +135,10 @@ final class Mcv2ViewersTest {
   @Test
   void shouldRefuseANullPlayer() {
     final Mcv2Viewers viewers = this.viewers();
-    assertThrows(NullPointerException.class, () -> viewers.recordRequest(null));
+    final NullPointerException missingPlayer = assertThrows(NullPointerException.class, () -> viewers.recordRequest(null));
+    final String missingPlayerMessage = missingPlayer.getMessage();
+    assertEquals("Player must not be null!", missingPlayerMessage);
+
     assertThrows(NullPointerException.class, () -> viewers.getState(null));
   }
 
