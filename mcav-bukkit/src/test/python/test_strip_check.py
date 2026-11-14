@@ -14,15 +14,18 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import json
 import sys
 import tempfile
 import unittest
 from contextlib import redirect_stdout
 from io import StringIO
 from pathlib import Path
+from typing import Any
 from unittest.mock import patch
 
 import numpy
+from PIL import Image
 
 import mcv2_reference
 from mcv2_reference import make_pages
@@ -38,8 +41,12 @@ VIDEO_WIDTH_OPTION: str = "--video-width"
 
 SLOTS: int = 1
 VIDEO_WIDTH: int = mcv2_reference.MAP_SIDE
+SQUARES_WIDTH: int = VIDEO_WIDTH + mcv2_tools.STRIP_CHECK_MARGIN + (SLOTS + mcv2_tools.STRIP_CHECK_EXTRA_SQUARES) * mcv2_tools.STRIP_CHECK_STEP
 
 NOTES_FILE: str = "notes.txt"
+CAPTURE_FILE: str = "capture.png"
+
+SQUARES_KEY: str = "captures_with_squares"
 
 TWO_PAGE_WIDTH: int = 3200
 TWO_PAGE_LEAVES: int = 100
@@ -126,6 +133,32 @@ class StripCheckTest(unittest.TestCase):
         self.assertEqual(mcv2_tools.USAGE_EXIT_CODE, status)
         self.assertEqual([], lines)
 
+    def test_should_read_the_squares_of_a_capture_just_wide_enough_for_them(self) -> None:
+        screen: numpy.ndarray = blank_capture(SQUARES_WIDTH)
+        summary: Any
+        _, _, summary = self.check_screen(screen)
+        squares: Any = summary[SQUARES_KEY]
+        self.assertEqual(1, squares)
+
+    def test_should_skip_the_squares_of_a_capture_narrower_than_they_need(self) -> None:
+        screen: numpy.ndarray = blank_capture(SQUARES_WIDTH - 1)
+        summary: Any
+        _, _, summary = self.check_screen(screen)
+        squares: Any = summary[SQUARES_KEY]
+        self.assertEqual(0, squares)
+
+    def check_screen(self, screen: numpy.ndarray) -> tuple[int | str | None, list[str], Any]:
+        with tempfile.TemporaryDirectory() as directory:
+            captures: Path = Path(directory)
+            image: Image.Image = Image.fromarray(screen)
+            image.save(captures / CAPTURE_FILE)
+            status: int | str | None
+            lines: list[str]
+            status, lines = self.run_strip_check(captures)
+
+        summary: Any = json.loads(lines[-1])
+        return status, lines[:-1], summary
+
     def run_strip_check(self, captures: Path) -> tuple[int | str | None, list[str]]:
         arguments: list[str] = [PROGRAM, STRIP_CHECK, str(captures), mcv2_tools.SLOTS_OPTION, str(SLOTS), VIDEO_WIDTH_OPTION, str(VIDEO_WIDTH)]
         output: StringIO = StringIO()
@@ -142,6 +175,11 @@ class StripCheckTest(unittest.TestCase):
 
 def blank_screen(rows: int) -> numpy.ndarray:
     return numpy.zeros((rows, mcv2_reference.MAP_SIDE, mcv2_reference.CHANNELS), numpy.uint8)
+
+
+def blank_capture(width: int) -> numpy.ndarray:
+    rows: int = mcv2_tools.page_rows(width) * SLOTS + mcv2_tools.STRIP_CHECK_DEFAULT_SCREENS + mcv2_tools.STRIP_CHECK_SQUARE
+    return numpy.zeros((rows, width, mcv2_reference.CHANNELS), numpy.uint8)
 
 
 def two_page_frame() -> bytes:
