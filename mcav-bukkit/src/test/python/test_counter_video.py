@@ -14,7 +14,11 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import sys
+import tempfile
 import unittest
+from pathlib import Path
+from unittest.mock import patch
 
 import numpy
 
@@ -25,6 +29,13 @@ HEIGHT: int = 40
 CHANNELS: int = 3
 
 FRAME_SHAPE: tuple[int, int, int] = (HEIGHT, WIDTH, CHANNELS)
+FRAME_SIZE: int = WIDTH * HEIGHT * CHANNELS
+
+PROGRAM: str = "mcv2_tools.py counter_video"
+FRAMES_PER_SECOND: str = "5"
+
+CLIP_FILE: str = "clip.rgb"
+OUT_FILE: str = "counter.rgb"
 
 
 class CounterVideoTest(unittest.TestCase):
@@ -38,11 +49,43 @@ class CounterVideoTest(unittest.TestCase):
                 read: int | None = mcv2_tools.counter_video_read(lumas)
                 self.assertEqual(number, read)
 
+    def test_should_loop_the_clip_forward_and_backward_and_stamp_each_frame(self) -> None:
+        grays: numpy.ndarray = numpy.array([10, 20, 30], numpy.uint8)
+        clip: numpy.ndarray = numpy.repeat(grays, FRAME_SIZE)
+        status: str | int | None
+        output: bytes
+        status, output = self.run_counter_video(clip, WIDTH, HEIGHT, "1")
+        self.assertEqual(0, status)
+
+        pixels: numpy.ndarray = numpy.frombuffer(output, numpy.uint8)
+        frames: numpy.ndarray = pixels.reshape(-1, HEIGHT, WIDTH, CHANNELS)
+        bottom_grays: list[int] = frames[:, -1, 0, 0].tolist()
+        self.assertEqual([10, 20, 30, 20, 10], bottom_grays)
+
+        lumas: list[list[int]] = [self.sample_lumas(frame) for frame in frames]
+        numbers: list[int | None] = [mcv2_tools.counter_video_read(sample) for sample in lumas]
+        self.assertEqual([0, 1, 2, 3, 4], numbers)
+
     def sample_lumas(self, frame: numpy.ndarray) -> list[int]:
         offset: int = mcv2_tools.LATENCY_SAMPLE_OFFSET
         block: int = mcv2_tools.COUNTER_VIDEO_BLOCK
         samples: numpy.ndarray = frame[offset, offset::block, 0]
         return samples.tolist()
+
+    def run_counter_video(self, clip: numpy.ndarray, width: int, height: int, seconds: str) -> tuple[str | int | None, bytes]:
+        with tempfile.TemporaryDirectory() as directory:
+            clip_path: Path = Path(directory) / CLIP_FILE
+            out_path: Path = Path(directory) / OUT_FILE
+            clip_bytes: bytes = clip.tobytes()
+            clip_path.write_bytes(clip_bytes)
+            out_path.touch()
+            arguments: list[str] = [PROGRAM, str(clip_path), str(width), str(height), FRAMES_PER_SECOND, seconds, str(out_path)]
+            with patch.object(sys, "argv", arguments), self.assertRaises(SystemExit) as context:
+                mcv2_tools.counter_video_main()
+
+            output: bytes = out_path.read_bytes()
+
+        return context.exception.code, output
 
 
 if __name__ == "__main__":
