@@ -26,6 +26,10 @@ import mcv2_tools
 
 PAGE_ROWS: int = mcv2_tools.PAGE_PIXELS // mcv2_reference.MAP_SIDE
 
+TWO_PAGE_WIDTH: int = 3200
+TWO_PAGE_LEAVES: int = 100
+PALETTE_BYTES: int = 134
+
 
 class StripCheckTest(unittest.TestCase):
     def test_should_return_the_exact_six_bit_symbols_of_an_rgb_strip_and_read_its_page(self) -> None:
@@ -66,9 +70,43 @@ class StripCheckTest(unittest.TestCase):
         actual: bytes = symbols.tobytes()
         self.assertEqual(bytes((1, 0, 0, 0)) * mcv2_tools.PAGE_PIXELS, actual)
 
+    def test_should_read_each_page_of_a_frame_longer_than_one_page(self) -> None:
+        frame: bytes = two_page_frame()
+        first_symbols: bytes
+        last_symbols: bytes
+        first_symbols, last_symbols = make_pages(frame)
+        first: numpy.ndarray = padded_symbols(first_symbols)
+        last: numpy.ndarray = padded_symbols(last_symbols)
+        capacity: int = mcv2_reference.page_capacity()
+        first_page: mcv2_reference.Page = mcv2_tools.strip_check_read_strip_page(first)
+        first_payload: bytes = first_page.payload
+        self.assertEqual(frame[:capacity], first_payload)
+
+        last_page: mcv2_reference.Page = mcv2_tools.strip_check_read_strip_page(last)
+        last_payload: bytes = last_page.payload
+        self.assertEqual(frame[capacity:], last_payload)
+
+        run: numpy.ndarray = numpy.concatenate((first, last))
+        run_page: mcv2_reference.Page = mcv2_tools.strip_check_read_strip_page(run)
+        run_payload: bytes = run_page.payload
+        self.assertEqual(frame[:capacity], run_payload)
+
 
 def blank_screen(rows: int) -> numpy.ndarray:
     return numpy.zeros((rows, mcv2_reference.MAP_SIDE, mcv2_reference.CHANNELS), numpy.uint8)
+
+
+def two_page_frame() -> bytes:
+    roots: dict[int, mcv2_reference.Node] = {
+        index: mcv2_reference.Node(mcv2_reference.PALETTE, record=bytes(PALETTE_BYTES)) for index in range(TWO_PAGE_LEAVES)
+    }
+    return pack_frame(TWO_PAGE_WIDTH, mcv2_reference.SUPERBLOCK_SIZE, 0, 0, roots)
+
+
+def padded_symbols(symbols: bytes) -> numpy.ndarray:
+    padded: numpy.ndarray = numpy.zeros(mcv2_reference.PAGE_SYMBOLS, numpy.uint8)
+    padded[: len(symbols)] = numpy.frombuffer(symbols, numpy.uint8)
+    return padded
 
 
 if __name__ == '__main__':
