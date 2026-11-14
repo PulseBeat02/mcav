@@ -894,6 +894,35 @@ class NetworkGuardTest {
     assertFalse(accepting);
   }
 
+  @Test
+  void shouldKeepTheInterruptOfItsCallerWhileWaitingForAnAcceptThread() throws InterruptedException {
+    final CountDownLatch release = new CountDownLatch(1);
+    final Thread waiting = new Thread(() -> this.waitUntilReleased(release));
+    waiting.setDaemon(true);
+    waiting.start();
+
+    try {
+      final Thread current = Thread.currentThread();
+      current.interrupt();
+      NetworkGuard.awaitEnd(waiting);
+
+      final boolean interrupted = Thread.interrupted();
+      assertTrue(interrupted);
+    } finally {
+      release.countDown();
+      waiting.join();
+    }
+  }
+
+  private void waitUntilReleased(final CountDownLatch release) {
+    try {
+      release.await();
+    } catch (final InterruptedException exception) {
+      final Thread current = Thread.currentThread();
+      current.interrupt();
+    }
+  }
+
   private Set<Thread> findLiveThreads() {
     final Map<Thread, StackTraceElement[]> traces = Thread.getAllStackTraces();
     final Set<Thread> threads = traces.keySet();
