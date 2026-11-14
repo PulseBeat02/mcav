@@ -140,6 +140,12 @@ class FixtureToolTest(unittest.TestCase):
             with self.subTest(raw=raw), self.assertRaises(ValueError):
                 list(mcv2_tools.archive_frames(raw))
 
+    def test_should_round_trip_an_archive_that_ends_in_an_empty_frame(self) -> None:
+        frames: list[bytes] = [b'abcd', b'']
+        archive: bytes = mcv2_tools.archive_bytes(frames)
+        read_back: list[bytes] = list(mcv2_tools.archive_frames(archive))
+        self.assertEqual(frames, read_back)
+
     def test_should_skip_version_2_streams_with_a_warning(self) -> None:
         root: Path = self.create_conformance_root()
         messages: StringIO = StringIO()
