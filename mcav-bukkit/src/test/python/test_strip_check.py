@@ -24,6 +24,8 @@ from mcv2_reference import pack_frame
 
 import mcv2_tools
 
+PAGE_ROWS: int = mcv2_tools.PAGE_PIXELS // mcv2_reference.MAP_SIDE
+
 
 class StripCheckTest(unittest.TestCase):
     def test_should_return_the_exact_six_bit_symbols_of_an_rgb_strip_and_read_its_page(self) -> None:
@@ -33,10 +35,9 @@ class StripCheckTest(unittest.TestCase):
         padded[:len(symbols)] = numpy.frombuffer(symbols, numpy.uint8)
         groups: numpy.ndarray = padded.reshape(-1, mcv2_tools.SYMBOLS_PER_PIXEL)
         words: numpy.ndarray = groups[:, 0] | groups[:, 1] << 6 | groups[:, 2] << 12 | groups[:, 3] << 18
-        rows: int = mcv2_tools.PAGE_PIXELS // mcv2_reference.MAP_SIDE
         pixels: numpy.ndarray = numpy.stack((words & 255, words >> 8 & 255, words >> 16), axis=1).astype(numpy.uint8)
-        image: numpy.ndarray = pixels.reshape(rows, mcv2_reference.MAP_SIDE, mcv2_reference.CHANNELS)
-        actual: numpy.ndarray = mcv2_tools.strip_check_page_symbols(image, 0, rows)
+        image: numpy.ndarray = pixels.reshape(PAGE_ROWS, mcv2_reference.MAP_SIDE, mcv2_reference.CHANNELS)
+        actual: numpy.ndarray = mcv2_tools.strip_check_page_symbols(image, 0, PAGE_ROWS)
         actual_bytes: bytes = actual.tobytes()
         self.assertEqual(padded.astype(numpy.uint8).tobytes(), actual_bytes)
 
@@ -57,6 +58,17 @@ class StripCheckTest(unittest.TestCase):
         damaged[50] ^= 1
         with self.assertRaisesRegex(ValueError, 'CRC'):
             mcv2_tools.strip_check_read_strip_page(damaged)
+
+    def test_should_read_the_page_symbols_of_the_slot_it_is_given(self) -> None:
+        screen: numpy.ndarray = blank_screen(2 * PAGE_ROWS)
+        screen[PAGE_ROWS:, :, 0] = 1
+        symbols: numpy.ndarray = mcv2_tools.strip_check_page_symbols(screen, 1, PAGE_ROWS)
+        actual: bytes = symbols.tobytes()
+        self.assertEqual(bytes((1, 0, 0, 0)) * mcv2_tools.PAGE_PIXELS, actual)
+
+
+def blank_screen(rows: int) -> numpy.ndarray:
+    return numpy.zeros((rows, mcv2_reference.MAP_SIDE, mcv2_reference.CHANNELS), numpy.uint8)
 
 
 if __name__ == '__main__':
