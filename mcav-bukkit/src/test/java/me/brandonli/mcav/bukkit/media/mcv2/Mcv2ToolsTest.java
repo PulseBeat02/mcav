@@ -17,6 +17,7 @@
  */
 package me.brandonli.mcav.bukkit.media.mcv2;
 
+import static java.util.Objects.requireNonNull;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -29,6 +30,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -40,7 +42,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Stream;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2.Natives;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -49,6 +54,7 @@ final class Mcv2ToolsTest {
 
   private static final String BENCH_COMMAND = "bench";
   private static final String DIGESTS_COMMAND = "digests";
+  private static final String POST_ONLY_OPTION = "--post-only";
 
   private static final String CROP_SOURCE_PATH = "encoder/crop-320x180x4.rgb";
   private static final String CROP_DEFAULT_PATH = "encoder/crop-default.mcs";
@@ -60,6 +66,7 @@ final class Mcv2ToolsTest {
   private static final String STREAM_FILE_NAME = "stream.mcs";
   private static final String REJECTED_FILE_NAME = "rejected.mcs";
   private static final String CLASSPATH_FILE_NAME = "mcv2-tools-classpath.txt";
+  private static final String PACK_ARCHIVE_FILE_NAME = "pack.zip";
 
   private static final String PACK_DIRECTORY = "pack";
   private static final String GENERATED_DIRECTORY = "generated";
@@ -220,7 +227,7 @@ final class Mcv2ToolsTest {
       void main() { color = texture(Sampler0, vec2(0.5)); }
       """
     );
-    final String[] arguments = { pack.toString(), generated.toString(), output.toString(), "--post-only" };
+    final String[] arguments = { pack.toString(), generated.toString(), output.toString(), POST_ONLY_OPTION };
     final int validFailures = this.compileShaders(arguments);
     assertEquals(0, validFailures);
 
@@ -299,6 +306,42 @@ final class Mcv2ToolsTest {
       final List<String> names = files.map(Path::getFileName).map(Path::toString).toList();
       return Set.copyOf(names);
     }
+  }
+
+  @Test
+  void shouldCompileEveryPostShaderOfABuiltPack() throws Exception {
+    final Mcv2Configuration configuration = Mcv2ConfigurationTest.complete().build();
+    final Path archive = this.folder.resolve(PACK_ARCHIVE_FILE_NAME);
+    Mcv2Pack.write(configuration, Mcv2Pack.DebugView.SHOWN, archive);
+
+    final Path pack = this.folder.resolve(PACK_DIRECTORY);
+    this.extract(archive, pack);
+
+    final Path generated = Files.createDirectories(this.folder.resolve(GENERATED_DIRECTORY));
+    final Path compiled = this.folder.resolve(COMPILED_DIRECTORY);
+    final String[] arguments = { pack.toString(), generated.toString(), compiled.toString(), POST_ONLY_OPTION };
+    final int failures = this.compileShaders(arguments);
+    assertEquals(0, failures);
+  }
+
+  private void extract(final Path archive, final Path target) throws IOException {
+    try (final InputStream input = Files.newInputStream(archive); final ZipInputStream stream = new ZipInputStream(input)) {
+      @Nullable ZipEntry entry;
+      while ((entry = stream.getNextEntry()) != null) {
+        this.extractEntry(stream, entry, target);
+      }
+    }
+  }
+
+  private void extractEntry(final ZipInputStream stream, final ZipEntry entry, final Path target) throws IOException {
+    if (entry.isDirectory()) {
+      return;
+    }
+
+    final Path file = target.resolve(entry.getName());
+    final Path parent = requireNonNull(file.getParent(), "A pack entry must have a directory!");
+    Files.createDirectories(parent);
+    Files.copy(stream, file);
   }
 
   private int compileShaders(final String[] arguments) throws Exception {
