@@ -150,6 +150,22 @@ final class MapLayoutTest {
   }
 
   @Test
+  void shouldLeaveTheOddMarginPixelOnTheRightAndBottom() {
+    final MapLayout layout = MapLayout.of(0, 1, 1, 101, 51);
+    final MapRegion region = layout.getRegion(0);
+
+    this.assertRegion(region, 13, 38, 101, 51, 0, 0);
+  }
+
+  @Test
+  void shouldCropTheOddPixelFromTheRightAndBottom() {
+    final MapLayout layout = MapLayout.of(0, 1, 1, 131, 133);
+    final MapRegion region = layout.getRegion(0);
+
+    this.assertRegion(region, 0, 0, MAP_SIZE, MAP_SIZE, 1, 2);
+  }
+
+  @Test
   void shouldSplitImagesThatSpanSeveralMapsPartially() {
     final MapLayout layout = MapLayout.of(0, 2, 1, 200, 100);
     final MapRegion left = layout.getRegion(0);
