@@ -538,6 +538,15 @@ final class BlockRendererTest {
   }
 
   @Test
+  void shouldRejectAReleasedImage() {
+    final BlockRenderer renderer = new BlockRenderer(this.createConfiguration());
+    final ImageBuffer image = this.solidImage(3, 2, BROWN);
+    image.release();
+
+    assertThrows(IllegalStateException.class, () -> renderer.render(image));
+  }
+
+  @Test
   void shouldSendTheWallOnlyToViewersInItsWorld() {
     final CraftPlayer elsewhere = this.server.addPlayer(LATE);
     FakeWorld.create().enter(elsewhere);

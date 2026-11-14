@@ -603,4 +603,14 @@ final class EntityRendererTest {
     assertThrows(NullPointerException.class, () -> new EntityRenderer(null));
     assertThrows(NullPointerException.class, () -> renderer.render(null));
   }
+
+  @Test
+  void shouldRejectAReleasedImage() {
+    final EntityConfiguration configuration = this.createConfiguration(this.position);
+    final EntityRenderer renderer = new EntityRenderer(configuration);
+    final ImageBuffer image = ImageBuffer.buffer(new int[2], 2, 1);
+    image.release();
+
+    assertThrows(IllegalStateException.class, () -> renderer.render(image));
+  }
 }

@@ -433,4 +433,14 @@ final class ScoreboardRendererTest {
     assertThrows(NullPointerException.class, () -> new ScoreboardRenderer(null));
     assertThrows(NullPointerException.class, () -> renderer.render(null));
   }
+
+  @Test
+  void shouldRejectAReleasedImage() {
+    final ScoreboardConfiguration configuration = this.createConfiguration(1);
+    final ScoreboardRenderer renderer = new ScoreboardRenderer(configuration);
+    final ImageBuffer image = ImageBuffer.buffer(new int[4], 2, 2);
+    image.release();
+
+    assertThrows(IllegalStateException.class, () -> renderer.render(image));
+  }
 }
