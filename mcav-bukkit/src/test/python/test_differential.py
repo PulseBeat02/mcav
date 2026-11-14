@@ -267,6 +267,19 @@ class DifferentialTest(unittest.TestCase):
             ):
                 mcv2_tools.differential_run(arguments)
 
+    def test_should_refuse_an_empty_corpus_and_an_empty_conformance_archive(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            corpus: Path = Path(directory)
+            arguments: SimpleNamespace = SimpleNamespace(
+                seed=SEED, streams=0, conformance=1, mutants=0, corpus=corpus
+            )
+            with self.assertRaisesRegex(ValueError, 'has no committed conformance archives!'):
+                mcv2_tools.differential_build_archives(arguments)
+
+            (corpus / CORPUS_NAME).write_bytes(b'')
+            with self.assertRaisesRegex(ValueError, 'is empty!'):
+                mcv2_tools.differential_build_archives(arguments)
+
     def report(self, frames: list[bytes], tokens: list[str]) -> tuple[int, Any]:
         with tempfile.TemporaryDirectory() as directory:
             output: Path = Path(directory)
