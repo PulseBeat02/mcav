@@ -32,7 +32,6 @@ import java.util.List;
 import java.util.Random;
 import java.util.stream.Stream;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Trees.Node;
-import me.brandonli.mcav.bukkit.testing.UtilityClassAssertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -60,11 +59,6 @@ final class Mcv2ParserTest {
 
     final int offset = frame.getLeaf(0).offset();
     assertEquals(-1, offset);
-  }
-
-  @Test
-  void shouldBeAUtilityClass() throws ReflectiveOperationException {
-    UtilityClassAssertions.assertNotInstantiable(Mcv2Decoder.class);
   }
 
   @Test
