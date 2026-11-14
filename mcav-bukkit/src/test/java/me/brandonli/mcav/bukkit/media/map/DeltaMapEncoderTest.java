@@ -372,13 +372,14 @@ final class DeltaMapEncoderTest {
   }
 
   @Test
-  void shouldShowOneWholeFrameWhenEveryMapChanges() {
+  void shouldShowEverySecondFrameWhenEveryMapChanges() {
     final int columns = 5;
     final int rows = 3;
     final int width = columns * MAP_SIZE;
     final int height = rows * MAP_SIZE;
     final int frameCount = 30;
     final int colorCount = 6;
+    final int framesPerShownFrame = 2;
     final MapLayout layout = MapLayout.of(0, columns, rows, width, height);
     final DeltaMapEncoder encoder = new DeltaMapEncoder(layout, DeltaMapEncoder.DEFAULT_MAXIMUM_BYTES_PER_FRAME);
     final byte[] wall = new byte[width * height];
@@ -390,8 +391,9 @@ final class DeltaMapEncoderTest {
       final List<MapTilePatch> patches = encoder.encode(image);
       this.paint(wall, layout, patches);
 
-      final boolean showsOneFrame = frames.stream().anyMatch(shown -> Arrays.equals(shown, wall));
-      assertTrue(showsOneFrame, "the wall shows one whole frame after frame %s".formatted(frame));
+      final int shownFrame = frame - (frame % framesPerShownFrame);
+      final byte[] shown = frames.get(shownFrame);
+      assertArrayEquals(shown, wall, "the wall shows frame %s after frame %s".formatted(shownFrame, frame));
     }
   }
 
