@@ -122,7 +122,7 @@ public final class Mcv2Screen {
   /**
    * Creates a screen.
    *
-   * @param configuration the screen
+   * @param configuration the configuration of the screen
    * @throws NullPointerException if {@code configuration} is null
    * @since 1.0.0
    */
