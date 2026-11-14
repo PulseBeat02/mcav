@@ -49,6 +49,8 @@ DIMENSIONS: struct.Struct = struct.Struct("<HH")
 DECODE_MILLISECONDS: float = 1.0
 SCREEN_MILLISECONDS: float = 2.0
 
+DECODE_PASS: str = "mcv2_decode"
+
 MODERNGL_MODULE: str = "moderngl"
 GL_VERSION: str = "3.3"
 
@@ -120,6 +122,22 @@ class TimerAccountingTest(unittest.TestCase):
         self.assertEqual(4.0, total)
 
         self.assertEqual(["mcav:mcv2_previous_0", "mcav:mcv2_state_0", "minecraft:entity_outline"], drawn)
+
+    def test_should_draw_the_decode_pass_once_per_repeat_and_time_one_draw(self) -> None:
+        steps: list[tuple[str, str, dict[Any, Any], str]] = [(DECODE_PASS, "decode", {}, "mcav:mcv2_status")]
+        chain: mcv2_tools.TimedShaderChain = object.__new__(mcv2_tools.TimedShaderChain)
+        chain.context = types.SimpleNamespace(query=lambda **_: FakeQuery())
+        chain.queries = {}
+        chain.warm = lambda: None
+        chain.steps = lambda: steps
+        drawn: list[Any | str] = []
+        chain.draw = lambda program, inputs, output: drawn.append(output)
+        chain.target = lambda name: types.SimpleNamespace(read=lambda: b"\x01\x00\x00\x00")
+        times: dict[str, float]
+        _, times = chain.timed_frame(5)
+        self.assertEqual({DECODE_PASS: 0.4}, times)
+
+        self.assertEqual(["mcav:mcv2_status"] * 5, drawn)
 
     def test_should_classify_keyframes_and_predicted_frames_separately_by_their_version_three_ids(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
