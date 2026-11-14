@@ -197,6 +197,19 @@ class FixtureToolTest(unittest.TestCase):
         streams: set[Any] = {entry[STREAM_KEY] for entry in table[FRAMES_KEY]}
         self.assertEqual({f'{CONFORMANCE_FOLDER}{STREAM_SEPARATOR}{NEW_STREAM}'}, streams)
 
+    def test_should_refuse_conformance_streams_that_are_empty_oversized_or_start_with_a_delta_frame(self) -> None:
+        delta: bytes = pack_frame(1, 1, 1, 0, {})
+        oversized: bytes = mcv2_tools.VERSION_3_PREFIX + bytes(mcv2_tools.FIXTURES_PREFIX_LIMIT)
+        keyframe_message: str = 'must start with a keyframe'
+        cases: dict[str, tuple[bytes, str]] = {
+            'delta.mcs': (mcv2_tools.archive_bytes([delta]), keyframe_message),
+            'large.mcs': (mcv2_tools.archive_bytes([oversized]), keyframe_message),
+            'empty.mcs': (b'', 'is empty!'),
+        }
+        for name, (archive, message) in cases.items():
+            with self.subTest(name=name):
+                self.assert_conformance_refused(name, archive, message)
+
     def test_should_only_decode_encoder_fixtures_and_never_rewrite_them(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root: Path = Path(directory)
@@ -251,6 +264,12 @@ class FixtureToolTest(unittest.TestCase):
         (output / DIGESTS_NAME).write_text(OLD_DIGESTS)
 
         return root
+
+    def assert_conformance_refused(self, name: str, archive: bytes, message: str) -> None:
+        root: Path = self.create_conformance_root()
+        (root / CONFORMANCE_FOLDER / name).write_bytes(archive)
+        with redirect_stderr(StringIO()), self.assertRaisesRegex(ValueError, message):
+            mcv2_tools.fixtures_conformance(root)
 
 
 if __name__ == '__main__':
