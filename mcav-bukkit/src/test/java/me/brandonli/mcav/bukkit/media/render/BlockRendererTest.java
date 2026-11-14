@@ -20,7 +20,6 @@ package me.brandonli.mcav.bukkit.media.render;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyMap;
@@ -30,12 +29,10 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import io.papermc.paper.math.Position;
-import java.lang.reflect.Field;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
 import me.brandonli.mcav.bukkit.media.config.BlockConfiguration;
@@ -368,7 +365,7 @@ final class BlockRendererTest {
   }
 
   @Test
-  void shouldRestoreTheOriginalBlocksWhenHidden() throws ReflectiveOperationException {
+  void shouldRestoreTheOriginalBlocksWhenHidden() {
     final BlockConfiguration configuration = this.createConfiguration();
     final BlockRenderer renderer = new BlockRenderer(configuration);
     final ImageBuffer image = this.solidImage(3, 2, BROWN);
@@ -385,12 +382,6 @@ final class BlockRendererTest {
     final Map<Position, BlockData> expected = this.expectOriginal();
     assertEquals(expected, restored);
     assertEquals(0, tasks, "rendering stopped");
-
-    final Field retainedField = BlockRenderer.class.getDeclaredField("activeViewers");
-    retainedField.setAccessible(true);
-    final Set<?> retained = (Set<?>) retainedField.get(renderer);
-    final boolean empty = retained.isEmpty();
-    assertTrue(empty, "released displays must not retain obsolete rendering state");
   }
 
   @Test
@@ -404,6 +395,28 @@ final class BlockRendererTest {
     this.viewers.remove(VIEWER);
     renderer.hide();
     renderer.hide();
+    final List<Map<? extends Position, BlockData>> changes = this.captureChanges(this.viewer, 2);
+    final Map<? extends Position, BlockData> restored = changes.getLast();
+    final Map<Position, BlockData> expected = this.expectOriginal();
+    assertEquals(expected, restored);
+  }
+
+  @Test
+  void shouldSendNothingToAViewerRemovedWhileHiddenWhenShownAgain() {
+    final BlockConfiguration configuration = this.createConfiguration();
+    final BlockRenderer renderer = new BlockRenderer(configuration);
+    final ImageBuffer first = this.solidImage(3, 2, BROWN);
+    final ImageBuffer second = this.solidImage(3, 2, BROWN);
+
+    renderer.show();
+    renderer.render(first);
+    this.server.runTasks();
+    renderer.hide();
+    this.viewers.remove(VIEWER);
+    renderer.show();
+    renderer.render(second);
+    this.server.runTasks();
+
     final List<Map<? extends Position, BlockData>> changes = this.captureChanges(this.viewer, 2);
     final Map<? extends Position, BlockData> restored = changes.getLast();
     final Map<Position, BlockData> expected = this.expectOriginal();
