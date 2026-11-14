@@ -82,8 +82,12 @@ final class ScoreboardConfigurationTest {
   void shouldRejectNullInSetters() {
     final ScoreboardConfigurationBuilder builder = ScoreboardConfiguration.builder();
 
-    assertThrows(NullPointerException.class, () -> builder.viewers(null));
-    assertThrows(NullPointerException.class, () -> builder.character(null));
+    final NullPointerException nullViewersException = assertThrows(NullPointerException.class, () -> builder.viewers(null));
+    final NullPointerException nullCharacterException = assertThrows(NullPointerException.class, () -> builder.character(null));
+    final String nullViewersMessage = nullViewersException.getMessage();
+    final String nullCharacterMessage = nullCharacterException.getMessage();
+    assertEquals("Viewers must not be null!", nullViewersMessage);
+    assertEquals("Character must not be null!", nullCharacterMessage);
   }
 
   @Test
@@ -105,11 +109,23 @@ final class ScoreboardConfigurationTest {
     final ScoreboardConfigurationBuilder noWidth = this.completeBuilder();
     noWidth.width(0);
 
-    assertThrows(IllegalStateException.class, noViewers::build);
-    assertThrows(IllegalStateException.class, noCharacter::build);
-    assertThrows(IllegalArgumentException.class, emptyCharacter::build);
-    assertThrows(IllegalArgumentException.class, noLines::build);
-    assertThrows(IllegalArgumentException.class, tooManyLines::build);
-    assertThrows(IllegalArgumentException.class, noWidth::build);
+    final IllegalStateException noViewersException = assertThrows(IllegalStateException.class, noViewers::build);
+    final IllegalStateException noCharacterException = assertThrows(IllegalStateException.class, noCharacter::build);
+    final IllegalArgumentException emptyCharacterException = assertThrows(IllegalArgumentException.class, emptyCharacter::build);
+    final IllegalArgumentException noLinesException = assertThrows(IllegalArgumentException.class, noLines::build);
+    final IllegalArgumentException tooManyLinesException = assertThrows(IllegalArgumentException.class, tooManyLines::build);
+    final IllegalArgumentException noWidthException = assertThrows(IllegalArgumentException.class, noWidth::build);
+    final String noViewersMessage = noViewersException.getMessage();
+    final String noCharacterMessage = noCharacterException.getMessage();
+    final String emptyCharacterMessage = emptyCharacterException.getMessage();
+    final String noLinesMessage = noLinesException.getMessage();
+    final String tooManyLinesMessage = tooManyLinesException.getMessage();
+    final String noWidthMessage = noWidthException.getMessage();
+    assertEquals("Viewers must be set!", noViewersMessage);
+    assertEquals("Character must be set!", noCharacterMessage);
+    assertEquals("Character must not be empty!", emptyCharacterMessage);
+    assertEquals("Lines 0 must be between 1 and 15 inclusive!", noLinesMessage);
+    assertEquals("Lines 16 must be between 1 and 15 inclusive!", tooManyLinesMessage);
+    assertEquals("Width 0 must be positive!", noWidthMessage);
   }
 }

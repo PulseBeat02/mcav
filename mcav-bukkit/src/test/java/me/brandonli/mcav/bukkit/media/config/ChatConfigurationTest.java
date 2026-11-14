@@ -82,8 +82,12 @@ final class ChatConfigurationTest {
   void shouldRejectNullInSetters() {
     final ChatConfigurationBuilder builder = ChatConfiguration.builder();
 
-    assertThrows(NullPointerException.class, () -> builder.viewers(null));
-    assertThrows(NullPointerException.class, () -> builder.character(null));
+    final NullPointerException nullViewersException = assertThrows(NullPointerException.class, () -> builder.viewers(null));
+    final NullPointerException nullCharacterException = assertThrows(NullPointerException.class, () -> builder.character(null));
+    final String nullViewersMessage = nullViewersException.getMessage();
+    final String nullCharacterMessage = nullCharacterException.getMessage();
+    assertEquals("Viewers must not be null!", nullViewersMessage);
+    assertEquals("Character must not be null!", nullCharacterMessage);
   }
 
   @Test
@@ -103,10 +107,20 @@ final class ChatConfigurationTest {
     final ChatConfigurationBuilder noHeight = this.completeBuilder();
     noHeight.chatHeight(0);
 
-    assertThrows(IllegalStateException.class, noViewers::build);
-    assertThrows(IllegalStateException.class, noCharacter::build);
-    assertThrows(IllegalArgumentException.class, emptyCharacter::build);
-    assertThrows(IllegalArgumentException.class, noWidth::build);
-    assertThrows(IllegalArgumentException.class, noHeight::build);
+    final IllegalStateException noViewersException = assertThrows(IllegalStateException.class, noViewers::build);
+    final IllegalStateException noCharacterException = assertThrows(IllegalStateException.class, noCharacter::build);
+    final IllegalArgumentException emptyCharacterException = assertThrows(IllegalArgumentException.class, emptyCharacter::build);
+    final IllegalArgumentException noWidthException = assertThrows(IllegalArgumentException.class, noWidth::build);
+    final IllegalArgumentException noHeightException = assertThrows(IllegalArgumentException.class, noHeight::build);
+    final String noViewersMessage = noViewersException.getMessage();
+    final String noCharacterMessage = noCharacterException.getMessage();
+    final String emptyCharacterMessage = emptyCharacterException.getMessage();
+    final String noWidthMessage = noWidthException.getMessage();
+    final String noHeightMessage = noHeightException.getMessage();
+    assertEquals("Viewers must be set!", noViewersMessage);
+    assertEquals("Character must be set!", noCharacterMessage);
+    assertEquals("Character must not be empty!", emptyCharacterMessage);
+    assertEquals("Chat width 0 must be positive!", noWidthMessage);
+    assertEquals("Chat height 0 must be positive!", noHeightMessage);
   }
 }
