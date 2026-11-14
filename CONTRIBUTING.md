@@ -148,7 +148,9 @@ such as flipping a condition, and reruns the tests to see whether one of them no
 `build/reports/pitest` of the module. PIT is not part of `check`, because it reruns the tests many times; it uses the
 ordinary `test` task's JVM options and system properties once, including `mcav.networkTests`, `mcav.sync_measurement`,
 `jqwik.database`, `jqwik.failures.after.default` and the ordinary smoke tries (`jqwik.tries.default`). It honors
-`-Pmcav.test_java_home`; the property and fuzz tasks keep their separate roles and budgets.
+`-Pmcav.test_java_home`; the property and fuzz tasks keep their separate roles and budgets. PIT's minions, the JVMs that
+run your tests against each mutant, use only the C1 compiler (`-XX:TieredStopAtLevel=1`), because a higher tier can keep
+running a method's original code after PIT swaps a mutant in, and the mutant then looks like a survivor.
 
 ## End-to-end test
 

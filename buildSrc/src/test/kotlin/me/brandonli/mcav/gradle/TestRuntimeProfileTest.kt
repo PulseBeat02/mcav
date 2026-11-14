@@ -30,6 +30,8 @@ class TestRuntimeProfileTest {
     private companion object {
 
         const val JQWIK_DATABASE_PATH: String = "build/jqwik-database"
+
+        const val C1_ONLY_ARGUMENT: String = "-XX:TieredStopAtLevel=1"
     }
 
     @Test
@@ -49,7 +51,8 @@ class TestRuntimeProfileTest {
         assertEquals(listOf(
             "--enable-native-access=ALL-UNNAMED",
             "-Djqwik.database=build/jqwik-database", "-Djqwik.failures.after.default=PREVIOUS_SEED", "-Djqwik.tries.default=10",
-            "-Dmcav.networkTests=false", "-Dmcav.published.pom=build/pom.xml", "-Dmcav.sync_measurement=false"
+            "-Dmcav.networkTests=false", "-Dmcav.published.pom=build/pom.xml", "-Dmcav.sync_measurement=false",
+            C1_ONLY_ARGUMENT
         ), arguments)
 
         test.systemProperty("mcav.networkTests", "true")
@@ -60,7 +63,8 @@ class TestRuntimeProfileTest {
         assertEquals(listOf(
             "--enable-native-access=ALL-UNNAMED",
             "-Djqwik.database=build/jqwik-database", "-Djqwik.failures.after.default=PREVIOUS_SEED", "-Djqwik.tries.default=500",
-            "-Dmcav.networkTests=true", "-Dmcav.published.pom=build/pom.xml", "-Dmcav.sync_measurement=true"
+            "-Dmcav.networkTests=true", "-Dmcav.published.pom=build/pom.xml", "-Dmcav.sync_measurement=true",
+            C1_ONLY_ARGUMENT
         ), changedArguments)
     }
 }
