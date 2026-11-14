@@ -937,6 +937,34 @@ final class Mcv2PacerTest {
   }
 
   @Test
+  void shouldKeepOffARungThatKeepsFailingForAtMostSixHundredSeconds() {
+    /*
+     * 50 fps: the top fails at once after every return, so it is kept off 10, 20, 40, 80, 160 and 320 seconds; the
+     * seventh keep-off would be 640 seconds and stops at 600
+     */
+    final Mcv2Pacer pacer = new Mcv2Pacer(List.of(FULL));
+    final Exact clock = new Exact(pacer, FRAME_50, 0);
+    final Mcv2Pacer.Rung top = pacer.getLadder().getFirst();
+    for (int stepNumber = 0; stepNumber < 6; stepNumber++) {
+      clock.until(30, 1000);
+      final Mcv2Pacer.Rung climbedTo = clock.until(10, 20_000).getTo();
+      assertEquals(top, climbedTo);
+    }
+
+    clock.until(30, 1000);
+    final long stepped = clock.now;
+    final Mcv2Pacer.Rung to = clock.until(10, 40_000).getTo();
+    assertEquals(top, to);
+
+    final long keptOff = clock.now - stepped;
+    final String climbedBack = CLIMBED_BACK_PREFIX + keptOff / NANOSECONDS_PER_SECOND + AFTER_THE_STEP_SUFFIX;
+    final boolean keptOffSixHundredSeconds = keptOff >= 600 * SECOND;
+    final boolean shorterThanTheDoubledKeepOff = keptOff < 640 * SECOND;
+    assertTrue(keptOffSixHundredSeconds, climbedBack);
+    assertTrue(shorterThanTheDoubledKeepOff, climbedBack);
+  }
+
+  @Test
   void shouldNotShortenTheNextWaitWhenATryHoldsLessThanItsWait() {
     final Mcv2Pacer pacer = new Mcv2Pacer(List.of(FULL, SMALL));
     final Driver driver = new Driver(pacer, 60, 0);
