@@ -19,6 +19,7 @@ import json
 import sys
 import tempfile
 import unittest
+from collections.abc import Callable
 from contextlib import redirect_stdout
 from io import StringIO
 from pathlib import Path
@@ -47,27 +48,28 @@ CHART_FONT: str = "Liberation Sans"
 COMMITTED_CHARTS: Path = Path(__file__).resolve().parents[4] / "mcav-docs/images/mcv2"
 CHART_SUFFIX: str = ".png"
 
+COMMANDS: tuple[str, ...] = (
+    "bd_rate",
+    "codec_curves",
+    "counter_video",
+    "capture_check",
+    "edge_streams",
+    "fixtures",
+    "differential",
+    "rate_quality",
+    "shader_check",
+    "shader_timing",
+    "strip_check",
+    STRIP_FIT_CHECK,
+    "latency",
+    CHARTS,
+    "samples",
+)
+
 
 class HelpCommandTest(unittest.TestCase):
     def test_should_name_each_subcommand_and_describe_its_exit_status_in_the_usage(self) -> None:
-        commands: tuple[str, str, str, str, str, str, str, str, str, str, str, str, str, str, str] = (
-            "bd_rate",
-            "codec_curves",
-            "counter_video",
-            "capture_check",
-            "edge_streams",
-            "fixtures",
-            "differential",
-            "rate_quality",
-            "shader_check",
-            "shader_timing",
-            "strip_check",
-            STRIP_FIT_CHECK,
-            "latency",
-            CHARTS,
-            "samples",
-        )
-        for command in commands:
+        for command in COMMANDS:
             with self.subTest(command=command):
                 code: str | int | None
                 usage: str
@@ -87,6 +89,40 @@ class HelpCommandTest(unittest.TestCase):
             mcv2_tools.main()
 
         return status.exception.code, output.getvalue()
+
+    def test_should_run_the_command_each_name_selects(self) -> None:
+        for command in COMMANDS:
+            with self.subTest(command=command):
+                selections: list[tuple[str, list[str]]] = self.run_recording_commands(command)
+                self.assertEqual([(command, [f"{PROGRAM} {command}"])], selections)
+
+    def run_recording_commands(self, command: str) -> list[tuple[str, list[str]]]:
+        selections: list[tuple[str, list[str]]] = []
+        replacements: dict[str, functools.partial[None]] = {
+            f"{name}_main": functools.partial(self.record_selection, selections, name) for name in COMMANDS
+        }
+        with patch.object(sys, "argv", [PROGRAM, command]), patch.multiple(mcv2_tools, **replacements):
+            mcv2_tools.main()
+
+        return selections
+
+    def record_selection(self, selections: list[tuple[str, list[str]]], name: str) -> None:
+        arguments: list[str] = list(sys.argv)
+        selections.append((name, arguments))
+
+    def test_should_exit_with_the_usage_without_a_known_name(self) -> None:
+        names: str = "|".join(COMMANDS)
+        usage: str = f"Usage: {PROGRAM} <{names}> [arguments]"
+        for arguments in ([PROGRAM], [PROGRAM, "unknown"]):
+            with self.subTest(arguments=arguments):
+                code: str | int | None = self.run_usage(arguments)
+                self.assertEqual(usage, code)
+
+    def run_usage(self, arguments: list[str]) -> str | int | None:
+        with patch.object(sys, "argv", arguments), self.assertRaises(SystemExit) as status:
+            mcv2_tools.main()
+
+        return status.exception.code
 
 
 class StripCommandTest(unittest.TestCase):
@@ -131,10 +167,66 @@ class StripCommandTest(unittest.TestCase):
         checks: Any = result[CHECKS_KEY]
         self.assertEqual(CHECK_COUNT, checks)
 
+    def test_should_fail_the_subcommand_when_a_scene_pixel_of_the_tall_screen_changes(self) -> None:
+        status: int | None
+        result: Any
+        status, result = self.run_command(((64, 400), 0))
+        self.assertEqual(1, status)
+
+        failures: Any = result[FAILURES_KEY]
+        self.assertEqual(
+            ["64x400, where the strip does not fit: 1 pixels of the scene changed"], failures
+        )
+
+    def test_should_fail_the_subcommand_when_the_scene_below_the_fitting_strip_changes(self) -> None:
+        status: int | None
+        result: Any
+        status, result = self.run_command(((854, 480), 0))
+        self.assertEqual(1, status)
+
+        failures: Any = result[FAILURES_KEY]
+        self.assertEqual(["854x480: the scene below the strip changed"], failures)
+
+    def test_should_fail_the_subcommand_when_a_screen_too_small_for_the_strip_decodes_a_frame(self) -> None:
+        status: int | None
+        result: Any
+        status, result = self.run_with_frame(decoding_strip_frame)
+        self.assertEqual(1, status)
+
+        failures: Any = result[FAILURES_KEY]
+        self.assertEqual(
+            [
+                "160x90, where the strip does not fit: a frame was decoded",
+                "64x400, where the strip does not fit: a frame was decoded",
+            ],
+            failures,
+        )
+
+    def test_should_pass_the_subcommand_when_the_fitting_strip_is_covered_with_the_row_below_it(self) -> None:
+        status: int | None
+        result: Any
+        status, result = self.run_with_frame(covered_strip_frame)
+        self.assertEqual(0, status)
+
+        failures: Any = result[FAILURES_KEY]
+        self.assertEqual([], failures)
+
+    def test_should_fail_the_subcommand_when_the_fitting_strip_is_not_covered(self) -> None:
+        status: int | None
+        result: Any
+        status, result = self.run_with_frame(uncovered_strip_frame)
+        self.assertEqual(1, status)
+
+        failures: Any = result[FAILURES_KEY]
+        self.assertEqual(["854x480: the strip is not covered with the scene row below it"], failures)
+
     def run_command(self, damaged: tuple[tuple[int, int], int] | None) -> tuple[int | None, Any]:
+        frame: functools.partial[tuple[numpy.ndarray, numpy.ndarray, bool]] = functools.partial(fake_strip_frame, damaged)
+        return self.run_with_frame(frame)
+
+    def run_with_frame(self, frame: Callable[..., tuple[numpy.ndarray, numpy.ndarray, bool]]) -> tuple[int | None, Any]:
         context: SimpleNamespace = SimpleNamespace(info={"GL_RENDERER": "fake"})
         moderngl: SimpleNamespace = SimpleNamespace(create_standalone_context=lambda **options: context)
-        frame: functools.partial[tuple[numpy.ndarray, numpy.ndarray, bool]] = functools.partial(fake_strip_frame, damaged)
         output: StringIO = StringIO()
         with (
             patch.dict(sys.modules, {"moderngl": moderngl}),
@@ -195,6 +287,48 @@ def fake_strip_frame(
     if (screen, screen_index) == damaged:
         after[0, 0, 0] = 1
 
+    return scene, after, False
+
+
+def decoding_strip_frame(
+    context: SimpleNamespace,
+    screen: tuple[int, int],
+    classpath: None,
+    screen_index: int = 0
+) -> tuple[numpy.ndarray, numpy.ndarray, bool]:
+    scene: numpy.ndarray
+    after: numpy.ndarray
+    scene, after, _ = fake_strip_frame(None, context, screen, classpath, screen_index)
+    return scene, after, True
+
+
+def uncovered_strip_frame(
+    context: SimpleNamespace,
+    screen: tuple[int, int],
+    classpath: None,
+    screen_index: int = 0
+) -> tuple[numpy.ndarray, numpy.ndarray, bool]:
+    scene: numpy.ndarray = numpy.zeros((screen[1], screen[0], RGBA_CHANNELS), numpy.uint8)
+    row_values: numpy.ndarray = numpy.arange(screen[1]).astype(numpy.uint8)
+    scene[:, :, 0] = row_values[:, numpy.newaxis]
+    return scene, scene.copy(), False
+
+
+def covered_strip_frame(
+    context: SimpleNamespace,
+    screen: tuple[int, int],
+    classpath: None,
+    screen_index: int = 0
+) -> tuple[numpy.ndarray, numpy.ndarray, bool]:
+    scene: numpy.ndarray
+    after: numpy.ndarray
+    scene, after, _ = uncovered_strip_frame(context, screen, classpath, screen_index)
+    if (screen, screen_index) != (mcv2_tools.STRIP_FIT_CHECK_FIT_SCREEN, 0):
+        return scene, after, False
+
+    rows: int = mcv2_tools.strip_fit_check_strip_rows(screen[0])
+    below: int = screen[1] - 1 - rows
+    after[below + 1 :] = scene[below]
     return scene, after, False
 
 
