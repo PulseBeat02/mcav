@@ -186,6 +186,24 @@ class DifferentialTest(unittest.TestCase):
                 status: int = mcv2_tools.differential_run(arguments)
                 self.assertEqual(2, status)
 
+    def test_should_exit_2_and_print_java_errors_whatever_status_java_returns(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            arguments: SimpleNamespace = SimpleNamespace(
+                out=Path(directory), java=PLACEHOLDER, classpath=PLACEHOLDER, seed=SEED
+            )
+            failure: SimpleNamespace = SimpleNamespace(returncode=1, stderr='crash')
+            errors: StringIO = StringIO()
+            with (
+                patch.object(mcv2_tools, BUILD_ARCHIVES, return_value={ARCHIVE_NAME: [FOREIGN_FRAME]}),
+                patch.object(mcv2_tools.subprocess, RUN_FUNCTION, return_value=failure),
+                redirect_stderr(errors),
+            ):
+                status: int = mcv2_tools.differential_run(arguments)
+            self.assertEqual(2, status)
+
+            printed: str = errors.getvalue()
+            self.assertIn('crash', printed)
+
     def report(self, frames: list[bytes], tokens: list[str]) -> tuple[int, Any]:
         with tempfile.TemporaryDirectory() as directory:
             output: Path = Path(directory)
