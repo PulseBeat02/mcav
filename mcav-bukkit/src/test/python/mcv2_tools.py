@@ -1021,7 +1021,7 @@ def codec_curves_resume(output: str, name: str, identity: dict[str, Any] | dict[
         message = f"Name {name} already has measurements of other content; use another --name!"
         raise ValueError(message)
 
-    measured[SOURCES_KEY][name] = identity
+    measured[SOURCES_KEY][name] = {**measured[SOURCES_KEY].get(name, {}), **identity}
     return measured
 
 

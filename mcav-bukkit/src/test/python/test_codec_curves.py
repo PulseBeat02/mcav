@@ -134,6 +134,15 @@ class ResumeTest(unittest.TestCase):
         partial: bool = os.path.exists(os.path.join(self.folder.name, PARTIAL_NAME))
         self.assertFalse(partial)
 
+    def test_should_keep_the_notes_of_a_resumed_source(self) -> None:
+        documented: Any = json.loads(DOCUMENTED.read_text())
+        self.write(documented)
+        stored: Any = documented[SOURCES_KEY][DOCUMENTED_SOURCE]
+        identity: dict[str, Any] = {key: stored[key] for key in ("width", "height", "frames", "fps", DIGEST_KEY)}
+        measured: Any | dict[Any, Any] = mcv2_tools.codec_curves_resume(self.output, DOCUMENTED_SOURCE, identity)
+        source: Any = measured[SOURCES_KEY][DOCUMENTED_SOURCE]
+        self.assertEqual(stored, source)
+
     def test_should_read_the_points_of_the_first_runs(self) -> None:
         point: dict[str, Any] = {"source": NEW_SOURCE, "codec": "x264", "quality": 20}
         self.write({SOURCES_KEY: {}, POINTS_KEY: [point]})
