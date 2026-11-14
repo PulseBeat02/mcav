@@ -216,6 +216,11 @@ class DifferentialTest(unittest.TestCase):
         disagreements: int = counts[DISAGREEMENTS_KEY]
         self.assertEqual(1, disagreements)
 
+    def test_should_flip_a_bit_when_the_mutations_cancel_out(self) -> None:
+        randomizer: CancellingRandom = CancellingRandom()
+        mutant: list[bytes] = mcv2_tools.differential_mutant([b'abcd'], randomizer)
+        self.assertEqual([b'\x60bcd'], mutant)
+
     def report(self, frames: list[bytes], tokens: list[str]) -> tuple[int, Any]:
         with tempfile.TemporaryDirectory() as directory:
             output: Path = Path(directory)
@@ -236,6 +241,25 @@ class DifferentialTest(unittest.TestCase):
             self.assertEqual([PLACEHOLDER, '-cp', PLACEHOLDER, TOOLS_CLASS, 'digests', archive_path], command)
 
             return status, json.loads((output / SUMMARY_NAME).read_text())
+
+
+class CancellingRandom(random.Random):
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.integers: list[int] = [2, 7, 7]
+
+    def random(self) -> float:
+        return 1.0
+
+    def randint(self, a: int, b: int) -> int:
+        return self.integers.pop(0)
+
+    def choice(self, seq: Any) -> Any:
+        return seq[0]
+
+    def randrange(self, *arguments: int) -> int:
+        return 0
 
 
 if __name__ == '__main__':
