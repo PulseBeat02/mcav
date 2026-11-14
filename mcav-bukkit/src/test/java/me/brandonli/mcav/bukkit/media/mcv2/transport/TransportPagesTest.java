@@ -200,6 +200,13 @@ final class TransportPagesTest {
   }
 
   @Test
+  void shouldUnpackNoSymbolsIntoNoBytes() {
+    final byte[] expectedData = new byte[0];
+    final byte[] data = TransportPages.fromSymbols(new byte[0], 0);
+    assertArrayEquals(expectedData, data);
+  }
+
+  @Test
   void shouldRefuseMalformedSymbols() {
     final byte[] symbols = TransportPages.toSymbols(new byte[] { 1, 2, 3 });
     assertThrows(Mcv2Exception.class, () -> TransportPages.fromSymbols(symbols, 4));
