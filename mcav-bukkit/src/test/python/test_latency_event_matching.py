@@ -41,6 +41,8 @@ EARLY_SENT: int = 175
 CAPTURE_TIME: int = 200
 LATER_CAPTURE_TIME: int = 210
 
+READABLE_CAPTURES: tuple[tuple[int, int | None], ...] = ((CAPTURE_TIME, FRAME_NUMBER), (LATER_CAPTURE_TIME, FRAME_NUMBER))
+
 FIRST_FRAME_LATENCY: int = 200
 
 LATENCY_KEY_PREFIX: str = "glass_to_glass_milliseconds_"
@@ -84,16 +86,25 @@ class LatencyTest(unittest.TestCase):
         several_ambiguous: float | int = several[AMBIGUOUS_DISPLAYED_KEY]
         self.assertEqual(1, several_ambiguous)
 
-    def report(self, later: dict[str, bool | float | int] | dict[str, bool | int]) -> dict[str, float | int]:
+    def test_should_keep_the_displayed_number_across_an_unreadable_capture(self) -> None:
+        captures: tuple[tuple[int, int | None], ...] = ((CAPTURE_TIME, FRAME_NUMBER), (205, None), (LATER_CAPTURE_TIME, FRAME_NUMBER))
+        result: dict[str, float | int] = self.report(event(1, LATER_ARRIVAL, EARLY_SENT, sent_to=0), captures)
+        glass_to_glass: float | int = result[MEAN_LATENCY_KEY]
+        self.assertEqual(FIRST_FRAME_LATENCY, glass_to_glass)
+
+    def report(
+        self,
+        later: dict[str, bool | float | int] | dict[str, bool | int],
+        captures: tuple[tuple[int, int | None], ...] = READABLE_CAPTURES,
+    ) -> dict[str, float | int]:
         with tempfile.TemporaryDirectory() as directory:
             output: Path = Path(directory, REPORT_NAME)
             arguments: list[str] = [PROGRAM, RECORDING_PATH, CAPTURE_PATH, "--json", str(output)]
             events: list[dict[str, bool | float | int] | dict[str, bool | int]] = [event(0, 0, FIRST_SENT), later]
-            captures: list[tuple[int, int]] = [(CAPTURE_TIME, FRAME_NUMBER), (LATER_CAPTURE_TIME, FRAME_NUMBER)]
             with (
                 patch.object(sys, "argv", arguments),
                 patch.object(mcv2_tools, "latency_events", return_value=events),
-                patch.object(mcv2_tools, "latency_captures", return_value=captures),
+                patch.object(mcv2_tools, "latency_captures", return_value=list(captures)),
                 redirect_stdout(StringIO()),
             ):
                 mcv2_tools.latency_main()
