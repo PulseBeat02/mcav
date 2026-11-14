@@ -20,7 +20,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
-from contextlib import redirect_stdout
+from contextlib import redirect_stderr, redirect_stdout
 from io import StringIO
 from pathlib import Path
 from typing import Any
@@ -226,6 +226,16 @@ class LatencyTest(unittest.TestCase):
 
         numbers: list[Any] = [event[EVENT_NUMBER_KEY] for event in events]
         self.assertEqual([None, None, None], numbers)
+
+    def test_should_reject_a_negative_stream_length(self) -> None:
+        with (
+            patch.object(mcv2_tools, "latency_sends", return_value=[]),
+            redirect_stderr(StringIO()),
+            self.assertRaises(SystemExit) as status,
+        ):
+            self.report_of([], (), (STREAM_OPTION, "-1"))
+
+        self.assertEqual(2, status.exception.code)
 
     def report(
         self,

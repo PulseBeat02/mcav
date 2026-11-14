@@ -3500,6 +3500,10 @@ def latency_main() -> None:
         "--stream", type=int, default=0, help="the frames of a pre-encoded stream played by /mcav mcv2 stream"
     )
     arguments: argparse.Namespace = parser.parse_args()
+    if arguments.stream < 0:
+        message: str = f"Stream length {arguments.stream} must not be negative!"
+        parser.error(message)
+
     frames: list[Any]
     if arguments.stream:
         frames = latency_sends(arguments.recording, arguments.jfr, arguments.stream)
