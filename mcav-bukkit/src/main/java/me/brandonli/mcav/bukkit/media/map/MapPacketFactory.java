@@ -41,8 +41,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *
  * <p>Up to 4096 patches from one call are sent in one bundle, the protocol limit. The client handles the packets
  * of a bundle together, so the call's patches are applied in order within one client tick. Larger calls are split
- * into consecutive bundles; atomicity across those bundles is not guaranteed. Delta updates may also represent
- * only part of a source frame when their encoder applies a byte budget. Every method may be called from any thread.
+ * into consecutive bundles; atomicity across those bundles is not guaranteed. A {@link DeltaMapEncoder} keeps to its
+ * byte budget by skipping whole frames, not by sending parts of them, but it may hold back tiles where only a
+ * handful of pixels changed until a later frame. Every method may be called from any thread.
  *
  * @since 1.0.0
  */

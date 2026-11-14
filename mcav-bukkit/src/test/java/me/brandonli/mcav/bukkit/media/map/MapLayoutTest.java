@@ -23,6 +23,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import me.brandonli.mcav.bukkit.testing.EqualityAssertions;
@@ -149,6 +150,22 @@ final class MapLayoutTest {
   }
 
   @Test
+  void shouldLeaveTheOddMarginPixelOnTheRightAndBottom() {
+    final MapLayout layout = MapLayout.of(0, 1, 1, 101, 51);
+    final MapRegion region = layout.getRegion(0);
+
+    this.assertRegion(region, 13, 38, 101, 51, 0, 0);
+  }
+
+  @Test
+  void shouldCropTheOddPixelFromTheRightAndBottom() {
+    final MapLayout layout = MapLayout.of(0, 1, 1, 131, 133);
+    final MapRegion region = layout.getRegion(0);
+
+    this.assertRegion(region, 0, 0, MAP_SIZE, MAP_SIZE, 1, 2);
+  }
+
+  @Test
   void shouldSplitImagesThatSpanSeveralMapsPartially() {
     final MapLayout layout = MapLayout.of(0, 2, 1, 200, 100);
     final MapRegion left = layout.getRegion(0);
@@ -184,6 +201,22 @@ final class MapLayoutTest {
   }
 
   @Test
+  void shouldKeepTheColorsOfExtractedPatchesWhenTheImageChanges() {
+    final MapLayout layout = MapLayout.of(0, 1, 1, MAP_SIZE, MAP_SIZE);
+    final byte[] image = createImage(MAP_SIZE, MAP_SIZE);
+    final MapTilePatch patch = layout.extractPatch(image, 0, 0, 0, MAP_SIZE, MAP_SIZE);
+    final List<MapTilePatch> patches = layout.extractAll(image);
+    Arrays.fill(image, (byte) 0);
+    final byte[] expected = createImage(MAP_SIZE, MAP_SIZE);
+    final byte[] colors = patch.getColors();
+    final MapTilePatch regionPatch = patches.getFirst();
+    final byte[] regionColors = regionPatch.getColors();
+
+    assertArrayEquals(expected, colors, "an extracted patch keeps its own copy of the colors");
+    assertArrayEquals(expected, regionColors, "a patch of the whole region keeps its own copy of the colors");
+  }
+
+  @Test
   void shouldAcceptImagesWithTheLargestPossiblePixelCount() {
     final MapLayout layout = MapLayout.of(0, 1, 1, 1, Integer.MAX_VALUE);
     final int imageHeight = layout.getImageHeight();
@@ -200,14 +233,6 @@ final class MapLayoutTest {
     assertThrows(IllegalArgumentException.class, () -> MapLayout.of(0, 1, 0, 1, 1));
     assertThrows(IllegalArgumentException.class, () -> MapLayout.of(0, 1, 1, 0, 1));
     assertThrows(IllegalArgumentException.class, () -> MapLayout.of(0, 1, 1, 1, 0));
-  }
-
-  @Test
-  void shouldRejectAnImageWhoseSizeDiffersFromTheLayout() {
-    final MapLayout layout = MapLayout.of(0, 1, 1, MAP_SIZE, MAP_SIZE);
-    final byte[] image = new byte[MAP_SIZE];
-
-    assertThrows(IllegalArgumentException.class, () -> layout.extractAll(image));
   }
 
   @Test
@@ -245,12 +270,10 @@ final class MapLayoutTest {
     final byte[] wrongSize = new byte[10];
 
     assertThrows(IllegalArgumentException.class, () -> layout.extractPatch(image, 0, 13, SMALL_IMAGE_TOP, 1, 1));
-    assertThrows(IllegalArgumentException.class, () -> layout.extractPatch(image, 0, 14, SMALL_IMAGE_TOP, 0, 1));
     assertThrows(IllegalArgumentException.class, () -> layout.extractPatch(image, 0, 14, SMALL_IMAGE_TOP, 101, 1));
     assertThrows(IllegalArgumentException.class, () -> layout.extractPatch(image, 0, 114, SMALL_IMAGE_TOP, 1, 1));
     assertThrows(IllegalArgumentException.class, () -> layout.extractPatch(image, 0, Integer.MAX_VALUE, SMALL_IMAGE_TOP, 1, 1));
     assertThrows(IllegalArgumentException.class, () -> layout.extractPatch(image, 0, 14, 38, 1, 1));
-    assertThrows(IllegalArgumentException.class, () -> layout.extractPatch(image, 0, 14, SMALL_IMAGE_TOP, 1, 0));
     assertThrows(IllegalArgumentException.class, () -> layout.extractPatch(image, 0, 14, SMALL_IMAGE_TOP, 1, 51));
     assertThrows(IllegalArgumentException.class, () -> layout.extractPatch(image, 0, 14, 89, 1, 1));
     assertThrows(IllegalArgumentException.class, () -> layout.extractPatch(image, 0, 14, SMALL_IMAGE_TOP, -1, -1));
