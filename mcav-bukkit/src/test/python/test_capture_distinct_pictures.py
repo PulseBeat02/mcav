@@ -15,6 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import json
+import math
 import sys
 import tempfile
 import unittest
@@ -43,6 +44,8 @@ SECOND_GRAY: int = 92
 
 EXACT_CAPTURES_KEY: str = "exact_captures"
 AMBIGUOUS_REFERENCE_FRAMES_KEY: str = "ambiguous_reference_frames"
+PSNR_MINIMUM_KEY: str = "psnr_min_db"
+SSIM_MEAN_KEY: str = "ssim_mean"
 
 
 class CaptureCheckTest(unittest.TestCase):
@@ -122,6 +125,30 @@ class CaptureCheckTest(unittest.TestCase):
 
         exact_captures: float | int | str = result[EXACT_CAPTURES_KEY]
         self.assertEqual(1, exact_captures)
+
+    def test_should_score_an_exact_capture_as_identical(self) -> None:
+        picture: numpy.ndarray = numpy.full(PICTURE_SHAPE, FIRST_GRAY, numpy.uint8)
+        result: dict[str, float | int | str] = self.run_capture_check([picture], [picture])[1]
+        psnr_minimum: float | int | str = result[PSNR_MINIMUM_KEY]
+        self.assertEqual("inf", psnr_minimum)
+
+        ssim_mean: float | int | str = result[SSIM_MEAN_KEY]
+        self.assertEqual(1.0, ssim_mean)
+
+    def test_should_score_a_capture_that_is_not_exact(self) -> None:
+        reference: numpy.ndarray = numpy.full(PICTURE_SHAPE, FIRST_GRAY, numpy.uint8)
+        capture: numpy.ndarray = numpy.full(PICTURE_SHAPE, SECOND_GRAY, numpy.uint8)
+        result: dict[str, float | int | str] = self.run_capture_check([reference], [capture])[1]
+        psnr_minimum: float = float(result[PSNR_MINIMUM_KEY])
+        difference: int = SECOND_GRAY - FIRST_GRAY
+        expected_psnr: float = 10 * math.log10(255**2 / difference**2)
+        self.assertAlmostEqual(expected_psnr, psnr_minimum)
+
+        ssim_mean: float = float(result[SSIM_MEAN_KEY])
+        luminance_constant: float = (0.01 * 255) ** 2
+        products: float = 2 * FIRST_GRAY * SECOND_GRAY + luminance_constant
+        squares: float = FIRST_GRAY**2 + SECOND_GRAY**2 + luminance_constant
+        self.assertAlmostEqual(products / squares, ssim_mean)
 
     def run_capture_check(
         self,
