@@ -41,6 +41,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
@@ -80,7 +82,24 @@ final class Mcv2ToolsTest {
 
   private static final String MCAV_POST_PREFIX = "mcav:post/";
   private static final String SCREEN_FOLDER = "s@S@/";
-  private static final Map<String, String> STAGE_EXTENSIONS = Map.of("vertex_shader", ".vsh", "fragment_shader", ".fsh");
+
+  private static final String BUILT_CHAIN_PATH = "assets/minecraft/post_effect/entity_outline.json";
+  private static final String PASSES_KEY = "passes";
+  private static final String INPUTS_KEY = "inputs";
+  private static final String SAMPLER_NAME_KEY = "sampler_name";
+  private static final String UNIFORMS_KEY = "uniforms";
+  private static final String VERTEX_SHADER_KEY = "vertex_shader";
+  private static final String FRAGMENT_SHADER_KEY = "fragment_shader";
+
+  private static final String SAMPLER_SUFFIX = "Sampler";
+  private static final String CHAIN_PATH_SEPARATOR = "/";
+  private static final String COMPILED_PATH_SEPARATOR = "_";
+
+  private static final Pattern SAMPLER_DECLARATION = Pattern.compile("uniform\\s+sampler2D\\s+(\\w+)\\s*;");
+  private static final Pattern UNIFORM_BLOCK_DECLARATION = Pattern.compile("uniform\\s+(\\w+)\\s*(\\{|$)", Pattern.MULTILINE);
+  private static final int DECLARED_NAME_GROUP = 1;
+
+  private static final Map<String, String> STAGE_EXTENSIONS = Map.of(VERTEX_SHADER_KEY, ".vsh", FRAGMENT_SHADER_KEY, ".fsh");
 
   private static final String WINDOWS_JAVA_EXECUTABLE_FILE_NAME = "java.exe";
   private static final String BINARY_DIRECTORY = "bin";
@@ -310,6 +329,11 @@ final class Mcv2ToolsTest {
 
   @Test
   void shouldCompileEveryPostShaderOfABuiltPack() throws Exception {
+    final int failures = this.compileBuiltPack();
+    assertEquals(0, failures);
+  }
+
+  private int compileBuiltPack() throws Exception {
     final Mcv2Configuration configuration = Mcv2ConfigurationTest.complete().build();
     final Path archive = this.folder.resolve(PACK_ARCHIVE_FILE_NAME);
     Mcv2Pack.write(configuration, Mcv2Pack.DebugView.SHOWN, archive);
@@ -320,8 +344,7 @@ final class Mcv2ToolsTest {
     final Path generated = Files.createDirectories(this.folder.resolve(GENERATED_DIRECTORY));
     final Path compiled = this.folder.resolve(COMPILED_DIRECTORY);
     final String[] arguments = { pack.toString(), generated.toString(), compiled.toString(), POST_ONLY_OPTION };
-    final int failures = this.compileShaders(arguments);
-    assertEquals(0, failures);
+    return this.compileShaders(arguments);
   }
 
   private void extract(final Path archive, final Path target) throws IOException {
@@ -342,6 +365,85 @@ final class Mcv2ToolsTest {
     final Path parent = requireNonNull(file.getParent(), "A pack entry must have a directory!");
     Files.createDirectories(parent);
     Files.copy(stream, file);
+  }
+
+  @Test
+  void shouldBindExactlyTheSamplersAndUniformBlocksTheShadersOfEachPassOfABuiltPackDeclare() throws Exception {
+    final int failures = this.compileBuiltPack();
+    assertEquals(0, failures);
+
+    final List<JsonObject> passes = this.findMcavPasses();
+    for (final JsonObject pass : passes) {
+      final Set<String> bound = this.findBoundNames(pass);
+      final Set<String> declared = this.findDeclaredNames(pass);
+      assertEquals(bound, declared);
+    }
+  }
+
+  private List<JsonObject> findMcavPasses() throws IOException {
+    final Path chainFile = this.folder.resolve(PACK_DIRECTORY).resolve(BUILT_CHAIN_PATH);
+    final String text = Files.readString(chainFile);
+    final JsonElement root = JsonParser.parseString(text);
+    final JsonObject chain = root.getAsJsonObject();
+    final JsonArray passes = chain.getAsJsonArray(PASSES_KEY);
+    return passes.asList().stream().map(JsonElement::getAsJsonObject).filter(this::isMcavPass).toList();
+  }
+
+  private boolean isMcavPass(final JsonObject pass) {
+    final JsonElement fragment = pass.get(FRAGMENT_SHADER_KEY);
+    final String name = fragment.getAsString();
+    return name.startsWith(MCAV_POST_PREFIX);
+  }
+
+  private Set<String> findBoundNames(final JsonObject pass) {
+    final Set<String> names = new HashSet<>();
+    final JsonArray inputs = pass.getAsJsonArray(INPUTS_KEY);
+    for (final JsonElement input : inputs) {
+      final JsonObject binding = input.getAsJsonObject();
+      final JsonElement samplerName = binding.get(SAMPLER_NAME_KEY);
+      names.add(samplerName.getAsString() + SAMPLER_SUFFIX);
+    }
+
+    if (!pass.has(UNIFORMS_KEY)) {
+      return names;
+    }
+
+    final JsonObject uniforms = pass.getAsJsonObject(UNIFORMS_KEY);
+    names.addAll(uniforms.keySet());
+
+    return names;
+  }
+
+  private Set<String> findDeclaredNames(final JsonObject pass) throws IOException {
+    final Set<String> names = new HashSet<>();
+    for (final Map.Entry<String, String> stage : STAGE_EXTENSIONS.entrySet()) {
+      final JsonElement shader = pass.get(stage.getKey());
+      final String name = shader.getAsString();
+      if (!name.startsWith(MCAV_POST_PREFIX)) {
+        continue;
+      }
+
+      final String glsl = this.readCompiledStage(name, stage.getValue());
+      names.addAll(this.findDeclarations(SAMPLER_DECLARATION, glsl));
+      names.addAll(this.findDeclarations(UNIFORM_BLOCK_DECLARATION, glsl));
+    }
+
+    return names;
+  }
+
+  private String readCompiledStage(final String name, final String extension) throws IOException {
+    final String path = name.substring(MCAV_POST_PREFIX.length());
+    final String file = path.replace(CHAIN_PATH_SEPARATOR, COMPILED_PATH_SEPARATOR);
+    final Path compiled = this.folder.resolve(COMPILED_DIRECTORY).resolve(file + extension);
+    return Files.readString(compiled);
+  }
+
+  private List<String> findDeclarations(final Pattern pattern, final String glsl) {
+    final Matcher matcher = pattern.matcher(glsl);
+    return matcher
+      .results()
+      .map(result -> result.group(DECLARED_NAME_GROUP))
+      .toList();
   }
 
   private int compileShaders(final String[] arguments) throws Exception {
