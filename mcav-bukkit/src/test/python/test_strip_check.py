@@ -51,11 +51,14 @@ NOTES_FILE: str = "notes.txt"
 CAPTURE_FILE: str = "capture.png"
 FIRST_CAPTURE_FILE: str = "capture-1.png"
 SECOND_CAPTURE_FILE: str = "capture-2.png"
+STRIPED_CAPTURE_FILE: str = "capture-{}.png"
+STRIPED_CAPTURES: int = 4
 DESCRIPTOR_FAILURE: str = f"{CAPTURE_FILE}: descriptor"
 SLOT_FAILURE: str = f"{CAPTURE_FILE}: slot 0 square {mcv2_tools.STRIP_CHECK_GREEN}, page valid False"
 
 SQUARES_KEY: str = "captures_with_squares"
 DESCRIPTORS_KEY: str = "descriptor_rows"
+FAILURES_KEY: str = "failures"
 
 TWO_PAGE_WIDTH: int = 3200
 TWO_PAGE_LEAVES: int = 100
@@ -210,6 +213,22 @@ class StripCheckTest(unittest.TestCase):
 
         self.assertEqual(mcv2_tools.FAILURE_EXIT_CODE, status)
         self.assertEqual([f"{SECOND_CAPTURE_FILE}: counter went down from 2 to 1"], lines[:-1])
+
+    def test_should_print_at_most_the_printed_failure_count(self) -> None:
+        screen: numpy.ndarray = blank_capture(SQUARES_WIDTH)
+        screen[:, ::2] = mcv2_tools.STRIP_CHECK_GREEN
+        image: Image.Image = Image.fromarray(screen)
+        with tempfile.TemporaryDirectory() as directory:
+            captures: Path = Path(directory)
+            for index in range(STRIPED_CAPTURES):
+                image.save(captures / STRIPED_CAPTURE_FILE.format(index))
+            lines: list[str]
+            _, lines = self.run_strip_check(captures)
+
+        summary: Any = json.loads(lines[-1])
+        failures: Any = summary[FAILURES_KEY]
+        self.assertEqual(mcv2_tools.STRIP_CHECK_PRINTED_FAILURES, len(lines) - 1)
+        self.assertGreater(failures, mcv2_tools.STRIP_CHECK_PRINTED_FAILURES)
 
     def check_screen(self, screen: numpy.ndarray) -> tuple[int | str | None, list[str], Any]:
         with tempfile.TemporaryDirectory() as directory:
