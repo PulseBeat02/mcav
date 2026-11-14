@@ -268,6 +268,30 @@ final class DisplayableImageTest {
   }
 
   @Test
+  void shouldCenterMapImagesOnTheWholeWallAndSplitThemAcrossConsecutiveMaps() {
+    final MapConfiguration configuration = this.createMapGridConfiguration(2, 1);
+    final DisplayableImage display = DisplayableImage.map(configuration, this.algorithm);
+    final ImageBuffer image = Images.solid(32, 16, GRAY);
+
+    display.displayImage(image);
+
+    final List<ClientboundMapItemDataPacket> shown = this.mapPackets(0);
+    final int shownCount = shown.size();
+    final ClientboundMapItemDataPacket leftPacket = shown.getFirst();
+    final ClientboundMapItemDataPacket rightPacket = shown.get(1);
+    final byte[] source = MapPackets.pattern(32 * 16, 4);
+    final byte[] leftColors = new byte[16 * 16];
+    final byte[] rightColors = new byte[16 * 16];
+    for (int row = 0; row < 16; row++) {
+      System.arraycopy(source, row * 32, leftColors, row * 16, 16);
+      System.arraycopy(source, row * 32 + 16, rightColors, row * 16, 16);
+    }
+    assertEquals(2, shownCount, "the image spans both maps of the wall");
+    MapPackets.assertMapPacket(leftPacket, 2, 112, 56, 16, 16, leftColors);
+    MapPackets.assertMapPacket(rightPacket, 3, 0, 56, 16, 16, rightColors);
+  }
+
+  @Test
   void shouldCropMapImagesLargerThanTheMapsEquallyOnEverySide() {
     final MapConfiguration configuration = this.createMapConfiguration(Sizing.ORIGINAL);
     final DisplayableImage display = DisplayableImage.map(configuration, this.algorithm);
