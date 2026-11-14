@@ -19,6 +19,7 @@ import json
 import sys
 import tempfile
 import unittest
+from collections.abc import Callable
 from contextlib import redirect_stdout
 from io import StringIO
 from pathlib import Path
@@ -186,10 +187,28 @@ class StripCommandTest(unittest.TestCase):
         failures: Any = result[FAILURES_KEY]
         self.assertEqual(["854x480: the scene below the strip changed"], failures)
 
+    def test_should_fail_the_subcommand_when_a_screen_too_small_for_the_strip_decodes_a_frame(self) -> None:
+        status: int | None
+        result: Any
+        status, result = self.run_with_frame(decoding_strip_frame)
+        self.assertEqual(1, status)
+
+        failures: Any = result[FAILURES_KEY]
+        self.assertEqual(
+            [
+                "160x90, where the strip does not fit: a frame was decoded",
+                "64x400, where the strip does not fit: a frame was decoded",
+            ],
+            failures,
+        )
+
     def run_command(self, damaged: tuple[tuple[int, int], int] | None) -> tuple[int | None, Any]:
+        frame: functools.partial[tuple[numpy.ndarray, numpy.ndarray, bool]] = functools.partial(fake_strip_frame, damaged)
+        return self.run_with_frame(frame)
+
+    def run_with_frame(self, frame: Callable[..., tuple[numpy.ndarray, numpy.ndarray, bool]]) -> tuple[int | None, Any]:
         context: SimpleNamespace = SimpleNamespace(info={"GL_RENDERER": "fake"})
         moderngl: SimpleNamespace = SimpleNamespace(create_standalone_context=lambda **options: context)
-        frame: functools.partial[tuple[numpy.ndarray, numpy.ndarray, bool]] = functools.partial(fake_strip_frame, damaged)
         output: StringIO = StringIO()
         with (
             patch.dict(sys.modules, {"moderngl": moderngl}),
@@ -251,6 +270,18 @@ def fake_strip_frame(
         after[0, 0, 0] = 1
 
     return scene, after, False
+
+
+def decoding_strip_frame(
+    context: SimpleNamespace,
+    screen: tuple[int, int],
+    classpath: None,
+    screen_index: int = 0
+) -> tuple[numpy.ndarray, numpy.ndarray, bool]:
+    scene: numpy.ndarray
+    after: numpy.ndarray
+    scene, after, _ = fake_strip_frame(None, context, screen, classpath, screen_index)
+    return scene, after, True
 
 
 if __name__ == "__main__":
