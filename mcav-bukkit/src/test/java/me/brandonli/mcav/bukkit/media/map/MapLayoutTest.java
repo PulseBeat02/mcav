@@ -23,6 +23,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import me.brandonli.mcav.bukkit.testing.EqualityAssertions;
@@ -181,6 +182,22 @@ final class MapLayoutTest {
     assertEquals(94, width, "a rectangle may end exactly at the edge of the region");
     assertEquals(44, height);
     assertArrayEquals(expected, colors);
+  }
+
+  @Test
+  void shouldKeepTheColorsOfExtractedPatchesWhenTheImageChanges() {
+    final MapLayout layout = MapLayout.of(0, 1, 1, MAP_SIZE, MAP_SIZE);
+    final byte[] image = createImage(MAP_SIZE, MAP_SIZE);
+    final MapTilePatch patch = layout.extractPatch(image, 0, 0, 0, MAP_SIZE, MAP_SIZE);
+    final List<MapTilePatch> patches = layout.extractAll(image);
+    Arrays.fill(image, (byte) 0);
+    final byte[] expected = createImage(MAP_SIZE, MAP_SIZE);
+    final byte[] colors = patch.getColors();
+    final MapTilePatch regionPatch = patches.getFirst();
+    final byte[] regionColors = regionPatch.getColors();
+
+    assertArrayEquals(expected, colors, "an extracted patch keeps its own copy of the colors");
+    assertArrayEquals(expected, regionColors, "a patch of the whole region keeps its own copy of the colors");
   }
 
   @Test
