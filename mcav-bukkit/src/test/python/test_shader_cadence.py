@@ -110,6 +110,50 @@ class ShaderCadenceTest(unittest.TestCase):
         self.assertEqual(2, check.wrong)
         self.assertEqual(3, check.decoded)
 
+    def test_should_expect_the_chain_to_skip_a_p_frame_whose_reference_was_dropped(self) -> None:
+        chain: FakeChain = FakeChain([True, False])
+        arguments: argparse.Namespace = argparse.Namespace(
+            drop=2, slots=SLOTS, split_uploads=False, renders_per_frame=1, merge_uploads=0, unseen_frames=1
+        )
+        check: mcv2_tools.ShaderStreamCheck = mcv2_tools.ShaderStreamCheck(None, arguments)
+        check.chain = chain
+        for index, frame in enumerate(MERGED_STREAM[:3]):
+            check.check_frame(index, frame)
+
+        self.assertEqual(2, check.renders)
+        self.assertEqual(1, check.skipped)
+        self.assertEqual(0, check.wrong)
+
+    def test_should_expect_the_chain_to_decode_a_second_frame_only_when_the_client_can(self) -> None:
+        ahead: int = 1 + mcv2_reference.ID_HALF_RANGE
+        far_keyframe: bytes = mcv2_reference.pack_frame(VIDEO_WIDTH, VIDEO_HEIGHT, ahead, ahead, {})
+        far_p_frame: bytes = mcv2_reference.pack_frame(VIDEO_WIDTH, VIDEO_HEIGHT, ahead, 1, {})
+        wider_keyframe: bytes = mcv2_reference.pack_frame(VIDEO_WIDTH + 1, VIDEO_HEIGHT, 2, 2, {})
+        second_frames: tuple[tuple[str, bytes, bool], ...] = (
+            ("a keyframe half the id range ahead", far_keyframe, True),
+            ("the first keyframe again", MERGED_STREAM[0], False),
+            ("a P frame half the id range ahead", far_p_frame, False),
+            ("a keyframe of another size", wider_keyframe, False),
+        )
+        for name, frame, decodable in second_frames:
+            with self.subTest(frame=name):
+                check: mcv2_tools.ShaderStreamCheck = self.create_stream_check(FakeChain([True, decodable]), SLOTS)
+                check.check_frame(0, MERGED_STREAM[0])
+                check.check_frame(1, frame)
+
+                self.assertEqual(2, check.renders)
+                self.assertEqual(0, check.wrong)
+
+    def test_should_expect_the_chain_to_skip_a_frame_with_more_pages_than_slots(self) -> None:
+        check: mcv2_tools.ShaderStreamCheck = self.create_stream_check(FakeChain([True, False]), 1)
+        check.check_frame(0, MERGED_STREAM[0])
+        pages: list[bytes] = mcv2_tools.make_pages(MERGED_STREAM[1], mcv2_tools.SHADER_CHECK_STREAM_ID)
+        with patch.object(mcv2_tools, "make_pages", return_value=pages + pages):
+            check.check_frame(1, MERGED_STREAM[1])
+
+        self.assertEqual(2, check.renders)
+        self.assertEqual(0, check.wrong)
+
     def test_should_draw_the_middle_of_the_picture_in_the_middle_of_the_window(self) -> None:
         positions: tuple[numpy.ndarray, ...]
         texels: tuple[numpy.ndarray, ...]
@@ -136,6 +180,23 @@ class ShaderCadenceTest(unittest.TestCase):
         check.check_wall(LABEL)
         self.assertEqual(1, check.walls_differ)
 
+    def test_should_count_a_decoded_picture_that_differs_from_the_reference_as_wrong(self) -> None:
+        check: mcv2_tools.ShaderStreamCheck = mcv2_tools.ShaderStreamCheck(None, argparse.Namespace())
+        check.check_picture(LABEL, self.current, self.last)
+
+        self.assertEqual(1, check.wrong)
+
+    def test_should_count_skipped_renders_and_only_a_skip_that_changed_the_shown_picture_as_wrong(self) -> None:
+        check: mcv2_tools.ShaderStreamCheck = mcv2_tools.ShaderStreamCheck(None, argparse.Namespace())
+        check.check_skipped(LABEL, self.current)
+        check.shown = self.last
+        check.check_skipped(LABEL, self.last)
+        self.assertEqual(0, check.wrong)
+
+        check.check_skipped(LABEL, self.current)
+        self.assertEqual(1, check.wrong)
+        self.assertEqual(3, check.skipped)
+
     def test_should_refuse_a_check_without_renders(self) -> None:
         arguments: list[str] = [PROGRAM, "shader_check", "stream.mcs", "--renders-per-frame", "0"]
         with patch.object(sys, "argv", arguments), redirect_stderr(StringIO()), self.assertRaises(SystemExit) as status:
@@ -148,9 +209,32 @@ class ShaderCadenceTest(unittest.TestCase):
             mcv2_tools.main()
         self.assertEqual(2, status.exception.code)
 
+    def test_should_start_a_check_with_the_least_renders_unseen_frames_and_merges(self) -> None:
+        for options in ((), ("--merge-uploads", "2")):
+            with self.subTest(options=options), self.assertRaises(ShaderCheckStarted):
+                self.start_check(*options)
+
+    def start_check(self, *options: str) -> None:
+        arguments: list[str] = [PROGRAM, "shader_check", "stream.mcs", *options]
+        with (
+            patch.object(sys, "argv", arguments),
+            patch.object(mcv2_tools, "shader_check_screen", mcv2_tools.shader_check_screen),
+            patch.object(mcv2_tools, "shader_check_create_context", side_effect=ShaderCheckStarted),
+            redirect_stderr(StringIO()),
+        ):
+            mcv2_tools.main()
+
     def create_merging_check(self, chain: "FakeChain") -> mcv2_tools.ShaderStreamCheck:
         arguments: argparse.Namespace = argparse.Namespace(
             drop=0, slots=SLOTS, split_uploads=False, renders_per_frame=1, merge_uploads=MERGE_EVERY, unseen_frames=1
+        )
+        check: mcv2_tools.ShaderStreamCheck = mcv2_tools.ShaderStreamCheck(None, arguments)
+        check.chain = chain
+        return check
+
+    def create_stream_check(self, chain: "FakeChain", slots: int) -> mcv2_tools.ShaderStreamCheck:
+        arguments: argparse.Namespace = argparse.Namespace(
+            drop=0, slots=slots, split_uploads=False, renders_per_frame=1, merge_uploads=0, unseen_frames=1
         )
         check: mcv2_tools.ShaderStreamCheck = mcv2_tools.ShaderStreamCheck(None, arguments)
         check.chain = chain
@@ -184,6 +268,10 @@ class FakeChain:
         decoded: bool = self.decisions.pop(0)
         picture: numpy.ndarray = numpy.zeros((VIDEO_HEIGHT, VIDEO_WIDTH, mcv2_tools.CHANNELS), numpy.uint8)
         return (decoded, picture)
+
+
+class ShaderCheckStarted(Exception):
+    pass
 
 
 if __name__ == "__main__":

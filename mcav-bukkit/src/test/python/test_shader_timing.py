@@ -49,6 +49,8 @@ DIMENSIONS: struct.Struct = struct.Struct("<HH")
 DECODE_MILLISECONDS: float = 1.0
 SCREEN_MILLISECONDS: float = 2.0
 
+DECODE_PASS: str = "mcv2_decode"
+
 MODERNGL_MODULE: str = "moderngl"
 GL_VERSION: str = "3.3"
 
@@ -87,6 +89,12 @@ class ExitCodeTest(unittest.TestCase):
                 status: str | int | None = run(*options)
                 self.assertEqual(2, status)
 
+    def test_should_accept_the_least_rounds_repeats_and_slots_that_time_a_frame(self) -> None:
+        for options in (("--rounds", "2"), ("--repeats", "1"), ("--slots", "1")):
+            with self.subTest(options=options):
+                status: str | int | None = run(*options)
+                self.assertEqual(0, status)
+
 
 class TimerAccountingTest(unittest.TestCase):
     def test_should_count_each_copy_and_not_time_the_vanilla_outline_blit(self) -> None:
@@ -114,6 +122,22 @@ class TimerAccountingTest(unittest.TestCase):
         self.assertEqual(4.0, total)
 
         self.assertEqual(["mcav:mcv2_previous_0", "mcav:mcv2_state_0", "minecraft:entity_outline"], drawn)
+
+    def test_should_draw_the_decode_pass_once_per_repeat_and_time_one_draw(self) -> None:
+        steps: list[tuple[str, str, dict[Any, Any], str]] = [(DECODE_PASS, "decode", {}, "mcav:mcv2_status")]
+        chain: mcv2_tools.TimedShaderChain = object.__new__(mcv2_tools.TimedShaderChain)
+        chain.context = types.SimpleNamespace(query=lambda **_: FakeQuery())
+        chain.queries = {}
+        chain.warm = lambda: None
+        chain.steps = lambda: steps
+        drawn: list[Any | str] = []
+        chain.draw = lambda program, inputs, output: drawn.append(output)
+        chain.target = lambda name: types.SimpleNamespace(read=lambda: b"\x01\x00\x00\x00")
+        times: dict[str, float]
+        _, times = chain.timed_frame(5)
+        self.assertEqual({DECODE_PASS: 0.4}, times)
+
+        self.assertEqual(["mcav:mcv2_status"] * 5, drawn)
 
     def test_should_classify_keyframes_and_predicted_frames_separately_by_their_version_three_ids(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -143,6 +167,33 @@ class TimerAccountingTest(unittest.TestCase):
 
             predicted_frames: Any = stream[NEW_PREDICTED_KEY][TOTAL_KEY][COUNT_KEY]
             self.assertEqual(2, predicted_frames)
+
+    def test_should_count_keyframes_and_predicted_frames_in_unequal_numbers(self) -> None:
+        for version in (mcv2_reference.VERSION, VERSION_TWO):
+            with self.subTest(version=version):
+                result: dict[str, Any]
+                failures: int
+                result, failures = time_stream(version)
+                self.assertEqual(0, failures)
+
+                keyframes: Any = result[NEW_KEYFRAME_KEY][TOTAL_KEY][COUNT_KEY]
+                self.assertEqual(1, keyframes)
+
+                predicted_frames: Any = result[NEW_PREDICTED_KEY][TOTAL_KEY][COUNT_KEY]
+                self.assertEqual(2, predicted_frames)
+
+    def test_should_summarize_the_mean_tail_and_count_of_each_pass(self) -> None:
+        samples: list[dict[str, float]] = [{DECODE_PASS: 1.0, TOTAL_KEY: 1.0}, {DECODE_PASS: 3.0, TOTAL_KEY: 3.0}]
+        summary: dict[str, dict[str, float | int]] = mcv2_tools.shader_timing_summarize(samples, (DECODE_PASS,))
+        decode: dict[str, float | int] = summary[DECODE_PASS]
+        self.assertEqual(2.0, decode["mean"])
+        self.assertAlmostEqual(2.9, decode["p95"])
+        self.assertEqual(2, decode[COUNT_KEY])
+
+    def test_should_summarize_a_kind_without_samples_as_zeros(self) -> None:
+        summary: dict[str, dict[str, float | int]] = mcv2_tools.shader_timing_summarize([], (DECODE_PASS,))
+        zeros: dict[str, float | int] = {"mean": 0.0, "p95": 0.0, COUNT_KEY: 0}
+        self.assertEqual({DECODE_PASS: zeros, TOTAL_KEY: zeros}, summary)
 
     def test_should_import_the_transport_of_the_reference_option_from_the_archived_package_directory(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -200,6 +251,20 @@ def run(
             return exception.code
 
     return 0
+
+
+def time_stream(version: int) -> tuple[dict[str, Any], int]:
+    frames: list[bytes] = [keyframe(version), predicted_frame(version), predicted_frame(version)]
+    # the first round only warms up, so each frame counts once
+    arguments: types.SimpleNamespace = types.SimpleNamespace(slots=1, spirv=None, repeats=1, rounds=2)
+    with (
+        mock.patch.object(mcv2_tools, "read_archive", lambda stream: frames),
+        mock.patch.object(mcv2_tools, "TimedShaderChain", FakeChain),
+        redirect_stdout(StringIO()),
+    ):
+        return mcv2_tools.shader_timing_stream(
+            types.SimpleNamespace(), arguments, lambda data, stream_id, symbol_bits: [data], STREAM_NAME
+        )
 
 
 class FakeChain:

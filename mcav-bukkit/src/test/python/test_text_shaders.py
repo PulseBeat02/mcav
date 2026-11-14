@@ -36,9 +36,20 @@ class TextShaderCheckTest(unittest.TestCase):
         self.assertEqual([0x12, 0x34, 0x56], colors[5].tolist())
         self.assertEqual([0, 0, 1], colors[0].tolist())
 
+    def test_should_refuse_an_alphabet_without_a_symbol_table(self) -> None:
+        with self.assertRaises(ValueError) as raised:
+            mcv2_tools.shader_check_alphabet_colors("const uint MCV2_SYMBOL_HASH = 1000u;\n")
+
+        message: str = str(raised.exception)
+        self.assertEqual("The alphabet has no symbol table!", message)
+
     def test_should_write_the_anchor_magic_its_fields_and_their_check_for_a_stream(self) -> None:
         symbols: numpy.ndarray = mcv2_tools.shader_check_anchor_symbols(130)
         self.assertEqual([21, 3, 58, 44, 9, 37, 60, 17, 0, 0, 15, 9, 0, 2, 2, 28], symbols.tolist())
+
+    def test_should_write_the_low_six_bits_of_the_stream_before_its_high_six_bits(self) -> None:
+        symbols: numpy.ndarray = mcv2_tools.shader_check_anchor_symbols(131)
+        self.assertEqual([21, 3, 58, 44, 9, 37, 60, 17, 0, 0, 15, 9, 0, 3, 2, 29], symbols.tolist())
 
     def test_should_parse_a_window_size(self) -> None:
         size: tuple[int, ...] = mcv2_tools.parse_size("1280x720")
