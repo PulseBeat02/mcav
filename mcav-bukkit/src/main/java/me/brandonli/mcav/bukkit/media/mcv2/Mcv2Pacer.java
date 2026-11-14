@@ -139,7 +139,7 @@ public final class Mcv2Pacer {
    *
    * @param sizes the video sizes the screen can show, largest first: the size it was asked for, then smaller ones it
    *              can switch to
-   * @throws IllegalArgumentException if there is no size, or a size is not positive
+   * @throws IllegalArgumentException if there is no size, or a size does not hold exactly two positive dimensions
    * @throws NullPointerException     if the sizes or one of its arrays is null
    * @since 1.0.0
    */
@@ -157,7 +157,7 @@ public final class Mcv2Pacer {
    *              can switch to
    * @param floor how low the ladder goes: down to the dithered maps, or only to the lowest encoded rung, even when
    *              its frames take longer than they have
-   * @throws IllegalArgumentException if there is no size, or a size is not positive
+   * @throws IllegalArgumentException if there is no size, or a size does not hold exactly two positive dimensions
    * @throws NullPointerException     if the sizes, one of its arrays or the floor is null
    * @since 1.0.0
    */
@@ -176,9 +176,10 @@ public final class Mcv2Pacer {
    * @param presets how hard the encoder can search, from the preset the screen was asked for down to the fastest
    * @param floor   how low the ladder goes: down to the dithered maps, or only to the lowest encoded rung, even when
    *                its frames take longer than they have
-   * @throws IllegalArgumentException if there is no size or no preset, a size is not positive, or a preset does not
-   *                                  cost less than the one before it
-   * @throws NullPointerException     if the sizes, one of its arrays, the presets or the floor is null
+   * @throws IllegalArgumentException if there is no size or no preset, a size does not hold exactly two positive
+   *                                  dimensions, or a preset does not cost less than the one before it
+   * @throws NullPointerException     if the sizes, one of its arrays, the presets, one of the presets or the floor
+   *                                  is null
    * @since 1.0.0
    */
   public Mcv2Pacer(final List<int[]> sizes, final List<Preset> presets, final Floor floor) {
