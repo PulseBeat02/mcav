@@ -91,6 +91,13 @@ class StripCheckTest(unittest.TestCase):
         run_payload: bytes = run_page.payload
         self.assertEqual(frame[:capacity], run_payload)
 
+    def test_should_read_one_page_of_symbols_from_a_slot_taller_than_a_page(self) -> None:
+        screen: numpy.ndarray = blank_screen(PAGE_ROWS + 1)
+        screen[PAGE_ROWS:, :, 0] = 1
+        symbols: numpy.ndarray = mcv2_tools.strip_check_page_symbols(screen, 0, PAGE_ROWS + 1)
+        actual: bytes = symbols.tobytes()
+        self.assertEqual(bytes(mcv2_reference.PAGE_SYMBOLS), actual)
+
 
 def blank_screen(rows: int) -> numpy.ndarray:
     return numpy.zeros((rows, mcv2_reference.MAP_SIDE, mcv2_reference.CHANNELS), numpy.uint8)
