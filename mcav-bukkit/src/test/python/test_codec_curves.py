@@ -167,6 +167,14 @@ class MeasurementTest(unittest.TestCase):
         expected: float = 10 * math.log10(255**2 / ((3**2 + 4**2) / 2))
         self.assertAlmostEqual(expected, psnr)
 
+    def test_should_fail_with_the_program_and_the_end_of_its_errors(self) -> None:
+        script: str = "import sys; sys.stderr.write('first' + '.' * 2000); sys.exit(1)"
+        with self.assertRaises(RuntimeError) as raised:
+            mcv2_tools.codec_curves_run([sys.executable, "-c", script])
+        message: str = str(raised.exception)
+        expected: str = f"Command {sys.executable} failed!\n{'.' * 2000}"
+        self.assertEqual(expected, message)
+
 
 if __name__ == "__main__":
     unittest.main()
