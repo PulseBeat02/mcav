@@ -18,7 +18,6 @@
 package me.brandonli.mcav.browser;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.util.concurrent.Uninterruptibles;
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.Closeable;
@@ -41,7 +40,6 @@ import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
-import java.time.Duration;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
@@ -60,8 +58,6 @@ final class NullDisplay implements AutoCloseable {
   private static final String CLIENT_THREAD_NAME = "mcav-browser-null-display-client";
 
   private static final Thread NOT_STARTED = new Thread("mcav-browser-not-started");
-
-  private static final Duration ACCEPT_STOP_TIMEOUT = Duration.ofSeconds(10);
 
   static final int X11_BASE_PORT = 6000;
 
@@ -933,7 +929,7 @@ final class NullDisplay implements AutoCloseable {
   public void close() {
     this.closeQuietly(this.server);
     // a thread blocked in accept() keeps the socket listening until it leaves it
-    Uninterruptibles.joinUninterruptibly(this.acceptor, ACCEPT_STOP_TIMEOUT);
+    NetworkGuard.awaitEnd(this.acceptor);
     for (final Socket client : this.clients) {
       this.closeQuietly(client);
     }

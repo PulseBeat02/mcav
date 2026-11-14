@@ -17,7 +17,6 @@
  */
 package me.brandonli.mcav.browser;
 
-import com.google.common.util.concurrent.Uninterruptibles;
 import java.io.BufferedInputStream;
 import java.io.Closeable;
 import java.io.DataInputStream;
@@ -34,7 +33,6 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
 import java.net.UnknownHostException;
-import java.time.Duration;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
@@ -77,7 +75,7 @@ final class NetworkGuard implements Closeable {
 
   private static final Thread NOT_STARTED = new Thread("mcav-browser-not-started");
 
-  private static final Duration ACCEPT_STOP_TIMEOUT = Duration.ofSeconds(10);
+  private static final long ACCEPT_STOP_TIMEOUT_MILLISECONDS = 10_000L;
 
   private final ServerSocket server;
   private final Resolver resolver;
@@ -149,7 +147,7 @@ final class NetworkGuard implements Closeable {
     this.closed = true;
     closeQuietly(this.server);
     // a thread blocked in accept() keeps the socket listening until it leaves it
-    Uninterruptibles.joinUninterruptibly(this.acceptor, ACCEPT_STOP_TIMEOUT);
+    awaitEnd(this.acceptor);
     for (final Socket socket : this.sockets) {
       closeQuietly(socket);
     }
@@ -362,6 +360,15 @@ final class NetworkGuard implements Closeable {
       closeable.close();
     } catch (final IOException exception) {
       // already gone
+    }
+  }
+
+  static void awaitEnd(final Thread thread) {
+    try {
+      thread.join(ACCEPT_STOP_TIMEOUT_MILLISECONDS);
+    } catch (final InterruptedException exception) {
+      final Thread current = Thread.currentThread();
+      current.interrupt();
     }
   }
 
