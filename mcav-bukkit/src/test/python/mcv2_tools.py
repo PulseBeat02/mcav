@@ -1241,6 +1241,10 @@ def counter_video_main() -> None:
         sys.exit(message)
 
     frames: int = int(arguments.seconds * arguments.frames_per_second)
+    if frames < 1:
+        message: str = f"Seconds {arguments.seconds} at {arguments.frames_per_second} frames per second must give at least one frame!"
+        parser.error(message)
+
     raw: Any = arguments.out.endswith(RAW_SUFFIX)
     encoder: subprocess.Popen[bytes] | None = None
     if not raw:

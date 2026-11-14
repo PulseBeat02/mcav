@@ -17,6 +17,8 @@
 import sys
 import tempfile
 import unittest
+from contextlib import redirect_stderr
+from io import StringIO
 from pathlib import Path
 from unittest.mock import patch
 
@@ -74,6 +76,15 @@ class CounterVideoTest(unittest.TestCase):
                 _: bytes
                 status, _ = self.run_counter_video(clip, width, height, "1")
                 self.assertEqual("The clip must have a frame at least 768 pixels wide and 32 pixels high!", status)
+
+    def test_should_exit_2_when_the_seconds_give_no_frame(self) -> None:
+        clip: numpy.ndarray = numpy.zeros(WIDTH * HEIGHT * CHANNELS, numpy.uint8)
+        status: str | int | None
+        _: bytes
+        with redirect_stderr(StringIO()):
+            status, _ = self.run_counter_video(clip, WIDTH, HEIGHT, "0")
+
+        self.assertEqual(2, status)
 
     def sample_lumas(self, frame: numpy.ndarray) -> list[int]:
         offset: int = mcv2_tools.LATENCY_SAMPLE_OFFSET
