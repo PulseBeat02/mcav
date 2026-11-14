@@ -166,6 +166,17 @@ class StripCommandTest(unittest.TestCase):
         checks: Any = result[CHECKS_KEY]
         self.assertEqual(CHECK_COUNT, checks)
 
+    def test_should_fail_the_subcommand_when_a_scene_pixel_of_the_tall_screen_changes(self) -> None:
+        status: int | None
+        result: Any
+        status, result = self.run_command(((64, 400), 0))
+        self.assertEqual(1, status)
+
+        failures: Any = result[FAILURES_KEY]
+        self.assertEqual(
+            ["64x400, where the strip does not fit: 1 pixels of the scene changed"], failures
+        )
+
     def run_command(self, damaged: tuple[tuple[int, int], int] | None) -> tuple[int | None, Any]:
         context: SimpleNamespace = SimpleNamespace(info={"GL_RENDERER": "fake"})
         moderngl: SimpleNamespace = SimpleNamespace(create_standalone_context=lambda **options: context)
