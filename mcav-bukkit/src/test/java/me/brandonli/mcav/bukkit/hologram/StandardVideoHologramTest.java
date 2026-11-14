@@ -298,6 +298,16 @@ final class StandardVideoHologramTest {
     verify(scheduler, never()).runTaskTimer(any(Plugin.class), any(Runnable.class), any(Long.class), any(Long.class));
   }
 
+  @Test
+  void shouldRejectStartingADisplayWithoutAnInjectedPlugin() {
+    final StandardVideoHologram hologram = new StandardVideoHologram();
+    final UrlParseDump dump = this.createDump(TITLE, UPLOADER, 0, DURATION_SECONDS);
+    hologram.spawn(this.location, dump);
+    FakeServer.clearInjectedPlugin();
+
+    assertThrows(IllegalStateException.class, hologram::start);
+  }
+
   private TextDisplay startHologram(final double duration) {
     final StandardVideoHologram hologram = new StandardVideoHologram();
     final UrlParseDump dump = this.createDump(TITLE, UPLOADER, 0, duration);
