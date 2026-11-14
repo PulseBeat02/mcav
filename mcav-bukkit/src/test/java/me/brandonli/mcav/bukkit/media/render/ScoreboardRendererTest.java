@@ -212,6 +212,21 @@ final class ScoreboardRendererTest {
   }
 
   @Test
+  void shouldResizeTheImageInPlaceToTheWidthByTheLines() {
+    final ScoreboardConfiguration configuration = this.createConfiguration(1);
+    final ScoreboardRenderer renderer = new ScoreboardRenderer(configuration);
+    final ImageBuffer image = ImageBuffer.buffer(new int[4 * 3], 4, 3);
+
+    renderer.show();
+    renderer.render(image);
+
+    final int width = image.getWidth();
+    final int height = image.getHeight();
+    assertEquals(2, width);
+    assertEquals(1, height);
+  }
+
+  @Test
   void shouldIgnoreFramesBeforeTheScoreboardExists() {
     final ScoreboardConfiguration configuration = this.createConfiguration(1);
     final ScoreboardRenderer renderer = new ScoreboardRenderer(configuration);
