@@ -109,6 +109,20 @@ class HelpCommandTest(unittest.TestCase):
         arguments: list[str] = list(sys.argv)
         selections.append((name, arguments))
 
+    def test_should_exit_with_the_usage_without_a_known_name(self) -> None:
+        names: str = "|".join(COMMANDS)
+        usage: str = f"Usage: {PROGRAM} <{names}> [arguments]"
+        for arguments in ([PROGRAM], [PROGRAM, "unknown"]):
+            with self.subTest(arguments=arguments):
+                code: str | int | None = self.run_usage(arguments)
+                self.assertEqual(usage, code)
+
+    def run_usage(self, arguments: list[str]) -> str | int | None:
+        with patch.object(sys, "argv", arguments), self.assertRaises(SystemExit) as status:
+            mcv2_tools.main()
+
+        return status.exception.code
+
 
 class StripCommandTest(unittest.TestCase):
     def test_should_fail_the_subcommand_when_a_scene_pixel_changes(self) -> None:
