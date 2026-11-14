@@ -74,6 +74,9 @@ LAYOUT_OPTIONS: list[str] = [
     str(LAYOUT_DEBUG_TOP),
 ]
 
+TWO_SLOTS: int = 2
+TWO_SLOT_OPTIONS: list[str] = [mcv2_tools.SLOTS_OPTION, str(TWO_SLOTS)]
+
 DESCRIPTOR_FAILURE: str = f"{CAPTURE_FILE}: descriptor"
 SLOT_FAILURE: str = f"{CAPTURE_FILE}: slot 0 square {mcv2_tools.STRIP_CHECK_GREEN}, page valid False"
 
@@ -293,6 +296,16 @@ class StripCheckTest(unittest.TestCase):
         self.assertEqual({"0": 1}, summary[VALID_PAGES_KEY])
         self.assertEqual(1, summary[DESCRIPTORS_KEY])
 
+    def test_should_default_the_total_slots_to_the_slots_and_read_each_slot_page(self) -> None:
+        frame: bytes = pack_frame(1, 1, 7, 7, {})
+        screen: numpy.ndarray = two_slot_capture(make_pages(frame, 5)[0])
+        status: int | str | None
+        summary: Any
+        status, _, summary = self.check_screen(screen, *TWO_SLOT_OPTIONS)
+        self.assertEqual(mcv2_tools.SUCCESS_EXIT_CODE, status)
+        self.assertEqual({"1": 1}, summary[VALID_PAGES_KEY])
+        self.assertEqual(1, summary[DESCRIPTORS_KEY])
+
     def check_screen(self, screen: numpy.ndarray, *options: str) -> tuple[int | str | None, list[str], Any]:
         with tempfile.TemporaryDirectory() as directory:
             captures: Path = Path(directory)
@@ -375,6 +388,15 @@ def layout_capture(symbols: bytes) -> numpy.ndarray:
     paint_page(screen, LAYOUT_FIRST_SLOT, symbols)
     screen[descriptor_row, : len(mcv2_tools.STRIP_CHECK_DESCRIPTOR)] = mcv2_tools.STRIP_CHECK_DESCRIPTOR
     screen[top:] = squares
+    return screen
+
+
+def two_slot_capture(symbols: bytes) -> numpy.ndarray:
+    rows: int = mcv2_tools.page_rows(SQUARES_WIDTH)
+    descriptor_row: int = TWO_SLOTS * rows
+    screen: numpy.ndarray = numpy.zeros((descriptor_row + 1, SQUARES_WIDTH, mcv2_reference.CHANNELS), numpy.uint8)
+    paint_page(screen, 1, symbols)
+    screen[descriptor_row, : len(mcv2_tools.STRIP_CHECK_DESCRIPTOR)] = mcv2_tools.STRIP_CHECK_DESCRIPTOR
     return screen
 
 
