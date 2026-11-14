@@ -142,6 +142,17 @@ class ShaderCadenceTest(unittest.TestCase):
 
         self.assertEqual(1, check.wrong)
 
+    def test_should_count_skipped_renders_and_only_a_skip_that_changed_the_shown_picture_as_wrong(self) -> None:
+        check: mcv2_tools.ShaderStreamCheck = mcv2_tools.ShaderStreamCheck(None, argparse.Namespace())
+        check.check_skipped(LABEL, self.current)
+        check.shown = self.last
+        check.check_skipped(LABEL, self.last)
+        self.assertEqual(0, check.wrong)
+
+        check.check_skipped(LABEL, self.current)
+        self.assertEqual(1, check.wrong)
+        self.assertEqual(3, check.skipped)
+
     def test_should_refuse_a_check_without_renders(self) -> None:
         arguments: list[str] = [PROGRAM, "shader_check", "stream.mcs", "--renders-per-frame", "0"]
         with patch.object(sys, "argv", arguments), redirect_stderr(StringIO()), self.assertRaises(SystemExit) as status:
