@@ -76,7 +76,10 @@ final class Mcv2TreeNodeTest {
 
   @Test
   void shouldHoldFourChildrenInRasterOrderInASplit() {
-    final Node split = Node.split(SOLID, Node.skip(), Node.skip(), SOLID);
+    final Node bottomLeft = Node.leaf(Mcv2Decoder.MODE_SOLID, 0, new byte[] { 4, 5, 6 });
+    final Node bottomRight = Node.leaf(Mcv2Decoder.MODE_SOLID, 0, new byte[] { 7, 8, 9 });
+    final Node[] children = { SOLID, Node.skip(), bottomLeft, bottomRight };
+    final Node split = Node.split(children[0], children[1], children[2], children[3]);
 
     final boolean isSplit = split.isSplit();
     assertTrue(isSplit);
@@ -84,12 +87,9 @@ final class Mcv2TreeNodeTest {
     final int mode = split.getMode();
     assertEquals(Mcv2Decoder.MODE_SPLIT, mode);
 
-    final Object expectedFirstValue = SOLID.value();
-    final Object firstValue = split.getChild(0).value();
-    assertSame(expectedFirstValue, firstValue);
-
-    final Object expectedLastValue = SOLID.value();
-    final Object lastValue = split.getChild(3).value();
-    assertSame(expectedLastValue, lastValue);
+    for (int index = 0; index < children.length; index++) {
+      final Node child = split.getChild(index);
+      assertSame(children[index].value(), child.value());
+    }
   }
 }
