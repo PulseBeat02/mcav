@@ -63,6 +63,14 @@ class ResumeTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "proxy30 already has measurements of other content"):
             mcv2_tools.codec_curves_resume(self.output, DOCUMENTED_SOURCE, other)
 
+    def test_should_refuse_a_name_measured_with_other_settings(self) -> None:
+        documented: Any = json.loads(DOCUMENTED.read_text())
+        self.write(documented)
+        identity: Any = documented[SOURCES_KEY][DOCUMENTED_SOURCE]
+        other: dict[str, Any] = {**identity, "frames": identity["frames"] + 1}
+        with self.assertRaisesRegex(ValueError, "proxy30 already has measurements of other content"):
+            mcv2_tools.codec_curves_resume(self.output, DOCUMENTED_SOURCE, other)
+
     def test_should_read_the_points_of_the_first_runs(self) -> None:
         point: dict[str, Any] = {"source": NEW_SOURCE, "codec": "x264", "quality": 20}
         self.write({SOURCES_KEY: {}, POINTS_KEY: [point]})
