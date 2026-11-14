@@ -1163,6 +1163,14 @@ final class Mcv2PacerTest {
     assertEquals(3.0, videoFramesPerSecond);
   }
 
+  @Test
+  void shouldRefuseNullPartsOfPresetsRungsAndChanges() {
+    assertThrows(NullPointerException.class, () -> Mcv2Pacer.Preset.of(null, 1));
+    assertThrows(NullPointerException.class, () -> Mcv2Pacer.Rung.of(1280, 720, 1, null));
+    assertThrows(NullPointerException.class, () -> Mcv2Pacer.Change.of(null, Mcv2Pacer.Rung.DITHERED, false, 0, 0, 0));
+    assertThrows(NullPointerException.class, () -> Mcv2Pacer.Change.of(Mcv2Pacer.Rung.DITHERED, null, false, 0, 0, 0));
+  }
+
   private static final class Driver {
 
     private final Mcv2Pacer pacer;
