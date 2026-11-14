@@ -150,6 +150,20 @@ class TimerAccountingTest(unittest.TestCase):
             predicted_frames: Any = stream[NEW_PREDICTED_KEY][TOTAL_KEY][COUNT_KEY]
             self.assertEqual(2, predicted_frames)
 
+    def test_should_count_keyframes_and_predicted_frames_in_unequal_numbers(self) -> None:
+        for version in (mcv2_reference.VERSION, VERSION_TWO):
+            with self.subTest(version=version):
+                result: dict[str, Any]
+                failures: int
+                result, failures = time_stream(version)
+                self.assertEqual(0, failures)
+
+                keyframes: Any = result[NEW_KEYFRAME_KEY][TOTAL_KEY][COUNT_KEY]
+                self.assertEqual(1, keyframes)
+
+                predicted_frames: Any = result[NEW_PREDICTED_KEY][TOTAL_KEY][COUNT_KEY]
+                self.assertEqual(2, predicted_frames)
+
     def test_should_import_the_transport_of_the_reference_option_from_the_archived_package_directory(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             package: Path = Path(directory) / PACKAGE
@@ -206,6 +220,20 @@ def run(
             return exception.code
 
     return 0
+
+
+def time_stream(version: int) -> tuple[dict[str, Any], int]:
+    frames: list[bytes] = [keyframe(version), predicted_frame(version), predicted_frame(version)]
+    # the first round only warms up, so each frame counts once
+    arguments: types.SimpleNamespace = types.SimpleNamespace(slots=1, spirv=None, repeats=1, rounds=2)
+    with (
+        mock.patch.object(mcv2_tools, "read_archive", lambda stream: frames),
+        mock.patch.object(mcv2_tools, "TimedShaderChain", FakeChain),
+        redirect_stdout(StringIO()),
+    ):
+        return mcv2_tools.shader_timing_stream(
+            types.SimpleNamespace(), arguments, lambda data, stream_id, symbol_bits: [data], STREAM_NAME
+        )
 
 
 class FakeChain:
