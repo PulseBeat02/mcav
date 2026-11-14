@@ -45,8 +45,10 @@ SQUARES_WIDTH: int = VIDEO_WIDTH + mcv2_tools.STRIP_CHECK_MARGIN + (SLOTS + mcv2
 
 NOTES_FILE: str = "notes.txt"
 CAPTURE_FILE: str = "capture.png"
+DESCRIPTOR_FAILURE: str = f"{CAPTURE_FILE}: descriptor"
 
 SQUARES_KEY: str = "captures_with_squares"
+DESCRIPTORS_KEY: str = "descriptor_rows"
 
 TWO_PAGE_WIDTH: int = 3200
 TWO_PAGE_LEAVES: int = 100
@@ -146,6 +148,26 @@ class StripCheckTest(unittest.TestCase):
         _, _, summary = self.check_screen(screen)
         squares: Any = summary[SQUARES_KEY]
         self.assertEqual(0, squares)
+
+    def test_should_count_the_anchor_descriptor_of_its_screen(self) -> None:
+        screen: numpy.ndarray = blank_capture(SQUARES_WIDTH)
+        row: int = mcv2_tools.page_rows(SQUARES_WIDTH) * SLOTS
+        screen[row, : len(mcv2_tools.STRIP_CHECK_DESCRIPTOR)] = mcv2_tools.STRIP_CHECK_DESCRIPTOR
+        failures: list[str]
+        summary: Any
+        _, failures, summary = self.check_screen(screen)
+        descriptors: Any = summary[DESCRIPTORS_KEY]
+        self.assertEqual(1, descriptors)
+        self.assertNotIn(DESCRIPTOR_FAILURE, failures)
+
+    def test_should_report_a_capture_without_the_anchor_descriptor(self) -> None:
+        screen: numpy.ndarray = blank_capture(SQUARES_WIDTH)
+        failures: list[str]
+        summary: Any
+        _, failures, summary = self.check_screen(screen)
+        descriptors: Any = summary[DESCRIPTORS_KEY]
+        self.assertEqual(0, descriptors)
+        self.assertIn(DESCRIPTOR_FAILURE, failures)
 
     def check_screen(self, screen: numpy.ndarray) -> tuple[int | str | None, list[str], Any]:
         with tempfile.TemporaryDirectory() as directory:
