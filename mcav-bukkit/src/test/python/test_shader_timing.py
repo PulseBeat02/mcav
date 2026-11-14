@@ -87,6 +87,12 @@ class ExitCodeTest(unittest.TestCase):
                 status: str | int | None = run(*options)
                 self.assertEqual(2, status)
 
+    def test_should_accept_the_least_rounds_repeats_and_slots_that_time_a_frame(self) -> None:
+        for options in (("--rounds", "2"), ("--repeats", "1"), ("--slots", "1")):
+            with self.subTest(options=options):
+                status: str | int | None = run(*options)
+                self.assertEqual(0, status)
+
 
 class TimerAccountingTest(unittest.TestCase):
     def test_should_count_each_copy_and_not_time_the_vanilla_outline_blit(self) -> None:
