@@ -45,6 +45,7 @@ FIRST_FRAME_LATENCY: int = 200
 
 LATENCY_KEY_PREFIX: str = "glass_to_glass_milliseconds_"
 MEAN_LATENCY_KEY: str = f"{LATENCY_KEY_PREFIX}mean"
+AMBIGUOUS_DISPLAYED_KEY: str = "ambiguous_displayed"
 
 
 class LatencyTest(unittest.TestCase):
@@ -73,6 +74,15 @@ class LatencyTest(unittest.TestCase):
                 result: dict[str, float | int] = self.report(event(1, LATER_ARRIVAL, invalid))
                 glass_to_glass: float | int = result[MEAN_LATENCY_KEY]
                 self.assertEqual(FIRST_FRAME_LATENCY, glass_to_glass)
+
+    def test_should_count_only_a_display_with_several_sent_candidates_as_ambiguous(self) -> None:
+        single: dict[str, float | int] = self.report(event(1, LATER_ARRIVAL, EARLY_SENT, sent_to=0))
+        single_ambiguous: float | int = single[AMBIGUOUS_DISPLAYED_KEY]
+        self.assertEqual(0, single_ambiguous)
+
+        several: dict[str, float | int] = self.report(event(1, LATER_ARRIVAL, EARLY_SENT))
+        several_ambiguous: float | int = several[AMBIGUOUS_DISPLAYED_KEY]
+        self.assertEqual(1, several_ambiguous)
 
     def report(self, later: dict[str, bool | float | int] | dict[str, bool | int]) -> dict[str, float | int]:
         with tempfile.TemporaryDirectory() as directory:
