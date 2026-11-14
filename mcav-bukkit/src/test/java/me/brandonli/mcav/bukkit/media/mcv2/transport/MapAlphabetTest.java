@@ -70,4 +70,9 @@ final class MapAlphabetTest {
     assertThrows(Mcv2Exception.class, () -> MapAlphabet.fromMapColors(new byte[] { 3 }));
     assertThrows(Mcv2Exception.class, () -> MapAlphabet.fromMapColors(new byte[] { 68 }));
   }
+
+  @Test
+  void shouldReadSymbolBytesAsUnsigned() {
+    assertThrows(IllegalArgumentException.class, () -> MapAlphabet.toMapColors(new byte[] { (byte) 0xC0 }));
+  }
 }
