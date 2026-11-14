@@ -251,6 +251,22 @@ class DifferentialTest(unittest.TestCase):
 
         return raised.exception.code, errors.getvalue()
 
+    def test_should_refuse_java_output_that_names_an_archive_twice(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            output: Path = Path(directory)
+            arguments: SimpleNamespace = SimpleNamespace(
+                out=output, java=PLACEHOLDER, classpath=PLACEHOLDER, seed=SEED
+            )
+            line: str = TOKEN_SEPARATOR.join([str(output / ARCHIVE_PATH), REFERENCE_DIGEST])
+            response: SimpleNamespace = SimpleNamespace(returncode=0, stderr='', stdout=f'{line}\n{line}')
+            with (
+                patch.object(mcv2_tools, BUILD_ARCHIVES, return_value={ARCHIVE_NAME: [FRAME]}),
+                patch.object(mcv2_tools, 'differential_reference_tokens', return_value=[REFERENCE_DIGEST]),
+                patch.object(mcv2_tools.subprocess, RUN_FUNCTION, return_value=response),
+                self.assertRaisesRegex(ValueError, 'twice!'),
+            ):
+                mcv2_tools.differential_run(arguments)
+
     def report(self, frames: list[bytes], tokens: list[str]) -> tuple[int, Any]:
         with tempfile.TemporaryDirectory() as directory:
             output: Path = Path(directory)
