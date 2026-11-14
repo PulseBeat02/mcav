@@ -23,16 +23,23 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Stream;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2.Natives;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -60,6 +67,13 @@ final class Mcv2ToolsTest {
 
   private static final String SAMPLER_SHADER_FILE_NAME = "sampler.fsh";
   private static final String INVALID_SHADER_FILE_NAME = "invalid.fsh";
+
+  private static final String MCV2_RESOURCE_DIRECTORY = "src/main/resources/mcav/mcv2";
+  private static final String CHAIN_FILE_NAME = "chain.json";
+
+  private static final String MCAV_POST_PREFIX = "mcav:post/";
+  private static final String SCREEN_FOLDER = "s@S@/";
+  private static final Map<String, String> STAGE_EXTENSIONS = Map.of("vertex_shader", ".vsh", "fragment_shader", ".fsh");
 
   private static final String WINDOWS_JAVA_EXECUTABLE_FILE_NAME = "java.exe";
   private static final String BINARY_DIRECTORY = "bin";
@@ -226,6 +240,65 @@ final class Mcv2ToolsTest {
 
     final String samplerAfterFailure = Files.readString(output.resolve(SAMPLER_SHADER_FILE_NAME));
     assertEquals(glsl, samplerAfterFailure);
+  }
+
+  @Test
+  void shouldShipExactlyThePostShadersTheChainNames() throws Exception {
+    final Set<String> named = this.findChainShaderFiles();
+    final Set<String> shipped = this.listPostShaderFiles();
+    assertEquals(shipped, named);
+  }
+
+  private Set<String> findChainShaderFiles() throws IOException {
+    final String chain = Files.readString(Path.of(MCV2_RESOURCE_DIRECTORY, CHAIN_FILE_NAME));
+    final JsonElement root = JsonParser.parseString(chain);
+    final Set<String> files = new HashSet<>();
+    this.collectShaderFiles(root, files);
+    return files;
+  }
+
+  private void collectShaderFiles(final JsonElement element, final Set<String> files) {
+    if (element.isJsonArray()) {
+      final JsonArray array = element.getAsJsonArray();
+      array.forEach(child -> this.collectShaderFiles(child, files));
+      return;
+    }
+
+    if (!element.isJsonObject()) {
+      return;
+    }
+
+    final JsonObject object = element.getAsJsonObject();
+    for (final Map.Entry<String, JsonElement> entry : object.entrySet()) {
+      final String key = entry.getKey();
+      final JsonElement value = entry.getValue();
+      this.addShaderFile(key, value, files);
+      this.collectShaderFiles(value, files);
+    }
+  }
+
+  private void addShaderFile(final String key, final JsonElement value, final Set<String> files) {
+    final String extension = STAGE_EXTENSIONS.getOrDefault(key, "");
+    if (extension.isEmpty()) {
+      return;
+    }
+
+    final String name = value.getAsString();
+    if (!name.startsWith(MCAV_POST_PREFIX)) {
+      return;
+    }
+
+    final String path = name.substring(MCAV_POST_PREFIX.length());
+    final String file = path.replace(SCREEN_FOLDER, "");
+    files.add("%s%s".formatted(file, extension));
+  }
+
+  private Set<String> listPostShaderFiles() throws IOException {
+    final Path post = Path.of(MCV2_RESOURCE_DIRECTORY, PACK_DIRECTORY, POST_SHADER_FOLDER);
+    try (final Stream<Path> files = Files.list(post)) {
+      final List<String> names = files.map(Path::getFileName).map(Path::toString).toList();
+      return Set.copyOf(names);
+    }
   }
 
   private int compileShaders(final String[] arguments) throws Exception {
