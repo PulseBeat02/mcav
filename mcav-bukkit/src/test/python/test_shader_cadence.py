@@ -136,6 +136,12 @@ class ShaderCadenceTest(unittest.TestCase):
         check.check_wall(LABEL)
         self.assertEqual(1, check.walls_differ)
 
+    def test_should_count_a_decoded_picture_that_differs_from_the_reference_as_wrong(self) -> None:
+        check: mcv2_tools.ShaderStreamCheck = mcv2_tools.ShaderStreamCheck(None, argparse.Namespace())
+        check.check_picture(LABEL, self.current, self.last)
+
+        self.assertEqual(1, check.wrong)
+
     def test_should_refuse_a_check_without_renders(self) -> None:
         arguments: list[str] = [PROGRAM, "shader_check", "stream.mcs", "--renders-per-frame", "0"]
         with patch.object(sys, "argv", arguments), redirect_stderr(StringIO()), self.assertRaises(SystemExit) as status:
