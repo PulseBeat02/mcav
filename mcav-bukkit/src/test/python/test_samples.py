@@ -22,10 +22,13 @@ from io import StringIO
 from pathlib import Path
 
 import mcv2_tools
-from mcv2_reference import pack_frame
+from mcv2_reference import SKIP, Leaf, pack_frame
 
 ARCHIVE_FILE: str = "frames.mcv2"
 DUMP_INDENT: str = "  "
+
+LEAF_SIZE: int = 8
+LEAF_QUANTIZER: int = 0
 
 
 class SamplesTest(unittest.TestCase):
@@ -42,11 +45,23 @@ class SamplesTest(unittest.TestCase):
         dumped: bytes = dumped_bytes(output.getvalue())
         self.assertEqual(frames[1], dumped)
 
+    def test_should_keep_only_the_leaves_that_overlap_the_crop(self) -> None:
+        crop: tuple[int, int, int, int] = mcv2_tools.samples_crop_of("16,24,32,40")
+        neighbors: list[Leaf] = [leaf_at(8, 24), leaf_at(48, 24), leaf_at(16, 16), leaf_at(16, 64)]
+        overlapping: list[Leaf] = [leaf_at(9, 17), leaf_at(47, 63)]
+
+        inside: list[Leaf] = [leaf for leaf in neighbors + overlapping if mcv2_tools.samples_inside(leaf, crop)]
+        self.assertEqual(overlapping, inside)
+
 
 def dumped_bytes(output: str) -> bytes:
     lines: list[str] = output.splitlines()
     dumps: list[str] = [line.split(maxsplit=1)[1] for line in lines if line.startswith(DUMP_INDENT)]
     return bytes.fromhex(mcv2_tools.WORD_SEPARATOR.join(dumps))
+
+
+def leaf_at(pixel_x: int, pixel_y: int) -> Leaf:
+    return Leaf(pixel_x, pixel_y, LEAF_SIZE, SKIP, LEAF_QUANTIZER, None, b"", None)
 
 
 if __name__ == "__main__":
