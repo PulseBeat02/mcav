@@ -21,6 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -734,7 +735,14 @@ final class SimpleResourcePackTest {
     blocked.metadata(1, PLAIN_DESCRIPTION);
     Files.write(file, CREDITS);
 
-    assertThrows(BukkitException.class, () -> blocked.zip(belowFile));
+    final BukkitException exception = assertThrows(BukkitException.class, () -> blocked.zip(belowFile));
+    final String message = exception.getMessage();
+    final Path absolute = belowFile.toAbsolutePath();
+    final String expected = "Resource pack %s could not be written!".formatted(absolute);
+    assertEquals(expected, message);
+
+    final Throwable cause = exception.getCause();
+    assertInstanceOf(IOException.class, cause);
   }
 
   @Test
