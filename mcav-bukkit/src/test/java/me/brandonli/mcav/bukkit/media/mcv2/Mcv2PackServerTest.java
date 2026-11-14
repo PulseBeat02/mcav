@@ -1168,6 +1168,9 @@ final class Mcv2PackServerTest {
       new Mcv2PackServer(this.folder, null, Mcv2Pack.DebugView.HIDDEN, this.offered::add, this.refused::add)
     );
     assertThrows(NullPointerException.class, () ->
+      new Mcv2PackServer(this.folder, this::hosting, null, this.offered::add, this.refused::add)
+    );
+    assertThrows(NullPointerException.class, () ->
       new Mcv2PackServer(this.folder, this::hosting, Mcv2Pack.DebugView.HIDDEN, null, this.refused::add)
     );
     assertThrows(NullPointerException.class, () ->
