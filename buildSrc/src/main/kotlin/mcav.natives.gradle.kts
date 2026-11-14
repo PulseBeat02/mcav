@@ -44,9 +44,15 @@ val nativeSourcePattern: String = "*.cpp"
 val zigToolsPath: String = "tools/zig"
 val zigCachePath: String = "tools/zig/cache"
 val generatedNativesPath: String = "generated/natives"
+val kernelsTestSourcePath: String = "src/test/native/mcv2/kernels_test.cpp"
+val kernelsTestPath: String = "tests/mcv2/kernels_test"
 
 val nativeResourcesConfiguration: String = "mcv2NativeResources"
 val directoryArtifactType: String = "directory"
+
+val linuxSystem: String = "linux"
+val glibcTargetSuffix: String = "linux-gnu.2.28"
+val kernelsTestFlags: List<String> = listOf("-O1", "-std=c++17", "-ffp-contract=off", "-fwrapv", "-fno-strict-aliasing", "-Wall", "-Wextra", "-Werror")
 
 val host: HostPlatform = HostPlatform.current()
 val system: String = host.zigSystem
@@ -68,12 +74,14 @@ val downloadZig: TaskProvider<DownloadToolArchive> = tasks.register<DownloadTool
     this.installationDirectory = layout.buildDirectory.dir("$zigToolsPath/$pinnedZigVersion")
 }
 
+val selectedZig: Provider<RegularFile> = Tools.selectTool(project, zigTool, downloadZig.flatMap { it.installationDirectory.file(zigPath) })
+
 val nativeSources: Directory = layout.projectDirectory.dir(nativeSourcePath)
 val buildMcv2Natives: TaskProvider<BuildMcv2Natives> = tasks.register<BuildMcv2Natives>("buildMcv2Natives") {
     this.group = "build"
     this.description = "Compiles MCV2's six native libraries from source"
     this.sourcesDirectory = nativeSources
-    this.zigExecutable = Tools.selectTool(project, zigTool, downloadZig.flatMap { it.installationDirectory.file(zigPath) })
+    this.zigExecutable = selectedZig
     this.zigVersion = pinnedZigVersion
     this.toolchainChecksum = Tools.toolOverride(project, zigTool).map { zigOverrideChecksum }.orElse(zigChecksum)
     this.outputDirectory = layout.buildDirectory.dir(generatedNativesPath)
@@ -118,6 +126,40 @@ val checkNativesFormat: TaskProvider<ClangFormat> = tasks.register<ClangFormat>(
     this.rewrite = false
 }
 
+val kernelsLibraryPath: String = "mcav/mcv2/natives/linux-$architecture/libmcv2kernels.so"
+val kernelsTestSource: RegularFile = layout.projectDirectory.file(kernelsTestSourcePath)
+val kernelsTest: Provider<RegularFile> = layout.buildDirectory.file(kernelsTestPath)
+val kernelsLibrary: Provider<RegularFile> = buildMcv2Natives.flatMap { it.outputDirectory.file(kernelsLibraryPath) }
+
+val compileKernelsTest: TaskProvider<Exec> = tasks.register<Exec>("compileMcv2KernelsTest") {
+    this.group = "build"
+    this.description = "Compiles the MCV2 kernels' cross-level test against glibc 2.28"
+    this.onlyIf { system == linuxSystem }
+    this.inputs.file(selectedZig)
+    this.inputs.file(kernelsTestSource)
+    this.inputs.dir(nativeSources)
+    this.outputs.file(kernelsTest)
+    this.args("c++", "-target", "$architecture-$glibcTargetSuffix")
+    this.args(kernelsTestFlags)
+    this.args("-I${nativeSources.asFile.absolutePath}", kernelsTestSource.asFile.absolutePath)
+    this.args("-o", kernelsTest.get().asFile.absolutePath, "-ldl")
+    this.doFirst {
+        this@register.executable(selectedZig.get().asFile.absolutePath)
+    }
+}
+
+val checkKernels: TaskProvider<Exec> = tasks.register<Exec>("checkMcv2Kernels") {
+    this.group = "verification"
+    this.description = "Checks that every kernel level this CPU allows computes what the scalar level computes"
+    this.onlyIf { system == linuxSystem }
+    this.dependsOn(compileKernelsTest)
+    this.inputs.file(kernelsLibrary)
+    this.executable(kernelsTest.get().asFile.absolutePath)
+    this.doFirst {
+        this@register.args(kernelsLibrary.get().asFile.absolutePath)
+    }
+}
+
 tasks.named("check") {
-    this.dependsOn(checkNativesFormat)
+    this.dependsOn(checkNativesFormat, checkKernels)
 }
