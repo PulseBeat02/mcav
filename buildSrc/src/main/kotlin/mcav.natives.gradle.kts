@@ -52,7 +52,16 @@ val directoryArtifactType: String = "directory"
 
 val linuxSystem: String = "linux"
 val glibcTargetSuffix: String = "linux-gnu.2.28"
-val kernelsTestFlags: List<String> = listOf("-O1", "-std=c++17", "-ffp-contract=off", "-fwrapv", "-fno-strict-aliasing", "-Wall", "-Wextra", "-Werror")
+val kernelsTestFlags: List<String> = listOf(
+    "-O1",
+    "-std=c++17",
+    "-ffp-contract=off",
+    "-fwrapv",
+    "-fno-strict-aliasing",
+    "-Wall",
+    "-Wextra",
+    "-Werror"
+)
 
 val host: HostPlatform = HostPlatform.current()
 val system: String = host.zigSystem
