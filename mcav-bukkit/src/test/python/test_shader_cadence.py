@@ -144,6 +144,16 @@ class ShaderCadenceTest(unittest.TestCase):
                 self.assertEqual(2, check.renders)
                 self.assertEqual(0, check.wrong)
 
+    def test_should_expect_the_chain_to_skip_a_frame_with_more_pages_than_slots(self) -> None:
+        check: mcv2_tools.ShaderStreamCheck = self.create_stream_check(FakeChain([True, False]), 1)
+        check.check_frame(0, MERGED_STREAM[0])
+        pages: list[bytes] = mcv2_tools.make_pages(MERGED_STREAM[1], mcv2_tools.SHADER_CHECK_STREAM_ID)
+        with patch.object(mcv2_tools, "make_pages", return_value=pages + pages):
+            check.check_frame(1, MERGED_STREAM[1])
+
+        self.assertEqual(2, check.renders)
+        self.assertEqual(0, check.wrong)
+
     def test_should_draw_the_middle_of_the_picture_in_the_middle_of_the_window(self) -> None:
         positions: tuple[numpy.ndarray, ...]
         texels: tuple[numpy.ndarray, ...]
