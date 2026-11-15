@@ -262,9 +262,9 @@ final class Mcv2BlockCoderTest {
     }
 
     final byte[] source = new byte[reference.length];
-    for (int y = 0; y < ROOT_SIZE; y++) {
-      for (int x = 0; x < ROOT_SIZE; x++) {
-        System.arraycopy(reference, (y * ROOT_SIZE + Math.min(x + 4, 31)) * 3, source, (y * ROOT_SIZE + x) * 3, 3);
+    for (int row = 0; row < ROOT_SIZE; row++) {
+      for (int column = 0; column < ROOT_SIZE; column++) {
+        System.arraycopy(reference, (row * ROOT_SIZE + Math.min(column + 4, 31)) * 3, source, (row * ROOT_SIZE + column) * 3, 3);
       }
     }
 
