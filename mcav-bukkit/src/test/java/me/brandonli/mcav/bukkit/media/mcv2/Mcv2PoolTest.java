@@ -235,8 +235,6 @@ final class Mcv2PoolTest {
 
       final boolean passesOnChecked = this.isOrWraps(wrapped.getCause(), checked);
       assertTrue(passesOnChecked);
-
-      assertThrows(NullPointerException.class, () -> pool.run(null));
     }
   }
 
@@ -261,6 +259,13 @@ final class Mcv2PoolTest {
       assertEquals(Level.ERROR, level);
       assertEquals(expectedMessage, message);
       assertEquals(Optional.of(failure), thrown);
+    }
+  }
+
+  @Test
+  void shouldRefuseANullTask() {
+    try (final Pool pool = new Pool(1)) {
+      assertThrows(NullPointerException.class, () -> pool.run(null));
     }
   }
 
