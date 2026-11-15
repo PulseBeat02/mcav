@@ -33,6 +33,7 @@ import java.util.Objects;
 import java.util.Random;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2.Binding;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2.Level;
+import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Internals.Kernels;
 import me.brandonli.mcav.bukkit.media.mcv2.NativeTesting.NativeKernels;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.jupiter.api.Test;
@@ -423,6 +424,32 @@ final class NativeKernelsTest {
   }
 
   @Test
+  void shouldWeighEveryChannelInTheLumaResidualTail() {
+    final int[] source = new int[9 * 3];
+    final int[] prediction = new int[source.length];
+    for (int pixel = 0; pixel < 9; pixel++) {
+      final int offset = pixel * 3;
+      source[offset] = 1;
+      source[offset + 1] = 2;
+      source[offset + 2] = 3;
+      prediction[offset] = 4;
+      prediction[offset + 1] = 5;
+      prediction[offset + 2] = 6;
+    }
+
+    final float[] expected = new float[10];
+    Arrays.fill(expected, -3.0f);
+    expected[9] = 999;
+    for (final Level level : NativeTesting.levels()) {
+      final NativeKernels kernels = NativeTesting.kernels(level);
+      final float[] actual = new float[10];
+      Arrays.fill(actual, 999);
+      kernels.residualTarget(source, prediction, 9, actual);
+      assertArrayEquals(expected, actual, level.getSymbol());
+    }
+  }
+
+  @Test
   void shouldPredictUnscaledBytesAndKeepIntegerPaletteMeans() {
     for (final Level level : NativeTesting.levels()) {
       final NativeKernels kernels = NativeTesting.kernels(level);
@@ -461,6 +488,79 @@ final class NativeKernelsTest {
       kernels.cluster(source, 8, endpoints);
       final int[] expectedEndpoints = new int[] { 1, 1, 1, 253, 253, 253 };
       assertArrayEquals(expectedEndpoints, endpoints, level.getSymbol());
+    }
+  }
+
+  @Test
+  void shouldRefuseABlockThatEndsExactlyAtItsLimit() {
+    for (final Level level : NativeTesting.levels()) {
+      final NativeKernels kernels = NativeTesting.kernels(level);
+      final int[] block = new int[8 * 8 * 3];
+      final int[] output = new int[block.length];
+      kernels.start(block, 0, 0);
+      final boolean predicted = kernels.predicted(block, 8, output);
+      assertFalse(predicted, level.getSymbol());
+    }
+  }
+
+  @Test
+  void shouldClusterABlockOfSixteenPixelsOnTheSteppedGrid() {
+    final int[] source = new int[16 * 16 * 3];
+    for (int pixel = 0; pixel < 256; pixel++) {
+      final boolean sampled = pixel % 2 == 0 && (pixel / 16) % 2 == 0;
+      final int value = sampled ? 0 : MAXIMUM_CHANNEL_VALUE;
+      Arrays.fill(source, pixel * 3, pixel * 3 + 3, value);
+    }
+    final Kernels java = Mcv2Internals.javaKernels();
+    final int[] expected = new int[6];
+    java.cluster(source, 16, expected);
+    for (final Level level : NativeTesting.levels()) {
+      final NativeKernels kernels = NativeTesting.kernels(level);
+      final int[] endpoints = new int[6];
+      kernels.cluster(source, 16, endpoints);
+      assertArrayEquals(expected, endpoints, level.getSymbol());
+    }
+  }
+
+  @Test
+  void shouldClusterValuesTooLargeForTheNarrowSums() {
+    final int largest = (1 << 30) - 1;
+    final int[] source = new int[8 * 8 * 3];
+    final int[] values = { 0, 2, largest - 2, largest };
+    for (int pixel = 0; pixel < 64; pixel++) {
+      final int value = values[pixel % values.length];
+      Arrays.fill(source, pixel * 3, pixel * 3 + 3, value);
+    }
+    final Kernels java = Mcv2Internals.javaKernels();
+    final int[] expected = new int[6];
+    java.cluster(source, 8, expected);
+    for (final Level level : NativeTesting.levels()) {
+      final NativeKernels kernels = NativeTesting.kernels(level);
+      final int[] endpoints = new int[6];
+      kernels.cluster(source, 8, endpoints);
+      assertArrayEquals(expected, endpoints, level.getSymbol());
+    }
+  }
+
+  @Test
+  void shouldAssignThePixelsPastTheLastWholeVectorAsJavaDoes() {
+    final int[] source = new int[9 * 3];
+    for (int pixel = 0; pixel < 9; pixel++) {
+      Arrays.fill(source, pixel * 3, pixel * 3 + 3, pixel * 30);
+    }
+    final int[] endpoints = new int[6];
+    Arrays.fill(endpoints, 3, 6, MAXIMUM_CHANNEL_VALUE);
+    final Kernels java = Mcv2Internals.javaKernels();
+    final int[] expectedColors = new int[6];
+    final byte[] expectedSelectors = new byte[9];
+    java.finishPalette(source, 9, endpoints, expectedColors, expectedSelectors);
+    for (final Level level : NativeTesting.levels()) {
+      final NativeKernels kernels = NativeTesting.kernels(level);
+      final int[] actualColors = new int[6];
+      final byte[] actualSelectors = new byte[9];
+      kernels.finishPalette(source, 9, endpoints, actualColors, actualSelectors);
+      assertArrayEquals(expectedColors, actualColors, level.getSymbol());
+      assertArrayEquals(expectedSelectors, actualSelectors, level.getSymbol());
     }
   }
 }
