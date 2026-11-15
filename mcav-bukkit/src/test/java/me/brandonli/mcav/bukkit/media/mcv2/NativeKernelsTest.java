@@ -463,4 +463,16 @@ final class NativeKernelsTest {
       assertArrayEquals(expectedEndpoints, endpoints, level.getSymbol());
     }
   }
+
+  @Test
+  void shouldRefuseABlockThatEndsExactlyAtItsLimit() {
+    for (final Level level : NativeTesting.levels()) {
+      final NativeKernels kernels = NativeTesting.kernels(level);
+      final int[] block = new int[8 * 8 * 3];
+      final int[] output = new int[block.length];
+      kernels.start(block, 0, 0);
+      final boolean predicted = kernels.predicted(block, 8, output);
+      assertFalse(predicted, level.getSymbol());
+    }
+  }
 }
