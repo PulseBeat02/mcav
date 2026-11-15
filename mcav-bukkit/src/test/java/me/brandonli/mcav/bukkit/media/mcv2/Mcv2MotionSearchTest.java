@@ -177,6 +177,17 @@ final class Mcv2MotionSearchTest {
   }
 
   @Test
+  void shouldKeepTheZeroVectorWhenASeedOnlyTiesIt() {
+    final byte[] reference = new byte[WIDTH * HEIGHT * 3];
+    final int[] source = new int[16 * 16 * 3];
+    final int found = Mcv2Internals.javaKernels().seeded(reference, WIDTH, HEIGHT, source, 32, 32, 16, 24, new int[] {
+      this.vector(9, -7),
+      this.vector(-10, 7),
+    });
+    assertEquals(0, found);
+  }
+
+  @Test
   void shouldStopAfterTwiceTheRangeEvenWhenTheNextStepWouldImprove() {
     final byte[] reference = this.sampledCosts(new int[][] {
       { 0, 0, 100 },
