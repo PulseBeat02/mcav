@@ -515,4 +515,26 @@ final class NativeKernelsTest {
       assertArrayEquals(expected, endpoints, level.getSymbol());
     }
   }
+
+  @Test
+  void shouldAssignThePixelsPastTheLastWholeVectorAsJavaDoes() {
+    final int[] source = new int[9 * 3];
+    for (int pixel = 0; pixel < 9; pixel++) {
+      Arrays.fill(source, pixel * 3, pixel * 3 + 3, pixel * 30);
+    }
+    final int[] endpoints = new int[6];
+    Arrays.fill(endpoints, 3, 6, MAXIMUM_CHANNEL_VALUE);
+    final Kernels java = Mcv2Internals.javaKernels();
+    final int[] expectedColors = new int[6];
+    final byte[] expectedSelectors = new byte[9];
+    java.finishPalette(source, 9, endpoints, expectedColors, expectedSelectors);
+    for (final Level level : NativeTesting.levels()) {
+      final NativeKernels kernels = NativeTesting.kernels(level);
+      final int[] actualColors = new int[6];
+      final byte[] actualSelectors = new byte[9];
+      kernels.finishPalette(source, 9, endpoints, actualColors, actualSelectors);
+      assertArrayEquals(expectedColors, actualColors, level.getSymbol());
+      assertArrayEquals(expectedSelectors, actualSelectors, level.getSymbol());
+    }
+  }
 }
