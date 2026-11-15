@@ -424,6 +424,32 @@ final class NativeKernelsTest {
   }
 
   @Test
+  void shouldWeighEveryChannelInTheLumaResidualTail() {
+    final int[] source = new int[9 * 3];
+    final int[] prediction = new int[source.length];
+    for (int pixel = 0; pixel < 9; pixel++) {
+      final int offset = pixel * 3;
+      source[offset] = 1;
+      source[offset + 1] = 2;
+      source[offset + 2] = 3;
+      prediction[offset] = 4;
+      prediction[offset + 1] = 5;
+      prediction[offset + 2] = 6;
+    }
+
+    final float[] expected = new float[10];
+    Arrays.fill(expected, -3.0f);
+    expected[9] = 999;
+    for (final Level level : NativeTesting.levels()) {
+      final NativeKernels kernels = NativeTesting.kernels(level);
+      final float[] actual = new float[10];
+      Arrays.fill(actual, 999);
+      kernels.residualTarget(source, prediction, 9, actual);
+      assertArrayEquals(expected, actual, level.getSymbol());
+    }
+  }
+
+  @Test
   void shouldPredictUnscaledBytesAndKeepIntegerPaletteMeans() {
     for (final Level level : NativeTesting.levels()) {
       final NativeKernels kernels = NativeTesting.kernels(level);
