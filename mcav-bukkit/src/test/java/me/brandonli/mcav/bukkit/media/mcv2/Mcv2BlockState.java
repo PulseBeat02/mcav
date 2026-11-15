@@ -17,6 +17,7 @@
  */
 package me.brandonli.mcav.bukkit.media.mcv2;
 
+import java.lang.reflect.Field;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
@@ -107,6 +108,19 @@ final class Mcv2BlockState {
 
   Object code(final int size, final int level, final int block, final int left, final int top, final int parent) {
     final Object kernels = Mcv2Internals.construct(Mcv2Internals.JAVA_KERNELS_TYPE, new Class<?>[0]);
+    return this.code(size, level, block, left, top, parent, kernels, null);
+  }
+
+  Object code(
+    final int size,
+    final int level,
+    final int block,
+    final int left,
+    final int top,
+    final int parent,
+    final Object kernels,
+    final @Nullable Object root
+  ) {
     final Object coder = Mcv2Internals.construct(
       CODER,
       new Class<?>[] { FRAME, int.class, Mcv2Internals.KERNELS_TYPE },
@@ -114,6 +128,16 @@ final class Mcv2BlockState {
       size,
       kernels
     );
+    if (root != null) {
+      try {
+        final Field field = CODER.getDeclaredField("root");
+        field.setAccessible(true);
+        field.set(coder, root);
+      } catch (final ReflectiveOperationException exception) {
+        throw new LinkageError(exception.getMessage(), exception);
+      }
+    }
+
     Mcv2Internals.call(CODER, coder, "code", new Class<?>[] { int.class, int.class, int.class }, left, top, parent);
     this.coders.put(new Block(level, block), coder);
 
