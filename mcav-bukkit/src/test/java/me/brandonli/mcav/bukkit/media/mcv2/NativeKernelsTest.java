@@ -495,4 +495,24 @@ final class NativeKernelsTest {
       assertArrayEquals(expected, endpoints, level.getSymbol());
     }
   }
+
+  @Test
+  void shouldClusterValuesTooLargeForTheNarrowSums() {
+    final int largest = (1 << 30) - 1;
+    final int[] source = new int[8 * 8 * 3];
+    final int[] values = { 0, 2, largest - 2, largest };
+    for (int pixel = 0; pixel < 64; pixel++) {
+      final int value = values[pixel % values.length];
+      Arrays.fill(source, pixel * 3, pixel * 3 + 3, value);
+    }
+    final Kernels java = Mcv2Internals.javaKernels();
+    final int[] expected = new int[6];
+    java.cluster(source, 8, expected);
+    for (final Level level : NativeTesting.levels()) {
+      final NativeKernels kernels = NativeTesting.kernels(level);
+      final int[] endpoints = new int[6];
+      kernels.cluster(source, 8, endpoints);
+      assertArrayEquals(expected, endpoints, level.getSymbol());
+    }
+  }
 }
