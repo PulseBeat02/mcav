@@ -33,6 +33,7 @@ import java.util.Objects;
 import java.util.Random;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2.Binding;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2.Level;
+import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Internals.Kernels;
 import me.brandonli.mcav.bukkit.media.mcv2.NativeTesting.NativeKernels;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.jupiter.api.Test;
@@ -473,6 +474,25 @@ final class NativeKernelsTest {
       kernels.start(block, 0, 0);
       final boolean predicted = kernels.predicted(block, 8, output);
       assertFalse(predicted, level.getSymbol());
+    }
+  }
+
+  @Test
+  void shouldClusterABlockOfSixteenPixelsOnTheSteppedGrid() {
+    final int[] source = new int[16 * 16 * 3];
+    for (int pixel = 0; pixel < 256; pixel++) {
+      final boolean sampled = pixel % 2 == 0 && (pixel / 16) % 2 == 0;
+      final int value = sampled ? 0 : MAXIMUM_CHANNEL_VALUE;
+      Arrays.fill(source, pixel * 3, pixel * 3 + 3, value);
+    }
+    final Kernels java = Mcv2Internals.javaKernels();
+    final int[] expected = new int[6];
+    java.cluster(source, 16, expected);
+    for (final Level level : NativeTesting.levels()) {
+      final NativeKernels kernels = NativeTesting.kernels(level);
+      final int[] endpoints = new int[6];
+      kernels.cluster(source, 16, endpoints);
+      assertArrayEquals(expected, endpoints, level.getSymbol());
     }
   }
 }
