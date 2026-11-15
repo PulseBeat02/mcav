@@ -51,7 +51,7 @@ public final class LogCapture implements AutoCloseable {
   }
 
   public static LogCapture capture(final Class<?> type) {
-    final Logger logger = (Logger) LogManager.getLogger(type);
+    final Logger logger = (Logger) LogManager.getLogger(type.getName());
     return new LogCapture(logger);
   }
 
