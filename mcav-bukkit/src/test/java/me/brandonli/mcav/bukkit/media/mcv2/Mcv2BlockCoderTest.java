@@ -19,6 +19,7 @@ package me.brandonli.mcav.bukkit.media.mcv2;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.InvocationTargetException;
@@ -250,6 +251,42 @@ final class Mcv2BlockCoderTest {
       final int vector = Mcv2BlockState.localVector(coder);
       assertEquals(parent, vector);
     }
+  }
+
+  @Test
+  void shouldPredictABlockUnderARootFromTheRootsCopies() {
+    final byte[] reference = new byte[ROOT_SIZE * ROOT_SIZE * 3];
+    final Random random = new Random(45);
+    for (int index = 0; index < reference.length; index++) {
+      reference[index] = (byte) (REFERENCE_LEVEL_BASE + random.nextInt(REFERENCE_LEVEL_SPREAD));
+    }
+
+    final byte[] source = new byte[reference.length];
+    for (int y = 0; y < ROOT_SIZE; y++) {
+      for (int x = 0; x < ROOT_SIZE; x++) {
+        System.arraycopy(reference, (y * ROOT_SIZE + Math.min(x + 4, 31)) * 3, source, (y * ROOT_SIZE + x) * 3, 3);
+      }
+    }
+
+    final Mcv2BlockState job = new Mcv2BlockState(
+      source,
+      reference,
+      ROOT_SIZE,
+      ROOT_SIZE,
+      Mcv2FrameKind.PREDICTED,
+      Mcv2BlockState.Thresholds.STANDARD,
+      LAMBDA,
+      null
+    );
+    final Object root = job.code(32, 0, 0, 0, 0, 0);
+    final int rootVector = Mcv2BlockState.localVector(root);
+    assertNotEquals(0, rootVector);
+
+    final CountingKernels kernels = new CountingKernels();
+    job.code(8, 2, 5, 8, 8, rootVector, kernels.proxy(), root);
+
+    final int predicted = kernels.count("predict");
+    assertEquals(0, predicted);
   }
 
   @Test
