@@ -19,8 +19,16 @@ package me.brandonli.mcav.bukkit.media.mcv2;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
+import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Random;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.jupiter.api.Test;
 
 final class Mcv2BlockCoderTest {
@@ -181,6 +189,40 @@ final class Mcv2BlockCoderTest {
   }
 
   @Test
+  void shouldNotTryAModeWhoseRateAloneReachesTheBestCost() {
+    final byte[] source = new byte[8 * 8 * 3];
+    for (int offset = 0; offset < source.length; offset += 3) {
+      source[offset] = 10;
+      source[offset + 1] = 20;
+      source[offset + 2] = 30;
+    }
+
+    final Mcv2BlockState job = new Mcv2BlockState(
+      source,
+      new byte[0],
+      8,
+      8,
+      Mcv2FrameKind.KEYFRAME,
+      Mcv2BlockState.Thresholds.STANDARD,
+      0.0,
+      null
+    );
+    final CountingKernels kernels = new CountingKernels();
+    job.code(8, 2, 0, 0, 0, Mcv2BlockState.NO_VECTOR, kernels.proxy(), null);
+
+    final int mode = job.mode(2, 0);
+    assertEquals(Mcv2Decoder.MODE_SOLID, mode);
+
+    final int tried =
+      kernels.count("fit") +
+      kernels.count("cluster") +
+      kernels.count("finishPattern") +
+      kernels.count("finishPalette") +
+      kernels.count("palette");
+    assertEquals(0, tried);
+  }
+
+  @Test
   void shouldGiveABlockBelowTheSearchSizeItsParentsVectorWhicheverWayItPoints() {
     final byte[] reference = new byte[ROOT_SIZE * ROOT_SIZE * 3];
     final Random random = new Random(45);
@@ -209,6 +251,42 @@ final class Mcv2BlockCoderTest {
       final int vector = Mcv2BlockState.localVector(coder);
       assertEquals(parent, vector);
     }
+  }
+
+  @Test
+  void shouldPredictABlockUnderARootFromTheRootsCopies() {
+    final byte[] reference = new byte[ROOT_SIZE * ROOT_SIZE * 3];
+    final Random random = new Random(45);
+    for (int index = 0; index < reference.length; index++) {
+      reference[index] = (byte) (REFERENCE_LEVEL_BASE + random.nextInt(REFERENCE_LEVEL_SPREAD));
+    }
+
+    final byte[] source = new byte[reference.length];
+    for (int row = 0; row < ROOT_SIZE; row++) {
+      for (int column = 0; column < ROOT_SIZE; column++) {
+        System.arraycopy(reference, (row * ROOT_SIZE + Math.min(column + 4, 31)) * 3, source, (row * ROOT_SIZE + column) * 3, 3);
+      }
+    }
+
+    final Mcv2BlockState job = new Mcv2BlockState(
+      source,
+      reference,
+      ROOT_SIZE,
+      ROOT_SIZE,
+      Mcv2FrameKind.PREDICTED,
+      Mcv2BlockState.Thresholds.STANDARD,
+      LAMBDA,
+      null
+    );
+    final Object root = job.code(32, 0, 0, 0, 0, 0);
+    final int rootVector = Mcv2BlockState.localVector(root);
+    assertNotEquals(0, rootVector);
+
+    final CountingKernels kernels = new CountingKernels();
+    job.code(8, 2, 5, 8, 8, rootVector, kernels.proxy(), root);
+
+    final int predicted = kernels.count("predict");
+    assertEquals(0, predicted);
   }
 
   @Test
@@ -242,6 +320,36 @@ final class Mcv2BlockCoderTest {
       assertEquals(0, vector);
       final int mode = job.mode(level, 0);
       assertEquals(Mcv2Decoder.MODE_COMPACT, mode);
+    }
+  }
+
+  private static final class CountingKernels implements InvocationHandler {
+
+    private final Object target;
+    private final Map<String, Integer> calls;
+
+    CountingKernels() {
+      this.target = Mcv2Internals.construct(Mcv2Internals.JAVA_KERNELS_TYPE, new Class<?>[0]);
+      this.calls = new HashMap<>();
+    }
+
+    @Override
+    public @Nullable Object invoke(final Object proxy, final Method method, final Object @Nullable [] arguments) throws Throwable {
+      this.calls.merge(method.getName(), 1, Integer::sum);
+      method.setAccessible(true);
+      try {
+        return method.invoke(this.target, arguments);
+      } catch (final InvocationTargetException exception) {
+        throw exception.getCause();
+      }
+    }
+
+    Object proxy() {
+      return Proxy.newProxyInstance(Mcv2Internals.KERNELS_TYPE.getClassLoader(), new Class<?>[] { Mcv2Internals.KERNELS_TYPE }, this);
+    }
+
+    int count(final String method) {
+      return this.calls.getOrDefault(method, 0);
     }
   }
 }
