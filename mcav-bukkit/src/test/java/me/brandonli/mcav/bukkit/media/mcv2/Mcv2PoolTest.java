@@ -29,6 +29,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
@@ -42,6 +43,8 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.IntStream;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2.Pool;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Internals.Workers;
+import me.brandonli.mcav.bukkit.testing.LogCapture;
+import org.apache.logging.log4j.Level;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.jupiter.api.Test;
 
@@ -191,7 +194,7 @@ final class Mcv2PoolTest {
   }
 
   @Test
-  void shouldEncodeInsideTheBudget() {
+  void shouldEncodeTheSameBytesInsideTheBudget() {
     try (final Pool pool = new Pool(2)) {
       final Mcv2 encoder = pool.encoder(Mcv2.Settings.DEFAULT, Mcv2.Verification.VERIFIED);
       final byte[] rgb = new byte[32 * 16 * 3];
@@ -232,9 +235,36 @@ final class Mcv2PoolTest {
 
       final boolean passesOnChecked = this.isOrWraps(wrapped.getCause(), checked);
       assertTrue(passesOnChecked);
+    }
+  }
 
+  @Test
+  void shouldLogAnEncoderThreadFailureAsAnError() {
+    try (final Pool pool = new Pool(1); final LogCapture logs = LogCapture.capture(Pool.class)) {
       final ForkJoinPool workers = (ForkJoinPool) Mcv2Internals.field(Pool.class, pool, "pool");
-      workers.getUncaughtExceptionHandler().uncaughtException(Thread.currentThread(), new IllegalStateException("outside a task!"));
+      final Thread.UncaughtExceptionHandler handler = workers.getUncaughtExceptionHandler();
+      final Thread thread = Thread.currentThread();
+      final IllegalStateException failure = new IllegalStateException("outside a task!");
+      handler.uncaughtException(thread, failure);
+
+      final List<LogCapture.RecordedEvent> events = logs.getEvents();
+      assertEquals(1, events.size());
+
+      final LogCapture.RecordedEvent event = events.getFirst();
+      final String threadName = thread.getName();
+      final String expectedMessage = "MCV2 encoder thread %s failed.".formatted(threadName);
+      final Level level = event.getLevel();
+      final String message = event.getMessage();
+      final Optional<Throwable> thrown = event.getThrown();
+      assertEquals(Level.ERROR, level);
+      assertEquals(expectedMessage, message);
+      assertEquals(Optional.of(failure), thrown);
+    }
+  }
+
+  @Test
+  void shouldRefuseANullTask() {
+    try (final Pool pool = new Pool(1)) {
       assertThrows(NullPointerException.class, () -> pool.run(null));
     }
   }

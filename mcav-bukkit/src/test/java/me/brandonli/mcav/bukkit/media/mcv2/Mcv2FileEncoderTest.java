@@ -328,11 +328,16 @@ final class Mcv2FileEncoderTest {
 
     final boolean videoClosed = closed.get();
     assertTrue(videoClosed);
+  }
 
-    final double emptyMillisecondsPerFrame = Mcv2FileEncoder.Result.of(0, 0, 0, 0).millisecondsPerFrame();
+  @Test
+  void shouldAverageTheMillisecondsPerFrameAndReportZeroWithoutFrames() {
+    final Mcv2FileEncoder.Result empty = Mcv2FileEncoder.Result.of(0, 0, 0, 0);
+    final double emptyMillisecondsPerFrame = empty.millisecondsPerFrame();
     assertEquals(0, emptyMillisecondsPerFrame);
 
-    final double millisecondsPerFrame = Mcv2FileEncoder.Result.of(2, 0, 0, 5_000_000).millisecondsPerFrame();
+    final Mcv2FileEncoder.Result result = Mcv2FileEncoder.Result.of(2, 0, 0, 5_000_000);
+    final double millisecondsPerFrame = result.millisecondsPerFrame();
     assertEquals(2.5, millisecondsPerFrame);
   }
 
