@@ -1512,8 +1512,8 @@ matter:
 | `backlogLimit(bytes)`, `unsentLimit(bytes)` | 128 KiB, 32 KiB | Per-viewer backpressure: a viewer whose connection falls behind skips to the next frame they can decode, without holding back the others ([pages on maps](#part-7-pages-on-maps)) |
 
 `setPacingListener` hears every step the screen's pacer takes when the encoder can't keep up (`FAST`, fewer frames a
-second, a smaller video, the dithered maps), with a message that says why; `setSmallerSizes(sizes, lease)` names the
-smaller video sizes it may step down to.
+second, a smaller video, the dithered maps), with a message that says why; `setSmallerSizes(sizes, resizer)` names the
+smaller video sizes it may step down to, and the `resizer` offers a size's pack and creates its channel.
 
 #### Pre-encoding a file
 
