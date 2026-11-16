@@ -73,6 +73,8 @@ val enabledValue: String = "1"
 val jazzerDurationProperty: String = "jazzer.max_duration"
 val timeoutModeProperty: String = "junit.jupiter.execution.timeout.mode"
 val disabledTimeoutMode: String = "disabled"
+val simpleLoggerLevelProperty: String = "org.slf4j.simpleLogger.defaultLogLevel"
+val fuzzLogLevel: String = "error"
 
 // Mockito and Jazzer take their instrumentation from this agent instead of attaching one at run time, which JEP 451 restricts
 val javaAgent: NamedDomainObjectProvider<Configuration> = configurations.register(javaAgentConfiguration) {
@@ -186,6 +188,7 @@ val fuzzTasks: List<TaskProvider<Test>> = fuzzTargets.map { target ->
         this.environment(jazzerFuzzVariable, enabledValue)
         this.systemProperty(jazzerDurationProperty, "${fuzzSeconds}s")
         this.systemProperty(timeoutModeProperty, disabledTimeoutMode)
+        this.systemProperty(simpleLoggerLevelProperty, fuzzLogLevel)
         this.outputs.upToDateWhen { false }
         this.testLogging {
             this.events("started", "failed", "skipped")
