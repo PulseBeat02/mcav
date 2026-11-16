@@ -194,7 +194,7 @@ final class Mcv2PoolTest {
   }
 
   @Test
-  void shouldEncodeInsideTheBudget() {
+  void shouldEncodeTheSameBytesInsideTheBudget() {
     try (final Pool pool = new Pool(2)) {
       final Mcv2 encoder = pool.encoder(Mcv2.Settings.DEFAULT, Mcv2.Verification.VERIFIED);
       final byte[] rgb = new byte[32 * 16 * 3];
