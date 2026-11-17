@@ -126,6 +126,18 @@ final class NetworkGuard implements Closeable {
     final int handshakeTimeoutMilliseconds
   ) throws IOException {
     final ServerSocket server = new ServerSocket();
+    return start(server, resolver, policy, connector, notices, handshakeTimeoutMilliseconds);
+  }
+
+  // lets a test hold the accepted sockets, so a garbage collection cannot hide the acceptConnections closeQuietly mutant
+  static NetworkGuard start(
+    final ServerSocket server,
+    final Resolver resolver,
+    final Predicate<InetAddress> policy,
+    final Connector connector,
+    final Consumer<String> notices,
+    final int handshakeTimeoutMilliseconds
+  ) throws IOException {
     final InetAddress loopback = InetAddress.getLoopbackAddress();
     server.bind(new InetSocketAddress(loopback, EPHEMERAL_PORT), BACKLOG);
 
