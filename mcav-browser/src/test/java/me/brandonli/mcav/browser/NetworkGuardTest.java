@@ -114,6 +114,7 @@ class NetworkGuardTest {
 
   private static final int CONNECT_TIMEOUT_MILLISECONDS = 5_000;
   private static final int READ_TIMEOUT_MILLISECONDS = 5_000;
+  private static final int TURNED_AWAY_READ_TIMEOUT_MILLISECONDS = 2_000;
 
   private final List<String> notices = new CopyOnWriteArrayList<>();
   private final List<Closeable> closeables = new ArrayList<>();
@@ -484,13 +485,24 @@ class NetworkGuardTest {
 
   @Test
   void shouldCloseConnectionsBeyondTheLimitAtOnce() throws IOException {
-    final NetworkGuard guard = this.guard(InetAddress::isLoopbackAddress, NetworkGuard::connect, 30_000);
+    final KeepingServerSocket server = new KeepingServerSocket();
+    final NetworkGuard guard = NetworkGuard.start(
+      server,
+      NetworkGuardTest::resolve,
+      InetAddress::isLoopbackAddress,
+      NetworkGuard::connect,
+      this.notices::add,
+      30_000
+    );
+    this.closeables.add(guard);
+
     final List<Socket> idle = new ArrayList<>();
     for (int count = 0; count < NetworkGuard.MAXIMUM_CONNECTIONS; count++) {
       idle.add(this.client(guard));
     }
 
     final Socket extra = this.client(guard);
+    extra.setSoTimeout(TURNED_AWAY_READ_TIMEOUT_MILLISECONDS);
     this.assertEnded(extra);
     final Socket first = idle.getFirst();
     final byte[] greetingAnswer = this.exchange(first, GREETING, 2);
@@ -974,6 +986,32 @@ class NetworkGuardTest {
         InetAddress.getByName("2a01:4f8:1:2:3:4:c000:aa"),
         InetAddress.getByName("2a01:4f8:1:2:3:4:c000:ab"),
       };
+    }
+  }
+
+  // holds every accepted socket, so a garbage collection cannot close one the guard leaves open
+  private static final class KeepingServerSocket extends ServerSocket {
+
+    private final List<Socket> accepted;
+
+    KeepingServerSocket() throws IOException {
+      this.accepted = new CopyOnWriteArrayList<>();
+    }
+
+    @Override
+    public Socket accept() throws IOException {
+      final Socket socket = super.accept();
+      this.accepted.add(socket);
+
+      return socket;
+    }
+
+    @Override
+    public void close() throws IOException {
+      super.close();
+      for (final Socket socket : this.accepted) {
+        socket.close();
+      }
     }
   }
 }
