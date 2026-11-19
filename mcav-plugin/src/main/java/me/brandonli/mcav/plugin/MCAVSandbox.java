@@ -37,6 +37,7 @@ import me.brandonli.mcav.plugin.command.image.ImageManager;
 import me.brandonli.mcav.plugin.command.video.Mcv2Support;
 import me.brandonli.mcav.plugin.command.video.VideoPlayerManager;
 import me.brandonli.mcav.plugin.data.PluginDataConfigurationMapper;
+import me.brandonli.mcav.plugin.data.UnreadableConfigurationException;
 import me.brandonli.mcav.plugin.listener.JukeboxListener;
 import me.brandonli.mcav.plugin.listener.OnlinePlayers;
 import me.brandonli.mcav.plugin.utils.CleanupUtils;
@@ -101,10 +102,11 @@ public final class MCAVSandbox extends JavaPlugin {
    * <p>An instance that Paper has disabled cannot be enabled again because its class loader and lifecycle
    * registrations are closed. A later enable attempt logs one error with an instruction to restart the server.
    *
-   * <p>Two failures are setup problems of the server rather than bugs: a server that runs a Minecraft version the
-   * library does not support, and Simple Voice Chat audio that is enabled in {@code config.yml} while the Simple Voice
-   * Chat plugin is missing. For either, the plugin logs one error that names the problem and how to fix it, and then
-   * disables itself through the plugin manager, which calls {@link #onDisable()} to release what was created.
+   * <p>Three failures are setup problems of the server rather than bugs: a server that runs a Minecraft version the
+   * library does not support, a {@code config.yml} that cannot be read or is not valid YAML, and Simple Voice Chat
+   * audio that is enabled in {@code config.yml} while the Simple Voice Chat plugin is missing. For each, the plugin
+   * logs one error that names the problem and how to fix it, and then disables itself through the plugin manager, which
+   * calls {@link #onDisable()} to release what was created.
    *
    * @throws RuntimeException if anything else fails; Paper then reports the failure and disables the plugin, and
    *                          {@link #onDisable()} releases what was created
@@ -130,6 +132,8 @@ public final class MCAVSandbox extends JavaPlugin {
     } catch (final UnsupportedServerVersionException exception) {
       final String remedy = "run MCAV on a Minecraft %s server".formatted(ServerEnvironment.SUPPORTED_MINECRAFT_VERSION);
       this.disableBecause(exception, remedy);
+    } catch (final UnreadableConfigurationException exception) {
+      this.disableBecause(exception, "correct config.yml or delete it so that MCAV writes the default one");
     } catch (final MissingVoiceChatException exception) {
       this.disableBecause(exception, "install the Simple Voice Chat plugin or set simple-voice-chat.enabled to false in config.yml");
     }

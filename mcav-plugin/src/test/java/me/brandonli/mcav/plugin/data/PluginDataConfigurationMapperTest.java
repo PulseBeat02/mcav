@@ -662,7 +662,7 @@ final class PluginDataConfigurationMapperTest {
     final Path file = this.folder.resolve(CONFIGURATION_FILE_NAME);
     final byte[] invalidUtf8 = { (byte) 0xC3, (byte) 0x28 };
     Files.write(file, invalidUtf8);
-    final PluginException exception = assertThrows(PluginException.class, this.mapper::deserialize);
+    final UnreadableConfigurationException exception = assertThrows(UnreadableConfigurationException.class, this.mapper::deserialize);
 
     final String message = exception.getMessage();
     final boolean mentionsFile = message.endsWith("\", file %s could not be read!".formatted(file));
@@ -675,7 +675,7 @@ final class PluginDataConfigurationMapperTest {
   @Test
   void shouldFailInsteadOfUsingTheDefaultsWhenTheFileIsNotValidYaml() throws IOException {
     this.writeConfiguration("a: [\n");
-    final PluginException exception = assertThrows(PluginException.class, this.mapper::deserialize);
+    final UnreadableConfigurationException exception = assertThrows(UnreadableConfigurationException.class, this.mapper::deserialize);
 
     final Path file = this.folder.resolve(CONFIGURATION_FILE_NAME);
     final String message = exception.getMessage();
