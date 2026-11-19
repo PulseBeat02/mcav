@@ -168,9 +168,10 @@ public final class Mcv2Support {
   }
 
   /**
-   * Creates the configuration of an MCV2 screen on the wall that holds a map, or tells the sender there is none, or
-   * that the screen is larger than MCV2 plays: the plugin's walls go up to 64 maps a side and 8192 pixels, MCV2's
-   * to 63 maps and 4096 pixels. Call on the main thread, which may look at the worlds' entities.
+   * Creates the configuration of an MCV2 screen on the wall that holds a map, or tells the sender there is none,
+   * that the wall's frames face two ways, or that the screen is larger than MCV2 plays: the plugin's walls go up to
+   * 64 maps a side and 8192 pixels, MCV2's to 63 maps and 4096 pixels. Call on the main thread, which may look at the
+   * worlds' entities.
    *
    * @param sender     who ran the command
    * @param blocks     the size of the wall in maps
@@ -179,7 +180,7 @@ public final class Mcv2Support {
    * @param settings   the encoder settings
    * @param viewers    the players who watch
    * @return the configuration, or empty if the screen is too large for MCV2, or no frame or more than one frame
-   *         holds the map
+   *         holds the map, or the wall's frames face two ways
    * @since 1.0.0
    */
   public Optional<Mcv2Configuration> configure(
@@ -213,11 +214,20 @@ public final class Mcv2Support {
     }
 
     final ItemFrame frame = frames.getFirst();
-    final int pageSlots = Integer.getInteger(PAGE_SLOTS_PROPERTY, DEFAULT_PAGE_SLOTS);
-    final Location location = frame.getLocation();
     final BlockFace facing = frame.getFacing();
     final int columns = blocks.getFirst();
     final int rows = blocks.getSecond();
+    final int mapCount = columns * rows;
+    final List<ItemFrame> turned = this.findTurnedFrames(worlds, mapId, mapCount, facing);
+    if (!turned.isEmpty()) {
+      final String reason = this.describeTurned(mapId, frame, turned);
+      final Component message = Message.MCV2_SCREEN_TURNED.build(reason);
+      sender.sendMessage(message);
+      return Optional.empty();
+    }
+
+    final int pageSlots = Integer.getInteger(PAGE_SLOTS_PROPERTY, DEFAULT_PAGE_SLOTS);
+    final Location location = frame.getLocation();
     final int videoWidth = resolution.getFirst();
     final int videoHeight = resolution.getSecond();
     final Mcv2Configuration configuration = Mcv2Configuration.builder()
@@ -255,6 +265,36 @@ public final class Mcv2Support {
     final int frameY = location.getBlockY();
     final int frameZ = location.getBlockZ();
     return "%s %s %s %s".formatted(worldName, frameX, frameY, frameZ);
+  }
+
+  private List<ItemFrame> findTurnedFrames(final Collection<World> worlds, final int mapId, final int mapCount, final BlockFace facing) {
+    final int firstOtherMapId = mapId + 1;
+    final int endMapId = mapId + mapCount;
+    final List<ItemFrame> found = new ArrayList<>();
+    for (final World world : worlds) {
+      final List<ItemFrame> frames = world
+        .getEntitiesByClass(ItemFrame.class)
+        .stream()
+        .filter(frame -> frame.getFacing() != facing)
+        .filter(frame -> holdsMapBetween(frame.getItem(), firstOtherMapId, endMapId))
+        .toList();
+      found.addAll(frames);
+    }
+
+    return found;
+  }
+
+  private String describeTurned(final int mapId, final ItemFrame first, final List<ItemFrame> turned) {
+    final String place = this.describePlace(first);
+    final BlockFace facing = first.getFacing();
+    final List<String> places = turned.stream().map(this::describePlace).toList();
+    final String joined = String.join(PLACE_SEPARATOR, places);
+    return "map %s at %s faces %s, unlike the frames of its wall at %s. MCV2 draws the whole wall the way its top-left map faces, so rebuild the screen with /mcav screen!".formatted(
+      mapId,
+      place,
+      facing,
+      joined
+    );
   }
 
   long readBacklogLimit() {
@@ -429,12 +469,21 @@ public final class Mcv2Support {
   }
 
   static boolean holdsMap(final ItemStack item, final int mapId) {
+    return holdsMapBetween(item, mapId, mapId + 1);
+  }
+
+  private static boolean holdsMapBetween(final ItemStack item, final int firstMapId, final int endMapId) {
     if (item.getType() != Material.FILLED_MAP) {
       return false;
     }
 
     final ItemMeta metadata = item.getItemMeta();
-    return metadata instanceof final MapMeta mapMetadata && mapMetadata.hasMapId() && mapMetadata.getMapId() == mapId;
+    if (!(metadata instanceof final MapMeta mapMetadata) || !mapMetadata.hasMapId()) {
+      return false;
+    }
+
+    final int mapId = mapMetadata.getMapId();
+    return mapId >= firstMapId && mapId < endMapId;
   }
 
   /**
