@@ -459,6 +459,21 @@ final class MapUtilsTest {
   }
 
   @Test
+  void shouldRemoveTheFramesAlreadyHangingWhereTheScreenIsBuiltWhenTheirEntitiesAreNotLoaded() {
+    final CommandSender console = mock(CommandSender.class);
+    final Location location = this.fakeWorld.createLocation(0.5, SCREEN_Y, 0.5);
+    final Location occupied = this.fakeWorld.createLocation(0.5, BLOCK_CENTER_Y, 0.5);
+    final ItemFrame existing = this.fakeWorld.addFrame(occupied, BlockFace.SOUTH);
+    this.fakeWorld.unloadEntities(occupied);
+    MapUtils.buildMapScreen(console, location, Material.OBSIDIAN, 1, 1, 0);
+    verify(existing).remove();
+
+    final List<ItemFrame> frames = this.fakeWorld.getSpawnedFrames();
+    final int frameCount = frames.size();
+    assertEquals(1, frameCount);
+  }
+
+  @Test
   void shouldMarkTheOnlyFrameOfASingleMapScreenAsBothCorners() {
     final Player player = this.playerFacing(BlockFace.NORTH);
     final Location location = this.fakeWorld.createLocation(0.5, SCREEN_Y, 0.5);
