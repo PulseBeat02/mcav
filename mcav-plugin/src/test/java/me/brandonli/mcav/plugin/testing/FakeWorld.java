@@ -28,8 +28,11 @@ import static org.mockito.Mockito.when;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import org.bukkit.Chunk;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
@@ -47,17 +50,23 @@ import org.mockito.invocation.InvocationOnMock;
 // one block per coordinate, so blocks compare by identity
 public final class FakeWorld {
 
+  private static final int BLOCKS_PER_CHUNK = 16;
+
   private final World world;
   private final Map<List<Integer>, Block> blocks;
+  private final Map<List<Integer>, Chunk> chunks;
   private final Map<Block, Material> materials;
   private final List<Entity> entities;
+  private final Set<List<Integer>> unloadedChunks;
   private final List<ItemFrame> spawnedFrames;
 
   public FakeWorld() {
     this.world = mock(World.class);
     this.blocks = new HashMap<>();
+    this.chunks = new HashMap<>();
     this.materials = new HashMap<>();
     this.entities = new ArrayList<>();
+    this.unloadedChunks = new HashSet<>();
     this.spawnedFrames = new ArrayList<>();
     when(this.world.getName()).thenReturn("world");
     when(this.world.getBlockAt(any(Location.class))).thenAnswer(this::findBlockAtLocation);
@@ -116,6 +125,7 @@ public final class FakeWorld {
     when(block.getY()).thenReturn(blockY);
     when(block.getZ()).thenReturn(blockZ);
     when(block.getWorld()).thenReturn(this.world);
+    when(block.getChunk()).thenAnswer(_ -> this.findChunk(blockX, blockZ));
     when(block.getLocation()).thenAnswer(_ -> this.createLocation(blockX, blockY, blockZ));
     when(block.getRelative(any(BlockFace.class))).thenAnswer(invocation -> this.findRelativeBlock(invocation, blockX, blockY, blockZ));
     when(block.getRelative(any(BlockFace.class), anyInt())).thenAnswer(invocation ->
@@ -152,6 +162,45 @@ public final class FakeWorld {
     final int offsetY = face.getModY();
     final int offsetZ = face.getModZ();
     return this.block(blockX + offsetX * distance, blockY + offsetY * distance, blockZ + offsetZ * distance);
+  }
+
+  private Chunk findChunk(final int blockX, final int blockZ) {
+    final List<Integer> key = this.findChunkKey(blockX, blockZ);
+    return this.chunks.computeIfAbsent(key, this::createChunk);
+  }
+
+  private List<Integer> findChunkKey(final int blockX, final int blockZ) {
+    final int chunkX = Math.floorDiv(blockX, BLOCKS_PER_CHUNK);
+    final int chunkZ = Math.floorDiv(blockZ, BLOCKS_PER_CHUNK);
+    return List.of(chunkX, chunkZ);
+  }
+
+  private List<Integer> findChunkKey(final Location location) {
+    final int blockX = location.getBlockX();
+    final int blockZ = location.getBlockZ();
+    return this.findChunkKey(blockX, blockZ);
+  }
+
+  private Chunk createChunk(final List<Integer> key) {
+    final Chunk chunk = mock(Chunk.class);
+    when(chunk.getEntities()).thenAnswer(_ -> this.loadEntities(key));
+
+    return chunk;
+  }
+
+  private Entity[] loadEntities(final List<Integer> key) {
+    this.unloadedChunks.remove(key);
+
+    return this.entities
+      .stream()
+      .filter(entity -> this.isInChunk(entity, key))
+      .toArray(Entity[]::new);
+  }
+
+  private boolean isInChunk(final Entity entity, final List<Integer> key) {
+    final Location location = entity.getLocation();
+    final List<Integer> entityKey = this.findChunkKey(location);
+    return entityKey.equals(key);
   }
 
   public Material getMaterial(final int blockX, final int blockY, final int blockZ) {
@@ -213,6 +262,11 @@ public final class FakeWorld {
     this.entities.add(entity);
   }
 
+  public void unloadEntities(final Location location) {
+    final List<Integer> key = this.findChunkKey(location);
+    this.unloadedChunks.add(key);
+  }
+
   public boolean hasTag(final ItemFrame frame, final NamespacedKey key) {
     final PersistentDataContainer container = frame.getPersistentDataContainer();
     return container.has(key, PersistentDataType.BOOLEAN);
@@ -221,8 +275,15 @@ public final class FakeWorld {
   private Collection<Entity> findNearbyEntities(final Location center, final double radiusX, final double radiusY, final double radiusZ) {
     return this.entities
       .stream()
+      .filter(this::isLoaded)
       .filter(entity -> this.isWithin(entity.getLocation(), center, radiusX, radiusY, radiusZ))
       .toList();
+  }
+
+  private boolean isLoaded(final Entity entity) {
+    final Location location = entity.getLocation();
+    final List<Integer> key = this.findChunkKey(location);
+    return !this.unloadedChunks.contains(key);
   }
 
   private boolean isWithin(

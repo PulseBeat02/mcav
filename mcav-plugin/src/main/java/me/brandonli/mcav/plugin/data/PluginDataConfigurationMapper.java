@@ -33,7 +33,6 @@ import java.util.Optional;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2.Pool;
 import me.brandonli.mcav.plugin.MCAVSandbox;
-import me.brandonli.mcav.plugin.PluginException;
 import me.brandonli.mcav.plugin.command.interaction.VncAllowList;
 import me.brandonli.mcav.plugin.locale.Locale;
 import me.brandonli.mcav.plugin.utils.IoUtils;
@@ -169,7 +168,7 @@ public final class PluginDataConfigurationMapper {
   /**
    * Reads the configuration file, creating it from the bundled default first if it does not exist.
    *
-   * @throws PluginException if the file cannot be read or is not valid YAML
+   * @throws UnreadableConfigurationException if the file cannot be read or is not valid YAML
    * @since 1.0.0
    */
   public synchronized void deserialize() {
@@ -215,11 +214,11 @@ public final class PluginDataConfigurationMapper {
     } catch (final IOException exception) {
       final String reason = exception.getMessage();
       final String message = "Because of \"%s\", file %s could not be read!".formatted(reason, file);
-      throw new PluginException(message, exception);
+      throw new UnreadableConfigurationException(message, exception);
     } catch (final InvalidConfigurationException | YAMLException | IllegalArgumentException exception) {
       final String reason = exception.getMessage();
       final String message = "Because of \"%s\", file %s is not valid YAML!".formatted(reason, file);
-      throw new PluginException(message, exception);
+      throw new UnreadableConfigurationException(message, exception);
     }
   }
 

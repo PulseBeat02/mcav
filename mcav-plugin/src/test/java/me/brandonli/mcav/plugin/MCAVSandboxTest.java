@@ -674,6 +674,24 @@ final class MCAVSandboxTest {
     verify(this.api).release();
   }
 
+  @Test
+  void shouldDisableItselfWithOneErrorWhenTheConfigurationIsNotValidYaml() throws IOException {
+    final Path configuration = this.folder.resolve(CONFIGURATION_FILE_NAME);
+    Files.writeString(configuration, "mcv2:\n  default-codec: [dither\n");
+    final PluginDataConfigurationMapper mapper = new PluginDataConfigurationMapper(this.sandbox);
+    final PluginException failure = assertThrows(PluginException.class, mapper::deserialize);
+    final String reason = failure.getMessage();
+
+    this.sandbox.onEnable();
+
+    final String remedy = "correct config.yml or delete it so that MCAV writes the default one";
+    this.assertDisabledItselfWithOneError(reason, remedy);
+    assertThrows(IllegalStateException.class, this.sandbox::getConfiguration, "nothing after the configuration fails to load");
+
+    this.sandbox.onDisable();
+    verify(this.api).release();
+  }
+
   private void assertDisabledItselfWithOneError(final String reason, final String remedy) {
     verify(this.logger).error("MCAV cannot be enabled: {} To fix it, {}.", reason, remedy);
     verify(this.logger).error(anyString(), any(), any());

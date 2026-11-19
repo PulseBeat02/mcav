@@ -48,12 +48,12 @@ import static net.kyori.adventure.text.Component.text;
 
 import com.google.common.base.Preconditions;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
+import org.bukkit.Chunk;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
@@ -90,8 +90,6 @@ public final class MapUtils {
    * @since 1.0.0
    */
   public static final int MAXIMUM_NEW_MAPS = ArgumentUtils.MAXIMUM_SCREEN_SIDE * ArgumentUtils.MAXIMUM_SCREEN_SIDE;
-
-  private static final double HALF_BLOCK = 0.5;
 
   private MapUtils() {
     final String message = "Utility class cannot be instantiated!";
@@ -309,14 +307,20 @@ public final class MapUtils {
 
     // a block holds one frame per side, so an old frame would push the new one behind the map
     private void clearFrames(final Block frameBlock) {
-      final Location blockLocation = frameBlock.getLocation();
-      final Location center = blockLocation.add(HALF_BLOCK, HALF_BLOCK, HALF_BLOCK);
-      final Collection<Entity> occupants = this.world.getNearbyEntities(center, HALF_BLOCK, HALF_BLOCK, HALF_BLOCK);
+      // unlike getNearbyEntities, getChunk and getEntities load the chunk's entities first
+      final Chunk chunk = frameBlock.getChunk();
+      final Entity[] occupants = chunk.getEntities();
       for (final Entity occupant : occupants) {
-        if (occupant instanceof ItemFrame) {
+        if (occupant instanceof ItemFrame && this.isInside(occupant, frameBlock)) {
           occupant.remove();
         }
       }
+    }
+
+    private boolean isInside(final Entity occupant, final Block frameBlock) {
+      final Location location = occupant.getLocation();
+      final Block block = location.getBlock();
+      return block.equals(frameBlock);
     }
   }
 }

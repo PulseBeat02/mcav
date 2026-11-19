@@ -136,6 +136,15 @@ final class Mcv2SupportTest {
     return frame;
   }
 
+  private ItemFrame frame(final int mapId, final Location location, final World world, final BlockFace facing) {
+    final ItemFrame frame = frame(map(Material.FILLED_MAP, true, mapId));
+    when(frame.getLocation()).thenReturn(location);
+    when(frame.getWorld()).thenReturn(world);
+    when(frame.getFacing()).thenReturn(facing);
+
+    return frame;
+  }
+
   @Test
   void shouldFindEveryFrameHoldingAMap() {
     final ItemFrame wrongMap = frame(map(Material.FILLED_MAP, true, 3));
@@ -326,6 +335,30 @@ final class Mcv2SupportTest {
       "map 20 hangs in 2 item frames, at world 5 64 7, world_nether 2010 -60 2990. MCV2 plays on one wall per map, so remove the other walls or build each screen with its own map id!";
     final Component refused = Message.MCV2_SCREEN_DUPLICATE.build(reason);
     verify(this.sender).sendMessage(refused);
+  }
+
+  @Test
+  void shouldRefuseAWallWhoseFramesFaceTwoWays() {
+    final ItemFrame before = this.frame(19, new Location(this.world, 4.5, 64.5, 7.03), this.world, BlockFace.EAST);
+    final ItemFrame first = this.frame(MAP_ID, new Location(this.world, 5.5, 64.5, 7.03), this.world, BlockFace.NORTH);
+    final ItemFrame second = this.frame(21, new Location(this.world, 6.5, 64.5, 7.03), this.world, BlockFace.SOUTH);
+    final ItemFrame last = this.frame(34, new Location(this.world, 9.5, 62.5, 7.03), this.world, BlockFace.SOUTH);
+    final ItemFrame after = this.frame(35, new Location(this.world, 10.5, 62.5, 7.03), this.world, BlockFace.EAST);
+    when(this.world.getEntitiesByClass(ItemFrame.class)).thenReturn(List.of(before, first, second, last, after));
+
+    final Optional<Mcv2Configuration> configured = this.configure(MAP_ID);
+    assertEquals(Optional.empty(), configured);
+
+    final String reason =
+      "map 20 at world 5 64 7 faces NORTH, unlike the frames of its wall at world 6 64 7, world 9 62 7. MCV2 draws the whole wall the way its top-left map faces, so rebuild the screen with /mcav screen!";
+    final Component refused = Message.MCV2_SCREEN_TURNED.build(reason);
+    verify(this.sender).sendMessage(refused);
+
+    when(first.getFacing()).thenReturn(BlockFace.SOUTH);
+
+    final Mcv2Configuration configuration = this.configure(MAP_ID).orElseThrow();
+    final BlockFace facing = configuration.getFacing();
+    assertEquals(BlockFace.SOUTH, facing);
   }
 
   @Test

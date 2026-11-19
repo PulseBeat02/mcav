@@ -1007,7 +1007,7 @@ removed every feature that saved less than 5 % on average over the two clips:
 | Half-pixel motion (vectors in steps of half a pixel) | +0.7 % | +0.3 % | +0.5 % | removed |
 | Residual grids (a full-color correction grid) | +0.3 % | -0.1 % | +0.1 % | removed |
 | Global motion (one extra vector for the whole frame) | 0.0 % | +0.1 % | +0.1 % | removed |
-| Color grids (a smooth grid of colors, as a leaf) | -1.0 % | 0.0 % | -0.5 % | removed |
+| Color grids (a smooth grid of colors, as a leaf) | -1.1 % | 0.0 % | -0.5 % | removed |
 
 Each number is how much more rate the encoder needed for the same VMAF with that feature turned off.
 
@@ -1050,16 +1050,18 @@ shows how much.
 Last, I went over every option the codec still had, the small switches inside the tools that stayed, the same way: one
 at a time, then together, because some of them stand in for each other. These went: the default color (a keyframe's most
 common solid color, sent once in the header so its squares could be skips: 0.0 %), scene-cut keyframes (0.0 % on these
-clips: a cut is just a P frame of new pictures now), COMPACT's quantizers above 2 (2.7 %), two of COMPACT's three
-classes (one brightness value for the whole block: 0.0 %; a grid with a color change: 0.2 %), its two shorter ways of
-storing the vector (two 4-bit numbers: 0.6 %, and no vector at all, once those were gone: 1.1 %, so the vector is always
-two bytes and the record always ten), and the `ADAPTIVE` preset (-0.1 %: it saved nothing). With them, the header lost
-every field a decoder can work out for itself and went from 32 bytes to 20. Two options cost rate but stayed, because
-the speed test needs them: the `FAST` preset (6.2 % more rate than `DEFAULT` on average: 13.6 % more on the proxy, 1.2 %
-less on gameplay) keeps 1080p gameplay inside its time on a busy machine, and rate control by motion costs 1.1 % more
-rate, but without it the encoder needs about 40 % more processor time on gameplay. Together, these last removals cost
-1.7 % on average: 4.9 % more on gameplay, mostly the cap on the quantizer, and 1.5 % less on the proxy, where the
-shorter COMPACT record more than pays for what went.
+clips: a cut is just a P frame of new pictures now), COMPACT's quantizers above 2 (2.7 %: 0.0 % on the proxy, 5.4 % on
+gameplay), two of COMPACT's three classes (one brightness value for the whole block: 0.0 %, from -0.2 % on the proxy and
+0.1 % on gameplay; a grid with a color change: 0.2 %, from -0.3 % on the proxy and 0.8 % on gameplay), its two shorter
+ways of storing the vector (two 4-bit numbers: 0.6 %, and no vector at all, once those were gone: 1.1 %, from 0.5 % on
+the proxy and 1.7 % on gameplay, so the vector is always two bytes and the record always ten), and the `ADAPTIVE` preset
+(-0.1 %, from 0.0 % on the proxy and -0.1 % on gameplay: it saved nothing). With them, the header lost every field a
+decoder can work out for itself and went from 32 bytes to 20. Two options cost rate but stayed, because the speed test
+needs them: the `FAST` preset (6.2 % more rate than `DEFAULT` on average: 13.6 % more on the proxy, 1.2 % less on
+gameplay) keeps 1080p gameplay inside its time on a busy machine, and rate control by motion costs 1.1 % more rate, but
+without it the encoder needs about 40 % more processor time on gameplay. Together, these last removals cost 1.7 % on
+average: 4.9 % more on gameplay, mostly the cap on the quantizer, and 1.5 % less on the proxy, where the shorter COMPACT
+record more than pays for what went.
 
 What does all that removal cost on the wire? Against the old MCV2's live search, the one its screens used, the
 simplified MCV2 needs 16.4 % more rate on the proxy and 5.8 % more on gameplay for the same VMAF; against its slow
@@ -1348,6 +1350,10 @@ burst of 5; a player without the mod sees MCV2 screens as before.
   frame near a player holds the top-left map of the screen, usually a second wall built with the same map id. MCV2 plays
   on one wall per map: remove the other walls the reply names, or build each screen with its own map id. A
   `--codec mcv2` video on maps then plays its dithered maps, which show on every such wall.
+- An MCV2 command answers `The MCV2 screen was refused: map <id> at ... faces <direction>, unlike the frames of its
+  wall at ...`. The frame of the top-left map faces another way than the frames the reply names, so MCV2 would draw the
+  picture beside the wall. Rebuild the screen with `/mcav screen`. A `--codec mcv2` video on maps then plays its
+  dithered maps.
 - The pack loaded, but the wall shows nothing new. Another pack that overrides `core/text` or `entity_outline.json` was
   loaded after it; the client uses improved transparency, an Iris shader pack without the client mod, or the Vulkan
   backend, which was never tested; the window is lower than the transport strip of the screens playing (a small window

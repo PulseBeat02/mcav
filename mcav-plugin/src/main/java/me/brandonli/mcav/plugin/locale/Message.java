@@ -87,6 +87,16 @@ public interface Message extends LocaleTools {
   UniComponent<String> MCV2_SCREEN_DUPLICATE = LocaleTools.direct("mcav.command.mcv2.screen.duplicate", null);
 
   /**
+   * Key {@code mcav.command.mcv2.screen.turned}: an item frame in loaded chunks that holds another map of the screen
+   * given to an MCV2 command faces another way than the frame of its top-left map, so MCV2 would draw the picture beside
+   * the wall. The argument names the top-left map, its place and facing, and the place of each frame that faces another
+   * way, inserted at {@code <arg:0>}.
+   *
+   * @since 1.0.0
+   */
+  UniComponent<String> MCV2_SCREEN_TURNED = LocaleTools.direct("mcav.command.mcv2.screen.turned", null);
+
+  /**
    * Key {@code mcav.command.mcv2.full}: every slot of the MCV2 pack plays a screen, so the screen just started shows
    * dithered maps.
    *
