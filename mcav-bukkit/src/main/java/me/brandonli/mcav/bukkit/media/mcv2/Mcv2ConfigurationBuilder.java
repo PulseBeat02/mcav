@@ -150,9 +150,11 @@ public interface Mcv2ConfigurationBuilder {
 
   /**
    * Sets the most frames a second the screen shows; defaults to {@link Mcv2Configuration#DEFAULT_MAXIMUM_FRAME_RATE}.
+   * A faster source is thinned to this rate. Encoded frames leave in order, at least one period of this rate apart.
+   * A rate of 0 turns off both the limit on source frames and this spacing.
    *
    * @param maximumFrameRate a finite rate from 0 through {@value Mcv2Configuration#MAXIMUM_FRAME_RATE} frames per
-   *                         second; 0 accepts every source frame
+   *                         second; 0 disables both limits
    * @return this builder
    * @since 1.0.0
    */

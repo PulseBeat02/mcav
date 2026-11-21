@@ -637,12 +637,13 @@ the client draws, so it uses 64 exactly distinguishable ones: 6 bits.
 
 Packets. The server writes page `n` of a frame into the top rows of the map numbered `pageMap + n` (a shorter last page
 fills only whole rows of 128), one map packet per page, and sends all of a frame's pages in one bundle so they arrive
-together. The bundle goes to each viewer's connection as soon as the frame is encoded: Paper holds the map packets a
-plugin sends from another thread until the server's next tick, 20 times a second, and at 30 frames a second two frames
-would often reach a client together. The client draws only the second, can't decode it without the first, and keeps its
-picture until the next keyframe. For the same reason the screen searches a frame only once the frame before it is
-verified, so a viewer's frames leave at least one encoding apart. Minecraft's zlib then compresses each packet, and
-because a map byte carrying six bits uses only 64 of its 256 values, zlib takes back a good part of the six-bit cost.
+together. The bundle goes straight to each viewer's connection, not through the server's tick: Paper holds the map
+packets a plugin sends from another thread until the server's next tick, 20 times a second, and at 30 frames a second
+two frames would often reach a client together. The client draws only the second, can't decode it without the first, and
+keeps its picture until the next keyframe. For the same reason the screen searches a frame only once the frame before it
+is verified, and sends every encoded frame in order, at least one period of `maximumFrameRate` apart, so a client
+drawing at that rate takes in each before the next. Minecraft's zlib then compresses each packet, and because a map byte
+carrying six bits uses only 64 of its 256 values, zlib takes back a good part of the six-bit cost.
 
 Reassembly. Pages can arrive in any order. A client keeps at most four unfinished frames; a page of a fifth evicts the
 oldest. A page must agree with the pages it already has for its frame (count, reference id, length and type), and a
@@ -1514,7 +1515,7 @@ matter:
 | `settings(Mcv2.Settings)` | `Mcv2.Settings.DEFAULT` | The preset: `DEFAULT` or `FAST` ([presets](#presets)) |
 | `video(width, height)` | the wall's native size, 128 pixels per map | The resolution of the video, up to 4096 on a side; the pack scales it to the wall |
 | `pageSlots(n)` | 8, or one per map of a smaller wall | How many pages a frame may have (8 carry 98,048 bytes); the encoder keeps every frame inside them |
-| `maximumFrameRate(framesPerSecond)` | 30 | Sources that paint faster, such as a browser, are thinned to it: a client decodes at most one frame per frame it draws |
+| `maximumFrameRate(framesPerSecond)` | 30 | Sources that paint faster, such as a browser, are thinned to it: a client decodes at most one frame per frame it draws. Encoded frames leave in order, at least one period of this rate apart, so a client drawing at this rate takes in each before the next. Set 0 to turn off both limits |
 | `backlogLimit(bytes)`, `unsentLimit(bytes)` | 128 KiB, 32 KiB | Per-viewer backpressure: a viewer whose connection falls behind skips to the next frame they can decode, without holding back the others ([pages on maps](#part-7-pages-on-maps)) |
 
 `setPacingListener` hears every step the screen's pacer takes when the encoder can't keep up (`FAST`, fewer frames a
