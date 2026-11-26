@@ -292,10 +292,10 @@ final class Mcv2ScreenTest {
   }
 
   private Block wallBlockFromCoordinates(final Map<Location, Block> blocks, final Chunk chunk, final InvocationOnMock invocation) {
-    final int x = invocation.getArgument(0);
-    final int y = invocation.getArgument(1);
-    final int z = invocation.getArgument(2);
-    final Location location = new Location(this.world, x, y, z);
+    final int blockX = invocation.getArgument(0);
+    final int blockY = invocation.getArgument(1);
+    final int blockZ = invocation.getArgument(2);
+    final Location location = new Location(this.world, blockX, blockY, blockZ);
     return this.wallBlock(blocks, chunk, location);
   }
 
