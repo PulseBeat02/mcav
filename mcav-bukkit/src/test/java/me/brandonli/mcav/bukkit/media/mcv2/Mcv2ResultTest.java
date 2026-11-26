@@ -1155,12 +1155,7 @@ final class Mcv2ResultTest {
       .encoderPool(this.interruptibleBudget());
   }
 
-  private Mcv2Channel recordingSendChannel(
-    final AtomicLong clock,
-    final List<Long> sentAt,
-    final List<byte[]> sent,
-    final long sendCost
-  ) {
+  private Mcv2Channel recordingSendChannel(final AtomicLong clock, final List<Long> sentAt, final List<byte[]> sent, final long sendCost) {
     final Mcv2Channel channel = mock(Mcv2Channel.class);
     when(channel.getRecipients()).thenReturn(Set.of(WITH_PACK));
     when(channel.update()).thenReturn(Set.of());
@@ -1468,7 +1463,9 @@ final class Mcv2ResultTest {
       nanoseconds -> this.holdSendWait(waits, enteredWait, waitMayEnd, nanoseconds)
     );
     result.setFrameListener(heard::add);
-    final Thread drainer = Thread.ofPlatform().daemon().unstarted(() -> this.drainQuietly(result));
+    final Thread drainer = Thread.ofPlatform()
+      .daemon()
+      .unstarted(() -> this.drainQuietly(result));
     try {
       result.start();
       final Thread sender = this.onlyPipelineThread(SENDER_THREAD_NAME, before);
@@ -1503,12 +1500,8 @@ final class Mcv2ResultTest {
     }
   }
 
-  private void releasePacedScreen(
-    final Mcv2Result result,
-    final CountDownLatch waitMayEnd,
-    final Thread drainer,
-    final Set<Thread> before
-  ) throws InterruptedException {
+  private void releasePacedScreen(final Mcv2Result result, final CountDownLatch waitMayEnd, final Thread drainer, final Set<Thread> before)
+    throws InterruptedException {
     try {
       result.release();
     } finally {

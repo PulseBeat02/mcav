@@ -127,11 +127,17 @@ final class Mcv2ScreenTest {
 
   private void stubEmptyWallLookups() {
     final Chunk chunk = mock(Chunk.class);
-    lenient().when(chunk.getEntities()).thenReturn(new Entity[0]);
+    lenient()
+      .when(chunk.getEntities())
+      .thenReturn(new Entity[0]);
     final Block block = mock(Block.class);
     lenient().when(block.getChunk()).thenReturn(chunk);
-    lenient().when(this.world.getBlockAt(anyInt(), anyInt(), anyInt())).thenReturn(block);
-    lenient().when(this.world.getBlockAt(any(Location.class))).thenReturn(block);
+    lenient()
+      .when(this.world.getBlockAt(anyInt(), anyInt(), anyInt()))
+      .thenReturn(block);
+    lenient()
+      .when(this.world.getBlockAt(any(Location.class)))
+      .thenReturn(block);
   }
 
   @Test
@@ -186,8 +192,8 @@ final class Mcv2ScreenTest {
     final Map<Location, Block> blocks = new HashMap<>();
     when(this.world.getChunkAt(anyInt(), anyInt())).thenReturn(chunk);
     when(this.world.getChunkAt(any(Location.class))).thenReturn(chunk);
-    when(this.world.getBlockAt(anyInt(), anyInt(), anyInt())).thenAnswer(
-      invocation -> this.wallBlockFromCoordinates(blocks, chunk, invocation)
+    when(this.world.getBlockAt(anyInt(), anyInt(), anyInt())).thenAnswer(invocation ->
+      this.wallBlockFromCoordinates(blocks, chunk, invocation)
     );
     when(this.world.getBlockAt(any(Location.class))).thenAnswer(invocation -> this.wallBlock(blocks, chunk, invocation.getArgument(0)));
     when(chunk.getEntities()).thenAnswer(_ -> entities.toArray(Entity[]::new));
@@ -388,10 +394,7 @@ final class Mcv2ScreenTest {
 
       final List<Packet<?>> packets = this.server.getSentPackets(VIEWER);
       final int packetCount = packets.size();
-      final long teams = packets
-        .stream()
-        .filter(ClientboundSetPlayerTeamPacket.class::isInstance)
-        .count();
+      final long teams = packets.stream().filter(ClientboundSetPlayerTeamPacket.class::isInstance).count();
       final List<ClientboundMapItemDataPacket> maps = packets
         .stream()
         .filter(ClientboundBundlePacket.class::isInstance)
