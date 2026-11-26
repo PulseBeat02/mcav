@@ -50,6 +50,7 @@ final class Mcv2LinkPropertyTest {
     @ForAll final boolean fromKeyframe
   ) {
     final Mcv2Link link = new Mcv2Link(limit);
+    link.open();
     // The client holds only the last decoded picture.
     long clientLast = -1;
     long lastKey = -1;

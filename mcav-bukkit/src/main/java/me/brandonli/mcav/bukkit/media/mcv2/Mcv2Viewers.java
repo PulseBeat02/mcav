@@ -20,6 +20,7 @@ package me.brandonli.mcav.bukkit.media.mcv2;
 import com.google.common.base.Preconditions;
 import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
@@ -66,6 +67,7 @@ public final class Mcv2Viewers {
   private final Map<UUID, PackState> states;
   // A client reload after reconnecting or another pack requires a new session.
   private final Map<UUID, Long> sessions;
+  private final Map<UUID, Integer> loadTicks;
   private final AtomicLong nextSession;
 
   private final Mcv2ShaderReports shaderReports;
@@ -90,6 +92,7 @@ public final class Mcv2Viewers {
     this.onRefused = onRefused;
     this.states = new ConcurrentHashMap<>();
     this.sessions = new ConcurrentHashMap<>();
+    this.loadTicks = new ConcurrentHashMap<>();
     this.nextSession = new AtomicLong();
     this.shaderReports = new Mcv2ShaderReports(System::nanoTime);
   }
@@ -144,6 +147,7 @@ public final class Mcv2Viewers {
     this.packId = newPackId;
     this.states.values().removeIf(state -> state != PackState.DECLINED);
     this.sessions.clear();
+    this.loadTicks.clear();
   }
 
   /**
@@ -156,6 +160,7 @@ public final class Mcv2Viewers {
   public void recordRequest(final UUID player) {
     Preconditions.checkNotNull(player, PLAYER_NULL_MESSAGE);
 
+    this.loadTicks.remove(player);
     this.states.put(player, PackState.REQUESTED);
   }
 
@@ -219,7 +224,7 @@ public final class Mcv2Viewers {
     final UUID viewerId = player.getUniqueId();
     switch (event.getStatus()) {
       case SUCCESSFULLY_LOADED -> this.recordLoad(viewerId);
-      case ACCEPTED, DOWNLOADED -> this.states.put(viewerId, PackState.REQUESTED);
+      case ACCEPTED, DOWNLOADED -> this.recordRequest(viewerId);
       case DECLINED -> this.recordRefusal(player, PackState.DECLINED);
       case FAILED_DOWNLOAD, INVALID_URL, FAILED_RELOAD, DISCARDED -> this.recordRefusal(player, PackState.REFUSED);
     }
@@ -229,12 +234,14 @@ public final class Mcv2Viewers {
     final PackState before = this.states.put(player, PackState.LOADED);
 
     if (before != PackState.LOADED) {
+      this.loadTicks.put(player, Bukkit.getCurrentTick());
       this.sessions.put(player, this.nextSession.incrementAndGet());
     }
   }
 
   private void recordRefusal(final Player player, final PackState state) {
     this.sessions.remove(player.getUniqueId());
+    this.loadTicks.remove(player.getUniqueId());
     final PackState before = this.states.put(player.getUniqueId(), state);
 
     if (before != PackState.REFUSED && before != PackState.DECLINED) {
@@ -246,7 +253,13 @@ public final class Mcv2Viewers {
     final UUID player = event.getPlayer().getUniqueId();
     this.states.remove(player);
     this.sessions.remove(player);
+    this.loadTicks.remove(player);
     this.shaderReports.forget(player);
+  }
+
+  OptionalInt findLoadTick(final UUID player) {
+    final @Nullable Integer tick = this.loadTicks.get(player);
+    return tick == null ? OptionalInt.empty() : OptionalInt.of(tick);
   }
 
   /**

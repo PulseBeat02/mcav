@@ -24,12 +24,14 @@ import java.util.concurrent.atomic.AtomicLong;
  * One viewer's side of an MCV2 stream: which frames the viewer can decode, and how much video its connection has not
  * yet written.
  *
- * <p>A screen is encoded once for all viewers. Each viewer receives a keyframe or a P frame referencing
- * the last frame it was sent, provided its pending video bytes are within the backlog limit. Keyframes
- * have {@link #KEYFRAME_ALLOWANCE} times that allowance. After missing a frame, a viewer waits for a
- * decodable keyframe and keeps displaying its previous picture meanwhile.
+ * <p>A screen is encoded once for all viewers. A link starts closed and admits no frames until the channel opens
+ * it after the viewer's pack and frame tracking are ready. Each opening requires a keyframe before any P frame.
+ * An open link receives a keyframe or a P frame referencing the last frame it was sent, provided its pending video
+ * bytes are within the backlog limit. Keyframes have {@link #KEYFRAME_ALLOWANCE} times that allowance. After
+ * missing a frame, a viewer waits for a decodable keyframe and keeps displaying its previous picture meanwhile.
  *
- * <p>Offers come from the thread that sends frames, one at a time; writes complete on the connection's thread.
+ * <p>Offers come from the thread that sends frames, one at a time; the channel opens and closes the link on the
+ * main thread, and writes complete on the connection's thread. Shared state is synchronized or atomic.
  *
  * @since 1.0.0
  */
@@ -49,6 +51,7 @@ public final class Mcv2Link {
   private final long limit;
   private final AtomicLong backlog;
 
+  private boolean open;
   private long lastFrame;
 
   private long sent;
@@ -56,7 +59,7 @@ public final class Mcv2Link {
   private long undecodable;
 
   /**
-   * Creates the link of a viewer that has decoded nothing yet.
+   * Creates a closed link for a viewer that has decoded nothing yet.
    *
    * @param limit the nonnegative backlog threshold in estimated bytes before accepting another frame;
    *              zero admits a frame only when the tracked backlog is zero
@@ -68,6 +71,16 @@ public final class Mcv2Link {
 
     this.limit = limit;
     this.backlog = new AtomicLong();
+    this.open = false;
+    this.lastFrame = NONE;
+  }
+
+  synchronized void open() {
+    this.open = true;
+  }
+
+  synchronized void close() {
+    this.open = false;
     this.lastFrame = NONE;
   }
 
@@ -90,7 +103,8 @@ public final class Mcv2Link {
    * Decides whether a frame goes to the viewer now, and when it does, records it as sent and adds its bytes to the
    * backlog; {@link #releaseBacklog(long)} takes them off again.
    *
-   * <p>The threshold tests the existing backlog before adding this frame, so an accepted frame can take the
+   * <p>A closed link admits no frame, including a keyframe shared with other viewers. Each opening requires a new
+   * keyframe. The threshold tests the existing backlog before adding this frame, so an accepted frame can take the
    * backlog above the threshold. Send every accepted frame and balance its byte charge with {@link #releaseBacklog(long)}.
    *
    * @param frameId     the frame's id
@@ -106,6 +120,10 @@ public final class Mcv2Link {
     Preconditions.checkNotNull(kind, KIND_NULL_MESSAGE);
     Preconditions.checkArgument(frameId >= 0 && frameId <= Mcv2Decoder.MAXIMUM_UNSIGNED_INT, "Frame id must be an unsigned 32-bit value!");
     Preconditions.checkArgument(bytes >= 0, "Bytes must not be negative!");
+
+    if (!this.open) {
+      return false;
+    }
 
     final long pendingBytes = this.backlog.get();
     final long threshold = kind == Mcv2FrameKind.KEYFRAME ? allowance(this.limit) : this.limit;
@@ -143,6 +161,10 @@ public final class Mcv2Link {
    */
   public void releaseBacklog(final long bytes) {
     this.backlog.addAndGet(-bytes);
+  }
+
+  synchronized boolean isOpen() {
+    return this.open;
   }
 
   /**

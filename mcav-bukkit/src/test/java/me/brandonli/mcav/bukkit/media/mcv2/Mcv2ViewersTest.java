@@ -32,9 +32,11 @@ import static org.mockito.Mockito.when;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.UUID;
 import me.brandonli.mcav.bukkit.testing.FakeServer;
 import net.kyori.adventure.text.Component;
+import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Event;
 import org.bukkit.event.EventException;
@@ -87,6 +89,65 @@ final class Mcv2ViewersTest {
 
   private PlayerResourcePackStatusEvent status(final UUID pack, final Status status) {
     return new PlayerResourcePackStatusEvent(this.player, pack, status);
+  }
+
+  @Test
+  void shouldRecordTheTickThePackLoaded() {
+    final Mcv2Viewers viewers = this.viewers();
+    final OptionalInt beforeLoad = viewers.findLoadTick(PLAYER);
+    assertEquals(OptionalInt.empty(), beforeLoad, "A player who has not loaded the pack must have no load tick!");
+
+    viewers.onResourcePackStatus(this.status(PACK, Status.SUCCESSFULLY_LOADED));
+    final OptionalInt expectedFirstLoad = OptionalInt.of(Bukkit.getCurrentTick());
+    final OptionalInt firstLoad = viewers.findLoadTick(PLAYER);
+    assertEquals(expectedFirstLoad, firstLoad, "SUCCESSFULLY_LOADED must record the server tick for the first-draw gate!");
+
+    this.server.advanceTick();
+    viewers.onResourcePackStatus(this.status(PACK, Status.SUCCESSFULLY_LOADED));
+    final OptionalInt repeatedLoad = viewers.findLoadTick(PLAYER);
+    assertEquals(expectedFirstLoad, repeatedLoad, "A repeated SUCCESSFULLY_LOADED must preserve the original load tick!");
+
+    viewers.onPlayerQuit(new PlayerQuitEvent(this.player, (Component) null, PlayerQuitEvent.QuitReason.DISCONNECTED));
+    final OptionalInt afterQuit = viewers.findLoadTick(PLAYER);
+    assertEquals(OptionalInt.empty(), afterQuit, "Quitting must clear the load tick of the old client!");
+
+    viewers.onResourcePackStatus(this.status(PACK, Status.SUCCESSFULLY_LOADED));
+    final OptionalInt expectedRejoinedLoad = OptionalInt.of(Bukkit.getCurrentTick());
+    final OptionalInt rejoinedLoad = viewers.findLoadTick(PLAYER);
+    assertEquals(expectedRejoinedLoad, rejoinedLoad, "A rejoining client must record its own load tick!");
+
+    viewers.recordRequest(PLAYER);
+    final OptionalInt afterRequest = viewers.findLoadTick(PLAYER);
+    assertEquals(OptionalInt.empty(), afterRequest, "A new pack request must clear the previous load tick!");
+
+    this.server.advanceTick();
+    viewers.onResourcePackStatus(this.status(PACK, Status.SUCCESSFULLY_LOADED));
+    final OptionalInt expectedReload = OptionalInt.of(Bukkit.getCurrentTick());
+    final OptionalInt reloaded = viewers.findLoadTick(PLAYER);
+    assertEquals(expectedReload, reloaded, "Loading after a new request must record a fresh load tick!");
+
+    viewers.onResourcePackStatus(this.status(PACK, Status.DECLINED));
+    final OptionalInt afterRefusal = viewers.findLoadTick(PLAYER);
+    assertEquals(OptionalInt.empty(), afterRefusal, "Refusing the pack must clear the load tick!");
+
+    this.server.advanceTick();
+    viewers.onResourcePackStatus(this.status(PACK, Status.SUCCESSFULLY_LOADED));
+    final OptionalInt expectedAfterRefusal = OptionalInt.of(Bukkit.getCurrentTick());
+    final OptionalInt loadedAfterRefusal = viewers.findLoadTick(PLAYER);
+    assertEquals(expectedAfterRefusal, loadedAfterRefusal, "Loading after a refusal must record a fresh load tick!");
+
+    viewers.onResourcePackStatus(this.status(PACK, Status.FAILED_RELOAD));
+    final OptionalInt afterFailure = viewers.findLoadTick(PLAYER);
+    assertEquals(OptionalInt.empty(), afterFailure, "A failed reload must clear the load tick!");
+
+    viewers.onResourcePackStatus(this.status(PACK, Status.SUCCESSFULLY_LOADED));
+    final OptionalInt expectedBeforeRetarget = OptionalInt.of(Bukkit.getCurrentTick());
+    final OptionalInt beforeRetarget = viewers.findLoadTick(PLAYER);
+    assertEquals(expectedBeforeRetarget, beforeRetarget, "Loading after a failed reload must record a fresh load tick!");
+
+    viewers.retarget(OTHER);
+    final OptionalInt afterRetarget = viewers.findLoadTick(PLAYER);
+    assertEquals(OptionalInt.empty(), afterRetarget, "Retargeting the pack must clear every previous load tick!");
   }
 
   @Test

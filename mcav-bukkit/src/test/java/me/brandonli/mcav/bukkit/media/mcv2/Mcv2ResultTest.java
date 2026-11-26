@@ -86,6 +86,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.block.BlockFace;
+import org.bukkit.entity.ItemFrame;
 import org.bukkit.entity.Player;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.jupiter.api.AfterEach;
@@ -135,6 +136,9 @@ final class Mcv2ResultTest {
   private static final int SLOW_ENCODE_SECONDS = 2;
   private static final int SEARCH_DURATION_MILLISECONDS = 300;
 
+  private static final int SNAPSHOT_TICKS = 11;
+  private static final int FIRST_DRAW_DELAY_TICKS = 120;
+
   private static final int PIPELINE_TIMEOUT_SECONDS = 10;
 
   private static final long HANDOFF_DURATION_NANOSECONDS = TimeUnit.MILLISECONDS.toNanos(25);
@@ -180,6 +184,8 @@ final class Mcv2ResultTest {
   private OriginalVideoMetadata metadata;
 
   private Mcv2Configuration configuration;
+
+  private boolean trackingPrepared;
 
   @BeforeEach
   void startServer() throws ReflectiveOperationException {
@@ -250,6 +256,7 @@ final class Mcv2ResultTest {
       verify(this.algorithm, timeout(WAIT_TIMEOUT_MILLISECONDS)).ditherIntoBytes(any());
 
       this.server.runTasks();
+      this.openViewerLinks(WITH_PACK);
       final boolean applied = result.applyFilter(frame, this.metadata);
       assertTrue(applied);
 
@@ -290,6 +297,38 @@ final class Mcv2ResultTest {
     }
 
     verify(this.screen).remove();
+  }
+
+  private void openViewerLinks(final UUID... viewers) {
+    this.prepareTrackingFrames();
+    final int loadTick = this.server.getCurrentTick() - FIRST_DRAW_DELAY_TICKS;
+    for (final UUID viewer : viewers) {
+      when(this.viewers.findLoadTick(viewer)).thenReturn(OptionalInt.of(loadTick));
+    }
+
+    this.server.runTimers(1L);
+    this.server.advanceTicks(SNAPSHOT_TICKS);
+    this.server.runTimers(1L);
+  }
+
+  private void prepareTrackingFrames() {
+    if (this.trackingPrepared) {
+      return;
+    }
+
+    final ItemFrame page = this.trackedFrame();
+    final ItemFrame wall = this.trackedFrame();
+    when(this.screen.getFrames()).thenReturn(List.of(page));
+    when(this.screen.getWallFrames()).thenReturn(List.of(wall));
+    this.trackingPrepared = true;
+  }
+
+  private ItemFrame trackedFrame() {
+    final ItemFrame frame = mock(ItemFrame.class);
+    when(frame.isValid()).thenReturn(true);
+    when(frame.isTrackedBy(any(Player.class))).thenReturn(true);
+
+    return frame;
   }
 
   @Test
@@ -365,13 +404,15 @@ final class Mcv2ResultTest {
   // the encoder takes the second frame and the keyframe request of the viewer it was the first frame for
   private Mcv2Result showAFrame(final ImageBuffer frame) {
     final Mcv2Result result = this.createSynchronousResult();
+    final Mcv2Channel channel = result.getChannel();
+    channel.open();
     result.applyFilter(frame, this.metadata);
     this.server.runTasks();
+    this.openViewerLinks(WITH_PACK);
     result.applyFilter(frame, this.metadata);
     final Mcv2Result.@Nullable Arrival handed = result.poll();
     assertNotNull(handed);
 
-    final Mcv2Channel channel = result.getChannel();
     final boolean requested = channel.takeKeyframeRequest();
     assertTrue(requested);
 
@@ -494,6 +535,7 @@ final class Mcv2ResultTest {
     assertNull(repeatedBeforeTheShow);
 
     this.server.runTasks();
+    this.openViewerLinks(WITHOUT);
     result.repeatWhileIdle();
 
     final Player without = requireNonNull(Bukkit.getPlayer(WITHOUT));
@@ -518,6 +560,7 @@ final class Mcv2ResultTest {
     assertNull(repeatedBeforeTheShow);
 
     this.server.runTasks();
+    this.openViewerLinks(WITHOUT);
     result.repeatWhileIdle();
 
     final Mcv2Result.@Nullable Arrival repeatedForTheViewer = result.poll();
@@ -743,7 +786,7 @@ final class Mcv2ResultTest {
     final Mcv2Result result = this.result(this.configuration, this.algorithm);
     result.start();
     final int tasksWhileStarted = this.server.getScheduledTaskCount();
-    assertEquals(2, tasksWhileStarted);
+    assertEquals(3, tasksWhileStarted);
 
     result.release();
 
@@ -767,6 +810,7 @@ final class Mcv2ResultTest {
       result.start();
       result.applyFilter(Images.solid(64, 32, FRAME_COLOR), this.metadata);
       this.server.runTasks();
+      this.openViewerLinks(WITH_PACK);
       result.applyFilter(Images.solid(64, 32, FRAME_COLOR), this.metadata);
       this.awaitFrames(result, 1);
       result.release();
@@ -2748,8 +2792,10 @@ final class Mcv2ResultTest {
       .maximumFrameRate(0)
       .build();
     final Mcv2Result result = this.result(tight, null);
+    result.getChannel().open();
     result.getChannel().update();
     this.server.runTasks();
+    this.openViewerLinks(WITH_PACK, second);
     result.getChannel().update();
     final List<byte[]> frames = List.of(
       Mcv2ChannelTest.frame(0, 0, Mcv2FrameKind.KEYFRAME),

@@ -43,6 +43,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.block.BlockFace;
+import org.bukkit.entity.ItemFrame;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitScheduler;
@@ -55,8 +56,10 @@ import org.slf4j.LoggerFactory;
  * Delivers encoded MCV2 frames to the viewers of a screen who can decode them.
  *
  * <p>{@link #update()} sorts the viewers by what their client reported for the pack: a viewer whose pack loaded is
- * first shown the screen on the main thread, and only after that receives frames, starting with a keyframe, which
- * the viewer needs to start; every other viewer is returned, to be shown the dithered maps instead.
+ * first shown the page frames and their team on the main thread. Its link starts closed and receives no frames
+ * until 120 ticks after the pack loaded and 11 ticks after every valid page and wall frame is first seen tracked.
+ * Opening sends the anchors, opens the link and requests one keyframe; losing tracking closes the link until both
+ * gates hold again. Every other viewer is returned, to be shown the dithered maps instead.
  * {@link #send(byte[])} sends one frame's pages on the page maps, and with a keyframe the anchors too, to the viewers
  * that were shown the screen, each through its own {@link Mcv2Link}: a viewer whose connection falls behind misses
  * frames until one it can decode comes with its backlog under the configuration's limit, and the others are not held
@@ -85,6 +88,10 @@ public final class Mcv2Channel {
 
   private static final long RANGE_TICKS = 20L;
 
+  private static final int SNAPSHOT_TICKS = 11;
+
+  private static final int FIRST_DRAW_DELAY_TICKS = 120;
+
   private static final int MAP_ORIGIN = 0;
 
   static final int NOT_SENT = -1;
@@ -98,10 +105,12 @@ public final class Mcv2Channel {
   private final Map<UUID, Mcv2Link> links;
   private final Set<UUID> away;
   private final Map<UUID, Long> sessions;
+  private final Map<Mcv2Link, Map<ItemFrame, Integer>> trackingAges;
 
   private volatile Map<UUID, Mcv2Link> recipients;
   private volatile Set<UUID> farAway;
   private @Nullable BukkitTask ranging;
+  private @Nullable BukkitTask tracking;
 
   /**
    * Creates a channel.
@@ -127,14 +136,16 @@ public final class Mcv2Channel {
     this.links = new ConcurrentHashMap<>();
     this.away = ConcurrentHashMap.newKeySet();
     this.sessions = new ConcurrentHashMap<>();
+    this.trackingAges = new ConcurrentHashMap<>();
     this.recipients = Map.of();
     this.farAway = Set.of();
     this.keyframeRequest = new Mcv2KeyframeRequest();
   }
 
   /**
-   * Spawns the screen's page frames, and starts measuring how far the viewers are from the wall, unless the channel
-   * still measures them since the dithered maps took the page frames' place. Call on the main thread.
+   * Builds the screen and starts checking frame tracking each tick. Starts measuring how far the viewers are from
+   * the wall unless the channel still measures them since the dithered maps took the page frames' place.
+   * Call on the main thread.
    *
    * @throws IllegalStateException if the screen is already built or no plugin has been injected
    * @throws NullPointerException  if the origin no longer resolves to a world
@@ -143,16 +154,21 @@ public final class Mcv2Channel {
   public void open() {
     this.screen.build();
 
+    final Plugin plugin = BukkitModule.getPlugin();
+    final BukkitScheduler scheduler = Bukkit.getScheduler();
+    if (this.tracking == null) {
+      this.tracking = scheduler.runTaskTimer(plugin, this::checkTracking, 1L, 1L);
+    }
+
     if (this.ranging == null) {
       this.measureRange();
-      final BukkitScheduler scheduler = Bukkit.getScheduler();
-      final Plugin plugin = BukkitModule.getPlugin();
       this.ranging = scheduler.runTaskTimer(plugin, this::measureRange, RANGE_TICKS, RANGE_TICKS);
     }
   }
 
   /**
-   * Removes the screen's page frames, and stops measuring the viewers' distances. Call on the main thread.
+   * Removes the screen's page frames and stops checking tracking and measuring the viewers' distances.
+   * Call on the main thread.
    *
    * @since 1.0.0
    */
@@ -168,6 +184,15 @@ public final class Mcv2Channel {
   }
 
   void removeFrames() {
+    final @Nullable BukkitTask task = this.tracking;
+    if (task != null) {
+      task.cancel();
+      this.tracking = null;
+    }
+
+    this.trackingAges.clear();
+    final Collection<Mcv2Link> viewerLinks = this.links.values();
+    viewerLinks.forEach(Mcv2Link::close);
     this.screen.remove();
     this.scheduled.clear();
     this.links.clear();
@@ -178,6 +203,86 @@ public final class Mcv2Channel {
     final Set<UUID> near = new HashSet<>(viewers);
     near.removeAll(this.farAway);
     return near;
+  }
+
+  void checkTracking() {
+    // A link that another thread removed during a check may have left its ages behind.
+    final Set<Mcv2Link> agedLinks = this.trackingAges.keySet();
+    final Collection<Mcv2Link> viewerLinks = this.links.values();
+    agedLinks.retainAll(viewerLinks);
+
+    final int tick = Bukkit.getCurrentTick();
+    final List<ItemFrame> pageFrames = this.screen.getFrames();
+    final List<ItemFrame> wallFrames = this.screen.getWallFrames();
+    final List<ItemFrame> frames = new ArrayList<>(pageFrames);
+    frames.addAll(wallFrames);
+    for (final Map.Entry<UUID, Mcv2Link> entry : this.links.entrySet()) {
+      final UUID viewer = entry.getKey();
+      final Mcv2Link link = entry.getValue();
+      this.checkTracking(viewer, link, frames, tick);
+    }
+  }
+
+  private void checkTracking(final UUID viewer, final Mcv2Link link, final List<ItemFrame> frames, final int tick) {
+    final @Nullable Player player = Bukkit.getPlayer(viewer);
+    if (player == null) {
+      link.close();
+      this.trackingAges.remove(link);
+      return;
+    }
+
+    final Map<ItemFrame, Integer> ages = this.trackingAges.computeIfAbsent(link, _ -> new HashMap<>());
+    this.recordTracking(player, frames, ages, tick);
+
+    if (!this.hasSnapshot(frames, ages, tick)) {
+      link.close();
+      return;
+    }
+
+    if (link.isOpen() || !this.hasFirstDrawDelayPassed(viewer, tick) || !this.isCurrentLink(viewer, link)) {
+      return;
+    }
+
+    final List<MapTilePatch> anchors = this.screen.getAnchors();
+    MapPacketFactory.send(List.of(viewer), anchors);
+    link.open();
+    this.keyframeRequest.request();
+  }
+
+  private void recordTracking(final Player player, final List<ItemFrame> frames, final Map<ItemFrame, Integer> ages, final int tick) {
+    for (final ItemFrame frame : frames) {
+      if (frame.isValid() && frame.isTrackedBy(player)) {
+        ages.putIfAbsent(frame, tick);
+      } else {
+        ages.remove(frame);
+      }
+    }
+  }
+
+  private boolean hasSnapshot(final List<ItemFrame> frames, final Map<ItemFrame, Integer> ages, final int tick) {
+    for (final ItemFrame frame : frames) {
+      if (frame.isValid() && !this.hasSnapshot(frame, ages, tick)) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  private boolean hasSnapshot(final ItemFrame frame, final Map<ItemFrame, Integer> ages, final int tick) {
+    final @Nullable Integer firstTracked = ages.get(frame);
+    return firstTracked != null && tick - firstTracked >= SNAPSHOT_TICKS;
+  }
+
+  private boolean hasFirstDrawDelayPassed(final UUID viewer, final int tick) {
+    final OptionalInt loadTick = this.viewers.findLoadTick(viewer);
+    return loadTick.isPresent() && tick - loadTick.getAsInt() >= FIRST_DRAW_DELAY_TICKS;
+  }
+
+  private boolean isCurrentLink(final UUID viewer, final Mcv2Link link) {
+    // Another thread may remove or replace the link during a check.
+    final @Nullable Mcv2Link current = this.links.get(viewer);
+    return current == link;
   }
 
   void measureRange() {
@@ -270,14 +375,14 @@ public final class Mcv2Channel {
       // Not hidden: hiding removes the scoreboard team shared by every screen shown to this viewer.
       this.scheduled.remove(viewer);
 
-      if (this.links.remove(viewer) != null) {
+      if (this.removeLink(viewer) != null) {
         this.away.add(viewer);
       }
     } else if (!this.viewers.isLoaded(viewer)) {
       others.add(viewer);
       this.scheduled.remove(viewer);
 
-      if (this.links.remove(viewer) != null) {
+      if (this.removeLink(viewer) != null) {
         final BukkitScheduler scheduler = Bukkit.getScheduler();
         final Plugin plugin = BukkitModule.getPlugin();
         scheduler.runTask(plugin, () -> this.hide(viewer));
@@ -295,6 +400,16 @@ public final class Mcv2Channel {
     }
   }
 
+  private @Nullable Mcv2Link removeLink(final UUID viewer) {
+    final @Nullable Mcv2Link link = this.links.remove(viewer);
+    if (link != null) {
+      link.close();
+      this.trackingAges.remove(link);
+    }
+
+    return link;
+  }
+
   private void retireRemoved(final Set<UUID> selected) {
     this.scheduled.removeIf(viewer -> !selected.contains(viewer));
 
@@ -302,7 +417,7 @@ public final class Mcv2Channel {
     shown.addAll(this.away);
     for (final UUID viewer : shown) {
       if (!selected.contains(viewer)) {
-        this.links.remove(viewer);
+        this.removeLink(viewer);
         this.away.remove(viewer);
         final BukkitScheduler scheduler = Bukkit.getScheduler();
         final Plugin plugin = BukkitModule.getPlugin();
@@ -321,7 +436,7 @@ public final class Mcv2Channel {
       final Long session = this.sessions.putIfAbsent(viewer, current);
       if (session != null && session != current) {
         this.scheduled.remove(viewer);
-        this.links.remove(viewer);
+        this.removeLink(viewer);
         this.sessions.remove(viewer);
       }
     }
@@ -367,11 +482,7 @@ public final class Mcv2Channel {
       if (this.links.remove(viewer, link)) {
         this.screen.hide(player);
       }
-
-      return;
     }
-
-    this.keyframeRequest.request();
   }
 
   private boolean canShow(final UUID viewer) {
@@ -391,7 +502,7 @@ public final class Mcv2Channel {
   }
 
   /**
-   * Takes a keyframe request: a viewer was just shown the screen, or a frame could not be sent.
+   * Takes a keyframe request: a viewer's link just opened, or a frame could not be sent.
    *
    * @return true if the next frame should be a keyframe
    * @since 1.0.0
