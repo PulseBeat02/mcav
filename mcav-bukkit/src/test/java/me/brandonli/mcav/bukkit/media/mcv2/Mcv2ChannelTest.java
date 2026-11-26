@@ -20,6 +20,7 @@ package me.brandonli.mcav.bukkit.media.mcv2;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -33,6 +34,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.lang.reflect.Field;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -186,6 +188,210 @@ final class Mcv2ChannelTest {
 
   static byte[] large() {
     return Mcv2Trees.twoPages();
+  }
+
+  @Test
+  void shouldKeepOneTrackingTimerWhenOpenedAgain() {
+    final Mcv2Channel channel = new Mcv2Channel(this.configuration, this.viewers, this.screen);
+    channel.open();
+    channel.open();
+
+    final int scheduledTasks = this.server.getScheduledTaskCount();
+    assertEquals(2, scheduledTasks, "Opening again must retain exactly one tracking timer and one range timer!");
+    verify(this.server.getScheduler(), times(1).description("Opening again must reuse the running tracking timer!")).runTaskTimer(
+      eq(this.server.getPlugin()),
+      any(Runnable.class),
+      eq(1L),
+      eq(1L)
+    );
+
+    channel.close();
+    final int remainingTasks = this.server.getScheduledTaskCount();
+    assertEquals(0, remainingTasks, "Closing after repeated opening must leave no orphaned timer!");
+  }
+
+  @Test
+  void shouldCloseOfflineLinksAndForgetTheirTrackingAges() {
+    final Mcv2Channel channel = this.openedTrackingChannel();
+    final Mcv2Link link = channel.getLinks().get(LOADED);
+    this.server.removePlayer(LOADED);
+    channel.checkTracking();
+    this.assertLinkClosed(link);
+    this.assertNoTrackingOpening(channel);
+
+    this.server.addPlayer(LOADED);
+    PacketUtils.initialize();
+    channel.checkTracking();
+    this.advanceTracking(channel, SNAPSHOT_TICKS - 1);
+    this.assertLinkClosed(link);
+    this.assertNoTrackingOpening(channel);
+
+    this.advanceTracking(channel, 1);
+    this.assertAnchorCount(LOADED, 1);
+    final Mcv2Link returnedLink = channel.getLinks().get(LOADED);
+    final boolean admitted = link.offer(0, 0, Mcv2FrameKind.KEYFRAME, FRAME_SIZE);
+    final boolean requested = channel.takeKeyframeRequest();
+    final boolean requestedAgain = channel.takeKeyframeRequest();
+    assertSame(link, returnedLink, "Returning online must require a new snapshot even for the same link!");
+    assertTrue(admitted, "An offline link must reopen only after a fresh complete snapshot!");
+    assertTrue(requested, "Returning online must request a fresh keyframe when the link reopens!");
+    assertFalse(requestedAgain, "Returning online must request only one opening keyframe!");
+  }
+
+  private Mcv2Channel openedTrackingChannel() {
+    this.pageTrackers.add(LOADED);
+    this.wallTrackers.add(LOADED);
+    final Mcv2Channel channel = this.trackingChannel();
+    this.advanceTracking(channel, SNAPSHOT_TICKS);
+    this.assertAnchorCount(LOADED, 1);
+    final boolean requested = channel.takeKeyframeRequest();
+    assertTrue(requested, "Complete tracking must open the initial link before testing its retirement!");
+    this.server.clearSentPackets(LOADED);
+
+    return channel;
+  }
+
+  private void assertLinkClosed(final Mcv2Link link) {
+    final boolean open = link.isOpen();
+    final boolean keyframe = link.offer(0, 0, Mcv2FrameKind.KEYFRAME, FRAME_SIZE);
+    final boolean predicted = link.offer(1, 0, Mcv2FrameKind.PREDICTED, FRAME_SIZE);
+    assertFalse(open, "A retired link must be closed!");
+    assertFalse(keyframe, "A retired link must reject even a keyframe!");
+    assertFalse(predicted, "A retired link must reject predicted frames!");
+  }
+
+  private void assertNoTrackingOpening(final Mcv2Channel channel) {
+    final List<ClientboundMapItemDataPacket> maps = this.mapPackets(LOADED);
+    final boolean requested = channel.takeKeyframeRequest();
+    assertEquals(List.of(), maps, "Tracking must send no anchors before the current link has a fresh snapshot!");
+    assertFalse(requested, "Tracking must request no keyframe before the current link has a fresh snapshot!");
+  }
+
+  @Test
+  void shouldNotOpenALinkReplacedDuringTracking() {
+    final Mcv2Channel channel = this.trackingChannelReadyForSnapshot();
+    final Mcv2Link previous = channel.getLinks().get(LOADED);
+    final int loadTick = Bukkit.getCurrentTick() - FIRST_DRAW_DELAY_TICKS;
+    when(this.viewers.findLoadTick(LOADED)).thenAnswer(_ -> this.replaceLinkDuringTracking(channel, loadTick));
+    this.server.advanceTick();
+    channel.checkTracking();
+    this.assertLinkClosed(previous);
+    this.assertNoTrackingOpening(channel);
+
+    final Mcv2Link replacement = channel.getLinks().get(LOADED);
+    assertNotSame(previous, replacement, "The tracking check must encounter a replacement link!");
+    this.assertLinkClosed(replacement);
+  }
+
+  private Mcv2Channel trackingChannelReadyForSnapshot() {
+    this.pageTrackers.add(LOADED);
+    this.wallTrackers.add(LOADED);
+    final Mcv2Channel channel = this.trackingChannel();
+    this.advanceTracking(channel, SNAPSHOT_TICKS - 1);
+    this.assertNoTrackingOpening(channel);
+
+    return channel;
+  }
+
+  private OptionalInt replaceLinkDuringTracking(final Mcv2Channel channel, final int loadTick) {
+    channel.show(LOADED);
+
+    return OptionalInt.of(loadTick);
+  }
+
+  @Test
+  void shouldNotOpenALinkRemovedDuringTracking() {
+    final Mcv2Channel channel = this.trackingChannelReadyForSnapshot();
+    final Mcv2Link previous = channel.getLinks().get(LOADED);
+    final int loadTick = Bukkit.getCurrentTick() - FIRST_DRAW_DELAY_TICKS;
+    when(this.viewers.findLoadTick(LOADED)).thenAnswer(_ -> this.removeLinkDuringTracking(channel, loadTick));
+    this.server.advanceTick();
+    channel.checkTracking();
+    this.assertLinkClosed(previous);
+    this.assertNoTrackingOpening(channel);
+
+    final Map<UUID, Mcv2Link> links = channel.getLinks();
+    assertEquals(Map.of(), links, "The tracking check must encounter a viewer whose link was removed!");
+  }
+
+  private OptionalInt removeLinkDuringTracking(final Mcv2Channel channel, final int loadTick) {
+    this.configuration.getViewers().remove(LOADED);
+    channel.update();
+
+    return OptionalInt.of(loadTick);
+  }
+
+  @Test
+  void shouldForgetTrackingAgesAndCloseEveryLinkWhenClosing() throws ReflectiveOperationException {
+    when(this.viewers.isLoaded(WITHOUT)).thenReturn(true);
+    final List<UUID> trackedViewers = List.of(LOADED, WITHOUT);
+    this.pageTrackers.addAll(trackedViewers);
+    this.wallTrackers.addAll(trackedViewers);
+    final Mcv2Channel channel = this.trackingChannel();
+    channel.open();
+    this.advanceTracking(channel, SNAPSHOT_TICKS);
+    final List<Mcv2Link> previousLinks = List.copyOf(channel.getLinks().values());
+    final Map<?, ?> ages = this.trackingAges(channel);
+    final int agedLinks = ages.size();
+    final boolean initialRequest = channel.takeKeyframeRequest();
+    assertEquals(2, agedLinks, "Both opened viewers must have tracking ages before closing!");
+    assertTrue(initialRequest, "The viewers must open before testing close and reopen!");
+
+    channel.close();
+    assertEquals(Map.of(), ages, "Close must release every viewer's tracking ages immediately!");
+    for (final Mcv2Link link : previousLinks) {
+      this.assertLinkClosed(link);
+    }
+
+    this.server.clearSentPackets(LOADED);
+    this.server.clearSentPackets(WITHOUT);
+    channel.open();
+    channel.update();
+    this.server.runTasks();
+    channel.update();
+    channel.checkTracking();
+    this.advanceTracking(channel, SNAPSHOT_TICKS - 1);
+    for (final UUID viewer : trackedViewers) {
+      this.assertClosed(channel, viewer);
+      this.assertAnchorCount(viewer, 0);
+    }
+
+    final boolean earlyRequest = channel.takeKeyframeRequest();
+    assertFalse(earlyRequest, "Reopening the channel must wait for a fresh snapshot before requesting a keyframe!");
+
+    this.advanceTracking(channel, 1);
+    for (final UUID viewer : trackedViewers) {
+      this.assertAnchorCount(viewer, 1);
+      final Mcv2Link link = channel.getLinks().get(viewer);
+      final boolean admitted = link.offer(0, 0, Mcv2FrameKind.KEYFRAME, FRAME_SIZE);
+      assertTrue(admitted, "Every viewer must receive a new opening after the fresh snapshot!");
+    }
+
+    final boolean reopenedRequest = channel.takeKeyframeRequest();
+    final boolean repeatedRequest = channel.takeKeyframeRequest();
+    assertTrue(reopenedRequest, "Reopened viewer links must request a fresh keyframe!");
+    assertFalse(repeatedRequest, "Opening the viewers together must coalesce their keyframe requests!");
+    channel.close();
+  }
+
+  private Map<?, ?> trackingAges(final Mcv2Channel channel) throws ReflectiveOperationException {
+    final Field field = Mcv2Channel.class.getDeclaredField("trackingAges");
+    field.setAccessible(true);
+
+    return assertInstanceOf(Map.class, field.get(channel), "Tracking ages must be stored per link!");
+  }
+
+  @Test
+  void shouldCloseTheRemovedViewerLink() {
+    final Mcv2Channel channel = this.openedTrackingChannel();
+    final Mcv2Link removed = channel.getLinks().get(LOADED);
+    when(this.viewers.isLoaded(LOADED)).thenReturn(false);
+    channel.update();
+    this.assertLinkClosed(removed);
+    this.assertNoTrackingOpening(channel);
+
+    final Map<UUID, Mcv2Link> links = channel.getLinks();
+    assertEquals(Map.of(), links, "Unloading the pack must retire the viewer's receiving link!");
   }
 
   @Test

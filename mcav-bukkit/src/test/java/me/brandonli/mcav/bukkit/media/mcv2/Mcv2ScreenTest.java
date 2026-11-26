@@ -68,6 +68,7 @@ import org.bukkit.craftbukkit.inventory.CraftItemStack;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.ItemFrame;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.meta.MapMeta;
 import org.bukkit.plugin.Plugin;
 import org.junit.jupiter.api.AfterEach;
@@ -138,6 +139,94 @@ final class Mcv2ScreenTest {
     lenient()
       .when(this.world.getBlockAt(any(Location.class)))
       .thenReturn(block);
+  }
+
+  @Test
+  void shouldIgnoreChunkEntitiesThatAreNotItemFrames() {
+    final Mcv2Configuration configuration = this.configuration(BlockFace.SOUTH);
+    final Entity entity = mock(Entity.class);
+    this.assertNoWallFrames(configuration, List.of(entity));
+  }
+
+  private void assertNoWallFrames(final Mcv2Configuration configuration, final List<Entity> candidates) {
+    this.stubWallLookups(configuration.getOrigin(), candidates);
+    final Mcv2Screen screen = new Mcv2Screen(configuration);
+    screen.build();
+    try {
+      final List<ItemFrame> wallFrames = screen.getWallFrames();
+      assertEquals(List.of(), wallFrames, "Only matching filled maps inside the screen may become wall frames!");
+    } finally {
+      screen.remove();
+    }
+  }
+
+  @Test
+  void shouldIgnoreEmptyFramesInScreenCells() {
+    final Mcv2Configuration configuration = this.configuration(BlockFace.SOUTH);
+    final ItemStack item = mock(ItemStack.class);
+    when(item.getType()).thenReturn(Material.AIR);
+    final ItemFrame frame = this.frameInScreenCell(configuration, item);
+    this.assertNoWallFrames(configuration, List.of(frame));
+    verify(item, never().description("An empty frame must be rejected before inspecting map metadata!")).getItemMeta();
+  }
+
+  private ItemFrame frameInScreenCell(final Mcv2Configuration configuration, final ItemStack item) {
+    final ItemFrame frame = mock(ItemFrame.class);
+    when(frame.getLocation()).thenReturn(configuration.getOrigin());
+    when(frame.getFacing()).thenReturn(configuration.getFacing());
+    when(frame.getItem()).thenReturn(item);
+
+    return frame;
+  }
+
+  @Test
+  void shouldIgnoreFilledMapsWithoutMapMetadata() {
+    final Mcv2Configuration configuration = this.configuration(BlockFace.SOUTH);
+    final ItemMeta metadata = mock(ItemMeta.class);
+    final ItemStack item = this.filledMap(metadata);
+    final ItemFrame frame = this.frameInScreenCell(configuration, item);
+    this.assertNoWallFrames(configuration, List.of(frame));
+  }
+
+  private ItemStack filledMap(final ItemMeta metadata) {
+    final ItemStack item = mock(ItemStack.class);
+    when(item.getType()).thenReturn(Material.FILLED_MAP);
+    when(item.getItemMeta()).thenReturn(metadata);
+
+    return item;
+  }
+
+  @Test
+  void shouldIgnoreFilledMapsWithoutMapIds() {
+    final Mcv2Configuration configuration = this.configuration(BlockFace.SOUTH);
+    final MapMeta metadata = mock(MapMeta.class);
+    when(metadata.hasMapId()).thenReturn(false);
+    final ItemStack item = this.filledMap(metadata);
+    final ItemFrame frame = this.frameInScreenCell(configuration, item);
+    this.assertNoWallFrames(configuration, List.of(frame));
+    verify(metadata, never().description("A filled map without an id must be rejected before reading its id!")).getMapId();
+  }
+
+  @Test
+  void shouldIgnoreFramesBelowTheLastScreenRow() {
+    final Mcv2Configuration configuration = this.configuration(BlockFace.SOUTH);
+    final int rows = configuration.getRows();
+    final int columns = configuration.getColumns();
+    final Location below = configuration.getOrigin().subtract(0, rows, 0);
+    final int mapId = WALL_MAP + rows * columns;
+    final ItemFrame frame = this.wallFrame(below, configuration.getFacing(), mapId);
+    this.assertNoWallFrames(configuration, List.of(frame));
+  }
+
+  @Test
+  void shouldIgnoreFramesRightOfTheLastScreenColumn() {
+    final Mcv2Configuration configuration = this.configuration(BlockFace.SOUTH);
+    final BlockFace right = configuration.getRight();
+    final int columns = configuration.getColumns();
+    final Location beside = configuration.getOrigin().add(right.getModX() * columns, 0, right.getModZ() * columns);
+    final int mapId = WALL_MAP + columns;
+    final ItemFrame frame = this.wallFrame(beside, configuration.getFacing(), mapId);
+    this.assertNoWallFrames(configuration, List.of(frame));
   }
 
   @Test
