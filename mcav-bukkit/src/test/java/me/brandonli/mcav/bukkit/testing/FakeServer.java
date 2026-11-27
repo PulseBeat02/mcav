@@ -66,6 +66,8 @@ import org.mockito.invocation.InvocationOnMock;
 
 public final class FakeServer implements AutoCloseable {
 
+  private static final int INITIAL_TICK = 1000;
+
   private static final String SERVER_ADDRESS = "127.0.0.1";
   private static final int SERVER_PORT = 25565;
 
@@ -87,6 +89,8 @@ public final class FakeServer implements AutoCloseable {
   private final List<ScheduledTask> tasks;
   private final List<ScheduledTask> laterTasks;
 
+  private int currentTick;
+
   private volatile boolean primaryThread;
 
   private FakeServer() {
@@ -104,6 +108,7 @@ public final class FakeServer implements AutoCloseable {
     this.visibility = new ConcurrentHashMap<>();
     this.laterTasks = new CopyOnWriteArrayList<>();
     this.primaryThread = true;
+    this.currentTick = INITIAL_TICK;
 
     when(this.plugin.isEnabled()).thenReturn(true);
     this.stubScheduler();
@@ -144,17 +149,18 @@ public final class FakeServer implements AutoCloseable {
 
   private BukkitTask scheduleRepeating(final InvocationOnMock invocation) {
     final Runnable runnable = invocation.getArgument(1);
-    return this.schedule(runnable, Repetition.REPEATING, this.tasks);
+    final long period = invocation.getArgument(3);
+    return this.schedule(runnable, Repetition.REPEATING, this.tasks, period);
   }
 
   private BukkitTask scheduleOnce(final InvocationOnMock invocation) {
     final Runnable runnable = invocation.getArgument(1);
-    return this.schedule(runnable, Repetition.ONCE, this.tasks);
+    return this.schedule(runnable, Repetition.ONCE, this.tasks, 0L);
   }
 
   private BukkitTask scheduleLater(final InvocationOnMock invocation) {
     final Runnable runnable = invocation.getArgument(1);
-    return this.schedule(runnable, Repetition.ONCE, this.laterTasks);
+    return this.schedule(runnable, Repetition.ONCE, this.laterTasks, 0L);
   }
 
   // a static mock holds only on the thread that made it, so a worker thread that calls Bukkit needs its own
@@ -170,6 +176,7 @@ public final class FakeServer implements AutoCloseable {
     staticBukkit.when(Bukkit::getScoreboardManager).thenReturn(this.scoreboardManager);
     staticBukkit.when(Bukkit::getMessenger).thenReturn(this.messenger);
     staticBukkit.when(Bukkit::getOnlinePlayers).thenAnswer(_ -> List.copyOf(this.onlinePlayers));
+    staticBukkit.when(Bukkit::getCurrentTick).thenAnswer(_ -> this.currentTick);
     staticBukkit.when(Bukkit::isPrimaryThread).thenAnswer(_ -> this.primaryThread);
     staticBukkit.when(Bukkit::getIp).thenReturn(SERVER_ADDRESS);
     staticBukkit.when(Bukkit::getPort).thenReturn(SERVER_PORT);
@@ -177,9 +184,9 @@ public final class FakeServer implements AutoCloseable {
     return staticBukkit;
   }
 
-  private BukkitTask schedule(final Runnable runnable, final Repetition repetition, final List<ScheduledTask> queue) {
+  private BukkitTask schedule(final Runnable runnable, final Repetition repetition, final List<ScheduledTask> queue, final long period) {
     final BukkitTask task = mock(BukkitTask.class);
-    final ScheduledTask scheduled = new ScheduledTask(runnable, repetition, task);
+    final ScheduledTask scheduled = new ScheduledTask(runnable, repetition, task, period);
     doAnswer(_ -> this.cancel(queue, scheduled))
       .when(task)
       .cancel();
@@ -375,6 +382,30 @@ public final class FakeServer implements AutoCloseable {
     return List.copyOf(packets);
   }
 
+  public void clearSentPackets(final UUID uuid) {
+    final List<Packet<?>> packets = this.sentPackets.get(uuid);
+    if (packets != null) {
+      packets.clear();
+    }
+  }
+
+  public void advanceTick() {
+    this.currentTick++;
+  }
+
+  public void advanceTicks(final int ticks) {
+    this.currentTick += ticks;
+  }
+
+  public void runTimers(final long period) {
+    final List<ScheduledTask> snapshot = new ArrayList<>(this.tasks);
+    for (final ScheduledTask task : snapshot) {
+      if (task.repetition == Repetition.REPEATING && task.period == period) {
+        task.runnable.run();
+      }
+    }
+  }
+
   public int runTasks() {
     final List<ScheduledTask> snapshot = new ArrayList<>(this.tasks);
     for (final ScheduledTask task : snapshot) {
@@ -430,16 +461,22 @@ public final class FakeServer implements AutoCloseable {
     return this.tasks.size();
   }
 
+  public int getCurrentTick() {
+    return this.currentTick;
+  }
+
   private static final class ScheduledTask {
 
     private final Runnable runnable;
     private final Repetition repetition;
     private final BukkitTask task;
+    private final long period;
 
-    ScheduledTask(final Runnable runnable, final Repetition repetition, final BukkitTask task) {
+    ScheduledTask(final Runnable runnable, final Repetition repetition, final BukkitTask task, final long period) {
       this.runnable = runnable;
       this.repetition = repetition;
       this.task = task;
+      this.period = period;
     }
 
     @Override

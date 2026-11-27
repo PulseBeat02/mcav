@@ -27,6 +27,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -50,18 +51,25 @@ import me.brandonli.mcav.bukkit.testing.MapPackets;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.protocol.Packet;
+import net.minecraft.network.protocol.game.ClientboundBundlePacket;
 import net.minecraft.network.protocol.game.ClientboundMapItemDataPacket;
 import net.minecraft.network.protocol.game.ClientboundSetPlayerTeamPacket;
 import net.minecraft.world.level.saveddata.maps.MapId;
 import net.minecraft.world.scores.PlayerTeam;
 import net.minecraft.world.scores.TeamColor;
+import org.bukkit.Chunk;
 import org.bukkit.Location;
+import org.bukkit.Material;
 import org.bukkit.World;
+import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.bukkit.craftbukkit.entity.CraftPlayer;
 import org.bukkit.craftbukkit.inventory.CraftItemStack;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.ItemFrame;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.inventory.meta.MapMeta;
 import org.bukkit.plugin.Plugin;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -75,6 +83,8 @@ import org.mockito.invocation.InvocationOnMock;
 final class Mcv2ScreenTest {
 
   private static final int ORIGIN_HEIGHT = 64;
+
+  private static final int CHUNK_BLOCKS = 16;
 
   private static final UUID VIEWER = UUID.fromString("00000000-0000-0000-0000-000000000011");
 
@@ -105,6 +115,7 @@ final class Mcv2ScreenTest {
     this.player = this.server.addPlayer(VIEWER);
     this.server.injectModule();
     this.world = mock(World.class);
+    this.stubEmptyWallLookups();
     when(this.world.spawn(any(Location.class), eq(ItemFrame.class), ArgumentMatchers.<Consumer<? super ItemFrame>>any())).thenAnswer(
       this::spawnItemFrame
     );
@@ -113,6 +124,214 @@ final class Mcv2ScreenTest {
     this.statics
       .when(() -> Mcv2Screen.pageItem(ArgumentMatchers.anyInt()))
       .thenAnswer(invocation -> this.items.computeIfAbsent(invocation.getArgument(0), _ -> mock(ItemStack.class)));
+  }
+
+  private void stubEmptyWallLookups() {
+    final Chunk chunk = mock(Chunk.class);
+    lenient()
+      .when(chunk.getEntities())
+      .thenReturn(new Entity[0]);
+    final Block block = mock(Block.class);
+    lenient().when(block.getChunk()).thenReturn(chunk);
+    lenient()
+      .when(this.world.getBlockAt(anyInt(), anyInt(), anyInt()))
+      .thenReturn(block);
+    lenient()
+      .when(this.world.getBlockAt(any(Location.class)))
+      .thenReturn(block);
+  }
+
+  @Test
+  void shouldIgnoreChunkEntitiesThatAreNotItemFrames() {
+    final Mcv2Configuration configuration = this.configuration(BlockFace.SOUTH);
+    final Entity entity = mock(Entity.class);
+    this.assertNoWallFrames(configuration, List.of(entity));
+  }
+
+  private void assertNoWallFrames(final Mcv2Configuration configuration, final List<Entity> candidates) {
+    this.stubWallLookups(configuration.getOrigin(), candidates);
+    final Mcv2Screen screen = new Mcv2Screen(configuration);
+    screen.build();
+    try {
+      final List<ItemFrame> wallFrames = screen.getWallFrames();
+      assertEquals(List.of(), wallFrames, "Only matching filled maps inside the screen may become wall frames!");
+    } finally {
+      screen.remove();
+    }
+  }
+
+  @Test
+  void shouldIgnoreEmptyFramesInScreenCells() {
+    final Mcv2Configuration configuration = this.configuration(BlockFace.SOUTH);
+    final ItemStack item = mock(ItemStack.class);
+    when(item.getType()).thenReturn(Material.AIR);
+    final ItemFrame frame = this.frameInScreenCell(configuration, item);
+    this.assertNoWallFrames(configuration, List.of(frame));
+    verify(item, never().description("An empty frame must be rejected before inspecting map metadata!")).getItemMeta();
+  }
+
+  private ItemFrame frameInScreenCell(final Mcv2Configuration configuration, final ItemStack item) {
+    final ItemFrame frame = mock(ItemFrame.class);
+    when(frame.getLocation()).thenReturn(configuration.getOrigin());
+    when(frame.getFacing()).thenReturn(configuration.getFacing());
+    when(frame.getItem()).thenReturn(item);
+
+    return frame;
+  }
+
+  @Test
+  void shouldIgnoreFilledMapsWithoutMapMetadata() {
+    final Mcv2Configuration configuration = this.configuration(BlockFace.SOUTH);
+    final ItemMeta metadata = mock(ItemMeta.class);
+    final ItemStack item = this.filledMap(metadata);
+    final ItemFrame frame = this.frameInScreenCell(configuration, item);
+    this.assertNoWallFrames(configuration, List.of(frame));
+  }
+
+  private ItemStack filledMap(final ItemMeta metadata) {
+    final ItemStack item = mock(ItemStack.class);
+    when(item.getType()).thenReturn(Material.FILLED_MAP);
+    when(item.getItemMeta()).thenReturn(metadata);
+
+    return item;
+  }
+
+  @Test
+  void shouldIgnoreFilledMapsWithoutMapIds() {
+    final Mcv2Configuration configuration = this.configuration(BlockFace.SOUTH);
+    final MapMeta metadata = mock(MapMeta.class);
+    when(metadata.hasMapId()).thenReturn(false);
+    final ItemStack item = this.filledMap(metadata);
+    final ItemFrame frame = this.frameInScreenCell(configuration, item);
+    this.assertNoWallFrames(configuration, List.of(frame));
+    verify(metadata, never().description("A filled map without an id must be rejected before reading its id!")).getMapId();
+  }
+
+  @Test
+  void shouldIgnoreFramesBelowTheLastScreenRow() {
+    final Mcv2Configuration configuration = this.configuration(BlockFace.SOUTH);
+    final int rows = configuration.getRows();
+    final int columns = configuration.getColumns();
+    final Location below = configuration.getOrigin().subtract(0, rows, 0);
+    final int mapId = WALL_MAP + rows * columns;
+    final ItemFrame frame = this.wallFrame(below, configuration.getFacing(), mapId);
+    this.assertNoWallFrames(configuration, List.of(frame));
+  }
+
+  @Test
+  void shouldIgnoreFramesRightOfTheLastScreenColumn() {
+    final Mcv2Configuration configuration = this.configuration(BlockFace.SOUTH);
+    final BlockFace right = configuration.getRight();
+    final int columns = configuration.getColumns();
+    final Location beside = configuration.getOrigin().add(right.getModX() * columns, 0, right.getModZ() * columns);
+    final int mapId = WALL_MAP + columns;
+    final ItemFrame frame = this.wallFrame(beside, configuration.getFacing(), mapId);
+    this.assertNoWallFrames(configuration, List.of(frame));
+  }
+
+  @Test
+  void shouldKeepTheWallFramesOfEveryCell() {
+    final Mcv2Configuration configuration = this.configuration(BlockFace.EAST);
+    final List<Entity> wallCandidates = new ArrayList<>();
+    final List<ItemFrame> expectedWallFrames = this.placeWallFrames(configuration, wallCandidates);
+    final Mcv2Screen screen = new Mcv2Screen(configuration);
+    screen.build();
+    try {
+      final List<ItemFrame> wallFrames = screen.getWallFrames();
+      assertEquals(expectedWallFrames, wallFrames, "Build must keep each cell's wall frame with the configured facing and map id!");
+
+      final Location origin = configuration.getOrigin();
+      final Chunk chunk = origin.getChunk();
+      verify(chunk, times(1).description("Build must read the wall entities only once per chunk!")).getEntities();
+    } finally {
+      screen.remove();
+    }
+
+    final List<ItemFrame> afterRemoval = screen.getWallFrames();
+    assertEquals(List.of(), afterRemoval, "Remove must clear the borrowed wall frames!");
+    for (final Entity frame : wallCandidates) {
+      verify(frame, never().description("Remove must never remove caller-owned wall frames or unrelated frames!")).remove();
+    }
+  }
+
+  private List<ItemFrame> placeWallFrames(final Mcv2Configuration configuration, final List<Entity> entities) {
+    final Location origin = configuration.getOrigin();
+    this.stubWallLookups(origin, entities);
+    final BlockFace right = configuration.getRight();
+    final BlockFace facing = configuration.getFacing();
+    entities.add(this.wallFrame(origin, facing.getOppositeFace(), WALL_MAP));
+    entities.add(this.wallFrame(origin, facing, PAGE_MAP));
+    entities.add(this.wallFrame(origin.clone().add(1, 0, 1), facing, WALL_MAP));
+    final List<ItemFrame> wallFrames = new ArrayList<>();
+    for (int row = 0; row < configuration.getRows(); row++) {
+      for (int column = 0; column < configuration.getColumns(); column++) {
+        final Location cell = origin.clone().add(right.getModX() * column, -row, right.getModZ() * column);
+        final int mapId = configuration.getMap() + row * configuration.getColumns() + column;
+        final ItemFrame frame = this.wallFrame(cell, facing, mapId);
+        wallFrames.add(frame);
+        entities.add(frame);
+      }
+    }
+
+    return wallFrames;
+  }
+
+  private void stubWallLookups(final Location origin, final List<Entity> entities) {
+    final Chunk chunk = mock(Chunk.class);
+    final Map<Location, Block> blocks = new HashMap<>();
+    when(this.world.getChunkAt(anyInt(), anyInt())).thenReturn(chunk);
+    when(this.world.getChunkAt(any(Location.class))).thenReturn(chunk);
+    when(this.world.getBlockAt(anyInt(), anyInt(), anyInt())).thenAnswer(invocation ->
+      this.wallBlockFromCoordinates(blocks, chunk, invocation)
+    );
+    when(this.world.getBlockAt(any(Location.class))).thenAnswer(invocation -> this.wallBlock(blocks, chunk, invocation.getArgument(0)));
+    when(chunk.getEntities()).thenAnswer(_ -> entities.toArray(Entity[]::new));
+    when(chunk.getWorld()).thenReturn(this.world);
+    when(chunk.getX()).thenReturn(Math.floorDiv(origin.getBlockX(), CHUNK_BLOCKS));
+    when(chunk.getZ()).thenReturn(Math.floorDiv(origin.getBlockZ(), CHUNK_BLOCKS));
+  }
+
+  private Block wallBlockFromCoordinates(final Map<Location, Block> blocks, final Chunk chunk, final InvocationOnMock invocation) {
+    final int blockX = invocation.getArgument(0);
+    final int blockY = invocation.getArgument(1);
+    final int blockZ = invocation.getArgument(2);
+    final Location location = new Location(this.world, blockX, blockY, blockZ);
+    return this.wallBlock(blocks, chunk, location);
+  }
+
+  private Block wallBlock(final Map<Location, Block> blocks, final Chunk chunk, final Location location) {
+    final Location cell = new Location(this.world, location.getBlockX(), location.getBlockY(), location.getBlockZ());
+    return blocks.computeIfAbsent(cell, position -> this.wallBlockAt(position, chunk));
+  }
+
+  private Block wallBlockAt(final Location location, final Chunk chunk) {
+    final Block block = mock(Block.class);
+    when(block.getWorld()).thenReturn(this.world);
+    when(block.getX()).thenReturn(location.getBlockX());
+    when(block.getY()).thenReturn(location.getBlockY());
+    when(block.getZ()).thenReturn(location.getBlockZ());
+    when(block.getLocation()).thenReturn(location);
+    when(block.getChunk()).thenReturn(chunk);
+
+    return block;
+  }
+
+  private ItemFrame wallFrame(final Location location, final BlockFace facing, final int mapId) {
+    final MapMeta metadata = mock(MapMeta.class);
+    when(metadata.hasMapId()).thenReturn(true);
+    when(metadata.getMapId()).thenReturn(mapId);
+    final ItemStack item = mock(ItemStack.class);
+    when(item.getType()).thenReturn(Material.FILLED_MAP);
+    when(item.hasItemMeta()).thenReturn(true);
+    when(item.getItemMeta()).thenReturn(metadata);
+    final ItemFrame frame = mock(ItemFrame.class);
+    when(frame.getWorld()).thenReturn(this.world);
+    when(frame.getLocation()).thenReturn(location);
+    when(frame.getFacing()).thenReturn(facing);
+    when(frame.getItem()).thenReturn(item);
+    when(frame.isValid()).thenReturn(true);
+
+    return frame;
   }
 
   private ItemFrame spawnItemFrame(final InvocationOnMock invocation) {
@@ -253,7 +472,33 @@ final class Mcv2ScreenTest {
   }
 
   @Test
-  void shouldShowTheFramesTheirTeamAndTheAnchorsToAPlayer() {
+  void shouldSendNoAnchorsOnShow() {
+    final Mcv2Screen screen = new Mcv2Screen(this.configuration(BlockFace.SOUTH));
+    screen.build();
+    try {
+      screen.show(this.player);
+      for (final ItemFrame frame : this.frames) {
+        verify(this.player, times(1).description("Show must reveal every page frame!")).showEntity(this.server.getPlugin(), frame);
+      }
+
+      final List<Packet<?>> packets = this.server.getSentPackets(VIEWER);
+      final int packetCount = packets.size();
+      final long teams = packets.stream().filter(ClientboundSetPlayerTeamPacket.class::isInstance).count();
+      final List<ClientboundMapItemDataPacket> maps = packets
+        .stream()
+        .filter(ClientboundBundlePacket.class::isInstance)
+        .flatMap(packet -> MapPackets.unbundle(packet).stream())
+        .toList();
+      assertEquals(1, teams, "Show must still send the page frames' team!");
+      assertEquals(List.of(), maps, "Show must defer all anchor map packets until the link passes both opening gates!");
+      assertEquals(1, packetCount, "Show must send only the team packet and no bundled or direct map packet!");
+    } finally {
+      screen.remove();
+    }
+  }
+
+  @Test
+  void shouldShowTheFramesAndTheirTeamToAPlayer() {
     final Mcv2Screen screen = new Mcv2Screen(this.configuration(BlockFace.SOUTH));
     screen.build();
     screen.show(this.player);
@@ -263,7 +508,7 @@ final class Mcv2ScreenTest {
 
     final List<Packet<?>> packets = this.server.getSentPackets(VIEWER);
     final int packetCount = packets.size();
-    assertEquals(2, packetCount);
+    assertEquals(1, packetCount);
 
     final Packet<?> teamPacket = packets.get(0);
     final ClientboundSetPlayerTeamPacket team = assertInstanceOf(ClientboundSetPlayerTeamPacket.class, teamPacket);
@@ -284,17 +529,12 @@ final class Mcv2ScreenTest {
     final boolean holdsTheFourthFrame = team.getPlayers().contains(this.frames.get(3).getUniqueId().toString());
     assertTrue(holdsTheFourthFrame);
 
-    final List<ClientboundMapItemDataPacket> anchors = MapPackets.unbundle(packets.get(1));
-    final int anchorCount = anchors.size();
-    assertEquals(6, anchorCount);
-
-    MapPackets.assertMapPacket(anchors.get(0), screen.getAnchors().get(0));
     screen.hide(this.player);
     for (final ItemFrame frame : this.frames) {
       verify(this.player).hideEntity(this.server.getPlugin(), frame);
     }
 
-    final Packet<?> removalPacket = this.server.getSentPackets(VIEWER).get(2);
+    final Packet<?> removalPacket = this.server.getSentPackets(VIEWER).get(1);
     final ClientboundSetPlayerTeamPacket removal = assertInstanceOf(ClientboundSetPlayerTeamPacket.class, removalPacket);
     final String expectedRemovedName = team.getName();
     final String removedName = removal.getName();
@@ -317,9 +557,9 @@ final class Mcv2ScreenTest {
       final List<Packet<?>> packets = this.server.getSentPackets(VIEWER);
       final Packet<?> firstTeamPacket = packets.get(0);
       final ClientboundSetPlayerTeamPacket firstTeam = assertInstanceOf(ClientboundSetPlayerTeamPacket.class, firstTeamPacket);
-      final Packet<?> secondTeamPacket = packets.get(2);
+      final Packet<?> secondTeamPacket = packets.get(1);
       final ClientboundSetPlayerTeamPacket secondTeam = assertInstanceOf(ClientboundSetPlayerTeamPacket.class, secondTeamPacket);
-      final Packet<?> removalPacket = packets.get(4);
+      final Packet<?> removalPacket = packets.get(2);
       final ClientboundSetPlayerTeamPacket removal = assertInstanceOf(ClientboundSetPlayerTeamPacket.class, removalPacket);
       final String firstTeamName = firstTeam.getName();
       final String removedName = removal.getName();
@@ -340,7 +580,7 @@ final class Mcv2ScreenTest {
       assertEquals(expectedMembers, members);
 
       second.hide(this.player);
-      final Packet<?> secondRemovalPacket = this.server.getSentPackets(VIEWER).get(5);
+      final Packet<?> secondRemovalPacket = this.server.getSentPackets(VIEWER).get(3);
       final ClientboundSetPlayerTeamPacket secondRemoval = assertInstanceOf(ClientboundSetPlayerTeamPacket.class, secondRemovalPacket);
       final String expectedSecondRemovedName = secondTeam.getName();
       final String secondRemovedName = secondRemoval.getName();

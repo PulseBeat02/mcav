@@ -31,7 +31,6 @@ import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 import me.brandonli.mcav.bukkit.BukkitModule;
 import me.brandonli.mcav.bukkit.media.map.MapLayout;
-import me.brandonli.mcav.bukkit.media.map.MapPacketFactory;
 import me.brandonli.mcav.bukkit.media.map.MapTilePatch;
 import me.brandonli.mcav.bukkit.media.mcv2.transport.MapAlphabet;
 import me.brandonli.mcav.bukkit.utils.PacketUtils;
@@ -43,14 +42,19 @@ import net.minecraft.world.level.saveddata.maps.MapId;
 import net.minecraft.world.scores.PlayerTeam;
 import net.minecraft.world.scores.Scoreboard;
 import net.minecraft.world.scores.TeamColor;
+import org.bukkit.Chunk;
 import org.bukkit.Location;
+import org.bukkit.Material;
 import org.bukkit.World;
+import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.bukkit.craftbukkit.inventory.CraftItemStack;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.ItemFrame;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.inventory.meta.MapMeta;
 import org.bukkit.plugin.Plugin;
 
 /**
@@ -68,12 +72,13 @@ import org.bukkit.plugin.Plugin;
  * <p>An anchor is the first row of a wall map: a signature, the map's column and row, the wall's size, the direction of
  * the maps' right edge and the screen's stream id, which tells the pack which of its screens the wall is. The server
  * sends every wall map as it stores it to players who start tracking the frame, which erases the anchors, so they are
- * sent again with every keyframe.
+ * sent when the viewer's link opens after pack loading and frame tracking are ready, and again with every keyframe.
  *
  * <p>The visible wall and its map items remain caller-owned. This object owns only its hidden page entities
  * and chunk holds. Use {@link #build()}, {@link #show(Player)}, {@link #hide(Player)} and {@link #remove()} on the
  * main thread; do not manipulate or remove entities obtained from {@link #getFrames()} independently. Removal releases
- * chunk holds but does not restore wall map pixels.
+ * chunk holds but does not restore wall map pixels. Wall frame references are borrowed and resolved at build time;
+ * rebuilding the wall requires rebuilding the screen.
  *
  * @since 1.0.0
  */
@@ -116,6 +121,7 @@ public final class Mcv2Screen {
   private final Mcv2Configuration configuration;
 
   private final List<ItemFrame> frames;
+  private final List<ItemFrame> wallFrames;
 
   private final Set<HeldChunk> chunks;
 
@@ -134,6 +140,7 @@ public final class Mcv2Screen {
     this.configuration = configuration;
     this.teamName = "%s%s".formatted(TEAM_PREFIX, teamIdText);
     this.frames = new ArrayList<>();
+    this.wallFrames = new ArrayList<>();
     this.chunks = new LinkedHashSet<>();
   }
 
@@ -142,8 +149,8 @@ public final class Mcv2Screen {
   }
 
   /**
-   * Spawns the hidden page frames behind the wall, and keeps their chunks loaded until {@link #remove()}. Call on the
-   * main thread.
+   * Resolves the caller-owned wall frames, spawns the hidden page frames behind them, and keeps the page frames'
+   * chunks loaded until {@link #remove()}. Call on the main thread.
    *
    * @throws IllegalStateException if the frames were already spawned or a required plugin has not been injected
    * @throws NullPointerException  if the origin no longer resolves to a world
@@ -154,6 +161,8 @@ public final class Mcv2Screen {
 
     final Location origin = this.configuration.getOrigin();
     final World world = Preconditions.checkNotNull(origin.getWorld(), "The origin must be in a world!");
+    this.resolveWallFrames(origin);
+
     final BlockFace right = this.configuration.getRight();
     final BlockFace back = this.configuration.getFacing().getOppositeFace();
     for (int row = 0; row < this.configuration.getRows(); row++) {
@@ -168,6 +177,48 @@ public final class Mcv2Screen {
         this.frames.add(frame);
       }
     }
+  }
+
+  private void resolveWallFrames(final Location origin) {
+    final Map<Chunk, Entity[]> entitiesByChunk = new HashMap<>();
+    final BlockFace right = this.configuration.getRight();
+    final int rows = this.configuration.getRows();
+    final int columns = this.configuration.getColumns();
+    final int firstMap = this.configuration.getMap();
+    for (int row = 0; row < rows; row++) {
+      for (int column = 0; column < columns; column++) {
+        final Location location = origin.clone().add(right.getModX() * column, -row, right.getModZ() * column);
+        final Block cell = location.getBlock();
+        final int mapId = firstMap + row * columns + column;
+        this.keepWallFramesAt(cell, mapId, entitiesByChunk);
+      }
+    }
+  }
+
+  private void keepWallFramesAt(final Block cell, final int mapId, final Map<Chunk, Entity[]> entitiesByChunk) {
+    final Chunk chunk = cell.getChunk();
+    final Entity[] entities = entitiesByChunk.computeIfAbsent(chunk, Chunk::getEntities);
+    for (final Entity entity : entities) {
+      if (entity instanceof final ItemFrame frame && this.isWallFrame(frame, cell, mapId)) {
+        this.wallFrames.add(frame);
+      }
+    }
+  }
+
+  private boolean isWallFrame(final ItemFrame frame, final Block cell, final int mapId) {
+    final Location location = frame.getLocation();
+    final Block block = location.getBlock();
+    if (!block.equals(cell) || frame.getFacing() != this.configuration.getFacing()) {
+      return false;
+    }
+
+    final ItemStack item = frame.getItem();
+    if (item.getType() != Material.FILLED_MAP) {
+      return false;
+    }
+
+    final ItemMeta metadata = item.getItemMeta();
+    return metadata instanceof final MapMeta mapMetadata && mapMetadata.hasMapId() && mapMetadata.getMapId() == mapId;
   }
 
   private void holdChunkAt(final World world, final Location location) {
@@ -195,7 +246,8 @@ public final class Mcv2Screen {
   }
 
   /**
-   * Shows the screen to a player with the pack: the page frames, their team and the anchors. Call on the main thread.
+   * Shows the page frames and their team to a player with the pack. The channel sends anchors when the link opens.
+   * Call on the main thread.
    *
    * @param player the player
    * @throws IllegalStateException if no plugin has been injected
@@ -212,7 +264,6 @@ public final class Mcv2Screen {
 
     final List<UUID> viewers = List.of(player.getUniqueId());
     PacketUtils.sendPackets(viewers, ClientboundSetPlayerTeamPacket.createAddOrModifyPacket(this.createTeam(), true));
-    MapPacketFactory.send(viewers, this.getAnchors());
   }
 
   /**
@@ -242,6 +293,7 @@ public final class Mcv2Screen {
   public void remove() {
     this.frames.forEach(Entity::remove);
     this.frames.clear();
+    this.wallFrames.clear();
     this.chunks.forEach(this::release);
     this.chunks.clear();
   }
@@ -272,6 +324,10 @@ public final class Mcv2Screen {
     }
 
     return team;
+  }
+
+  List<ItemFrame> getWallFrames() {
+    return List.copyOf(this.wallFrames);
   }
 
   /**

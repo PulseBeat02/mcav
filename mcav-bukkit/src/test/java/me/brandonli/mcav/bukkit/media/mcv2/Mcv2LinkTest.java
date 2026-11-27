@@ -31,8 +31,40 @@ final class Mcv2LinkTest {
   private static final int LINK_LIMIT = 1000;
 
   @Test
+  void shouldAdmitNoFrameWhileClosed() {
+    final Mcv2Link link = new Mcv2Link(LINK_LIMIT);
+    final boolean sentKeyframe = link.offer(0, 0, Mcv2FrameKind.KEYFRAME, FRAME_BYTES);
+    final boolean sentPredicted = link.offer(1, 0, Mcv2FrameKind.PREDICTED, FRAME_BYTES);
+    assertFalse(sentKeyframe, "A fresh link must stay closed even to a keyframe!");
+    assertFalse(sentPredicted, "A closed link must refuse P frames too!");
+
+    final long sent = link.getSent();
+    final long backlog = link.getBacklog();
+    assertEquals(0, sent, "A closed link must record no sent frames!");
+    assertEquals(0, backlog, "A closed link must charge no backlog!");
+  }
+
+  @Test
+  void shouldNeedAKeyframeAfterReopening() {
+    final Mcv2Link link = new Mcv2Link(LINK_LIMIT);
+    link.open();
+    final boolean sentFirstKeyframe = link.offer(0, 0, Mcv2FrameKind.KEYFRAME, FRAME_BYTES);
+    assertTrue(sentFirstKeyframe, "An opened link must admit its first keyframe!");
+
+    link.releaseBacklog(FRAME_BYTES);
+    link.close();
+    link.open();
+    final boolean sentPredicted = link.offer(1, 0, Mcv2FrameKind.PREDICTED, FRAME_BYTES);
+    assertFalse(sentPredicted, "Reopening must forget the last sent frame and require a new keyframe!");
+
+    final boolean sentNewKeyframe = link.offer(2, 2, Mcv2FrameKind.KEYFRAME, FRAME_BYTES);
+    assertTrue(sentNewKeyframe, "A reopened link must admit a new keyframe!");
+  }
+
+  @Test
   void shouldStartWithAKeyframe() {
     final Mcv2Link link = new Mcv2Link(LINK_LIMIT);
+    link.open();
     final boolean decodesBeforeKeyframe = link.canDecode(Mcv2FrameKind.PREDICTED, 0);
     assertFalse(decodesBeforeKeyframe);
     // the id no frame has is never a reference, not even before the first frame
@@ -61,6 +93,7 @@ final class Mcv2LinkTest {
   @Test
   void shouldWaitForTheNextKeyframeWhenFramesPredictFromTheFrameBefore() {
     final Mcv2Link link = new Mcv2Link(100);
+    link.open();
     final boolean sentKeyframe = link.offer(0, 0, Mcv2FrameKind.KEYFRAME, FRAME_BYTES);
     assertTrue(sentKeyframe);
 
@@ -96,6 +129,7 @@ final class Mcv2LinkTest {
   @Test
   void shouldRefuseAnOlderKeyframeAfterSendingAPredictedFrame() {
     final Mcv2Link link = new Mcv2Link(LINK_LIMIT);
+    link.open();
     final boolean sentKeyframe = link.offer(10, 10, Mcv2FrameKind.KEYFRAME, 1);
     assertTrue(sentKeyframe);
 
@@ -124,6 +158,7 @@ final class Mcv2LinkTest {
   @Test
   void shouldSendAtTheLimitAndHoldPastIt() {
     final Mcv2Link link = new Mcv2Link(50);
+    link.open();
     final boolean sentKeyframe = link.offer(0, 0, Mcv2FrameKind.KEYFRAME, 50);
     assertTrue(sentKeyframe);
 
@@ -150,6 +185,7 @@ final class Mcv2LinkTest {
     assertEquals(3, behind);
 
     final Mcv2Link none = new Mcv2Link(0);
+    none.open();
     final boolean sentWithoutLimitKeyframe = none.offer(0, 0, Mcv2FrameKind.KEYFRAME, 5);
     assertTrue(sentWithoutLimitKeyframe);
 
@@ -178,6 +214,7 @@ final class Mcv2LinkTest {
     assertThrows(IllegalArgumentException.class, () -> new Mcv2Link(-1));
 
     final Mcv2Link link = new Mcv2Link(10);
+    link.open();
     assertThrows(IllegalArgumentException.class, () -> link.offer(-1, 0, Mcv2FrameKind.KEYFRAME, 1));
     assertThrows(IllegalArgumentException.class, () -> link.offer(1L << 32, 0, Mcv2FrameKind.KEYFRAME, 1));
     assertThrows(IllegalArgumentException.class, () -> link.offer(0, 0, Mcv2FrameKind.KEYFRAME, -1));

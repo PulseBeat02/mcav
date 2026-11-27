@@ -637,22 +637,26 @@ the client draws, so it uses 64 exactly distinguishable ones: 6 bits.
 
 Packets. The server writes page `n` of a frame into the top rows of the map numbered `pageMap + n` (a shorter last page
 fills only whole rows of 128), one map packet per page, and sends all of a frame's pages in one bundle so they arrive
-together. The bundle goes to each viewer's connection as soon as the frame is encoded: Paper holds the map packets a
-plugin sends from another thread until the server's next tick, 20 times a second, and at 30 frames a second two frames
-would often reach a client together. The client draws only the second, can't decode it without the first, and keeps its
-picture until the next keyframe. For the same reason the screen searches a frame only once the frame before it is
-verified, so a viewer's frames leave at least one encoding apart. Minecraft's zlib then compresses each packet, and
-because a map byte carrying six bits uses only 64 of its 256 values, zlib takes back a good part of the six-bit cost.
+together. The bundle goes straight to each viewer's connection, not through the server's tick: Paper holds the map
+packets a plugin sends from another thread until the server's next tick, 20 times a second, and at 30 frames a second
+two frames would often reach a client together. The client draws only the second, can't decode it without the first, and
+keeps its picture until the next keyframe. For the same reason the screen searches a frame only once the frame before it
+is verified, and sends every encoded frame in order, at least one period of `maximumFrameRate` apart, so a client
+drawing at that rate takes in each before the next. Minecraft's zlib then compresses each packet, and because a map byte
+carrying six bits uses only 64 of its 256 values, zlib takes back a good part of the six-bit cost.
 
 Reassembly. Pages can arrive in any order. A client keeps at most four unfinished frames; a page of a fifth evicts the
 oldest. A page must agree with the pages it already has for its frame (count, reference id, length and type), and a
 repeated page must be exactly the same, or the whole frame is dropped. When all pages are there, their slices are joined
 in order into the frame.
 
-One stream, many viewers. A screen is encoded once, and every viewer gets it through a link of their own, which sends a
-frame only when that viewer can decode it (a keyframe, or a P frame whose reference that viewer was sent) and only while
-that viewer's connection isn't already holding too much unsent video (128 KiB, twice that for a keyframe, by default). A
-viewer whose connection falls behind skips to the next frame they can decode, and the others aren't held back.
+One stream, many viewers. Your screen is encoded once, and each viewer gets a link of their own. A new link stays closed
+until the viewer's resource pack has loaded, they track every valid item frame of your screen, page and wall frames
+alike, and the delays below have passed. Opening sends that viewer the anchors and requests one keyframe; if they stop
+tracking a frame, the link closes and later opens again the same way. An open link sends a frame only when that viewer
+can decode it (a keyframe, or a P frame whose reference that viewer was sent) and only while their connection isn't
+already holding too much unsent video (128 KiB, twice that for a keyframe, by default). A viewer whose connection falls
+behind skips to the next frame they can decode, and the others aren't held back.
 
 A screen has at most 8 page slots, so a frame can be at most 8 × 12,256 = 98,048 bytes on a wall. The encoder knows that
 and keeps every frame inside it (Part 9).
@@ -724,7 +728,15 @@ once, each in a slot of its own video size, so screens of sizes the pack already
 reloading. It is optional: offered with `required: false`, and a player who declines keeps seeing the dithered maps of
 the same wall. Minecraft 26.3 compiles every shader through SPIR-V and back into GLSL 330, and the pack is written for
 that path; it replaces vanilla's `core/text.vsh`, `core/text.fsh` and `post_effect/entity_outline.json` with copies that
-are vanilla's plus the decoder.
+are vanilla's plus the decoder. A viewer's link opens only after their pack loads and they track every valid page and
+wall frame. MCAV resolves wall frames when it builds your screen; a rebuilt wall needs a rebuilt screen.
+
+A new viewer's first picture comes at most one tick and one keyframe after the later of two moments: 120 ticks
+(6 seconds) after their pack loads, and 11 ticks after they begin tracking the last of your screen's frames. The
+tracking delay is one more than Paper's default `maps.item-frame-cursor-update-interval` of 10 ticks, so vanilla's
+initial map snapshot precedes the anchors. If your world sets that interval above 10, vanilla's map snapshot can
+overwrite the anchors. The pack delay gives the viewer's client time to draw after loading; the server receives no
+acknowledgment that it draws or decodes a frame.
 
 One held picture. The pack keeps exactly one picture per screen: the last frame it decoded. A client that misses a frame
 (it draws fewer frames a second than the video has, takes in two frames' maps before it draws one, looks away, or
@@ -737,7 +749,7 @@ two seconds keeps one picture for minutes on average. A still image from `/mcav 
 eighth time as a keyframe, so a client that missed one, for example while it compiled the pack's shaders as it first
 drew the screen, gets the next within four seconds. A screen whose frames stop, such as a paused video or a page that
 does not change, sends its last picture once more as a keyframe after about three seconds without a frame, and again
-whenever it starts showing a viewer, so the newest frame stays one every client can decode.
+whenever a viewer's link opens, so the newest frame stays one every client can decode.
 
 ## Part 9: The encoder
 
@@ -1514,7 +1526,7 @@ matter:
 | `settings(Mcv2.Settings)` | `Mcv2.Settings.DEFAULT` | The preset: `DEFAULT` or `FAST` ([presets](#presets)) |
 | `video(width, height)` | the wall's native size, 128 pixels per map | The resolution of the video, up to 4096 on a side; the pack scales it to the wall |
 | `pageSlots(n)` | 8, or one per map of a smaller wall | How many pages a frame may have (8 carry 98,048 bytes); the encoder keeps every frame inside them |
-| `maximumFrameRate(framesPerSecond)` | 30 | Sources that paint faster, such as a browser, are thinned to it: a client decodes at most one frame per frame it draws |
+| `maximumFrameRate(framesPerSecond)` | 30 | Sources that paint faster, such as a browser, are thinned to it: a client decodes at most one frame per frame it draws. Encoded frames leave in order, at least one period of this rate apart, so a client drawing at this rate takes in each before the next. Set 0 to turn off both limits |
 | `backlogLimit(bytes)`, `unsentLimit(bytes)` | 128 KiB, 32 KiB | Per-viewer backpressure: a viewer whose connection falls behind skips to the next frame they can decode, without holding back the others ([pages on maps](#part-7-pages-on-maps)) |
 
 `setPacingListener` hears every step the screen's pacer takes when the encoder can't keep up (`FAST`, fewer frames a

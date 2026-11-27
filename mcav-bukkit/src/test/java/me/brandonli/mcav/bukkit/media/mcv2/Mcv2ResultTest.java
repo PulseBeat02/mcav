@@ -86,6 +86,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.block.BlockFace;
+import org.bukkit.entity.ItemFrame;
 import org.bukkit.entity.Player;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.jupiter.api.AfterEach;
@@ -94,6 +95,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.InOrder;
 import org.mockito.MockedConstruction;
 import org.mockito.Mockito;
@@ -116,10 +118,26 @@ final class Mcv2ResultTest {
   private static final int LAMBDA = 72;
 
   private static final long FRAME_INTERVAL_NANOSECONDS = 16_666_667L;
+
+  private static final long SEND_PERIOD_NANOSECONDS = 1L << 25;
+  private static final double SEND_FRAMES_PER_SECOND = TimeUnit.SECONDS.toNanos(1) / (double) SEND_PERIOD_NANOSECONDS;
+  private static final long DEFAULT_SEND_PERIOD_NANOSECONDS = 33_333_334L;
+
+  private static final long SLOW_KEYFRAME_NANOSECONDS = SEND_PERIOD_NANOSECONDS + SEND_PERIOD_NANOSECONDS / 2;
+  private static final long PREDICTED_ARRIVAL_NANOSECONDS = TimeUnit.MILLISECONDS.toNanos(16);
+  private static final long SEND_COST_NANOSECONDS = SEND_PERIOD_NANOSECONDS / 4;
+  private static final long LISTENER_COST_NANOSECONDS = SEND_PERIOD_NANOSECONDS * 2;
+  private static final long SEND_IDLE_NANOSECONDS = SEND_PERIOD_NANOSECONDS * 10;
+
+  private static final int SEND_POLL_MILLISECONDS = 1;
+
   private static final int WAIT_TIMEOUT_MILLISECONDS = 5000;
   private static final int CHECKS_UNTIL_A_NEW_VIEWER_IS_SHOWN = 3;
   private static final int SLOW_ENCODE_SECONDS = 2;
   private static final int SEARCH_DURATION_MILLISECONDS = 300;
+
+  private static final int SNAPSHOT_TICKS = 11;
+  private static final int FIRST_DRAW_DELAY_TICKS = 120;
 
   private static final int PIPELINE_TIMEOUT_SECONDS = 10;
 
@@ -166,6 +184,8 @@ final class Mcv2ResultTest {
   private OriginalVideoMetadata metadata;
 
   private Mcv2Configuration configuration;
+
+  private boolean trackingPrepared;
 
   @BeforeEach
   void startServer() throws ReflectiveOperationException {
@@ -236,6 +256,7 @@ final class Mcv2ResultTest {
       verify(this.algorithm, timeout(WAIT_TIMEOUT_MILLISECONDS)).ditherIntoBytes(any());
 
       this.server.runTasks();
+      this.openViewerLinks(WITH_PACK);
       final boolean applied = result.applyFilter(frame, this.metadata);
       assertTrue(applied);
 
@@ -276,6 +297,38 @@ final class Mcv2ResultTest {
     }
 
     verify(this.screen).remove();
+  }
+
+  private void openViewerLinks(final UUID... viewers) {
+    this.prepareTrackingFrames();
+    final int loadTick = this.server.getCurrentTick() - FIRST_DRAW_DELAY_TICKS;
+    for (final UUID viewer : viewers) {
+      when(this.viewers.findLoadTick(viewer)).thenReturn(OptionalInt.of(loadTick));
+    }
+
+    this.server.runTimers(1L);
+    this.server.advanceTicks(SNAPSHOT_TICKS);
+    this.server.runTimers(1L);
+  }
+
+  private void prepareTrackingFrames() {
+    if (this.trackingPrepared) {
+      return;
+    }
+
+    final ItemFrame page = this.trackedFrame();
+    final ItemFrame wall = this.trackedFrame();
+    when(this.screen.getFrames()).thenReturn(List.of(page));
+    when(this.screen.getWallFrames()).thenReturn(List.of(wall));
+    this.trackingPrepared = true;
+  }
+
+  private ItemFrame trackedFrame() {
+    final ItemFrame frame = mock(ItemFrame.class);
+    when(frame.isValid()).thenReturn(true);
+    when(frame.isTrackedBy(any(Player.class))).thenReturn(true);
+
+    return frame;
   }
 
   @Test
@@ -351,13 +404,15 @@ final class Mcv2ResultTest {
   // the encoder takes the second frame and the keyframe request of the viewer it was the first frame for
   private Mcv2Result showAFrame(final ImageBuffer frame) {
     final Mcv2Result result = this.createSynchronousResult();
+    final Mcv2Channel channel = result.getChannel();
+    channel.open();
     result.applyFilter(frame, this.metadata);
     this.server.runTasks();
+    this.openViewerLinks(WITH_PACK);
     result.applyFilter(frame, this.metadata);
     final Mcv2Result.@Nullable Arrival handed = result.poll();
     assertNotNull(handed);
 
-    final Mcv2Channel channel = result.getChannel();
     final boolean requested = channel.takeKeyframeRequest();
     assertTrue(requested);
 
@@ -480,6 +535,7 @@ final class Mcv2ResultTest {
     assertNull(repeatedBeforeTheShow);
 
     this.server.runTasks();
+    this.openViewerLinks(WITHOUT);
     result.repeatWhileIdle();
 
     final Player without = requireNonNull(Bukkit.getPlayer(WITHOUT));
@@ -504,6 +560,7 @@ final class Mcv2ResultTest {
     assertNull(repeatedBeforeTheShow);
 
     this.server.runTasks();
+    this.openViewerLinks(WITHOUT);
     result.repeatWhileIdle();
 
     final Mcv2Result.@Nullable Arrival repeatedForTheViewer = result.poll();
@@ -729,7 +786,7 @@ final class Mcv2ResultTest {
     final Mcv2Result result = this.result(this.configuration, this.algorithm);
     result.start();
     final int tasksWhileStarted = this.server.getScheduledTaskCount();
-    assertEquals(2, tasksWhileStarted);
+    assertEquals(3, tasksWhileStarted);
 
     result.release();
 
@@ -753,6 +810,7 @@ final class Mcv2ResultTest {
       result.start();
       result.applyFilter(Images.solid(64, 32, FRAME_COLOR), this.metadata);
       this.server.runTasks();
+      this.openViewerLinks(WITH_PACK);
       result.applyFilter(Images.solid(64, 32, FRAME_COLOR), this.metadata);
       this.awaitFrames(result, 1);
       result.release();
@@ -1043,6 +1101,505 @@ final class Mcv2ResultTest {
     final boolean keyframe = kind == Mcv2FrameKind.KEYFRAME;
     when(encoder.getStatistics()).thenReturn(Optional.of(Mcv2.Statistics.of(1, keyframe, 1, 1, LAMBDA)));
     result.send(encoder, new Mcv2Result.Arrival(new byte[32 * 32 * 3], 32, 32, 0, Mcv2Pacer.Preset.ONLY), 0);
+  }
+
+  @Test
+  void shouldSpaceFramesThatFinishAtTheSameTime() throws InterruptedException {
+    final Mcv2Configuration configuration = this.sendRateConfiguration().maximumFrameRate(SEND_FRAMES_PER_SECOND).build();
+    final AtomicLong clock = new AtomicLong();
+    final List<Long> waits = new CopyOnWriteArrayList<>();
+    final List<Long> sentAt = new CopyOnWriteArrayList<>();
+    final List<byte[]> sent = new CopyOnWriteArrayList<>();
+    final Mcv2Channel channel = this.recordingSendChannel(clock, sentAt, sent, 0);
+    final Mcv2 encoder = mock(Mcv2.class);
+    final Mcv2Result result = new Mcv2Result(
+      configuration,
+      channel,
+      null,
+      clock::get,
+      Runnable::run,
+      _ -> encoder,
+      nanoseconds -> this.advanceSendClock(clock, waits, nanoseconds)
+    );
+    try {
+      this.sendPacedFrame(result, encoder, clock, 0, 0, 0);
+
+      final List<Long> firstSendTimes = List.copyOf(sentAt);
+      final List<Long> firstWaits = List.copyOf(waits);
+      assertEquals(List.of(0L), firstSendTimes, "The first encoded frame must be sent immediately!");
+      assertEquals(List.of(), firstWaits, "The first encoded frame must not wait!");
+
+      this.sendPacedFrame(result, encoder, clock, 1, 0, 0);
+
+      this.assertPacedFrames(sent, 2);
+      final List<Long> sendTimes = List.copyOf(sentAt);
+      final List<Long> requestedWaits = List.copyOf(waits);
+      assertEquals(List.of(0L, SEND_PERIOD_NANOSECONDS), sendTimes, "Frames finished together must be sent one period apart!");
+      assertEquals(List.of(SEND_PERIOD_NANOSECONDS), requestedWaits, "Nothing spaces the sends unless the second frame waits!");
+    } finally {
+      result.release();
+    }
+  }
+
+  private Mcv2ConfigurationBuilder sendRateConfiguration() throws InterruptedException {
+    return Mcv2Configuration.builder()
+      .viewers(List.of(WITH_PACK))
+      .origin(new Location(WORLD, 0, 64, 0))
+      .facing(BlockFace.SOUTH)
+      .map(WALL_MAP)
+      .columns(1)
+      .rows(1)
+      .video(32, 32)
+      .pageMap(PAGE_MAP)
+      .settings(Settings.FAST)
+      .encoderPool(this.interruptibleBudget());
+  }
+
+  private Mcv2Channel recordingSendChannel(final AtomicLong clock, final List<Long> sentAt, final List<byte[]> sent, final long sendCost) {
+    final Mcv2Channel channel = mock(Mcv2Channel.class);
+    when(channel.getRecipients()).thenReturn(Set.of(WITH_PACK));
+    when(channel.update()).thenReturn(Set.of());
+    doAnswer(invocation -> this.recordSend(clock, sentAt, sent, sendCost, invocation))
+      .when(channel)
+      .send(any());
+
+    return channel;
+  }
+
+  private OptionalInt recordSend(
+    final AtomicLong clock,
+    final List<Long> sentAt,
+    final List<byte[]> sent,
+    final long sendCost,
+    final InvocationOnMock invocation
+  ) {
+    sentAt.add(clock.get());
+    sent.add(invocation.getArgument(0));
+    clock.addAndGet(sendCost);
+
+    return OptionalInt.of(0);
+  }
+
+  private void advanceSendClock(final AtomicLong clock, final List<Long> waits, final long nanoseconds) {
+    final boolean positive = nanoseconds > 0;
+    assertTrue(positive, "Spacing sends must only request a positive wait!");
+
+    waits.add(nanoseconds);
+    clock.addAndGet(nanoseconds);
+  }
+
+  private void sendPacedFrame(
+    final Mcv2Result result,
+    final Mcv2 encoder,
+    final AtomicLong clock,
+    final long id,
+    final long arrived,
+    final long encodingCost
+  ) {
+    final Mcv2FrameKind kind = id == 0 ? Mcv2FrameKind.KEYFRAME : Mcv2FrameKind.PREDICTED;
+    final byte[] frame = Mcv2ChannelTest.frame(id, id == 0 ? 0 : id - 1, kind);
+    final Mcv2.Statistics statistics = Mcv2.Statistics.of(frame.length, id == 0, 1, 1, LAMBDA);
+    final Mcv2.Pending pending = mock(Mcv2.Pending.class);
+    final Mcv2.Encoded encoded = mock(Mcv2.Encoded.class);
+    when(encoder.getSettings()).thenReturn(Settings.FAST);
+    doAnswer(_ -> this.advanceEncodingClock(clock, encodingCost, frame))
+      .when(encoder)
+      .encode(any(), anyInt(), anyInt(), anyLong());
+    when(encoder.getStatistics()).thenReturn(Optional.of(statistics));
+    when(pending.isKeyframe()).thenReturn(id == 0);
+    doAnswer(_ -> this.advanceEncodingClock(clock, encodingCost, pending))
+      .when(encoder)
+      .begin(any(), anyInt(), anyInt(), anyLong());
+    when(encoded.getData()).thenReturn(frame);
+    when(encoded.getStatistics()).thenReturn(statistics);
+    when(encoder.finish(pending)).thenReturn(encoded);
+    final Mcv2Result.Arrival arrival = new Mcv2Result.Arrival(new byte[32 * 32 * 3], 32, 32, arrived, Mcv2Pacer.Preset.ONLY);
+
+    assertTimeoutPreemptively(
+      Duration.ofSeconds(PIPELINE_TIMEOUT_SECONDS),
+      () -> result.send(encoder, arrival, id),
+      "The sender must accept each encoded frame within the timeout!"
+    );
+  }
+
+  private <ValueType> ValueType advanceEncodingClock(final AtomicLong clock, final long nanoseconds, final ValueType encoded) {
+    clock.addAndGet(nanoseconds);
+
+    return encoded;
+  }
+
+  private void assertPacedFrames(final List<byte[]> sent, final int count) {
+    final int sentCount = sent.size();
+    assertEquals(count, sentCount, "Spacing sends must retain every encoded frame in order!");
+
+    for (int id = 0; id < count; id++) {
+      final Mcv2FrameKind kind = id == 0 ? Mcv2FrameKind.KEYFRAME : Mcv2FrameKind.PREDICTED;
+      final byte[] expected = Mcv2ChannelTest.frame(id, id == 0 ? 0 : id - 1, kind);
+      final byte[] actual = sent.get(id);
+      assertArrayEquals(expected, actual, "Spacing sends must preserve the encoded reference chain in order!");
+    }
+  }
+
+  @ParameterizedTest
+  @EnumSource(SendPath.class)
+  void shouldKeepAQuickPredictedFrameApartFromASlowKeyframe(final SendPath path) throws InterruptedException {
+    final Mcv2Configuration configuration = this.sendRateConfiguration().maximumFrameRate(SEND_FRAMES_PER_SECOND).build();
+    final AtomicLong clock = new AtomicLong();
+    final List<Long> waits = new CopyOnWriteArrayList<>();
+    final List<Long> sentAt = new CopyOnWriteArrayList<>();
+    final List<byte[]> sent = new CopyOnWriteArrayList<>();
+    final List<byte[]> heard = new CopyOnWriteArrayList<>();
+    final Mcv2Channel channel = this.recordingSendChannel(clock, sentAt, sent, 0);
+    final Mcv2 encoder = mock(Mcv2.class);
+    final Mcv2Result result = new Mcv2Result(
+      configuration,
+      channel,
+      null,
+      clock::get,
+      Runnable::run,
+      _ -> encoder,
+      nanoseconds -> this.advanceSendClock(clock, waits, nanoseconds)
+    );
+    result.setFrameListener(heard::add);
+    try {
+      if (path == SendPath.STARTED) {
+        result.start();
+      }
+
+      this.sendPacedFrame(result, encoder, clock, 0, 0, SLOW_KEYFRAME_NANOSECONDS);
+      this.awaitPacedFrames(heard, 1);
+      this.sendPacedFrame(result, encoder, clock, 1, PREDICTED_ARRIVAL_NANOSECONDS, 0);
+      this.awaitPacedFrames(heard, 2);
+
+      this.assertPacedFrames(sent, 2);
+      this.assertPacedFrames(heard, 2);
+      final List<Long> sendTimes = List.copyOf(sentAt);
+      final List<Long> requestedWaits = List.copyOf(waits);
+      assertEquals(
+        List.of(SLOW_KEYFRAME_NANOSECONDS, SLOW_KEYFRAME_NANOSECONDS + SEND_PERIOD_NANOSECONDS),
+        sendTimes,
+        "A quick predicted frame after a slow keyframe must still be sent one period later!"
+      );
+      assertEquals(List.of(SEND_PERIOD_NANOSECONDS), requestedWaits, "Nothing spaces the quick predicted send without a wait!");
+    } finally {
+      result.release();
+    }
+  }
+
+  private void awaitPacedFrames(final List<byte[]> frames, final int count) throws InterruptedException {
+    final long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(PIPELINE_TIMEOUT_SECONDS);
+    while (frames.size() < count && System.nanoTime() < deadline) {
+      Thread.sleep(SEND_POLL_MILLISECONDS);
+    }
+
+    final int delivered = frames.size();
+    assertEquals(count, delivered, "Spacing sends must eventually deliver every encoded frame!");
+  }
+
+  @ParameterizedTest
+  @CsvSource({ "BINARY, -1", "BINARY, 0", "BINARY, 1", "DEFAULT, -1", "DEFAULT, 0", "DEFAULT, 1" })
+  void shouldWaitOnlyUntilOneFramePeriodHasPassed(final SendRate rate, final long offset) throws InterruptedException {
+    final Mcv2ConfigurationBuilder builder = this.sendRateConfiguration();
+    if (rate == SendRate.BINARY) {
+      builder.maximumFrameRate(SEND_FRAMES_PER_SECOND);
+    }
+
+    final Mcv2Configuration configuration = builder.build();
+    final long period = rate == SendRate.BINARY ? SEND_PERIOD_NANOSECONDS : DEFAULT_SEND_PERIOD_NANOSECONDS;
+    final AtomicLong clock = new AtomicLong();
+    final List<Long> waits = new CopyOnWriteArrayList<>();
+    final List<Long> sentAt = new CopyOnWriteArrayList<>();
+    final List<byte[]> sent = new CopyOnWriteArrayList<>();
+    final Mcv2Channel channel = this.recordingSendChannel(clock, sentAt, sent, 0);
+    final Mcv2 encoder = mock(Mcv2.class);
+    final Mcv2Result result = new Mcv2Result(
+      configuration,
+      channel,
+      null,
+      clock::get,
+      Runnable::run,
+      _ -> encoder,
+      nanoseconds -> this.advanceSendClock(clock, waits, nanoseconds)
+    );
+    try {
+      this.sendPacedFrame(result, encoder, clock, 0, 0, 0);
+      clock.addAndGet(period + offset);
+      this.sendPacedFrame(result, encoder, clock, 1, 0, 0);
+
+      this.assertPacedFrames(sent, 2);
+      final List<Long> sendTimes = List.copyOf(sentAt);
+      final List<Long> requestedWaits = List.copyOf(waits);
+      final List<Long> expectedWaits = offset < 0 ? List.of(1L) : List.of();
+      assertEquals(
+        List.of(0L, period + Math.max(0, offset)),
+        sendTimes,
+        "Sends closer than the rounded frame period must wait for exactly the remaining time!"
+      );
+      assertEquals(expectedWaits, requestedWaits, "Spacing sends must wait only while less than one rounded period has passed!");
+    } finally {
+      result.release();
+    }
+  }
+
+  @Test
+  void shouldCountTheFramePeriodFromTheEndOfTheLastSend() throws InterruptedException {
+    final Mcv2Configuration configuration = this.sendRateConfiguration().maximumFrameRate(SEND_FRAMES_PER_SECOND).build();
+    final AtomicLong clock = new AtomicLong();
+    final List<Long> waits = new CopyOnWriteArrayList<>();
+    final List<Long> sentAt = new CopyOnWriteArrayList<>();
+    final List<byte[]> sent = new CopyOnWriteArrayList<>();
+    final List<byte[]> heard = new CopyOnWriteArrayList<>();
+    final Mcv2Channel channel = this.recordingSendChannel(clock, sentAt, sent, SEND_COST_NANOSECONDS);
+    final Mcv2 encoder = mock(Mcv2.class);
+    final Mcv2Result result = new Mcv2Result(
+      configuration,
+      channel,
+      null,
+      clock::get,
+      Runnable::run,
+      _ -> encoder,
+      nanoseconds -> this.advanceSendClock(clock, waits, nanoseconds)
+    );
+    result.setFrameListener(frame -> this.recordCostlyListener(clock, heard, frame));
+    try {
+      this.sendPacedFrame(result, encoder, clock, 0, 0, 0);
+      this.sendPacedFrame(result, encoder, clock, 1, 0, 0);
+      this.sendPacedFrame(result, encoder, clock, 2, 0, 0);
+
+      this.assertPacedFrames(sent, 3);
+      this.assertPacedFrames(heard, 3);
+      final List<Long> sendTimes = List.copyOf(sentAt);
+      final List<Long> requestedWaits = List.copyOf(waits);
+      assertEquals(
+        List.of(
+          0L,
+          SEND_COST_NANOSECONDS + SEND_PERIOD_NANOSECONDS,
+          SEND_COST_NANOSECONDS * 2 + SEND_PERIOD_NANOSECONDS + LISTENER_COST_NANOSECONDS
+        ),
+        sendTimes,
+        "Sends must be spaced from the previous send return and include time already spent in the listener!"
+      );
+      assertEquals(List.of(SEND_PERIOD_NANOSECONDS), requestedWaits, "Nothing spaces send returns unless a full period is enforced!");
+    } finally {
+      result.release();
+    }
+  }
+
+  private void recordCostlyListener(final AtomicLong clock, final List<byte[]> heard, final byte[] frame) {
+    heard.add(frame);
+    final int delivered = heard.size();
+    if (delivered == 2) {
+      clock.addAndGet(LISTENER_COST_NANOSECONDS);
+    }
+  }
+
+  @Test
+  void shouldNotCatchUpAfterAnIdlePause() throws InterruptedException {
+    final Mcv2Configuration configuration = this.sendRateConfiguration().maximumFrameRate(SEND_FRAMES_PER_SECOND).build();
+    final AtomicLong clock = new AtomicLong();
+    final List<Long> waits = new CopyOnWriteArrayList<>();
+    final List<Long> sentAt = new CopyOnWriteArrayList<>();
+    final List<byte[]> sent = new CopyOnWriteArrayList<>();
+    final Mcv2Channel channel = this.recordingSendChannel(clock, sentAt, sent, 0);
+    final Mcv2 encoder = mock(Mcv2.class);
+    final Mcv2Result result = new Mcv2Result(
+      configuration,
+      channel,
+      null,
+      clock::get,
+      Runnable::run,
+      _ -> encoder,
+      nanoseconds -> this.advanceSendClock(clock, waits, nanoseconds)
+    );
+    try {
+      this.sendPacedFrame(result, encoder, clock, 0, 0, 0);
+      this.sendPacedFrame(result, encoder, clock, 1, 0, 0);
+      this.sendPacedFrame(result, encoder, clock, 2, 0, 0);
+      final long afterIdle = clock.addAndGet(SEND_IDLE_NANOSECONDS);
+      this.sendPacedFrame(result, encoder, clock, 3, 0, 0);
+      this.sendPacedFrame(result, encoder, clock, 4, 0, 0);
+
+      this.assertPacedFrames(sent, 5);
+      final List<Long> sendTimes = List.copyOf(sentAt);
+      final List<Long> requestedWaits = List.copyOf(waits);
+      assertEquals(
+        List.of(0L, SEND_PERIOD_NANOSECONDS, SEND_PERIOD_NANOSECONDS * 2, afterIdle, afterIdle + SEND_PERIOD_NANOSECONDS),
+        sendTimes,
+        "Every send must remain one period apart and idle time must not permit a catch-up burst!"
+      );
+      assertEquals(
+        List.of(SEND_PERIOD_NANOSECONDS, SEND_PERIOD_NANOSECONDS, SEND_PERIOD_NANOSECONDS),
+        requestedWaits,
+        "Nothing spaces consecutive sends unless each new send resets the period after an idle pause!"
+      );
+    } finally {
+      result.release();
+    }
+  }
+
+  @ParameterizedTest
+  @EnumSource(SendStop.class)
+  void shouldStopWaitingToSendWhenTheScreenStops(final SendStop stop) throws InterruptedException {
+    final Map<Thread, StackTraceElement[]> stackTraces = Thread.getAllStackTraces();
+    final Set<Thread> knownThreads = stackTraces.keySet();
+    final Set<Thread> before = Set.copyOf(knownThreads);
+    final Mcv2Configuration configuration = this.sendRateConfiguration().maximumFrameRate(SEND_FRAMES_PER_SECOND).build();
+    final AtomicLong clock = new AtomicLong();
+    final List<Long> waits = new CopyOnWriteArrayList<>();
+    final List<Long> sentAt = new CopyOnWriteArrayList<>();
+    final List<byte[]> sent = new CopyOnWriteArrayList<>();
+    final List<byte[]> heard = new CopyOnWriteArrayList<>();
+    final CountDownLatch enteredWait = new CountDownLatch(1);
+    final CountDownLatch waitMayEnd = new CountDownLatch(1);
+    final Mcv2Channel channel = this.recordingSendChannel(clock, sentAt, sent, 0);
+    final Mcv2 encoder = mock(Mcv2.class);
+    final Mcv2Result result = new Mcv2Result(
+      configuration,
+      channel,
+      null,
+      clock::get,
+      Runnable::run,
+      _ -> encoder,
+      nanoseconds -> this.holdSendWait(waits, enteredWait, waitMayEnd, nanoseconds)
+    );
+    result.setFrameListener(heard::add);
+    final Thread drainer = Thread.ofPlatform()
+      .daemon()
+      .unstarted(() -> this.drainQuietly(result));
+    try {
+      result.start();
+      final Thread sender = this.onlyPipelineThread(SENDER_THREAD_NAME, before);
+      final Thread worker = this.onlyPipelineThread(SCREEN_THREAD_NAME, before);
+      this.sendPacedFrame(result, encoder, clock, 0, 0, 0);
+      this.awaitPacedFrames(heard, 1);
+      this.sendPacedFrame(result, encoder, clock, 1, 0, 0);
+      final boolean waiting = enteredWait.await(PIPELINE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+      assertTrue(waiting, "Nothing spaces the sends unless the second frame enters its interruptible wait!");
+
+      this.assertPacedFrames(sent, 1);
+      this.assertPacedFrames(heard, 1);
+      drainer.start();
+      this.awaitWaiting(drainer);
+      this.stopPacedScreen(stop, result, encoder, worker);
+      this.joinPacingThread(sender);
+      this.joinPacingThread(worker);
+      this.joinPacingThread(drainer);
+
+      final boolean senderInterrupted = sender.isInterrupted();
+      assertTrue(senderInterrupted, "The sender must retain the interrupt that ends its spacing wait!");
+      this.assertPacedFrames(sent, 1);
+      this.assertPacedFrames(heard, 1);
+      final List<Long> sendTimes = List.copyOf(sentAt);
+      final List<Long> requestedWaits = List.copyOf(waits);
+      assertEquals(List.of(0L), sendTimes, "Stopping during the spacing wait must prevent every later send!");
+      assertEquals(List.of(SEND_PERIOD_NANOSECONDS), requestedWaits, "The second send must be held for one full period!");
+      final boolean pipelineAlive = this.hasPipelineThreads(before);
+      assertFalse(pipelineAlive, "Stopping the spacing wait must leave no pipeline worker alive!");
+    } finally {
+      this.releasePacedScreen(result, waitMayEnd, drainer, before);
+    }
+  }
+
+  private void releasePacedScreen(final Mcv2Result result, final CountDownLatch waitMayEnd, final Thread drainer, final Set<Thread> before)
+    throws InterruptedException {
+    try {
+      result.release();
+    } finally {
+      waitMayEnd.countDown();
+      drainer.interrupt();
+      this.stopPacingThreads(before);
+      this.joinPacingThread(drainer);
+    }
+  }
+
+  private void holdSendWait(
+    final List<Long> waits,
+    final CountDownLatch enteredWait,
+    final CountDownLatch waitMayEnd,
+    final long nanoseconds
+  ) throws InterruptedException {
+    final boolean positive = nanoseconds > 0;
+    assertTrue(positive, "Spacing sends must only request a positive wait!");
+
+    waits.add(nanoseconds);
+    enteredWait.countDown();
+    final boolean released = waitMayEnd.await(PIPELINE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+    assertTrue(released, "The spacing wait must be interrupted before its timeout!");
+  }
+
+  private Thread onlyPipelineThread(final String name, final Set<Thread> before) {
+    final Set<Thread> found = threads(name, before);
+    final int count = found.size();
+    assertEquals(1, count, "The started screen must own exactly one thread of each pipeline role!");
+
+    return found.iterator().next();
+  }
+
+  private void stopPacedScreen(final SendStop stop, final Mcv2Result result, final Mcv2 encoder, final Thread worker) {
+    switch (stop) {
+      case RELEASE -> result.release();
+      case STOP -> worker.interrupt();
+      case FAILED_SEARCH -> this.failPacedSearch(result, encoder);
+    }
+  }
+
+  private void failPacedSearch(final Mcv2Result result, final Mcv2 encoder) {
+    when(encoder.begin(any(), anyInt(), anyInt(), anyLong())).thenThrow(new IllegalStateException("The search failed!"));
+    try (final ImageBuffer frame = Images.solid(32, 32, FRAME_COLOR)) {
+      final boolean applied = result.applyFilter(frame, this.metadata);
+      assertTrue(applied, "The failed search must reach the worker while the sender waits to space its frame!");
+    }
+  }
+
+  private void joinPacingThread(final Thread thread) throws InterruptedException {
+    thread.join(TimeUnit.SECONDS.toMillis(PIPELINE_TIMEOUT_SECONDS));
+
+    final boolean alive = thread.isAlive();
+    assertFalse(alive, "Stopping the spacing wait must end the sender, worker and drainer within the timeout!");
+  }
+
+  private void stopPacingThreads(final Set<Thread> before) throws InterruptedException {
+    final Set<Thread> remaining = new HashSet<>(threads(SCREEN_THREAD_NAME, before));
+    remaining.addAll(threads(SENDER_THREAD_NAME, before));
+    for (final Thread thread : remaining) {
+      thread.interrupt();
+      this.joinPacingThread(thread);
+    }
+  }
+
+  @Test
+  void shouldSendWithoutWaitingWhenTheMaximumRateIsZero() throws InterruptedException {
+    final Mcv2Configuration configuration = this.sendRateConfiguration().maximumFrameRate(0).build();
+    final AtomicLong clock = new AtomicLong();
+    final List<Long> waits = new CopyOnWriteArrayList<>();
+    final List<Long> sentAt = new CopyOnWriteArrayList<>();
+    final List<byte[]> sent = new CopyOnWriteArrayList<>();
+    final Mcv2Channel channel = this.recordingSendChannel(clock, sentAt, sent, 0);
+    final Mcv2 encoder = mock(Mcv2.class);
+    final Mcv2Result result = new Mcv2Result(
+      configuration,
+      channel,
+      null,
+      clock::get,
+      Runnable::run,
+      _ -> encoder,
+      nanoseconds -> this.advanceSendClock(clock, waits, nanoseconds)
+    );
+    try {
+      this.sendPacedFrame(result, encoder, clock, 0, 0, 0);
+      this.sendPacedFrame(result, encoder, clock, 1, 0, 0);
+      this.sendPacedFrame(result, encoder, clock, 2, 0, 0);
+
+      this.assertPacedFrames(sent, 3);
+      final List<Long> sendTimes = List.copyOf(sentAt);
+      final List<Long> requestedWaits = List.copyOf(waits);
+      final long finished = clock.get();
+      assertEquals(List.of(0L, 0L, 0L), sendTimes, "A zero maximum rate must send every encoded frame at the unchanged clock!");
+      assertEquals(List.of(), requestedWaits, "A zero maximum rate must never call the sleeper!");
+      assertEquals(0, finished, "Unlimited sends must not advance the clock!");
+    } finally {
+      result.release();
+    }
   }
 
   @Test
@@ -2228,8 +2785,10 @@ final class Mcv2ResultTest {
       .maximumFrameRate(0)
       .build();
     final Mcv2Result result = this.result(tight, null);
+    result.getChannel().open();
     result.getChannel().update();
     this.server.runTasks();
+    this.openViewerLinks(WITH_PACK, second);
     result.getChannel().update();
     final List<byte[]> frames = List.of(
       Mcv2ChannelTest.frame(0, 0, Mcv2FrameKind.KEYFRAME),
@@ -3149,6 +3708,22 @@ final class Mcv2ResultTest {
       final boolean waiterAlive = waiter.isAlive();
       assertFalse(waiterAlive, "the fixture must stop its waiter even after an assertion fails");
     }
+  }
+
+  private enum SendPath {
+    STARTED,
+    DIRECT,
+  }
+
+  private enum SendRate {
+    BINARY,
+    DEFAULT,
+  }
+
+  private enum SendStop {
+    RELEASE,
+    STOP,
+    FAILED_SEARCH,
   }
 
   private enum FinishOutcome {

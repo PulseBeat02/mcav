@@ -75,15 +75,18 @@ import org.slf4j.LoggerFactory;
  * screen of the server shares unless it was given its own, in two steps on the screen's thread: it searches and writes
  * a frame ({@link Mcv2#begin}), verifies it ({@link Mcv2#finish}) and hands it to the screen's sender thread, which
  * sends it while the next frame is encoded. One frame is in flight at most, a frame is sent only once verified, and the
- * next frame is searched only after that, so a viewer's frames leave at least one search and verification apart. A
- * frame that fails its verification stops the screen. A keyframe the channel asks for while a frame is encoded comes
- * with the frame after it; another preset begins only after the frame in flight is sent. The screen also asks for a
- * keyframe once its last keyframe is four seconds old, so a client that missed a frame waits at most four seconds and
- * one frame for a picture it can decode. The screen's threads only wait for the budget. When the encoder is slower than
- * the video, frames that arrive while it works replace each other and only the newest is encoded, which the encoder's
- * previous-frame reference allows. The encoder bounds every frame to what the screen's page slots carry
- * ({@link Mcv2#setFrameLimit}): a frame that would take more pages is searched again at a higher lambda. One that still
- * has more pages than the screen has slots is not sent, and the next is a keyframe.
+ * next frame is searched only after that. Encoded frames leave in order, at least one period of
+ * {@link Mcv2Configuration#getMaximumFrameRate()} apart, so a client drawing at that rate takes in each before the
+ * next. A rate of 0 turns off both the limit on source frames and this spacing. A frame that fails its verification
+ * stops the screen. A keyframe the channel asks for while a frame is encoded comes with the frame after it; another
+ * preset begins only after the frame in flight is sent. The screen also asks for a keyframe once its last keyframe is
+ * four seconds old, so a client that missed a frame waits at most four seconds and one frame for a picture it can
+ * decode. The screen's threads wait for the budget and the sender waits interruptibly for the send period while
+ * encoding can continue. When the encoder is slower than the video, frames that arrive while it works replace each
+ * other and only the newest is encoded, which the encoder's previous-frame reference allows. The encoder bounds every
+ * frame to what the screen's page slots carry ({@link Mcv2#setFrameLimit}): a frame that would take more pages is
+ * searched again at a higher lambda. One that still has more pages than the screen has slots is not sent, and the next
+ * is a keyframe.
  *
  * <p>A {@link Mcv2Pacer} keeps the screen within what its budget sustains: when the frames take longer than the video
  * gives them, it first searches less hard, down the preset ladder from the screen's settings
@@ -182,7 +185,9 @@ public final class Mcv2Result implements FunctionalVideoFilter {
   private final Object lock;
   private final Statistics statistics;
   private final LongSupplier clock;
+  private final Sleeper sleeper;
   private final double framesPerNanosecond;
+  private final long sendPeriodNanoseconds;
 
   private final List<Settings> ladder;
   private final List<Mcv2Pacer.Preset> presets;
@@ -202,6 +207,8 @@ public final class Mcv2Result implements FunctionalVideoFilter {
   private @Nullable Pipeline pipeline;
   private long handed;
   private long delivered;
+  private long previousSendEnd;
+  private boolean paced;
 
   private @Nullable Mcv2Pacer pacer;
   private boolean ditheredForAll;
@@ -255,6 +262,19 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     final @Nullable Executor dithering,
     final Function<Settings, Mcv2> encoders
   ) {
+    this(configuration, channel, fallbackAlgorithm, clock, dithering, encoders, TimeUnit.NANOSECONDS::sleep);
+  }
+
+  // Serves the rate-0 guard and one-period boundary mutants, which a real clock cannot reach.
+  Mcv2Result(
+    final Mcv2Configuration configuration,
+    final Mcv2Channel channel,
+    final @Nullable DitherAlgorithm fallbackAlgorithm,
+    final LongSupplier clock,
+    final @Nullable Executor dithering,
+    final Function<Settings, Mcv2> encoders,
+    final Sleeper sleeper
+  ) {
     Preconditions.checkNotNull(configuration, "Configuration must not be null!");
     Preconditions.checkNotNull(channel, "Channel must not be null!");
 
@@ -283,17 +303,19 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     this.pending = new Mcv2LatestFrame<>();
     this.statistics = new Statistics();
     this.clock = clock;
+    this.sleeper = sleeper;
     this.lastFallbackRefresh = clock.getAsLong();
     this.lastKeyframe = clock.getAsLong();
     this.framesPerNanosecond = configuration.getMaximumFrameRate() / NANOSECONDS_PER_SECOND;
+    this.sendPeriodNanoseconds = (long) Math.ceil(NANOSECONDS_PER_SECOND / configuration.getMaximumFrameRate());
     this.ladder = ladder(configuration.getSettings());
     this.presets = this.presets(this.ladder);
     this.encoders = encoders;
   }
 
   /**
-   * Spawns the screen's page frames, starts the encoder and the check for a screen without frames. Call on the main
-   * thread.
+   * Spawns the screen's page frames, starts the encoder, the sender and the check for a screen without frames. The sender
+   * waits interruptibly between sends at the configured maximum frame rate. Call on the main thread.
    *
    * @since 1.0.0
    */
@@ -342,8 +364,9 @@ public final class Mcv2Result implements FunctionalVideoFilter {
   }
 
   /**
-   * Stops the encoder and the check for a screen without frames, removes the page frames and clears the wall's maps for
-   * every viewer, those dithered for and those decoding MCV2. Call on the main thread.
+   * Stops the encoder, the sender and the check for a screen without frames, interrupts any wait between sends, removes
+   * the page frames and clears the wall's maps for every viewer, those dithered for and those decoding MCV2. Call on
+   * the main thread.
    *
    * <p>Worker joins are bounded; a worker that does not respond to interruption may outlive this call.
    * Fallback executor shutdown does not await termination. Release does not close the shared encoder pool or pack tracker.
@@ -478,7 +501,8 @@ public final class Mcv2Result implements FunctionalVideoFilter {
   }
 
   /**
-   * Hands the frame to the encoder for the viewers with the pack, and dithers it for the others.
+   * Hands the frame to the encoder for the viewers with the pack, and dithers it for the others. Source admission is
+   * limited by the maximum frame rate; encoded frames wait separately for their send period.
    *
    * @param data     the frame, resized in place to the screen's video size
    * @param metadata the metadata of the original video, which is not used
@@ -906,7 +930,7 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     }
   }
 
-  private void deliver(final Delivery delivery) {
+  private void deliver(final Delivery delivery) throws InterruptedException {
     final byte[] frame = delivery.frame;
     final long frameId = delivery.frameId;
     final Mcv2.Statistics statistics = delivery.statistics;
@@ -914,7 +938,11 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     final boolean recorded = event.isEnabled();
     final long[] before = recorded ? this.linkCounts() : new long[LINK_COUNTS];
     final Screen current = this.screen;
+
+    this.waitForSendPeriod();
     final OptionalInt sent = current.channel().send(frame);
+    this.recordSendEnd();
+
     if (sent.isPresent()) {
       this.frameListener.accept(frame);
     }
@@ -936,6 +964,34 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     }
 
     this.statistics.add(statistics, colors);
+  }
+
+  private void waitForSendPeriod() throws InterruptedException {
+    final long remaining;
+    synchronized (this.lock) {
+      if (!this.paced) {
+        return;
+      }
+
+      final long now = this.clock.getAsLong();
+      final long elapsed = now - this.previousSendEnd;
+      remaining = this.sendPeriodNanoseconds - elapsed;
+    }
+
+    if (remaining > 0) {
+      this.sleeper.sleep(remaining);
+    }
+  }
+
+  private void recordSendEnd() {
+    if (this.framesPerNanosecond == 0) {
+      return;
+    }
+
+    synchronized (this.lock) {
+      this.previousSendEnd = this.clock.getAsLong();
+      this.paced = true;
+    }
   }
 
   private long[] linkCounts() {
@@ -1112,8 +1168,8 @@ public final class Mcv2Result implements FunctionalVideoFilter {
 
   /**
    * Sets who hears every frame the screen sends, as the bytes of its bitstream, for example to record the stream the
-   * viewers were sent and decode it again with the reference decoder. A frame too large for the screen's page slots is
-   * not sent, and not heard.
+   * viewers were sent and decode it again with the reference decoder. The callback follows the paced channel send;
+   * it does not acknowledge client decoding. A frame too large for the screen's page slots is not sent, and not heard.
    *
    * <p>The callback receives the actual encoded array without a defensive copy. Treat it as read-only and
    * copy it before handing it to code that may mutate it. A callback that throws stops the screen: the failure is
@@ -1279,5 +1335,10 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     public synchronized long getNanoseconds() {
       return this.nanoseconds;
     }
+  }
+
+  @FunctionalInterface
+  interface Sleeper {
+    void sleep(final long nanoseconds) throws InterruptedException;
   }
 }

@@ -509,9 +509,10 @@ public final class Mcv2Configuration {
   }
 
   /**
-   * Returns the most frames a second the screen shows; a faster source is thinned to it.
+   * Returns the most frames a second the screen shows; a faster source is thinned to it. Encoded frames leave in
+   * order, at least one period of this rate apart. A rate of 0 turns off both the limit on source frames and this spacing.
    *
-   * @return the rate, at most {@value #MAXIMUM_FRAME_RATE}, or 0 for every frame the source gives
+   * @return the rate, at most {@value #MAXIMUM_FRAME_RATE}, or 0 to disable both limits
    * @since 1.0.0
    */
   public double getMaximumFrameRate() {
