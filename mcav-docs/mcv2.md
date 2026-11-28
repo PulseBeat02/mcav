@@ -1595,6 +1595,10 @@ decoder the class `Mcv2Decoder`, both in `me.brandonli.mcav.bukkit.media.mcv2`, 
   frames, and a missed frame is repaired only by a keyframe the client draws while it is the newest frame. Keyframes
   come at most four seconds and one frame apart, but a slow client draws on few of them: one that draws a frame every
   two seconds keeps a picture for minutes on average.
+- Keyframe-only video. In my tests, screens created by `/mcav video map` drew only their keyframes: after a player
+  rejoined, the screen showed that player no picture at all; a looping video's picture stayed at the loop's first
+  frames; and a playing video's picture changed only at keyframes, about every four seconds. A screen created by
+  `/mcav vm create` drew the P frames between its keyframes. I haven't found the cause.
 - Sound. The audio web page keeps a little sound buffered, so its sound comes a moment after the wall shows the same
   picture, with MCV2 as with the dithered maps. The plugin doesn't delay the picture to match.
 
